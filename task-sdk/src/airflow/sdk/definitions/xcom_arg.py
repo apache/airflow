@@ -33,6 +33,8 @@ from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
+from airflow.models.iterable import DeferredIterable
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -448,9 +450,7 @@ class MapXComArg(XComArg):
         value = self.arg.resolve(context)
         if not isinstance(value, (Sequence, Iterable, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        if isinstance(value, Iterable) and hasattr(
-            value, "resolve"
-        ):  # TODO: should check if it's DeferredIterable
+        if isinstance(value, DeferredIterable):
             value = value.resolve(context)
         return _MapResult(value, self.callables)
 

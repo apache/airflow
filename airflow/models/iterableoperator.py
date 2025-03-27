@@ -17,21 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from abc import abstractmethod
-from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future, gather
-from collections.abc import Generator, Iterable, Iterator, Sequence
-from contextlib import contextmanager, suppress
+from asyncio import Semaphore, gather
+from collections.abc import Iterable, Iterator, Sequence
+from contextlib import suppress
 from datetime import timedelta
+from json import JSONDecodeError
 from math import ceil
+from more_itertools import ichunked
 from multiprocessing import TimeoutError
 from multiprocessing.pool import ApplyResult, ThreadPool
-from queue import Queue
-from threading import Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Coroutine
 
 from airflow.exceptions import (
     AirflowException,
@@ -46,12 +45,11 @@ from airflow.models.expandinput import (
     _needs_run_time_resolution,
     is_mappable,
 )
+from airflow.models.iterable import event_loop, XComIterable
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCom
 from airflow.sdk.definitions._internal.abstractoperator import Operator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.xcom_arg import XComArg, _MapResult
-from airflow.serialization import serde
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
@@ -64,80 +62,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     import jinja2
     from sqlalchemy.orm import Session
-
-serde._extra_allowed = serde._extra_allowed.union({"infrabel.operators.iterableoperator.XComIterable"})
-
-
-@contextmanager
-def event_loop() -> Generator[AbstractEventLoop, None, None]:
-    new_event_loop = False
-    loop = None
-    try:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            new_event_loop = True
-        yield loop
-    finally:
-        if new_event_loop and loop is not None:
-            with suppress(AttributeError):
-                loop.close()
-
-
-class XComIterable(Iterator, Sequence):
-    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
-
-    def __init__(self, task_id: str, dag_id: str, run_id: str, length: int):
-        self.task_id = task_id
-        self.dag_id = dag_id
-        self.run_id = run_id
-        self.length = length
-        self.index = 0
-
-    def __iter__(self) -> Iterator:
-        self.index = 0
-        return self
-
-    def __next__(self):
-        if self.index >= self.length:
-            raise StopIteration
-
-        value = self[self.index]
-        self.index += 1
-        return value
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, index: int):
-        """Allows direct indexing, making this work like a sequence."""
-        if not (0 <= index < self.length):
-            raise IndexError
-
-        return XCom.get_one(
-            key=XCOM_RETURN_KEY,
-            dag_id=self.dag_id,
-            task_id=f"{self.task_id}_{index}",
-            run_id=self.run_id,
-        )
-
-    def serialize(self):
-        """Ensure the object is JSON serializable."""
-        return {
-            "task_id": self.task_id,
-            "dag_id": self.dag_id,
-            "run_id": self.run_id,
-            "length": self.length,
-        }
-
-    @classmethod
-    def deserialize(cls, data: dict, version: int):
-        """Ensure the object is JSON deserializable."""
-        return XComIterable(**data)
 
 
 class TaskExecutor(LoggingMixin):
@@ -192,7 +116,9 @@ class TaskExecutor(LoggingMixin):
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
             self.task_instance.set_state(TaskInstanceState.SCHEDULED)
-            self.task_instance._run_execute_callback(context=self.context, task=self.operator)
+            self.task_instance._run_execute_callback(
+                context=self.context, task=self.operator
+            )
         return self
 
     async def __aenter__(self):
@@ -280,7 +206,9 @@ class TriggerExecutor(TaskExecutor):
 
             if task_deferred.method_name:
                 try:
-                    next_method = self.operator.next_callable(task_deferred.method_name, task_deferred.kwargs)
+                    next_method = self.operator.next_callable(
+                        task_deferred.method_name, task_deferred.kwargs
+                    )
                     outlet_events = context_get_outlet_events(self.context)
                     return ExecutionCallableRunner(
                         func=next_method,
@@ -302,9 +230,7 @@ class IterableOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
-        "_task_queue",
-        "_producer_thread",
-        # "_semaphore",
+        "_semaphore",
     )
 
     def __init__(
@@ -320,12 +246,13 @@ class IterableOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        self.timeout = (
+            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        )
         self._mapped_kwargs: Iterable[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
-        self._task_queue = Queue()
-        self._producer_thread: Thread | None = None
+        self._semaphore = Semaphore(self.max_active_tis_per_dag)
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
@@ -384,20 +311,18 @@ class IterableOperator(BaseOperator):
         self.log.debug("resolve_expand_input: %s", self.expand_input)
 
         if isinstance(self.expand_input.value, XComArg):
-            resolved_input = self.expand_input.value.resolve(context=context, session=session)
+            resolved_input = self.expand_input.value.resolve(
+                context=context, session=session
+            )
         else:
             resolved_input = self.expand_input.value
 
         self.log.debug("resolved_input: %s", resolved_input)
 
         if isinstance(resolved_input, _MapResult):
-            self._mapped_kwargs = map(
-                lambda value: self._resolve(value=value, context=context, session=session), resolved_input
-            )
+            self._mapped_kwargs = map(lambda value: self._resolve(value=value, context=context, session=session), resolved_input)
         else:
-            self._mapped_kwargs = iter(
-                self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session)
-            )
+            self._mapped_kwargs = iter(self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session))
 
         self.log.debug("mapped_kwargs: %s", self._mapped_kwargs)
 
@@ -412,37 +337,27 @@ class IterableOperator(BaseOperator):
     def _run_tasks(
         self,
         context: Context,
+        tasks: Iterator[TaskInstance],
     ) -> Iterable[Any] | None:
-        exception: Exception | None = None
+        exception: BaseException | None = None
         reschedule_date = timezone.utcnow()
+        futures: dict[ApplyResult, TaskInstance] = {}
         failed_tasks: list[TaskInstance] = []
+        chunked_tasks: Iterator[Iterable[TaskInstance]] = ichunked(tasks, (self.max_active_tis_per_dag * 2))
 
-        self.log.info("task_queue : %s", self._task_queue.qsize())
+        with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
+            for task in next(chunked_tasks, []):
+                future = pool.apply_async(self._run_operator, (context, task))
+                futures[future] = task
 
-        # Task Consumer
-        while not self._task_queue.empty() or self._producer_thread.is_alive():
-            futures = {}
-            deferred_tasks: list[Future] = []
+            while futures:
+                self.log.info("Number of remaining futures: %s", len(futures))
 
-            with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-                while not self._task_queue.empty():
-                    task = self._task_queue.get(timeout=1)
-                    self.log.debug("received task : %s", task)
-
-                    # Check if the task is an exception and stop immediately
-                    if isinstance(task, Exception):
-                        self._producer_thread.join()
-                        raise AirflowException("An exception occurred in the producer thread") from task
-
-                    futures[pool.apply_async(self._run_operator, (context, task))] = task
-
-            self.log.debug("futures: %s", futures)
-
-            with event_loop() as loop:
-                semaphore = Semaphore(self.max_active_tis_per_dag, loop=loop)
+                deferred_tasks: list[Coroutine[Any, Any, Any]] = []
 
                 for future in filter(ApplyResult.ready, list(futures.keys())):
                     task = futures.pop(future)
+
                     try:
                         result = future.get(timeout=self.timeout)
 
@@ -450,18 +365,16 @@ class IterableOperator(BaseOperator):
 
                         if isinstance(result, TaskDeferred):
                             deferred_tasks.append(
-                                ensure_future(
-                                    self._run_deferrable(
-                                        semaphore=semaphore,
-                                        context=context,
-                                        task_instance=task,
-                                        task_deferred=result,
-                                    ),
-                                    loop=loop,
-                                ),
+                                self._run_deferrable(
+                                    context=context,
+                                    task_instance=task,
+                                    task_deferred=result,
+                                )
                             )
                     except TimeoutError as e:
-                        self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                        self.log.warning(
+                            "A timeout occurred for task_id %s", task.task_id
+                        )
                         if task.next_try_number > self.retries:
                             exception = AirflowTaskTimeout(e)
                         else:
@@ -471,30 +384,38 @@ class IterableOperator(BaseOperator):
                         reschedule_date = e.reschedule_date
                         failed_tasks.append(e.task)
                     except AirflowException as e:
-                        self.log.error("An exception occurred for task_id %s", task.task_id)
+                        self.log.error(
+                            "An exception occurred for task_id %s", task.task_id
+                        )
                         exception = e
+
+                for task in next(chunked_tasks, []):
+                    future = pool.apply_async(self._run_operator, (context, task))
+                    futures[future] = task
 
                 if deferred_tasks:
                     self.log.info("Running %s deferred tasks", len(deferred_tasks))
 
-                    for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
-                        self.log.debug("result: %s", result)
+                    with event_loop() as loop:
+                        for result in loop.run_until_complete(
+                            gather(*deferred_tasks, return_exceptions=True)
+                        ):
+                            self.log.debug("result: %s", result)
 
-                        if isinstance(result, Exception):
-                            if isinstance(result, AirflowRescheduleTaskInstanceException):
-                                reschedule_date = result.reschedule_date
-                                failed_tasks.append(result.task)
-                            else:
-                                exception = result
-
-        self._producer_thread.join()
+                            if isinstance(result, Exception):
+                                if isinstance(
+                                    result, AirflowRescheduleTaskInstanceException
+                                ):
+                                    reschedule_date = result.reschedule_date
+                                    failed_tasks.append(result.task)
+                                else:
+                                    exception = result
+                # elif futures:
+                #     sleep(min(len(futures), os.cpu_count()))
 
         if not failed_tasks:
             if exception:
                 raise exception
-
-            self.log.info("Finished consuming tasks: %s", self._number_of_tasks)
-
             if self.do_xcom_push:
                 return XComIterable(
                     task_id=self.task_id,
@@ -503,9 +424,6 @@ class IterableOperator(BaseOperator):
                     length=self._number_of_tasks,
                 )
             return None
-
-        for failed_task in failed_tasks:
-            self._task_queue.put(failed_task)
 
         # Calculate delay before the next retry
         delay = reschedule_date - timezone.utcnow()
@@ -519,27 +437,44 @@ class IterableOperator(BaseOperator):
                 len(failed_tasks),
                 delay_seconds,
             )
+
             sleep(delay_seconds)
 
-        return self._run_tasks(context)
+        return self._run_tasks(context, iter(failed_tasks))
+
+    @classmethod
+    def _xcom_pull(cls, task_instance: TaskInstance):
+        with suppress(JSONDecodeError):
+            return task_instance.xcom_pull(task_ids=task_instance.task_id, dag_id=task_instance.dag_id)
+        return None
 
     def _run_operator(self, context: Context, task_instance: TaskInstance):
         try:
-            with OperatorExecutor(context=context, task_instance=task_instance) as executor:
-                result = executor.run()
-                if self.do_xcom_push:
-                    task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
-                return result
+            result = self._xcom_pull(task_instance)
+
+            self.log.debug("result: %s", result)
+
+            if not result:
+                with OperatorExecutor(
+                    context=context, task_instance=task_instance
+                ) as executor:
+                    result = executor.run()
+                    if self.do_xcom_push:
+                        task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
+            else:
+                self.log.info("Task instance %s already completed.", task_instance.task_id)
+            return result
         except TaskDeferred as task_deferred:
             return task_deferred
 
     async def _run_deferrable(
-        self, semaphore: Semaphore, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
+        self, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
     ):
-        async with semaphore:
-            async with TriggerExecutor(context=context, task_instance=task_instance) as executor:
+        async with self._semaphore:
+            async with TriggerExecutor(
+                context=context, task_instance=task_instance
+            ) as executor:
                 result = await executor.run(task_deferred)
-                self.log.info("_run_deferrable: %s", result)
                 if self.do_xcom_push:
                     task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
                 return result
@@ -552,24 +487,12 @@ class IterableOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        def task_producer():
-            tasks = map(
-                lambda mapped_kwargs: self._create_task(
-                    context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]
-                ),
-                enumerate(self._mapped_kwargs),
-            )
-
-            try:
-                self.log.info("Started producing tasks")
-                for task in tasks:
-                    self._task_queue.put(task)
-                self.log.info("Finished producing tasks")
-            except Exception as e:
-                self.log.error("Exception in task_producer: %s", e)
-                self._task_queue.put(e)
-
-        self._producer_thread = Thread(target=task_producer)
-        self._producer_thread.start()
-
-        return self._run_tasks(context=context)
+        return self._run_tasks(
+            context=context,
+            tasks=iter(
+                map(
+                    lambda mapped_kwargs: self._create_task(context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]),
+                    enumerate(self._mapped_kwargs),
+                )
+            ),
+        )
