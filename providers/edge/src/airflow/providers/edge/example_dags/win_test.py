@@ -19,7 +19,7 @@
 In this DAG some tests are made to check a worker on Windows.
 
 The DAG is created in conjunction with the documentation in
-https://github.com/apache/airflow/blob/main/docs/apache-airflow-providers-edge/install_on_windows.rst
+https://github.com/apache/airflow/blob/main/providers/edge/docs/install_on_windows.rst
 and serves as a PoC test for the Windows worker.
 """
 
@@ -40,7 +40,7 @@ from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Param
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import ArgNotSet
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     try:
         from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
     except ImportError:
-        from airflow.models import TaskInstance  # type: ignore[assignment]
+        from airflow.models import TaskInstance  # type: ignore[assignment, no-redef]
     from airflow.utils.context import Context
 
 try:

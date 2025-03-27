@@ -27,14 +27,14 @@ from flask_appbuilder import SQLA
 from airflow import settings
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
+
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,
     delete_user,
 )
 from unit.fab.utils import check_content_in_response, client_with_login
-
-from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

@@ -30,9 +30,9 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 from tests_common.test_utils.config import conf_vars
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -629,3 +629,7 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
         assert len(result) == 5
         assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
+
+    def test_get_db_manager(self, auth_manager):
+        result = auth_manager.get_db_manager()
+        assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"

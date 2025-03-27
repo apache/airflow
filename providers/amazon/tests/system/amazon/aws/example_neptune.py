@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_neptune"

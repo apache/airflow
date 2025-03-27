@@ -729,6 +729,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore
@@ -1932,6 +1933,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

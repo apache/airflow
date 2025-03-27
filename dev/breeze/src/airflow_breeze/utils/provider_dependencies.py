@@ -22,9 +22,9 @@ import json
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import get_tag_date
 from airflow_breeze.utils.packages import get_provider_info_dict
-from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_PATH
 
-DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
 
 def get_related_providers(

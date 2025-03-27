@@ -28,6 +28,25 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Adjust DBT OpenLineage to Airflow 3 and improve logging (#47500)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 4.2.1
 .....
 
@@ -325,7 +344,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``

@@ -145,12 +145,11 @@ class Client(httpx.Client):
 
     def __init__(self, *, base_url: str, token: str, **kwargs: Any):
         auth = BearerAuth(token)
-        print(f"token: {token}")
         kwargs["base_url"] = f"{base_url}/public"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
-            headers={"user-agent": f"apache-airflow-cli/{version} (Python/{pyver})"},
+            headers={"user-agent": f"apache-airflow-ctl/{version} (Python/{pyver})"},
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )

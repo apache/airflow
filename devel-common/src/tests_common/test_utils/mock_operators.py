@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import attr
+
 from airflow.models.baseoperator import BaseOperator
 
 from tests_common.test_utils.compat import BaseOperatorLink

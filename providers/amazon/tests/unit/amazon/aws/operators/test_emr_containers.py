@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 SUBMIT_JOB_SUCCESS_RETURN = {

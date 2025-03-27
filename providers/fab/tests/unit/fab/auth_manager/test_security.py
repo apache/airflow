@@ -47,6 +47,11 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
+
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.mock_security_manager import MockSecurityManager
+from tests_common.test_utils.permissions import _resource_name
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
@@ -54,11 +59,6 @@ from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
     set_user_single_role,
 )
-
-from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.mock_security_manager import MockSecurityManager
-from tests_common.test_utils.permissions import _resource_name
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (

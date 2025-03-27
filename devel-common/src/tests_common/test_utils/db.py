@@ -85,9 +85,10 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
+    from flask import Flask
+
     from airflow.configuration import conf
     from airflow.utils import db
-    from flask import Flask
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

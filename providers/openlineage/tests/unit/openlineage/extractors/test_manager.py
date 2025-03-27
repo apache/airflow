@@ -473,6 +473,7 @@ def make_ti_context() -> MakeTIContextCallable:
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
+            should_retry=False,
         )
 
     return _make_context
@@ -511,7 +512,7 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
     )
     ti = mocked_parse(what, "test_hookcollector_dag", task)
 
-    task_runner.run(ti, logging.getLogger(__name__))
+    task_runner.run(ti, ti.get_template_context(), logging.getLogger(__name__))
 
     datasets = hook_lineage_collector.collected_assets
 
