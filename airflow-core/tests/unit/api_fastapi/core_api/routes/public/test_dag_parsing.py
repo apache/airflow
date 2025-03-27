@@ -50,7 +50,7 @@ class TestDagParsingEndpoint:
         test_dag = dagbag.get_dag(TEST_DAG_ID)
 
         # grab the token
-        token = test_client.get(f"/api/v2/dags/{TEST_DAG_ID}").json()["file_token"]
+        token = test_client.get(f"/dags/{TEST_DAG_ID}").json()["file_token"]
 
         # First parsing request
         url = f"/parseDagFile/{token}"
