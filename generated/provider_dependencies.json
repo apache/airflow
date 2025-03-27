@@ -647,6 +647,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "git": {
+    "deps": [
+      "GitPython>=3.1.44",
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "github": {
     "deps": [
       "PyGithub>=2.1.1",

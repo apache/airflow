@@ -2478,7 +2478,7 @@ dag_processor:
         [
             {
                 "name": "my-git-repo",
-                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
                 "kwargs": {
                     "subdir": "dags",
                     "tracking_ref": "main",

@@ -804,35 +804,6 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
-    @pytest.mark.parametrize(
-        ("state", "expected_status_code"),
-        [
-            (State.RUNNING, 204),
-            (State.SUCCESS, 409),
-            (State.QUEUED, 409),
-            (State.FAILED, 409),
-        ],
-    )
-    def test_ti_runtime_checks_success(
-        self, client, session, create_task_instance, state, expected_status_code
-    ):
-        ti = create_task_instance(
-            task_id="test_ti_runtime_checks",
-            state=state,
-        )
-        session.commit()
-
-        response = client.post(
-            f"/execution/task-instances/{ti.id}/runtime-checks",
-            json={
-                "inlets": [],
-                "outlets": [],
-            },
-        )
-        assert response.status_code == expected_status_code
-
-        session.expire_all()
-
 
 class TestTISkipDownstream:
     def setup_method(self):
