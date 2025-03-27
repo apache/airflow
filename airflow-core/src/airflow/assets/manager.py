@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+
+log = structlog.get_logger()
 
 
 class AssetManager(LoggingMixin):
@@ -204,17 +207,26 @@ class AssetManager(LoggingMixin):
     @staticmethod
     def notify_asset_created(asset: Asset):
         """Run applicable notification actions when an asset is created."""
-        get_listener_manager().hook.on_asset_created(asset=asset)
+        try:
+            get_listener_manager().hook.on_asset_created(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
 
     @staticmethod
     def notify_asset_alias_created(asset_assets: AssetAlias):
         """Run applicable notification actions when an asset alias is created."""
-        get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
+        try:
+            get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
+        except Exception:
+            log.exception("error calling listener")
 
     @staticmethod
     def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
-        get_listener_manager().hook.on_asset_changed(asset=asset)
+        try:
+            get_listener_manager().hook.on_asset_changed(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
 
     @classmethod
     def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:

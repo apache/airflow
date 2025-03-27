@@ -526,14 +526,18 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
-    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+    log = structlog.get_logger(logger_name="task")
+
+    try:
+        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+    except Exception:
+        log.exception("error calling listener")
 
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
-        log = structlog.get_logger(logger_name="task")
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
@@ -588,10 +592,14 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
 
-    # TODO: Call pre execute etc.
-    get_listener_manager().hook.on_task_instance_running(
-        previous_state=TaskInstanceState.QUEUED, task_instance=ti
-    )
+    try:
+        # TODO: Call pre execute etc.
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=ti
+        )
+    except Exception:
+        log.exception("error calling listener")
+
     # No error, carry on and execute the task
     return None
 
@@ -982,27 +990,39 @@ def finalize(
     log.debug("Running finalizers", ti=ti)
     if state == TerminalTIState.SUCCESS:
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
-        get_listener_manager().hook.on_task_instance_success(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_success(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
     elif state == TerminalTIState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
     elif state == IntermediateTIState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
             _send_task_error_email(task.email, ti, error)
     elif state == TerminalTIState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
             _send_task_error_email(task.email, ti, error)
 
-    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
+    try:
+        get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
+    except Exception:
+        log.exception("error calling listener")
 
 
 def main():
