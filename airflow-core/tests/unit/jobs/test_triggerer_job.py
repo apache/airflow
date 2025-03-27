@@ -54,7 +54,13 @@ from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_variables,
+    clear_db_xcom,
+)
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -67,9 +73,15 @@ def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
     clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
     yield  # Test runs here
-    clear_db_dags()
     clear_db_runs()
+    clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -648,7 +660,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 
 @pytest.mark.asyncio
-# @patch("airflow.providers.standard.triggers.temporal.CustomTrigger", return_value=CustomTrigger)
 async def test_trigger_can_access_variables_and_connections(session, dag_maker, supervisor_builder):
     """
     Checks that the trigger will successfully access Variables, Connections and XCom.
