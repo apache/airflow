@@ -8,7 +8,6 @@ common.messaging
 common.sql
 docker
 elasticsearch
-fab
 ftp
 git
 google

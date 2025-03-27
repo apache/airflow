@@ -153,6 +153,9 @@ dependencies = [
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
 ]
+"fab" = [
+    "apache-airflow-providers-fab>=2.0.0",
+]
 "leveldb" = [
     "plyvel>=1.5.1",
 ]

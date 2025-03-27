@@ -482,6 +482,7 @@ def get_provider_info():
             "azure-mgmt-datafactory>=2.0.0",
             "azure-mgmt-containerregistry>=8.0.0",
             "azure-mgmt-containerinstance>=10.1.0",
+            "flask-appbuilder>=4.0.0",
             "msgraph-core>=1.0.0,!=1.1.8",
             "microsoft-kiota-http>=1.3.0,!=1.3.4",
             "microsoft-kiota-serialization-json==1.0.0",
