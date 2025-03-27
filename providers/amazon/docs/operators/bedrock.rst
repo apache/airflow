@@ -355,7 +355,6 @@ for the API to validate the inputs and confirm, that the job gets scheduled.
 
 For more information on batch inference job queueing, see https://docs.aws.amazon.com/bedrock/latest/userguide/batch-inference.html
 
-
 Reference
 ---------
 
