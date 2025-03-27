@@ -75,13 +75,13 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -271,6 +271,7 @@ def block_orm_access():
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
+    os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
 
 
 def _fork_main(
@@ -873,9 +874,6 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-        elif isinstance(msg, RuntimeCheckOnTask):
-            runtime_check_resp = self.client.task_instances.runtime_checks(id=self.id, msg=msg)
-            resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -962,6 +960,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+        elif isinstance(msg, GetTaskRescheduleStartDate):
+            tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+            resp = tr_resp.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1079,6 +1080,14 @@ def initialize_secrets_backend_on_workers():
     log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
 
 
+def register_secrets_masker():
+    """Register the secrets masker to mask task logs."""
+    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
+
+    for field in get_sensitive_variables_fields():
+        mask_secret(field)
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1137,6 +1146,8 @@ def supervise(
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     initialize_secrets_backend_on_workers()
+
+    register_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

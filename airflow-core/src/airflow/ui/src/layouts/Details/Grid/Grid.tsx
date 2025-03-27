@@ -35,14 +35,17 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
-export const Grid = () => {
+type Props = {
+  readonly limit: number;
+};
+
+export const Grid = ({ limit }: Props) => {
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
   const { data: structure } = useStructureServiceStructureData({
     dagId,
   });
-
-  const { data: gridData, isLoading, runAfter } = useGrid();
+  const { data: gridData, isLoading, runAfter } = useGrid(limit);
 
   const runs: Array<RunWithDuration> = useMemo(
     () =>

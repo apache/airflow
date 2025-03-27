@@ -65,6 +65,7 @@ body:
         - fab
         - facebook
         - ftp
+        - git
         - github
         - google
         - grpc

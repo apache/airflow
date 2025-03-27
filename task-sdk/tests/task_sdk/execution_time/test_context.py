@@ -277,10 +277,9 @@ class TestVariableAccessor:
         mock_supervisor_comms.get_message.return_value = var_result
 
         # Fetch the variable; triggers __getattr__
-        var = accessor.test_key
+        value = accessor.test_key
 
-        expected_var = Variable(key="test_key", value="test_value")
-        assert var == expected_var
+        assert value == var_result.value
 
     def test_get_method_valid_variable(self, mock_supervisor_comms):
         """Test that the get method returns the requested variable using `var.get`."""
@@ -289,20 +288,19 @@ class TestVariableAccessor:
 
         mock_supervisor_comms.get_message.return_value = var_result
 
-        var = accessor.get("test_key")
-        assert var == Variable(key="test_key", value="test_value")
+        val = accessor.get("test_key")
+        assert val == var_result.value
 
     def test_get_method_with_default(self, mock_supervisor_comms):
         """Test that the get method returns the default variable when the requested variable is not found."""
 
         accessor = VariableAccessor(deserialize_json=False)
-        default_var = {"default_key": "default_value"}
         error_response = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"test_key": "test_value"})
 
         mock_supervisor_comms.get_message.return_value = error_response
 
-        var = accessor.get("nonexistent_var_key", default_var=default_var)
-        assert var == default_var
+        val = accessor.get("nonexistent_var_key", default="default_value")
+        assert val == "default_value"
 
 
 class TestCurrentContext:

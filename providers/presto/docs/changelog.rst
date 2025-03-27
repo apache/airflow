@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+5.8.3
+.....
+
+Misc
+~~~~
+
+* ``Setting Airflow context Environment variables for operators (#47644)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 5.8.2
 .....
 

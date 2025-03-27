@@ -1705,6 +1705,14 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Expired",
     },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
+    relative_fileloc: {
+      type: "string",
+      title: "Relative Fileloc",
+    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -1989,6 +1997,8 @@ export const $DAGDetailsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
+    "bundle_name",
+    "relative_fileloc",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2079,6 +2089,14 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
+    },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
+    relative_fileloc: {
+      type: "string",
+      title: "Relative Fileloc",
     },
     fileloc: {
       type: "string",
@@ -2221,6 +2239,8 @@ export const $DAGResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
+    "bundle_name",
+    "relative_fileloc",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2868,6 +2888,14 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Expired",
     },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
+    relative_fileloc: {
+      type: "string",
+      title: "Relative Fileloc",
+    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -3027,6 +3055,8 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
+    "bundle_name",
+    "relative_fileloc",
     "fileloc",
     "description",
     "timetable_summary",

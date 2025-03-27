@@ -47,7 +47,6 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
-    AssetProfile,
     AssetResponse,
     DagRunState,
     TaskInstance,
@@ -69,16 +68,17 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
+    TaskRescheduleStartDate,
     TaskState,
     TriggerDagRun,
     VariableResult,
@@ -1293,25 +1293,6 @@ class TestHandleRequest:
                 id="get_prev_successful_dagrun",
             ),
             pytest.param(
-                RuntimeCheckOnTask(
-                    inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                    outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                ),
-                b'{"ok":true,"type":"OKResponse"}\n',
-                "task_instances.runtime_checks",
-                (),
-                {
-                    "id": TI_ID,
-                    "msg": RuntimeCheckOnTask(
-                        inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        type="RuntimeCheckOnTask",
-                    ),
-                },
-                OKResponse(ok=True),
-                id="runtime_check_on_task",
-            ),
-            pytest.param(
                 TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run",
@@ -1343,6 +1324,15 @@ class TestHandleRequest:
                 {},
                 DagRunStateResult(state=DagRunState.RUNNING),
                 id="get_dag_run_state",
+            ),
+            pytest.param(
+                GetTaskRescheduleStartDate(ti_id=TI_ID),
+                b'{"start_date":"2024-10-31T12:00:00Z","type":"TaskRescheduleStartDate"}\n',
+                "task_instances.get_reschedule_start_date",
+                (TI_ID, 1),
+                {},
+                TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
+                id="get_task_reschedule_start_date",
             ),
         ],
     )
