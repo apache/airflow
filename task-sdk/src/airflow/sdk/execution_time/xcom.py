@@ -241,6 +241,7 @@ class BaseXCom:
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
+                include_prior_dates=include_prior_dates,
             ),
         )
 

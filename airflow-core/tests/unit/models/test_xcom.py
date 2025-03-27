@@ -58,17 +58,20 @@ def reset_db():
 
 @pytest.fixture
 def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, logical_date):
+    def func(*, dag_id, task_id, logical_date, run_after=None):
         run_id = DagRun.generate_run_id(
-            run_type=DagRunType.SCHEDULED, logical_date=logical_date, run_after=logical_date
+            run_type=DagRunType.SCHEDULED,
+            logical_date=logical_date,
+            run_after=run_after if run_after is not None else logical_date,
         )
+        interval = (logical_date, logical_date) if logical_date else None
         run = DagRun(
             dag_id=dag_id,
             run_type=DagRunType.SCHEDULED,
             run_id=run_id,
             logical_date=logical_date,
-            data_interval=(logical_date, logical_date),
-            run_after=logical_date,
+            data_interval=interval,
+            run_after=run_after if run_after is not None else logical_date,
         )
         session.add(run)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
@@ -220,8 +223,41 @@ class TestXComGet:
 
         return ti1, ti2
 
+    @pytest.fixture
+    def tis_for_xcom_get_one_from_prior_date_without_logical_date(
+        self, task_instance_factory, push_simple_json_xcom
+    ):
+        date1 = timezone.datetime(2021, 12, 3, 4, 56)
+        ti1 = task_instance_factory(dag_id="dag", logical_date=None, task_id="task_1", run_after=date1)
+        ti2 = task_instance_factory(
+            dag_id="dag",
+            logical_date=None,
+            run_after=date1 + datetime.timedelta(days=1),
+            task_id="task_1",
+        )
+
+        # The earlier run pushes an XCom, but not the later run, but the later
+        # run can get this earlier XCom with ``include_prior_dates``.
+        push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key": "value"})
+
+        return ti1, ti2
+
     def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
+        retrieved_value = XComModel.get_many(
+            run_id=ti2.run_id,
+            key="xcom_1",
+            task_ids="task_1",
+            dag_ids="dag",
+            include_prior_dates=True,
+            session=session,
+        ).first()
+        assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
+
+    def test_xcom_get_one_from_prior_date_with_no_logical_dates(
+        self, session, tis_for_xcom_get_one_from_prior_date_without_logical_date
+    ):
+        _, ti2 = tis_for_xcom_get_one_from_prior_date_without_logical_date
         retrieved_value = XComModel.get_many(
             run_id=ti2.run_id,
             key="xcom_1",

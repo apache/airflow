@@ -131,12 +131,22 @@ def get_xcom(
     run_id: str,
     task_id: str,
     key: str,
-    xcom_query: Annotated[Select, Depends(xcom_query)],
+    session: SessionDep,
     map_index: Annotated[int, Query()] = -1,
+    include_prior_dates: Annotated[bool, Query()] = False,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
     # so we override that query value
+    xcom_query = XComModel.get_many(
+        run_id=run_id,
+        key=key,
+        task_ids=task_id,
+        dag_ids=dag_id,
+        map_indexes=map_index,
+        include_prior_dates=include_prior_dates,
+        session=session,
+    )
     xcom_query = xcom_query.filter(XComModel.map_index == map_index)
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead

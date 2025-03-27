@@ -341,6 +341,7 @@ class RuntimeTaskInstance(TaskInstance):
                 task_id=t_id,
                 dag_id=dag_id,
                 map_index=m_idx,
+                include_prior_dates=include_prior_dates,
             )
             xcoms.append(value if value else default)
 

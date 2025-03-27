@@ -317,6 +317,7 @@ class GetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    include_prior_dates: bool = False
     type: Literal["GetXCom"] = "GetXCom"
 
 
