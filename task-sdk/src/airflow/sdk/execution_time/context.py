@@ -112,12 +112,12 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
@@ -155,11 +155,11 @@ def _get_connection(conn_id: str) -> Connection:
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     var_val = None
     # iterate over backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
