@@ -202,7 +202,6 @@ def patch_connection(
     except ValidationError as e:
         raise RequestValidationError(errors=e.errors())
 
-    # Not all fields match and some need setters, therefore copy manually
     update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection
 
