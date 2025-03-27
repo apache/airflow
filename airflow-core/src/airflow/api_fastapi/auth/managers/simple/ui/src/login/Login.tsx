@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import React from "react";
-import {Alert, Container, Heading, Text} from "@chakra-ui/react";
+import React, {useState} from "react";
+import {Alert, CloseButton, Container, Heading, Text} from "@chakra-ui/react";
 
 import {useCreateToken} from "src/queries/useCreateToken";
 import {LoginForm} from "src/login/LoginForm";
@@ -28,58 +28,73 @@ import { useSearchParams } from "react-router-dom";
 import { useCookies } from 'react-cookie';
 
 export type LoginBody = {
-    username: string; password: string;
+  username: string; password: string;
 };
 
 type ExpandedApiError = {
-    body: HTTPExceptionResponse | HTTPValidationError;
+  body: HTTPExceptionResponse | HTTPValidationError;
 } & ApiError;
 
+const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner"
+
 export const Login = () => {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [cookies, setCookie] = useCookies(['_token']);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [cookies, setCookie] = useCookies(['_token']);
+  const [isBannerDisabled, setIsBannerDisabled] = useState(localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY))
 
-    const onSuccess = (data: LoginResponse) => {
-        // Redirect to appropriate page with the token
-        const next = searchParams.get("next")
+  const onSuccess = (data: LoginResponse) => {
+    // Redirect to appropriate page with the token
+    const next = searchParams.get("next")
 
-        setCookie('_token', data.jwt_token, {path: "/", secure: globalThis.location.protocol !== "http:"});
+    setCookie('_token', data.jwt_token, {path: "/", secure: globalThis.location.protocol !== "http:"})
 
-        globalThis.location.replace(`${next ?? ""}`);
-    }
-    const {createToken, error: err, isPending, setError} = useCreateToken({onSuccess});
-    const error = err as ExpandedApiError;
-    const error_message = error?.body?.detail;
+    globalThis.location.replace(`${next ?? ""}`);
+  }
+  const {createToken, error: err, isPending, setError} = useCreateToken({onSuccess});
+  const error = err as ExpandedApiError;
+  const error_message = error?.body?.detail;
 
-    const onLogin = (data: LoginBody) => {
-        setError(undefined)
-        createToken(data)
-    }
+  const onLogin = (data: LoginBody) => {
+    setError(undefined)
+    createToken(data)
+  }
 
-    return (
-      <>
-        <Alert.Root status="warning">
+  return (
+    <>
+      {!isBannerDisabled &&
+        <Alert.Root status="info">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Development-only auth manager configured</Alert.Title>
+            <Alert.Title>Simple auth manager enabled</Alert.Title>
             <Alert.Description>
-              The auth manager configured in your environment is the <strong>Simple Auth Manager</strong>, which is
-              intended for development use only. It is not suitable for production and <strong>should not be used in
-              a production environment</strong>.
+              The Simple auth manager is intended for development and testing. If you're using it in production,
+              ensure that access is controlled through other means.
+              Please read <a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html" target="_blank">the documentation</a> to learn more about simple auth manager.
             </Alert.Description>
           </Alert.Content>
+          <CloseButton
+            pos="relative"
+            top="-2"
+            insetEnd="-2"
+            onClick={() => {
+              localStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1")
+              setIsBannerDisabled(1)
+            }}
+          />
         </Alert.Root>
-        <Container mt={2} maxW="2xl" p="4" border="1px" borderColor="gray.500" borderWidth="1px" borderStyle="solid">
-            <Heading mb={6} fontWeight="normal" size="lg" colorPalette="blue">
-                Sign in
-            </Heading>
+      }
 
-            {error_message && (
-                <Alert.Root status="warning" mb="2">{error_message}</Alert.Root>)
-            }
+      <Container mt={2} maxW="2xl" p="4" border="1px" borderColor="gray.500" borderWidth="1px" borderStyle="solid">
+        <Heading mb={6} fontWeight="normal" size="lg" colorPalette="blue">
+          Sign in
+        </Heading>
 
-            <Text mb={4}>Enter your login and password below:</Text>
-            <LoginForm onLogin={onLogin} isPending={isPending} />
-        </Container>
-      </>);
+        {error_message && (
+          <Alert.Root status="warning" mb="2">{error_message}</Alert.Root>)
+        }
+
+        <Text mb={4}>Enter your login and password below:</Text>
+        <LoginForm onLogin={onLogin} isPending={isPending} />
+      </Container>
+    </>);
 };
