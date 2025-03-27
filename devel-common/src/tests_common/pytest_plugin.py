@@ -1886,6 +1886,8 @@ def mocked_parse(spy_agency):
     Fixture to set up an inline DAG and use it in a stubbed `parse` function.
 
     Use this fixture if you want to isolate and test `parse` or `run` logic without having to define a DAG file.
+    In most cases, you should use `create_runtime_ti` fixture instead where you can directly pass an operator
+    compared to lower level AIP-72 constructs like `StartupDetails`.
 
     This fixture returns a helper function `set_dag` that:
     1. Creates an in line DAG with the given `dag_id` and `task` (limited to one task)
