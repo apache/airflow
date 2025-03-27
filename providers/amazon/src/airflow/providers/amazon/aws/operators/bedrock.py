@@ -883,7 +883,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
     :param job_name: A name to give the batch inference job. (templated)
     :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
     :param model_id: Name or ARN of the model to associate with this provisioned throughput. (templated)
-    :param input_uri:The S3 location of the input data. (templated)
+    :param input_uri: The S3 location of the input data. (templated)
     :param output_uri: The S3 location of the output data. (templated)
     :param invoke_kwargs: Additional keyword arguments to pass to the  API call. (templated)
 
