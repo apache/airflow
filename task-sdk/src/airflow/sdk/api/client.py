@@ -82,6 +82,7 @@ if TYPE_CHECKING:
             return f
 
         return wrapper
+
 else:
     from methodtools import lru_cache
 
