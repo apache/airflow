@@ -55,7 +55,7 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
     from kiota_abstractions.request_adapter import RequestAdapter
-    from kiota_abstractions.request_information import QueryParams
+    from kiota_abstractions.request_information import QueryParameters
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
@@ -394,7 +394,7 @@ class KiotaRequestAdapterHook(BaseHook):
         response_type: ResponseType | None = None,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, QueryParameters ] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
@@ -424,7 +424,7 @@ class KiotaRequestAdapterHook(BaseHook):
         response_type: ResponseType | None = None,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, QueryParameters] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ) -> RequestInformation:
