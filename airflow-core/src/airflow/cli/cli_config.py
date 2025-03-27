@@ -1657,6 +1657,7 @@ CONFIG_COMMANDS = (
             ARG_UPDATE_CONFIG_OPTION,
             ARG_UPDATE_CONFIG_IGNORE_SECTION,
             ARG_UPDATE_CONFIG_IGNORE_OPTION,
+            ARG_DRY_RUN,
             ARG_VERBOSE,
         ),
     ),
