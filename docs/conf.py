@@ -920,7 +920,6 @@ if PACKAGE_NAME == "apache-airflow":
             "spec": OPENAPI_FILE.as_posix(),
             "opts": {
                 "hide-hostname": True,
-                "no-auto-auth": True,
             },
         },
     ]
