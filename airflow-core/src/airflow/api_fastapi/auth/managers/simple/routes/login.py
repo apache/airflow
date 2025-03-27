@@ -63,10 +63,12 @@ def create_token_all_admins() -> RedirectResponse:
     )
 
     response = RedirectResponse(url=conf.get("api", "base_url"))
+
+    secure = conf.getboolean("api", "ssl_cert")
     response.set_cookie(
         COOKIE_NAME_JWT_TOKEN,
         get_auth_manager().generate_jwt(user),
-        secure=True,
+        secure=secure,
     )
     return response
 
