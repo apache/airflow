@@ -938,7 +938,6 @@ elif PACKAGE_NAME == "apache-airflow-providers-fab":
             "spec": fab_flask_openapi_file.as_posix(),
             "opts": {
                 "hide-hostname": True,
-                "no-auto-auth": True,
             },
         },
         {
