@@ -80,6 +80,13 @@ def upgrade():
 
 
 def downgrade():
+    # Remove orphaned datasets if there is an active one that shares the sanem URI.
+    # We will to create a unique constraint on URI and can't fail with a duplicate.
+    # This drops history, which is unfortunate, but reasonable for downgrade.
+    op.execute(
+        "delete from dataset as d1 where d1.is_orphaned = true "
+        "and exists (select 1 from dataset as d2 where d1.uri = d2.uri and d2.is_orphaned = false)"
+    )
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.drop_index("idx_dataset_name_uri_unique")
         batch_op.create_index("idx_uri_unique", ["uri"], unique=True)
