@@ -99,11 +99,8 @@ class PagerdutyHook(BaseHook):
         """
         Return `pagerduty.RestApiV2Client` for use with sending or receiving data through the PagerDuty REST API.
 
-        The `pagerduty` library supplies a class `pagerduty.RestApiV2Client` extending `requests.Session` from the
-        Requests HTTP library.
-
         Documentation on how to use the `RestApiV2Client` class can be found at:
-        https://pagerduty.github.io/python-pagerduty/user_guide.html#generic-client-features
+        https://pagerduty.github.io/python-pagerduty/user_guide.html
         """
         self._client = pagerduty.RestApiV2Client(self.token)
         return self._client
