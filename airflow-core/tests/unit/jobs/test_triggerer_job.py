@@ -44,6 +44,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -599,25 +600,39 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
 class CustomTrigger(BaseTrigger):
     """Custom Trigger that will access one Variable and one Connection."""
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:
+    def __init__(self, dag_id, run_id, task_id, map_index):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.task_id = task_id
+        self.map_index = map_index
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
         import attrs
 
         from airflow.sdk import Variable
+        from airflow.sdk.execution_time.xcom import XCom
 
         conn = await sync_to_async(BaseHook.get_connection)("test_connection")
-
         self.log.info("Loaded conn %s", conn.conn_id)
 
         variable = await sync_to_async(Variable.get)("test_variable")
-
         self.log.info("Loaded variable %s", variable)
 
-        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable})
+        xcom = await sync_to_async(XCom.get_one)(
+            key="test_xcom",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Loaded XCom %s", xcom)
+
+        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             f"{type(self).__module__}.{type(self).__qualname__}",
-            {},
+            {"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
         )
 
 
@@ -636,22 +651,10 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 # @patch("airflow.providers.standard.triggers.temporal.CustomTrigger", return_value=CustomTrigger)
 async def test_trigger_can_access_variables_and_connections(session, dag_maker, supervisor_builder):
     """
-    Checks that the trigger will successfully access Variables and Connections.
+    Checks that the trigger will successfully access Variables, Connections and XCom.
 
     This is the Supervisor side of the error reported in TestTriggerRunner::test_invalid_trigger
     """
-    # Create a Trigger
-    trigger = CustomTrigger()
-    trigger_orm = Trigger(classpath=trigger.serialize()[0], kwargs={})
-    trigger_orm.id = 1
-    session.add(trigger_orm)
-    session.commit()
-
-    # Create the appropriate Connection and Variable
-    connection = Connection(conn_id="test_connection", conn_type="http")
-    variable = Variable(key="test_variable", val="some_value")
-    session.add(connection)
-    session.add(variable)
 
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_and_connection", session=session):
@@ -660,7 +663,32 @@ async def test_trigger_can_access_variables_and_connections(session, dag_maker, 
     task_instance = dr.task_instances[0]
     # Make a task instance based on that and tie it to the trigger
     task_instance.state = TaskInstanceState.DEFERRED
+
+    # Create a Trigger
+    trigger = CustomTrigger(dag_id=dr.dag_id, run_id=dr.run_id, task_id=task_instance.task_id, map_index=-1)
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
+    )
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+    session.commit()
     task_instance.trigger_id = trigger_orm.id
+
+    # Create the appropriate Connection, Variable and XCom
+    connection = Connection(conn_id="test_connection", conn_type="http")
+    variable = Variable(key="test_variable", val="some_variable_value")
+    XComModel.set(
+        key="test_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
+    session.add(connection)
+    session.add(variable)
 
     job = Job()
     session.add(job)
@@ -685,6 +713,7 @@ async def test_trigger_can_access_variables_and_connections(session, dag_maker, 
                 "port": None,
                 "extra": None,
             },
-            "variable": "some_value",
+            "variable": "some_variable_value",
+            "xcom": '"some_xcom_value"',
         }
     }

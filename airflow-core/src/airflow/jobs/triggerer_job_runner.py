@@ -333,7 +333,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
-        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
 
         resp = None
 
@@ -364,6 +364,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = var_result.model_dump_json(exclude_unset=True).encode()
             else:
                 resp = var.model_dump_json().encode()
+        elif isinstance(msg, GetXCom):
+            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            if isinstance(xcom, XComResponse):
+                xcom_result = XComResult.from_xcom_response(xcom)
+                resp = xcom_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = xcom.model_dump_json().encode()
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
