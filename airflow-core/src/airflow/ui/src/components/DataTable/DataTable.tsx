@@ -59,7 +59,7 @@ type DataTableProps<TData> = {
 const defaultGetRowCanExpand = () => false;
 
 export const DataTable = <TData,>({
-  allowFiltering = true,
+  allowFiltering,
   cardDef,
   columns,
   data,
@@ -128,13 +128,16 @@ export const DataTable = <TData,>({
     (table.getState().pagination.pageIndex !== 0 ||
       (table.getState().pagination.pageIndex === 0 && rows.length !== total));
 
+  // Default to show columns filter only if there are actually many columns displayed
+  const showColumnsFilter = allowFiltering ?? columns.length > 5;
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
       {hasRows && display === "table" ? (
-        <TableList allowFiltering={allowFiltering} table={table} />
+        <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
