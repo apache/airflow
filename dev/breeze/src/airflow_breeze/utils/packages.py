@@ -843,6 +843,9 @@ def regenerate_pyproject_toml(
     in_optional_dependencies = False
     in_additional_devel_dependency_groups = False
     for line in pyproject_toml_content.splitlines():
+        print(f"LINE: {line}")
+        if "ctl" in line:
+            continue
         if line == "dependencies = [":
             in_required_dependencies = True
             continue
@@ -917,7 +920,18 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
+    get_pyproject_toml_content = _exclude_airflow_ctl(content=get_pyproject_toml_content)
     get_pyproject_toml_path.write_text(get_pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+# TODO stop using me when find a way to overcome circlular dependencies error from uv workspace.
+# When these are included in providers/**/pyproject.toml, the uv workspace fails to build
+# It is failing while building the Task SDK datamodels
+def _exclude_airflow_ctl(content: str) -> str:
+    """Excludes airflow-ctl from the pyproject.toml files in provider YAML."""
+    return content.replace('\n    "apache-airflow-airflow-ctl",', "").replace(
+        "\napache-airflow-ctl = {workspace = true}", ""
     )
