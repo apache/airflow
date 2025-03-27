@@ -791,6 +791,7 @@ dev = [
     "apache-airflow[all-core]",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-ctl",
 ]
 
 
