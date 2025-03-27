@@ -131,7 +131,7 @@ These authorization methods are:
 
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The auth manager is responsible of creating the JWT token needed to interact with Airflow public API.
+The auth manager is responsible for creating the JWT token needed to interact with Airflow public API.
 To achieve this, the auth manager **must** provide an endpoint to create this JWT token. This endpoint must be
 available at ``POST /auth/token``
 
