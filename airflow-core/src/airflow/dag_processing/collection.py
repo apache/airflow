@@ -276,7 +276,12 @@ def _update_import_errors(
                 },
             )
             # sending notification when an existing dag import error occurs
-            get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
+            try:
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
+            except Exception:
+                log.exception("error calling listener")
         else:
             session.add(
                 ParseImportError(
@@ -287,7 +292,10 @@ def _update_import_errors(
                 )
             )
             # sending notification when a new dag import error occurs
-            get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
+            try:
+                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
+            except Exception:
+                log.exception("error calling listener")
         session.query(DagModel).filter(
             DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
         ).update({"has_import_errors": True})

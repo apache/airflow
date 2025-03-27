@@ -58,7 +58,6 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -73,7 +72,6 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -805,9 +803,6 @@ def test_run_with_asset_outlets(
     ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
-    mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=True,
-    )
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
@@ -856,75 +851,6 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(KeyError):
         inlet_events[Asset(name="no such asset in inlets")]
-
-
-@pytest.mark.parametrize(
-    ["ok", "last_expected_msg"],
-    [
-        pytest.param(
-            True,
-            SucceedTask(
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[
-                    AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-                    AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-                ],
-                outlet_events=[],
-            ),
-            id="runtime_checks_pass",
-        ),
-        pytest.param(
-            False,
-            TaskState(
-                state=TerminalTIState.FAILED,
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-            ),
-            id="runtime_checks_fail",
-        ),
-    ],
-)
-def test_run_with_inlets_and_outlets(
-    create_runtime_ti, mock_supervisor_comms, time_machine, ok, last_expected_msg
-):
-    """Test running a basic tasks with inlets and outlets."""
-
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    task = BashOperator(
-        outlets=[
-            Asset(name="name", uri="s3://bucket/my-task"),
-            Asset(name="new-name", uri="s3://bucket/my-task"),
-        ],
-        inlets=[
-            Asset(name="name", uri="s3://bucket/my-task"),
-            Asset(name="new-name", uri="s3://bucket/my-task"),
-        ],
-        task_id="inlets-and-outlets",
-        bash_command="echo 'hi'",
-    )
-
-    ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
-    mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=ok,
-    )
-
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
-
-    expected = RuntimeCheckOnTask(
-        inlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-        ],
-        outlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-        ],
-    )
-    mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
-    mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
@@ -1217,7 +1143,7 @@ class TestRuntimeTaskInstance:
         )
         mock_supervisor_comms.get_message.assert_called_once_with()
 
-        assert var_from_context == Variable(key="test_key", value=expected_value)
+        assert var_from_context == expected_value
 
     @pytest.mark.parametrize(
         "map_indexes",
@@ -2219,7 +2145,7 @@ class TestTriggerDagRunOperator:
         ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run", run_id="test_run", task=task)
 
         log = mock.MagicMock()
-        mock_supervisor_comms.get_message.return_value = OKResponse(ok=True)
+
         state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == TaskInstanceState.SUCCESS

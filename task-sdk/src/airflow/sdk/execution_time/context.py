@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
-from airflow.sdk import Variable
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -43,6 +42,7 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from airflow.sdk import Variable
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -111,12 +112,12 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
@@ -151,18 +152,18 @@ def _get_connection(conn_id: str) -> Connection:
     return _convert_connection_result_conn(msg)
 
 
-def _get_variable(key: str, deserialize_json: bool) -> Variable:
+def _get_variable(key: str, deserialize_json: bool) -> Any:
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     var_val = None
     # iterate over backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
-                return Variable(key=key, value=var_val)
+                return var_val
         except Exception:
             log.exception(
                 "Unable to retrieve variable from secrets backend (%s). "
@@ -190,7 +191,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Variable:
 
     if TYPE_CHECKING:
         assert isinstance(msg, VariableResult)
-    return _convert_variable_result_to_variable(msg, deserialize_json)
+    variable = _convert_variable_result_to_variable(msg, deserialize_json)
+    return variable.value
 
 
 class ConnectionAccessor:
@@ -235,12 +237,12 @@ class VariableAccessor:
     def __getattr__(self, key: str) -> Any:
         return _get_variable(key, self._deserialize_json)
 
-    def get(self, key, default_var: Any = NOTSET) -> Any:
+    def get(self, key, default: Any = NOTSET) -> Any:
         try:
             return _get_variable(key, self._deserialize_json)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND:
-                return default_var
+                return default
             raise
 
 
@@ -561,3 +563,11 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
                 params[mapping_value] = str(_attr)
 
     return params
+
+
+def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
+    try:
+        outlet_events = context["outlet_events"]
+    except KeyError:
+        outlet_events = context["outlet_events"] = OutletEventAccessors()
+    return outlet_events

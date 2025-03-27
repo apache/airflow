@@ -35,7 +35,6 @@ export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<
             const sort = column.getIsSorted();
             const canSort = column.getCanSort();
             const text = flexRender(column.columnDef.header, getContext());
-
             let rightIcon;
 
             if (canSort) {

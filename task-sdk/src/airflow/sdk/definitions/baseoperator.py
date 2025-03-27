@@ -83,9 +83,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
+
+    TaskPreExecuteHook = Callable[[Context], None]
+    TaskPostExecuteHook = Callable[[Context, Any], None]
 
 __all__ = [
     "BaseOperator",
@@ -689,17 +692,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         way to limit concurrency for certain tasks
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
-    :param sla: time by which the job is expected to succeed. Note that
-        this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send an email
-        soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeeded yet.
-        The scheduler pays special attention for jobs with an SLA and
-        sends alert
-        emails for SLA misses. SLA misses are also recorded in the database
-        for future reference. All tasks that share the same SLA time
-        get bundled in a single email, sent soon after that time. SLA
-        notification are sent once and only once for each task instance.
+    :param sla: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a
+        new implementation in Airflow >=3.1.
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :param on_failure_callback: a function or list of functions to be called when a task instance
@@ -822,8 +816,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     on_success_callback: Sequence[TaskStateChangeCallback] = ()
     on_retry_callback: Sequence[TaskStateChangeCallback] = ()
     on_skipped_callback: Sequence[TaskStateChangeCallback] = ()
-    # pre_execute: TaskPreExecuteHook | None = None
-    # post_execute: TaskPostExecuteHook | None = None
+    _pre_execute_hook: TaskPreExecuteHook | None = None
+    _post_execute_hook: TaskPostExecuteHook | None = None
     trigger_rule: TriggerRule = DEFAULT_TRIGGER_RULE
     resources: dict[str, Any] | None = None
     run_as_user: str | None = None
@@ -885,7 +879,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "depends_on_past",
         "wait_for_downstream",
         "priority_weight",
-        "sla",
         "execution_timeout",
         "on_execute_callback",
         "on_failure_callback",
@@ -919,9 +912,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped: bool = False
 
-    # TODO:
-    # start_trigger_args: StartTriggerArgs | None = None
-    # start_from_trigger: bool = False
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
@@ -981,8 +973,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         on_success_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_skipped_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
-        # pre_execute: TaskPreExecuteHook | None = None,
-        # post_execute: TaskPostExecuteHook | None = None,
+        pre_execute: TaskPreExecuteHook | None = None,
+        post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
@@ -1030,19 +1022,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if email is not None:
             warnings.warn(
-                "email is deprecated please migrate to SmtpNotifier`.",
+                "Setting email on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
         if email and email_on_retry is not None:
             warnings.warn(
-                "email_on_retry is deprecated please migrate to SmtpNotifier`.",
+                "Setting email_on_retry on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
         if email and email_on_failure is not None:
             warnings.warn(
-                "email_on_failure is deprecated please migrate to SmtpNotifier`.",
+                "Setting email_on_failure on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
@@ -1053,14 +1045,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        # TODO:
         self.on_execute_callback = _collect_callbacks(on_execute_callback)
         self.on_failure_callback = _collect_callbacks(on_failure_callback)
         self.on_success_callback = _collect_callbacks(on_success_callback)
         self.on_retry_callback = _collect_callbacks(on_retry_callback)
         self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
-        # self._pre_execute_hook = pre_execute
-        # self._post_execute_hook = post_execute
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         if start_date:
             self.start_date = timezone.convert_to_utc(start_date)
@@ -1086,7 +1077,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
-        self.sla = sla
+        if sla is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                stacklevel=2,
+            )
 
         if not TriggerRule.is_valid(trigger_rule):
             raise ValueError(

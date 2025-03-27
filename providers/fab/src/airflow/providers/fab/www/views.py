@@ -70,7 +70,7 @@ class FabIndexView(IndexView):
             token = get_auth_manager().generate_jwt(g.user)
             response = make_response(redirect(f"{conf.get('api', 'base_url')}", code=302))
 
-            secure = bool(conf.get("api", "ssl_cert"))
+            secure = conf.has_option("api", "ssl_cert")
             response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
 
             return response

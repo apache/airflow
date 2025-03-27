@@ -141,7 +141,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.9.0",
+    "aiobotocore>=2.13.0",
 ]
 "async" = [
     "eventlet>=0.33.3",
@@ -198,7 +198,7 @@ dependencies = [
     # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
     # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
     # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=1.2.5,<2.2",
+    "pandas>=1.2.5,<2.3",
 ]
 "rabbitmq" = [
     "amqp>=5.2.0",
@@ -254,18 +254,18 @@ exclude = [
 path = "./hatch_build_airflow_core.py"
 
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version",
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version",
     "generated/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version"
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version"
 ]
 exclude = [
     "src/airflow/ui/node_modules/",

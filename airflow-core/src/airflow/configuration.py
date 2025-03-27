@@ -381,6 +381,7 @@ class AirflowConfigParser(ConfigParser):
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
+        ("webserver", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }
 
     upgraded_values: dict[tuple[str, str], str]
@@ -2060,8 +2061,12 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
         if worker_mode:
             # if we find no secrets backend for worker, return that of secrets backend
             secrets_backend_cls = conf.getimport(section="secrets", key="backend")
+            if not secrets_backend_cls:
+                return None
+            # When falling back to secrets backend, use its kwargs
             kwargs_key = "backend_kwargs"
-        if not secrets_backend_cls:
+            section = "secrets"
+        else:
             return None
 
     try:

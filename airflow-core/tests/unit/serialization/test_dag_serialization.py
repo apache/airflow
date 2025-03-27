@@ -1350,6 +1350,8 @@ class TestStringifiedDAGs:
         assert fields == {
             "_logger_name": None,
             "_needs_expansion": None,
+            "_post_execute_hook": None,
+            "_pre_execute_hook": None,
             "_task_display_name": None,
             "allow_nested_operators": True,
             "depends_on_past": False,
@@ -1393,7 +1395,6 @@ class TestStringifiedDAGs:
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": False,
             "run_as_user": None,
-            "sla": None,
             "start_date": None,
             "start_from_trigger": False,
             "start_trigger_args": None,

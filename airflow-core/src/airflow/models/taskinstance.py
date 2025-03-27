@@ -116,7 +116,6 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -363,10 +362,12 @@ def _run_raw_task(
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
-                )
-
+                try:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                    )
+                except Exception:
+                    log.exception("error calling listener")
         return None
 
 
@@ -640,13 +641,14 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
             )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
-        from airflow.utils.context import context_get_outlet_events
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
 
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return ExecutionCallableRunner(
+            return create_executable_runner(
                 execute_callable,
                 context_get_outlet_events(context),
                 logger=log,
@@ -1263,7 +1265,7 @@ def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) 
 
 def _get_email_subject_content(
     *,
-    task_instance: TaskInstance,
+    task_instance: TaskInstance | RuntimeTaskInstanceProtocol,
     exception: BaseException,
     task: BaseOperator | None = None,
 ) -> tuple[str, str, str]:
@@ -2900,9 +2902,12 @@ class TaskInstance(Base, LoggingMixin):
             self._run_execute_callback(context, self.task)
 
             # Run on_task_instance_running event
-            get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self
-            )
+            try:
+                get_listener_manager().hook.on_task_instance_running(
+                    previous_state=TaskInstanceState.QUEUED, task_instance=self
+                )
+            except Exception:
+                log.exception("error calling listener")
 
             def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
                 """Render named map index if the DAG author defined map_index_template at the task level."""
@@ -3143,9 +3148,12 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
 
         return {
             "ti": ti,

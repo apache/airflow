@@ -63,7 +63,6 @@ from airflow.sdk.api.datamodels._generated import (
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
-    TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
@@ -312,10 +311,6 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
     type: Literal["SkipDownstreamTasks"] = "SkipDownstreamTasks"
 
 
-class RuntimeCheckOnTask(TIRuntimeCheckPayload):
-    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
-
-
 class GetXCom(BaseModel):
     key: str
     dag_id: str
@@ -470,7 +465,6 @@ ToSupervisor = Annotated[
         SetXCom,
         TaskState,
         TriggerDagRun,
-        RuntimeCheckOnTask,
         DeleteXCom,
     ],
     Field(discriminator="type"),
