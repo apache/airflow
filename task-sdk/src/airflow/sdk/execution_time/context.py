@@ -143,6 +143,10 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+    # we need to make sure that we "atomically" send a request and get the response to that
+    # back so that two triggers don't end up interleaving requests and create a possible
+    # race condition where the wrong trigger reads the response.
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
         msg = SUPERVISOR_COMMS.get_message()
@@ -186,6 +190,10 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+    # we need to make sure that we "atomically" send a request and get the response to that
+    # back so that two triggers don't end up interleaving requests and create a possible
+    # race condition where the wrong trigger reads the response.
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
         msg = SUPERVISOR_COMMS.get_message()
