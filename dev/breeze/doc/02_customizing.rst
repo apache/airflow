@@ -30,7 +30,19 @@ Customizing Breeze startup
 --------------------------
 
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``.
+``files/airflow-breeze-config/environment_variables.env``.
+
+An example of the file is:
+
+.. code-block:: bash
+
+  # Logging settings
+  AIRFLOW__LOGGING__REMOTE_LOGGING=true
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER="logs"
+
+  # Remote logging Conn ID
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID="logs_default"
+
 
 You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
 when you enter Breeze. For example you can add ``pip install`` commands if you want to install
@@ -45,7 +57,7 @@ will be evaluated at entering the environment.
 The ``files`` folder from your local sources is automatically mounted to the container under
 ``/files`` path and you can put there any files you want to make available for the Breeze container.
 
-You can also copy any .whl or ``sdist`` packages to dist and when you pass ``--use-packages-from-dist`` flag
+You can also copy any .whl or ``sdist`` packages to dist and when you pass ``--use-distributions-from-dist`` flag
 as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
 when you enter Breeze.
 
@@ -129,7 +141,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `<../../../contributing-docs/testing/integration_tests.rst>`_.
+as described in `</contributing-docs/testing/integration_tests.rst>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one

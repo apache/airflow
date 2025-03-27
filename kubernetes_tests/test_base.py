@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
@@ -61,11 +60,6 @@ class BaseK8STest:
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, request):
-        # only restart the deployment if the configmap was updated
-        # speed up the test and make the airflow-api-server deployment more stable
-        if self.set_api_server_base_url_config():
-            self.rollout_restart_deployment("airflow-api-server")
-
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
@@ -75,7 +69,8 @@ class BaseK8STest:
             self._ensure_airflow_api_server_is_healthy()
             yield
         finally:
-            self.session.close()
+            if hasattr(self, "session") and self.session is not None:
+                self.session.close()
 
     def _describe_resources(self, namespace: str):
         kubeconfig_basename = os.path.basename(os.environ.get("KUBECONFIG", "default"))
@@ -211,7 +206,7 @@ class BaseK8STest:
         for i in range(max_tries):
             try:
                 response = self.session.get(
-                    f"http://{KUBERNETES_HOST_PORT}/public/monitor/health",
+                    f"http://{KUBERNETES_HOST_PORT}/api/v2/monitor/health",
                     timeout=1,
                 )
                 if response.status_code == 200:
@@ -237,7 +232,7 @@ class BaseK8STest:
             # Check task state
             try:
                 get_string = (
-                    f"http://{host}/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+                    f"http://{host}/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 )
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
@@ -274,78 +269,6 @@ class BaseK8STest:
         ).decode()
         assert "successfully rolled out" in deployment_rollout_status
 
-    @staticmethod
-    def rollout_restart_deployment(deployment_name: str, namespace: str = "airflow"):
-        """Rollout restart the deployment."""
-        check_call(["kubectl", "rollout", "restart", "deployment", deployment_name, "-n", namespace])
-
-    def _parse_airflow_cfg_as_dict(self, airflow_cfg: str) -> dict[str, dict[str, str]]:
-        """Parse the airflow.cfg file as a dictionary."""
-        parsed_airflow_cfg: dict[str, dict[str, str]] = {}
-        for line in airflow_cfg.splitlines():
-            if line.startswith("["):
-                section = line[1:-1]
-                parsed_airflow_cfg[section] = {}
-            elif "=" in line:
-                key, value = line.split("=", 1)
-                parsed_airflow_cfg[section][key.strip()] = value.strip()
-        return parsed_airflow_cfg
-
-    def _parse_airflow_cfg_dict_as_escaped_toml(self, airflow_cfg_dict: dict) -> str:
-        """Parse the airflow.cfg dictionary as a toml string."""
-        airflow_cfg_str = ""
-        for section, section_dict in airflow_cfg_dict.items():
-            airflow_cfg_str += f"[{section}]\n"
-            for key, value in section_dict.items():
-                airflow_cfg_str += f"{key} = {value}\n"
-            airflow_cfg_str += "\n"
-        # escape newlines and double quotes
-        return airflow_cfg_str.replace("\n", "\\n").replace('"', '\\"')
-
-    def set_airflow_cfg_in_kubernetes_configmap(self, section: str, key: str, value: str) -> bool:
-        """Set [section/key] with `value` in airflow.cfg in k8s configmap.
-
-        :return: True if the configmap was updated successfully, False otherwise
-        """
-        original_configmap_json_str = check_output(
-            ["kubectl", "get", "configmap", CONFIG_MAP_NAME, "-n", "airflow", "-o", "json"]
-        ).decode()
-        original_config_map = json.loads(original_configmap_json_str)
-        original_airflow_cfg = original_config_map["data"][CONFIG_MAP_KEY]
-        # set [section/key] with `value` in airflow.cfg
-        # The airflow.cfg is toml format, so we need to convert it to json
-        airflow_cfg_dict = self._parse_airflow_cfg_as_dict(original_airflow_cfg)
-        if section not in airflow_cfg_dict:
-            airflow_cfg_dict[section] = {}
-        airflow_cfg_dict[section][key] = value
-        # update the configmap with the new airflow.cfg
-        patch_configmap_result = check_output(
-            [
-                "kubectl",
-                "patch",
-                "configmap",
-                CONFIG_MAP_NAME,
-                "-n",
-                "airflow",
-                "--type",
-                "merge",
-                "-p",
-                f'{{"data": {{"{CONFIG_MAP_KEY}": "{self._parse_airflow_cfg_dict_as_escaped_toml(airflow_cfg_dict)}"}}}}',
-            ]
-        ).decode()
-        if "(no change)" in patch_configmap_result:
-            return False
-        return True
-
-    def set_api_server_base_url_config(self) -> bool:
-        """Set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` as env in k8s configmap.
-
-        :return: True if the configmap was updated successfully, False otherwise
-        """
-        return self.set_airflow_cfg_in_kubernetes_configmap(
-            "api", "base_url", f"http://{KUBERNETES_HOST_PORT}"
-        )
-
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
@@ -353,7 +276,7 @@ class BaseK8STest:
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-            get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+            get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
             print(f"Calling {get_string}")
             # Get all dagruns
             result = self.session.get(get_string)
@@ -380,7 +303,7 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        patch_string = f"http://{host}/public/dags/{dag_id}"
+        patch_string = f"http://{host}/api/v2/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
         result = {}
@@ -404,7 +327,7 @@ class BaseK8STest:
             result_json = str(result)
         print(f"Received [start_dag]#1 {result_json}")
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
-        post_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        post_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
         logical_date = datetime.now(timezone.utc).isoformat()
@@ -419,7 +342,7 @@ class BaseK8STest:
 
         time.sleep(1)
 
-        get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#3 {get_string}")
         result = self.session.get(get_string)
         assert result.status_code == 200, f"Could not get DAGRuns: {result.json()}"

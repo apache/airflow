@@ -21,6 +21,7 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DATA_SET_ID = "DemoDataSet"

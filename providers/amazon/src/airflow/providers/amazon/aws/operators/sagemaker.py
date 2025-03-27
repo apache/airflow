@@ -44,7 +44,6 @@ from airflow.providers.amazon.aws.utils import trim_none_values, validate_execut
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import prune_dict
-from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset
@@ -56,7 +55,7 @@ CHECK_INTERVAL_SECOND: int = 30
 
 
 def serialize(result: dict) -> dict:
-    return json.loads(json.dumps(result, cls=AirflowJsonEncoder))
+    return json.loads(json.dumps(result, default=repr))
 
 
 class SageMakerBaseOperator(BaseOperator):

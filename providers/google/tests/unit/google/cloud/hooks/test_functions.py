@@ -24,6 +24,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
+
 from unit.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     get_open_mock,

@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
     POD_EXECUTION_ROLE_ARN,

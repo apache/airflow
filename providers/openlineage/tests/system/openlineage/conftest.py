@@ -20,6 +20,7 @@ import pytest
 
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+
 from system.openlineage.transport.variable import VariableTransport
 
 

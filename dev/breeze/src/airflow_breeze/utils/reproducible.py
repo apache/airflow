@@ -42,7 +42,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from subprocess import CalledProcessError, CompletedProcess
 
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, OUT_DIR, REPRODUCIBLE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, OUT_PATH, REPRODUCIBLE_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -90,9 +90,9 @@ def repack_deterministically(
         tarinfo.mtime = timestamp
         return tarinfo
 
-    OUT_DIR.mkdir(exist_ok=True)
-    shutil.rmtree(REPRODUCIBLE_DIR, ignore_errors=True)
-    REPRODUCIBLE_DIR.mkdir(exist_ok=True)
+    OUT_PATH.mkdir(exist_ok=True)
+    shutil.rmtree(REPRODUCIBLE_PATH, ignore_errors=True)
+    REPRODUCIBLE_PATH.mkdir(exist_ok=True)
 
     result = run_command(
         [
@@ -100,7 +100,7 @@ def repack_deterministically(
             "-xf",
             source_archive.as_posix(),
             "-C",
-            REPRODUCIBLE_DIR.as_posix(),
+            REPRODUCIBLE_PATH.as_posix(),
         ],
         check=False,
     )
@@ -112,11 +112,11 @@ def repack_deterministically(
             "chmod",
             "-R",
             "go=",
-            REPRODUCIBLE_DIR.as_posix(),
+            REPRODUCIBLE_PATH.as_posix(),
         ],
         check=False,
     )
-    with cd(REPRODUCIBLE_DIR):
+    with cd(REPRODUCIBLE_PATH):
         current_dir = "."
         file_list = [current_dir]
         for root, dirs, files in os.walk(current_dir):
@@ -156,7 +156,7 @@ def main():
         "--timestamp",
         help="timestamp of files",
         type=int,
-        default=get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow"),
+        default=get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow"),
     )
 
     args = parser.parse_args()

@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStopPipelineOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
