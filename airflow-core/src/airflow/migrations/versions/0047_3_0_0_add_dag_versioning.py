@@ -28,17 +28,13 @@ Create Date: 2024-10-09 05:44:04.670984
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
-from sqlalchemy import LargeBinary, Table
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy_utils import UUIDType
 from uuid6 import uuid7
 
-from airflow.migrations.db_types import StringID
-from airflow.models.base import ID_LEN, naming_convention
+from airflow.migrations.db_types import TIMESTAMP, StringID
+from airflow.models.base import naming_convention
 from airflow.models.dagcode import DagCode
-from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -50,35 +46,14 @@ depends_on = None
 airflow_version = "3.0.0"
 
 
-def _delete_serdag_and_code():
-    op.execute(sa.text("DELETE FROM serialized_dag"))
-    op.execute(sa.text("DELETE FROM dag_code"))
-
-
-# The below tables helps us use the recreate_always feature of batch_alter_table and makes
-# this migration work in offline mode.
-old_dagcode_table = Table(
-    "dag_code",
-    sa.MetaData(naming_convention=naming_convention),
-    sa.Column("fileloc_hash", sa.BigInteger(), nullable=False, primary_key=True),
-    sa.Column("fileloc", sa.String(length=2000), nullable=False),
-    sa.Column("last_updated", UtcDateTime(), nullable=False),
-    sa.Column("source_code", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
-)
-
-old_serialized_table = Table(
-    "serialized_dag",
-    sa.MetaData(naming_convention=naming_convention),
-    sa.Column("dag_id", sa.String(ID_LEN), nullable=False, primary_key=True),
-    sa.Column("fileloc", sa.String(length=2000), nullable=False),
-    sa.Column("fileloc_hash", sa.BigInteger(), nullable=False),
-    sa.Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
-    sa.Column("data_compressed", LargeBinary, nullable=True),
-    sa.Column("dag_hash", sa.String(32), nullable=False),
-    sa.Column("last_updated", UtcDateTime(), nullable=False),
-    sa.Column("processor_subdir", sa.String(2000)),
-    sa.Index("idx_fileloc_hash", "fileloc_hash", unique=False),
-)
+def _get_rows(sql, conn):
+    stmt = sa.text(sql)
+    rows = conn.execute(stmt)
+    if rows:
+        rows = rows.fetchall()
+    else:
+        rows = []
+    return rows
 
 
 def _airflow_2_fileloc_hash(fileloc):
@@ -91,8 +66,6 @@ def _airflow_2_fileloc_hash(fileloc):
 
 def upgrade():
     """Apply add dag versioning."""
-    # Before creating the dag_version table, we need to delete the existing serialized_dag and dag_code tables
-    # _delete_serdag_and_code()
     conn = op.get_bind()
     op.create_table(
         "dag_version",
@@ -110,34 +83,24 @@ def upgrade():
         sa.UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
     )
     with op.batch_alter_table(
-        "dag_code", recreate="always", naming_convention=naming_convention, copy_from=old_dagcode_table
+        "dag_code",
     ) as batch_op:
-        batch_op.drop_constraint("dag_code_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", UUIDType(binary=False)), insert_before="fileloc_hash")
+        batch_op.add_column(sa.Column("id", UUIDType(binary=False)))
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
         batch_op.add_column(sa.Column("source_code_hash", sa.String(length=32)))
         batch_op.add_column(sa.Column("dag_id", sa.String(length=250)))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime(), default=timezone.utcnow))
-        batch_op.alter_column("last_updated", onupdate=timezone.utcnow)
+        batch_op.add_column(sa.Column("created_at", TIMESTAMP()))
 
     with op.batch_alter_table(
         "serialized_dag",
-        recreate="always",
-        naming_convention=naming_convention,
-        copy_from=old_serialized_table,
     ) as batch_op:
         batch_op.add_column(sa.Column("id", UUIDType(binary=False)))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime(), default=timezone.utcnow))
+        batch_op.add_column(sa.Column("created_at", UtcDateTime()))
 
     # Data migration
-    stmt = sa.text("SELECT dag_id FROM serialized_dag")
-    rows = conn.execute(stmt)
-    if rows:
-        rows = rows.fetchall()
-    else:
-        rows = []
+    rows = _get_rows("SELECT dag_id FROM serialized_dag", conn)
 
     stmt = sa.text("""
             UPDATE serialized_dag
@@ -160,38 +123,55 @@ def upgrade():
         )
 
     # Update serialized_dag table with dag_version_id where dag_id matches
-    conn.execute(
-        sa.text("""
-        UPDATE serialized_dag
-        SET dag_version_id = dag_version.id
-        FROM dag_version
-        WHERE serialized_dag.dag_id = dag_version.dag_id
-    """)
-    )
+    if conn.dialect.name == "mysql":
+        conn.execute(
+            sa.text("""
+            UPDATE serialized_dag sd
+            JOIN dag_version dv ON sd.dag_id = dv.dag_id
+            SET sd.dag_version_id = dv.id
+        """)
+        )
+    else:
+        conn.execute(
+            sa.text("""
+            UPDATE serialized_dag
+            SET dag_version_id = dag_version.id
+            FROM dag_version
+            WHERE serialized_dag.dag_id = dag_version.dag_id
+        """)
+        )
     # Update dag_code table where fileloc_hash of serialized_dag matches
-    conn.execute(
-        sa.text("""
-        UPDATE dag_code
-        SET dag_version_id = dag_version.id,
-            created_at = serialized_dag.created_at,
-            dag_id = serialized_dag.dag_id
-        FROM serialized_dag, dag_version
-        WHERE dag_code.fileloc_hash = serialized_dag.fileloc_hash
-        AND serialized_dag.dag_version_id = dag_version.id
-    """)
-    )
+    if conn.dialect.name == "mysql":
+        conn.execute(
+            sa.text("""
+            UPDATE dag_code dc
+            JOIN serialized_dag sd ON dc.fileloc_hash = sd.fileloc_hash
+            SET dc.dag_version_id = sd.dag_version_id,
+                dc.created_at = sd.created_at,
+                dc.dag_id = sd.dag_id
+        """)
+        )
+    else:
+        conn.execute(
+            sa.text("""
+            UPDATE dag_code
+            SET dag_version_id = dag_version.id,
+                created_at = serialized_dag.created_at,
+                dag_id = serialized_dag.dag_id
+            FROM serialized_dag, dag_version
+            WHERE dag_code.fileloc_hash = serialized_dag.fileloc_hash
+            AND serialized_dag.dag_version_id = dag_version.id
+        """)
+        )
 
     # select all rows in serialized_dag where the dag_id is not in dag_code
-    stmt = sa.text("""
+
+    stmt = """
         SELECT dag_id, fileloc, fileloc_hash, dag_version_id
         FROM serialized_dag
         WHERE dag_id NOT IN (SELECT dag_id FROM dag_code)
-    """)
-    rows = conn.execute(stmt)
-    if rows:
-        rows = rows.fetchall()
-    else:
-        rows = []
+    """
+    rows = _get_rows(stmt, conn)
     # Insert the missing rows from serialized_dag to dag_code
     stmt = sa.text("""
         INSERT INTO dag_code (dag_version_id, dag_id, fileloc, fileloc_hash, source_code, last_updated, created_at)
@@ -214,12 +194,8 @@ def upgrade():
             )
         )
 
-    stmt = sa.text("SELECT dag_id, fileloc FROM dag_code")
-    rows = conn.execute(stmt)
-    if rows:
-        rows = rows.fetchall()
-    else:
-        rows = []
+    stmt = "SELECT dag_id, fileloc FROM dag_code"
+    rows = _get_rows(stmt, conn)
     stmt = sa.text("""
                     UPDATE dag_code
                     SET id = :_id,
@@ -244,6 +220,8 @@ def upgrade():
         )
 
     with op.batch_alter_table("dag_code") as batch_op:
+        batch_op.drop_constraint("dag_code_pkey", type_="primary")
+        batch_op.alter_column("dag_id", existing_type=StringID, nullable=False)
         batch_op.alter_column("id", existing_type=UUIDType(binary=False), nullable=False)
         batch_op.create_primary_key("dag_code_pkey", ["id"])
         batch_op.alter_column("dag_version_id", existing_type=UUIDType(binary=False), nullable=False)
@@ -258,7 +236,6 @@ def upgrade():
         batch_op.drop_column("fileloc_hash")
         batch_op.alter_column("source_code_hash", existing_type=sa.String(length=32), nullable=False)
         batch_op.alter_column("created_at", existing_type=UtcDateTime(), nullable=False)
-        batch_op.alter_column("last_updated", existing_type=UtcDateTime(), nullable=False)
 
     with op.batch_alter_table("serialized_dag") as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
@@ -312,12 +289,8 @@ def downgrade():
         batch_op.drop_column("created_at")
 
     # Update the added fileloc_hash with the hash of fileloc
-    stmt = sa.text("SELECT fileloc FROM dag_code")
-    rows = conn.execute(stmt)
-    if rows:
-        rows = rows.fetchall()
-    else:
-        rows = []
+    stmt = "SELECT fileloc FROM dag_code"
+    rows = _get_rows(stmt, conn)
     stmt = sa.text("""
                     UPDATE dag_code
                     SET fileloc_hash = :_hash
@@ -336,15 +309,25 @@ def downgrade():
         batch_op.drop_column("created_at")
 
     # Update the serialized fileloc with fileloc from dag_code where dag_version_id matches
-    conn.execute(
-        sa.text("""
-        UPDATE serialized_dag
-        SET fileloc = dag_code.fileloc,
-            fileloc_hash = dag_code.fileloc_hash
-        FROM dag_code
-        WHERE serialized_dag.dag_version_id = dag_code.dag_version_id
-    """)
-    )
+    if conn.dialect.name == "mysql":
+        conn.execute(
+            sa.text("""
+            UPDATE serialized_dag sd
+            JOIN dag_code dc ON sd.dag_version_id = dc.dag_version_id
+            SET sd.fileloc = dc.fileloc,
+                sd.fileloc_hash = dc.fileloc_hash
+        """)
+        )
+    else:
+        conn.execute(
+            sa.text("""
+                    UPDATE serialized_dag
+                    SET fileloc = dag_code.fileloc,
+                        fileloc_hash = dag_code.fileloc_hash
+                    FROM dag_code
+                    WHERE serialized_dag.dag_version_id = dag_code.dag_version_id
+                """)
+        )
     # Deduplicate the rows in dag_code with the same fileloc_hash so we can make fileloc_hash the primary key
     stmt = sa.text("""
                 WITH ranked_rows AS (
@@ -373,18 +356,28 @@ def downgrade():
         batch_op.drop_column("id")
         batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
         batch_op.drop_column("dag_version_id")
+        batch_op.drop_column("dag_id")
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
 
     # Update dag_run dag_hash with dag_hash from serialized_dag where dag_id matches
-    conn.execute(
-        sa.text("""
-        UPDATE dag_run
-        SET dag_hash = serialized_dag.dag_hash
-        FROM serialized_dag
-        WHERE dag_run.dag_id = serialized_dag.dag_id
-    """)
-    )
+    if conn.dialect.name == "mysql":
+        conn.execute(
+            sa.text("""
+            UPDATE dag_run dr
+            JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+            SET dr.dag_hash = sd.dag_hash
+        """)
+        )
+    else:
+        conn.execute(
+            sa.text("""
+            UPDATE dag_run
+            SET dag_hash = serialized_dag.dag_hash
+            FROM serialized_dag
+            WHERE dag_run.dag_id = serialized_dag.dag_id
+        """)
+        )
 
     op.drop_table("dag_version")
