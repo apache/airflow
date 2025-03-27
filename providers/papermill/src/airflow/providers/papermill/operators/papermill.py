@@ -27,6 +27,7 @@ import papermill as pm
 
 from airflow.models import BaseOperator
 from airflow.providers.common.compat.lineage.entities import File
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
 
 if TYPE_CHECKING:
@@ -59,6 +60,9 @@ class PapermillOperator(BaseOperator):
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
     """
+
+    # TODO: Remove this when provider drops 2.x support.
+    supports_lineage = True
 
     template_fields: Sequence[str] = (
         "input_nb",
@@ -106,6 +110,9 @@ class PapermillOperator(BaseOperator):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
         if not isinstance(self.output_nb, NoteBook):
             self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
+        if not AIRFLOW_V_3_0_PLUS:
+            self.inlets.append(self.input_nb)
+            self.outlets.append(self.output_nb)
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:
