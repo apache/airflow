@@ -748,9 +748,9 @@ def update_config(args) -> None:
             Comma-separated list of configuration options to ignore during update.
             Example: --ignore-option check_slas
 
-        --verbose: flag (optional)
-            Enable detailed output, including a summary of changes and any ignored items.
-            Example: --verbose
+        --dry-run: flag (optional)
+            Dry-run mode (print the changes without modifying airflow.cfg)
+            Example: --dry-run
 
     Examples:
         1. Update the entire configuration file:
@@ -765,8 +765,8 @@ def update_config(args) -> None:
         4. Ignore updates for a specific section:
             airflow config update --ignore-section webserver
 
-        5. Enable verbose output for more detailed information:
-            airflow config update --verbose
+        5. Dry-run mode (print the changes without modifying airflow.cfg):
+            airflow config update --dry-run
 
     :param args: The CLI arguments for updating configuration.
     """
@@ -822,13 +822,25 @@ def update_config(args) -> None:
         console.print(f"Failed to create backup: {e}")
         raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
 
-    with open(AIRFLOW_CONFIG, "w") as config_file:
-        conf.write_custom_config(
-            file=config_file,
-            comment_out_defaults=True,
-            include_descriptions=True,
-            modifications=modifications,
-        )
+    if getattr(args, "dry_run", False):
+        console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
+        with StringIO() as config_output:
+            conf.write_custom_config(
+                file=config_output,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
+            new_config = config_output.getvalue()
+        console.print(new_config)
+    else:
+        with open(AIRFLOW_CONFIG, "w") as config_file:
+            conf.write_custom_config(
+                file=config_file,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
 
     if changes_applied:
         console.print("[green]The following updates were applied:[/green]")
