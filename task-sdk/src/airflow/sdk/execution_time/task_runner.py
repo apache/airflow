@@ -118,7 +118,7 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: datetime
     """Start date of the task instance."""
 
-    is_mapped: bool | None
+    is_mapped: bool | None = None
     """True if the original task was mapped."""
 
     def __rich_repr__(self):
