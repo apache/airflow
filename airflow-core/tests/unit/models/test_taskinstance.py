@@ -77,8 +77,8 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
-from airflow.sdk.definitions.notifier import BaseNotifier
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,

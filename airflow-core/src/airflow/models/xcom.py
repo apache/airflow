@@ -398,12 +398,16 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
 
 def __getattr__(name: str):
-    if name == "BaseXCom" or name == "XCom":
-        from airflow.sdk.execution_time import xcom
+    if name == "BaseXCom":
+        from airflow.sdk.bases.xcom import BaseXCom
 
-        val = getattr(xcom, name)
+        globals()[name] = BaseXCom
+        return BaseXCom
 
-        globals()[name] = val
-        return val
+    if name == "XCom":
+        from airflow.sdk.execution_time.xcom import XCom
+
+        globals()[name] = XCom
+        return XCom
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

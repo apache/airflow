@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.sensors.base import (
+from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
     poke_mode_only as poke_mode_only,
