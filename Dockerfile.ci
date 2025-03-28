@@ -914,6 +914,10 @@ function determine_airflow_to_use() {
         echo
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
     fi
+    if [[ "${USE_AIRFLOW_VERSION}" =~ ^2.* ]]; then
+        # Remove auth manager setting
+        unset AIRFLOW__CORE__AUTH_MANAGER
+    fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
         # make sure old variable is used for older airflow versions
