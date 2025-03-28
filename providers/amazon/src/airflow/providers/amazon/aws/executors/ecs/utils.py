@@ -61,7 +61,7 @@ class EcsQueuedTask:
 
     key: TaskInstanceKey
     command: CommandType
-    queue: str
+    queue: str | None
     executor_config: ExecutorConfigType
     attempt_number: int
     next_attempt_time: datetime.datetime
