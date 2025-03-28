@@ -466,3 +466,28 @@ class TestConfigLint:
 
         assert expected_message in normalized_output
         assert config_change.suggestion in normalized_output
+
+    def test_lint_detects_invalid_config(self):
+        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__PARALLELISM": "0"}):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert (
+            "Invalid value `0` set for `parallelism` configuration parameter in `core` section."
+            in normalized_output
+        )
+
+    def test_lint_detects_invalid_config_negative(self):
+        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__PARALLELISM": "42"}):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+
+        normalized_output = re.sub(r"\s+", " ", output.strip())
+
+        assert "Invalid value" not in normalized_output

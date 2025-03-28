@@ -70,7 +70,7 @@ def downgrade():
         )
     op.execute(
         "update dataset set is_orphaned = true "
-        "where exists (select 1 from asset_active "
+        "where not exists (select 1 from asset_active "
         "where dataset.name = asset_active.name and dataset.uri = asset_active.uri)"
     )
 

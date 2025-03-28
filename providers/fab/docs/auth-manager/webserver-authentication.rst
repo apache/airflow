@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-Webserver authentication
-========================
+FAB auth manager authentication
+===============================
 
-By default, Airflow requires users to specify a password prior to login. You can use the
+By default, FAB auth manager requires users to specify a password prior to login. You can use the
 following CLI commands to create an account:
 
 .. code-block:: bash
@@ -39,8 +39,6 @@ user will have by default:
 
     AUTH_ROLE_PUBLIC = 'Admin'
 
-Be sure to checkout :doc:`apache-airflow:security/api` for securing the API.
-
 .. note::
 
    Airflow uses the config parser of Python. This config parser interpolates
@@ -58,14 +56,12 @@ Please use command line interface ``airflow users create`` to create accounts, o
 Other Methods
 '''''''''''''
 
-Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
-is automatically generated and can be used to configure the Airflow to support authentication
+A ``webserver_config.py`` configuration file is automatically generated and can be used to configure FAB auth manager to support authentication
 methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
 and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
 ``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
 
-The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
-with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
+By default, the following entry in the ``$AIRFLOW_HOME/webserver_config.py`` is used.
 
 .. code-block:: ini
 
