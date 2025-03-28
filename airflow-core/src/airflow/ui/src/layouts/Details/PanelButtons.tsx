@@ -136,9 +136,9 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
           <Accordion.ItemContent display="flex" justifyContent="flex-end">
             <Accordion.ItemBody bg="bg.muted" p={2} width="fit-content">
               <Stack gap={1} mr={2}>
-                <DagVersionSelect disabled={dagView !== "graph"} />
                 {dagView === "graph" ? (
                   <>
+                    <DagVersionSelect />
                     <DagRunSelect limit={limit} />
                     <Select.Root
                       collection={options}
