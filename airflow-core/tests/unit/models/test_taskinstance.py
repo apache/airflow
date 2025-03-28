@@ -4122,7 +4122,7 @@ class TestTaskInstance:
 
             first_asset_task()
 
-        with dag_maker(schedule=None, serialized=True, session=session):
+        with dag_maker(schedule=None, serialized=False, session=session):
 
             @task(inlets=Asset("asset_second"))
             def asset_task_in_inlet():
@@ -4181,7 +4181,7 @@ class TestTaskInstance:
 
             first_asset_task()
 
-        with dag_maker(schedule=None, serialized=True, session=session):
+        with dag_maker(schedule=None, serialized=False, session=session):
 
             @task(outlets=Asset(name="asset_first", uri="test://asset"))
             def duplicate_asset_task(*, outlet_events):
