@@ -822,7 +822,7 @@ def test_render_template_fields_logging(
 
 
 class HelloWorldOperator(BaseOperator):
-    log = structlog.get_logger()
+    log = structlog.get_logger(__name__)
 
     def execute(self, context):
         return f"Hello {self.owner}!"

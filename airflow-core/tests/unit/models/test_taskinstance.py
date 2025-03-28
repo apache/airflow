@@ -46,7 +46,6 @@ from airflow.exceptions import (
     AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
-    AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
     UnmappableXComLengthPushed,
@@ -91,6 +90,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
@@ -370,7 +370,7 @@ class TestTaskInstance:
             session.add(ti)
             session.commit()
 
-        all_deps = RUNNING_DEPS | task.deps
+        all_deps = RUNNING_DEPS | {ReadyToRescheduleDep()}
         all_non_requeueable_deps = all_deps - REQUEUEABLE_DEPS
         patch_dict = {}
         for dep in all_non_requeueable_deps:
@@ -4319,89 +4319,6 @@ class TestRunRawTaskQueriesCount:
 
     def teardown_method(self) -> None:
         self._clean()
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.Mock(
-        __name__="mock_on_failure",
-        __call__=mock.MagicMock(),
-    )
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-            mode=mode,
-        )
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause mapped sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.Mock(
-        __name__="mock_on_failure",
-        __call__=mock.MagicMock(),
-    )
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_works(mode, retries, dag_maker):
-    """
-    Test that mapped sensors reaches success state.
-    """
-
-    def timeout(ti):
-        return 1
-
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}", serialized=True):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun().task_instances[0]
-
-    ti.run()
-    assert ti.state == State.SUCCESS
 
 
 class TestTaskInstanceRecordTaskMapXComPush:

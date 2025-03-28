@@ -1549,6 +1549,26 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
+    def pre_execute(self, context: Any):
+        """Execute right before self.execute() is called."""
+
+    def execute(self, context: Context) -> Any:
+        """
+        Derive when creating an operator.
+
+        The main method to execute the task. Context is the same dictionary used as when rendering jinja templates.
+
+        Refer to get_template_context for more context.
+        """
+        raise NotImplementedError()
+
+    def post_execute(self, context: Any, result: Any = None):
+        """
+        Execute right after self.execute() is called.
+
+        It is passed the execution context and any results returned by the operator.
+        """
+
     def defer(
         self,
         *,

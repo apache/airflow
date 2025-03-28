@@ -2324,6 +2324,16 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
 
+        if not hasattr(self.task, "deps"):
+            # These deps are not on BaseOperator since they are only needed and evaluated
+            # in the scheduler and not needed at the Runtime.
+            from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+            serialized_op = SerializedBaseOperator.deserialize_operator(
+                SerializedBaseOperator.serialize_operator(self.task)
+            )
+            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
+
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
