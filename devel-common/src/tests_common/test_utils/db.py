@@ -335,7 +335,6 @@ def clear_dag_specific_permissions():
 
 def clear_all():
     clear_db_runs()
-    clear_db_backfills()
     clear_db_assets()
     clear_db_triggers()
     clear_db_dags()
@@ -354,5 +353,7 @@ def clear_all():
     clear_db_connections(add_default_connections_back=True)
     clear_db_deadline()
     clear_dag_specific_permissions()
-    clear_db_dag_parsing_requests()
-    clear_db_dag_bundles()
+    if AIRFLOW_V_3_0_PLUS:
+        clear_db_backfills()
+        clear_db_dag_bundles()
+        clear_db_dag_parsing_requests()
