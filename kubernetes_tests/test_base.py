@@ -53,7 +53,7 @@ class StringContainingId(str):
 class BaseK8STest:
     """Base class for K8S Tests."""
 
-    host: str = KUBERNETES_HOST_PORT
+    host: str = KUBERNETES_HOST_PORT + "/api/v2"
     temp_dir = Path(tempfile.gettempdir())  # Refers to global temp directory, in linux it usual "/tmp"
     session: requests.Session
     test_id: str
