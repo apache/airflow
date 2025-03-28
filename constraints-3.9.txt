@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-27T13:57:42.087677
+# This constraints file was automatically generated on 2025-03-28T15:24:20.628954
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -78,7 +78,7 @@ aiosignal==1.3.2
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==0.7.16
-alembic==1.15.1
+alembic==1.15.2
 alibabacloud-adb20211201==2.2.0
 alibabacloud-tea==0.4.3
 alibabacloud_credentials==0.3.6
@@ -223,8 +223,8 @@ azure-mgmt-resource==23.3.0
 azure-mgmt-storage==22.1.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.1
-azure-storage-blob==12.25.0
-azure-storage-file-datalake==12.19.0
+azure-storage-blob==12.25.1
+azure-storage-file-datalake==12.20.0
 azure-storage-file-share==12.21.0
 azure-synapse-artifacts==0.20.0
 azure-synapse-spark==0.7.0
@@ -339,13 +339,13 @@ google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery==3.31.0
 google-cloud-bigtable==2.30.0
 google-cloud-build==3.31.1
-google-cloud-compute==1.28.0
+google-cloud-compute==1.29.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.26.0
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.8.0
+google-cloud-dataplex==2.9.0
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
@@ -502,7 +502,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.68.2
+openai==1.69.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.30.1
@@ -573,8 +573,8 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.10.6
-pydantic_core==2.27.2
+pydantic==2.11.0
+pydantic_core==2.33.0
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
@@ -664,7 +664,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.14.0
-snowflake-snowpark-python==1.29.1
+snowflake-snowpark-python==1.30.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -739,11 +739,12 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250326
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==76.0.0.20250313
+types-setuptools==77.0.2.20250328
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing-inspect==0.9.0
+typing-inspection==0.4.0
 typing_extensions==4.13.0
 tzdata==2025.2
 tzlocal==5.3.1
@@ -774,7 +775,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.11
-ydb==3.19.3
+ydb==3.20.0
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
