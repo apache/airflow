@@ -73,7 +73,7 @@ passwords = auth_manager.get_passwords(users)
 username, password = next(iter(passwords.items()))
 access_token = SimpleAuthManagerLogin.create_token(LoginBody(username=username, password=password)).jwt_token
 configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080",
+    host="http://localhost:8080/api/v2",
 )
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
