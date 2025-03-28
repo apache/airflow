@@ -23,6 +23,7 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
@@ -406,7 +407,7 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
+    sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -551,6 +552,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1030,7 +1040,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "_log",
     "task_dict",
     "template_searchpath",
-    # "sla_miss_callback",
+    "sla_miss_callback",
     "on_success_callback",
     "on_failure_callback",
     "template_undefined",
@@ -1063,7 +1073,6 @@ if TYPE_CHECKING:
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
-        # sla_miss_callback: Any = None,
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,

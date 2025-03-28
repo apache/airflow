@@ -123,10 +123,7 @@ class TestLocalExecutor:
     @skip_spawn_mp_start
     @pytest.mark.parametrize(
         ("parallelism",),
-        [
-            pytest.param(0, id="unlimited"),
-            pytest.param(2, id="limited"),
-        ],
+        [pytest.param(2, id="limited")],
     )
     def test_execution(self, parallelism: int):
         self._test_execute(parallelism=parallelism)

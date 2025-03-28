@@ -362,10 +362,12 @@ def _run_raw_task(
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
-                )
-
+                try:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                    )
+                except Exception:
+                    log.exception("error calling listener")
         return None
 
 
@@ -2900,9 +2902,12 @@ class TaskInstance(Base, LoggingMixin):
             self._run_execute_callback(context, self.task)
 
             # Run on_task_instance_running event
-            get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self
-            )
+            try:
+                get_listener_manager().hook.on_task_instance_running(
+                    previous_state=TaskInstanceState.QUEUED, task_instance=self
+                )
+            except Exception:
+                log.exception("error calling listener")
 
             def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
                 """Render named map index if the DAG author defined map_index_template at the task level."""
@@ -3143,9 +3148,12 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
 
         return {
             "ti": ti,

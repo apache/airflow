@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Auth manager <auth-manager/index>
+    FAB auth manager <auth-manager/index>
     Upgrading <upgrading>
 
 .. toctree::
@@ -47,7 +47,8 @@
     :hidden:
     :caption: References
 
-    Stable REST API <stable-rest-api-ref>
+    Fab auth manager API <api-ref/fab-public-api-ref>
+    Fab auth manager token API <api-ref/fab-token-api-ref>
 
 .. toctree::
     :hidden:
