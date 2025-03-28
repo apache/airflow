@@ -35,7 +35,7 @@ export const Dashboard = () => {
     <Box>
       <VStack alignItems="start">
         {alerts.length > 0 ? (
-          <Accordion.Root collapsible>
+          <Accordion.Root collapsible defaultValue={["ui_alerts"]}>
             <Accordion.Item key="ui_alerts" value="ui_alerts">
               {alerts.map((alert: UIAlert, index) =>
                 index === 0 ? (
