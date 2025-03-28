@@ -15,15 +15,15 @@
     specific language governing permissions and limitations
     under the License.
 
-Generate JWT token with FAB auth manager
-========================================
+Generate JWT token with simple auth manager
+===========================================
 
 .. note::
-    This guide only applies if your environment is configured with FAB auth manager.
+    This guide only applies if your environment is configured with simple auth manager.
 
-In order to use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you need a JWT token for authentication.
+In order to use the :doc:`Airflow public API </stable-rest-api-ref>`, you need a JWT token for authentication.
 You can then include this token in your Airflow public API requests.
-To generate a JWT token, use the ``Create Token`` API in :doc:`/api-ref/fab-token-api-ref`.
+To generate a JWT token, use the ``Create Token`` API in :doc:`sam-token-api-ref`.
 
 Example
 '''''''
@@ -40,3 +40,10 @@ Example
         }'
 
 This process will return a token that you can use in the Airflow public API requests.
+
+If ``[core] simple_auth_manager_all_admins`` is set to True, you can also generate a token with no credentials.
+
+.. code-block:: bash
+
+    ENDPOINT_URL="http://localhost:8080/"
+    curl -X 'GET' "${ENDPOINT_URL}/auth/token"
