@@ -1,4 +1,4 @@
-The catchup_by_default configuration is now False by default. This means dags which do not expclitely define `catchup` will not display catchup behavior. 
+The catchup_by_default configuration is now False by default. This means dags which do not expclitely define `catchup` will not display catchup behavior.
 
 * Types of change
 
