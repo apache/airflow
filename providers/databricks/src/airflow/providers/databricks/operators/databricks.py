@@ -1261,17 +1261,31 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def databricks_task_key(self) -> str:
         return self._generate_databricks_task_key()
 
-    def _generate_databricks_task_key(self, task_id: str | None = None) -> str:
+    def _generate_databricks_task_key(
+        self, task_id: str | None = None, task_dict: dict[str, BaseOperator] | None = None
+    ) -> str:
         """Create a databricks task key using the hash of dag_id and task_id."""
-        if not self._databricks_task_key or len(self._databricks_task_key) > 100:
-            self.log.info(
-                "databricks_task_key has not be provided or the provided one exceeds 100 characters and will be truncated by the Databricks API. This will cause failure when trying to monitor the task. A task_key will be generated using the hash value of dag_id+task_id"
-            )
-            task_id = task_id or self.task_id
-            task_key = f"{self.dag_id}__{task_id}".encode()
-            self._databricks_task_key = hashlib.md5(task_key).hexdigest()
-            self.log.info("Generated databricks task_key: %s", self._databricks_task_key)
-        return self._databricks_task_key
+        if task_id:
+            if not task_dict:
+                raise ValueError(
+                    "Must pass task_dict if task_id is provided in _generate_databricks_task_key."
+                )
+            _task = task_dict.get(task_id)
+            if _task and hasattr(_task, "databricks_task_key"):
+                _databricks_task_key = _task.databricks_task_key
+            else:
+                task_key = f"{self.dag_id}__{task_id}".encode()
+                _databricks_task_key = hashlib.md5(task_key).hexdigest()
+            return _databricks_task_key
+        else:
+            if not self._databricks_task_key or len(self._databricks_task_key) > 100:
+                self.log.info(
+                    "databricks_task_key has not be provided or the provided one exceeds 100 characters and will be truncated by the Databricks API. This will cause failure when trying to monitor the task. A task_key will be generated using the hash value of dag_id+task_id"
+                )
+                task_key = f"{self.dag_id}__{self.task_id}".encode()
+                self._databricks_task_key = hashlib.md5(task_key).hexdigest()
+                self.log.info("Generated databricks task_key: %s", self._databricks_task_key)
+            return self._databricks_task_key
 
     @property
     def _databricks_workflow_task_group(self) -> DatabricksWorkflowTaskGroup | None:
@@ -1354,14 +1368,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         return {task["task_key"]: task for task in sorted_task_runs}[self.databricks_task_key]
 
     def _convert_to_databricks_workflow_task(
-        self, relevant_upstreams: list[BaseOperator], context: Context | None = None
+        self,
+        relevant_upstreams: list[BaseOperator],
+        task_dict: dict[str, BaseOperator],
+        context: Context | None = None,
     ) -> dict[str, object]:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         base_task_json = self._get_task_base_json()
         result = {
             "task_key": self.databricks_task_key,
             "depends_on": [
-                {"task_key": self._generate_databricks_task_key(task_id)}
+                {"task_key": self._generate_databricks_task_key(task_id, task_dict)}
                 for task_id in self.upstream_task_ids
                 if task_id in relevant_upstreams
             ],
@@ -1571,7 +1588,10 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
                 self.notebook_packages.append(task_group_package)
 
     def _convert_to_databricks_workflow_task(
-        self, relevant_upstreams: list[BaseOperator], context: Context | None = None
+        self,
+        relevant_upstreams: list[BaseOperator],
+        task_dict: dict[str, BaseOperator],
+        context: Context | None = None,
     ) -> dict[str, object]:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         databricks_workflow_task_group = self._databricks_workflow_task_group
@@ -1589,7 +1609,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
                 **databricks_workflow_task_group.notebook_params,
             }
 
-        return super()._convert_to_databricks_workflow_task(relevant_upstreams, context=context)
+        return super()._convert_to_databricks_workflow_task(relevant_upstreams, task_dict, context=context)
 
 
 class DatabricksTaskOperator(DatabricksTaskBaseOperator):
