@@ -38,6 +38,12 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(logger_name=__name__)
 
 
+async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
+    async for event in trigger.run():
+        return event
+    return None
+
+
 @dataclass
 class StartTriggerArgs:
     """Arguments required for start task execution from triggerer."""
