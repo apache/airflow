@@ -35,9 +35,14 @@ pytestmark = pytest.mark.db_test
 class TestSqlAlchemySettings:
     @pytest.fixture(autouse=True, scope="class")
     def reset(self):
-        settings.SQL_ALCHEMY_CONN = "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
         try:
-            yield
+            with pytest.MonkeyPatch.context() as mp:
+                mp.setattr(
+                    settings,
+                    "SQL_ALCHEMY_CONN",
+                    "mysql+foobar://user:pass@host/dbname?inline=param&another=param",
+                )
+                yield
         finally:
             settings.configure_orm()
 
