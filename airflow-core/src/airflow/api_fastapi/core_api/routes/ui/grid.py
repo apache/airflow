@@ -157,7 +157,7 @@ def grid_data(
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
 
-    for _, tis in tis_by_run_id.items():
+    for tis in tis_by_run_id.values():
         # this is a simplification - we account for structure based on the first task
         run_dag = tis[0].dag_version.serialized_dag.dag
         task_node_map = get_task_group_map(dag=run_dag)
