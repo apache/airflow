@@ -34,7 +34,6 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, Table, select
 
-from airflow.configuration import conf
 from airflow.models import Base as airflow_base
 from airflow.providers.fab.auth_manager.models.db import FABDBManager
 from airflow.settings import engine
@@ -136,14 +135,35 @@ class TestDb:
         check_migrations(0)
         check_migrations(1)
 
+    @pytest.mark.parametrize(
+        "auth, expected",
+        [
+            (
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+                },
+                1,
+            ),
+            (
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+                },
+                2,
+            ),
+        ],
+    )
     @mock.patch("alembic.command")
-    def test_upgradedb(self, mock_alembic_command):
-        upgradedb()
-        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            assert mock_alembic_command.upgrade.call_count == 2
-        else:
-            assert mock_alembic_command.upgrade.call_count == 1
+    def test_upgradedb(self, mock_alembic_command, auth, expected):
+        with conf_vars(auth):
+            upgradedb()
+            mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+            assert mock_alembic_command.upgrade.call_count == expected
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",

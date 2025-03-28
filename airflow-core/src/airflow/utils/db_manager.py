@@ -146,8 +146,9 @@ class RunDBManager(LoggingMixin):
         self._managers: list[BaseDBManager] = []
         managers_config = conf.get("database", "external_db_managers", fallback=None)
         if not managers_config:
-            return
-        managers = managers_config.split(",")
+            managers = []
+        else:
+            managers = managers_config.split(",")
         # Add DB manager specified by auth manager (if any)
         auth_manager_db_manager = create_auth_manager().get_db_manager()
         if auth_manager_db_manager and auth_manager_db_manager not in managers:
