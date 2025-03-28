@@ -35,7 +35,7 @@ class FABAuthManagerLogin:
 
     @classmethod
     def create_token(
-        cls, body: LoginBody, expiration_time_in_sec: int = conf.getint("api_auth", "jwt_expiration_time")
+        cls, body: LoginBody, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> LoginResponse:
         """Create a new token."""
         if not body.username or not body.password:
@@ -50,8 +50,8 @@ class FABAuthManagerLogin:
 
         if auth_manager.security_manager.check_password(username=body.username, password=body.password):
             return LoginResponse(
-                jwt_token=auth_manager.generate_jwt(
-                    user=user, expiration_time_in_seconds=expiration_time_in_sec
+                access_token=auth_manager.generate_jwt(
+                    user=user, expiration_time_in_seconds=expiration_time_in_seconds
                 )
             )
         else:
