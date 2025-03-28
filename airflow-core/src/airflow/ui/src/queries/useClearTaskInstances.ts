@@ -23,6 +23,7 @@ import {
   useDagRunServiceGetDagRunsKey,
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
 } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
@@ -79,6 +80,8 @@ export const useClearTaskInstances = ({
     const queryKeys = [
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId }, [{ dagId, dagRunId }]),
+      [useClearTaskInstancesDryRunKey],
       [useDagRunServiceGetDagRunsKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],

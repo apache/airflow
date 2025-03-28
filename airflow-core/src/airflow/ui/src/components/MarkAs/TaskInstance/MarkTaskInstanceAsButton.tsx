@@ -20,7 +20,8 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { MdArrowDropDown } from "react-icons/md";
 
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskActionProps } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
@@ -29,11 +30,12 @@ import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
-  readonly taskInstance: TaskInstanceResponse;
+  readonly state?: TaskInstanceState | null;
+  readonly taskActionProps: TaskActionProps;
   readonly withText?: boolean;
 };
 
-const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
+const MarkTaskInstanceAsButton = ({ state: taskState, taskActionProps, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   const [state, setState] = useState<TaskInstanceState>("success");
@@ -54,10 +56,10 @@ const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
           {allowedStates.map((menuState) => (
             <Menu.Item
               asChild
-              disabled={taskInstance.state === menuState}
+              disabled={taskState === menuState}
               key={menuState}
               onClick={() => {
-                if (taskInstance.state !== menuState) {
+                if (taskState !== menuState) {
                   setState(menuState);
                   onOpen();
                 }
@@ -73,7 +75,12 @@ const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
       </Menu.Root>
 
       {open ? (
-        <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
+        <MarkTaskInstanceAsDialog
+          onClose={onClose}
+          open={open}
+          state={state}
+          taskActionProps={taskActionProps}
+        />
       ) : undefined}
     </Box>
   );

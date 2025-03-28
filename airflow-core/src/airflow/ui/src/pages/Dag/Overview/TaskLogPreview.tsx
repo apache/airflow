@@ -56,7 +56,18 @@ export const TaskLogPreview = ({
           <Time datetime={taskInstance.run_after} ml={1} />
         </Box>
         <Flex gap={1}>
-          <ClearTaskInstanceButton taskInstance={taskInstance} withText={false} />
+          <ClearTaskInstanceButton
+            taskActionProps={{
+              dagId: taskInstance.dag_id,
+              dagRunId: taskInstance.dag_run_id,
+              mapIndex: taskInstance.map_index,
+              note: taskInstance.note,
+              startDate: taskInstance.start_date,
+              taskDisplayName: taskInstance.task_display_name,
+              taskId: taskInstance.task_id,
+            }}
+            withText={false}
+          />
           <Link asChild color="fg.info" fontSize="sm">
             <RouterLink to={getTaskInstanceLink(taskInstance)}>View full logs</RouterLink>
           </Link>

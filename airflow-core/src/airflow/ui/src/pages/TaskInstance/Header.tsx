@@ -84,6 +84,16 @@ export const Header = ({
     }
   }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
 
+  const taskActionProps = {
+    dagId: taskInstance.dag_id,
+    dagRunId: taskInstance.dag_run_id,
+    mapIndex: taskInstance.map_index,
+    note: taskInstance.note,
+    startDate: taskInstance.start_date,
+    taskDisplayName: taskInstance.task_display_name,
+    taskId: taskInstance.task_id,
+  };
+
   return (
     <Box ref={containerRef}>
       <HeaderCard
@@ -100,8 +110,12 @@ export const Header = ({
               text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
               withText={containerWidth > 700}
             />
-            <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
-            <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
+            <ClearTaskInstanceButton taskActionProps={taskActionProps} withText={containerWidth > 700} />
+            <MarkTaskInstanceAsButton
+              state={taskInstance.state}
+              taskActionProps={taskActionProps}
+              withText={containerWidth > 700}
+            />
           </>
         }
         icon={<MdOutlineTask />}

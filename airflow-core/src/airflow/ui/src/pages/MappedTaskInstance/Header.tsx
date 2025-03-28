@@ -19,8 +19,10 @@
 import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { MdOutlineTask } from "react-icons/md";
+import { useParams } from "react-router-dom";
 
 import type { GridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
@@ -32,6 +34,7 @@ export const Header = ({
   readonly isRefreshing?: boolean;
   readonly taskInstance: GridTaskInstanceSummary;
 }) => {
+  const { dagId = "", runId = "" } = useParams();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   if (taskInstance.child_states !== null) {
@@ -54,6 +57,27 @@ export const Header = ({
   return (
     <Box>
       <HeaderCard
+        actions={
+          <>
+            <ClearTaskInstanceButton
+              taskActionProps={{
+                dagId,
+                dagRunId: runId,
+                startDate: taskInstance.start_date,
+                taskId: taskInstance.task_id,
+              }}
+            />
+            {/* Looks like the API does not support this yet. TODO: Uncomment when it does */}
+            {/* <MarkTaskInstanceAsButton
+              taskActionProps={{
+                dagId,
+                dagRunId: runId,
+                startDate: taskInstance.start_date,
+                taskId: taskInstance.task_id,
+              }}
+            /> */}
+          </>
+        }
         icon={<MdOutlineTask />}
         isRefreshing={isRefreshing}
         state={taskInstance.state}

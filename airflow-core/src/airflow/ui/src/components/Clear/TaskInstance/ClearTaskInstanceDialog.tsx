@@ -20,8 +20,8 @@ import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { CgRedo } from "react-icons/cg";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import type { TaskActionProps } from "src/components/MarkAs/utils";
 import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -32,16 +32,23 @@ import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 type Props = {
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskActionProps: TaskActionProps;
 };
 
-const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-
+export const ClearTaskInstanceDialog = ({
+  onClose,
+  open,
+  taskActionProps: {
+    dagId,
+    dagRunId,
+    logicalDate,
+    mapIndex = -1,
+    note: taskNote,
+    startDate,
+    taskDisplayName,
+    taskId,
+  },
+}: Props) => {
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
     dagRunId,
@@ -56,7 +63,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  // eslint-disable-next-line unicorn/no-null
+  const [note, setNote] = useState<string | null>(taskNote ?? null);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
     dagId,
     dagRunId,
@@ -91,8 +99,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear Task Instance:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} />
+              <strong>Clear Task Instance:</strong> {taskDisplayName ?? taskId} <Time datetime={startDate} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -105,15 +112,19 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               multiple
               onChange={setSelectedOptions}
               options={[
-                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
-                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
+                { disabled: !Boolean(logicalDate), label: "Past", value: "past" },
+                { disabled: !Boolean(logicalDate), label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
                 { label: "Only Failed", value: "onlyFailed" },
               ]}
             />
           </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ActionAccordion
+            affectedTasks={affectedTasks}
+            note={taskNote === undefined ? undefined : note}
+            setNote={setNote}
+          />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
@@ -133,7 +144,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                     task_ids: [taskId],
                   },
                 });
-                if (note !== taskInstance.note) {
+                if (taskNote !== undefined && note !== taskNote) {
                   mutatePatchTaskInstance({
                     dagId,
                     dagRunId,
@@ -152,5 +163,3 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     </Dialog.Root>
   );
 };
-
-export default ClearTaskInstanceDialog;
