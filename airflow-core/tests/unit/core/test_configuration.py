@@ -960,7 +960,7 @@ key7 =
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
-                {"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"},
+                {"connections_file": "/files/conn.json", "variables_file": "/files/var.json"},
                 id="worker-backend-and-kwargs-not-defined",
             ),
         ],
@@ -996,7 +996,10 @@ key7 =
             backends = ensure_secrets_loaded(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
             secrets_backend = backends[0]
             assert secrets_backend.__class__.__name__ in expected_backend
-            all(secrets_backend.__dict__.get(k) == v for k, v in expected_backend_kwargs.items())
+
+            # Verify kwargs are properly applied to the backend instance
+            for key, value in expected_backend_kwargs.items():
+                assert getattr(secrets_backend, key) == value
 
 
 @mock.patch.dict(

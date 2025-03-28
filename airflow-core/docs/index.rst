@@ -176,7 +176,7 @@ so coding will always be required.
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
-    Stable REST API <stable-rest-api-ref>
+    Airflow public API <stable-rest-api-ref>
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
 

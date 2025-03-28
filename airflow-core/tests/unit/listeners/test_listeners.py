@@ -120,13 +120,14 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session=None)
 
 
 @provide_session
-def test_listener_throws_exceptions(create_task_instance, session=None):
+def test_listener_suppresses_exceptions(create_task_instance, session, caplog):
     lm = get_listener_manager()
     lm.add_listener(throwing_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
-    with pytest.raises(RuntimeError):
+    with caplog.at_level(logging.ERROR):
         ti._run_raw_task()
+    assert "error calling listener" in caplog.messages
 
 
 @provide_session

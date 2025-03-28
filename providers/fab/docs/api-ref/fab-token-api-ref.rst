@@ -16,8 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Airflow public API reference
-============================
+FAB auth manager token API
+==========================
 
-It's a stub file. It will be converted automatically during the build process
-to the valid documentation by the Sphinx plugin. See: /docs/conf.py
+It's a stub file. It will be automatically converted during the build process into valid documentation by the Sphinx plugin. See: /docs/conf.py

@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-REST API Reference
-==================
+FAB auth manager API
+====================
 
 It's a stub file. It will be converted automatically during the build process
 to the valid documentation by the Sphinx plugin. See: /docs/conf.py
