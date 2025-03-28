@@ -474,3 +474,4 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def error_mapping() -> Optional[dict[str, type[ParsableFactory[Any]]]]:
         return {}
+    
