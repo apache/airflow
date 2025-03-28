@@ -47,15 +47,15 @@ from airflow.models.abstractoperator import (
     NotMapped,
 )
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
-from airflow.sdk.definitions.baseoperator import (
+from airflow.sdk.bases.baseoperator import (
+    BaseOperator as TaskSDKBaseOperator,
     # Re-export for compat
     chain as chain,
     chain_linear as chain_linear,
     cross_downstream as cross_downstream,
     get_merged_defaults as get_merged_defaults,
 )
-from airflow.sdk.definitions.dag import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.enums import DagAttributeTypes

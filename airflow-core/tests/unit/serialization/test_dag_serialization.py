@@ -2015,7 +2015,7 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_serialize_sensor(self, mode):
-        from airflow.sdk.definitions.sensors.base import BaseSensorOperator
+        from airflow.sdk.bases.sensor import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
             def poke(self, context: Context):
@@ -2032,7 +2032,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_serialize_mapped_sensor_has_reschedule_dep(self, mode):
-        from airflow.sdk.definitions.sensors.base import BaseSensorOperator
+        from airflow.sdk.bases.sensor import BaseSensorOperator
         from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 
         class DummySensor(BaseSensorOperator):

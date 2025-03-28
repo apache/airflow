@@ -29,7 +29,7 @@ import pytest
 import structlog
 
 from airflow.decorators import task as task_decorator
-from airflow.sdk.definitions.baseoperator import (
+from airflow.sdk.bases.baseoperator import (
     BaseOperator,
     BaseOperatorMeta,
     ExecutorSafeguard,

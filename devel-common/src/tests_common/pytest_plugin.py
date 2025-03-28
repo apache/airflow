@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
-    from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.bases.baseoperator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.timetables.base import DataInterval

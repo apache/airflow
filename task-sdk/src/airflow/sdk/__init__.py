@@ -52,18 +52,18 @@ __all__ = [
 __version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.baseoperator import BaseOperator, chain, chain_linear, cross_downstream
+    from airflow.sdk.bases.notifier import BaseNotifier
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.sensor import BaseSensorOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
-    from airflow.sdk.definitions.baseoperator import BaseOperator, chain, chain_linear, cross_downstream
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
-    from airflow.sdk.definitions.notifier import BaseNotifier
     from airflow.sdk.definitions.param import Param
-    from airflow.sdk.definitions.sensors.base import BaseSensorOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
@@ -76,9 +76,9 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
     "BaseNotifier": ".definitions.notifier",
-    "BaseOperator": ".definitions.baseoperator",
-    "BaseOperatorLink": ".definitions.baseoperatorlink",
-    "BaseSensorOperator": ".definitions.sensors.base",
+    "BaseOperator": ".bases.baseoperator",
+    "BaseOperatorLink": ".bases.operatorlink",
+    "BaseSensorOperator": ".bases.sensor",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",
@@ -90,9 +90,9 @@ __lazy_imports: dict[str, str] = {
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",
-    "chain": ".definitions.baseoperator",
-    "chain_linear": ".definitions.baseoperator",
-    "cross_downstream": ".definitions.baseoperator",
+    "chain": ".bases.baseoperator",
+    "chain_linear": ".bases.baseoperator",
+    "cross_downstream": ".bases.baseoperator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
