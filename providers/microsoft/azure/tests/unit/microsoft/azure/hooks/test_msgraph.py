@@ -79,7 +79,9 @@ class TestKiotaRequestAdapterHook:
         if not tenant_id:
             raise ValueError("Tenant ID is missing in credentials")
 
-        assert tenant_id == expected_tenant_id, f"Expected tenant ID '{expected_tenant_id}', but got '{tenant_id}'"
+        assert (
+            tenant_id == expected_tenant_id
+        ), f"Expected tenant ID '{expected_tenant_id}', but got '{tenant_id}'"
 
     def test_get_conn(self):
         with patch(

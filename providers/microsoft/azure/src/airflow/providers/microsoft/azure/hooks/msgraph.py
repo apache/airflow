@@ -23,7 +23,7 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
