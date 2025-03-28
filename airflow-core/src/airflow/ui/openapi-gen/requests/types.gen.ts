@@ -1004,6 +1004,7 @@ export type GridDAGRunwithTIs = {
  */
 export type GridResponse = {
   dag_runs: Array<GridDAGRunwithTIs>;
+  structure: StructureDataResponse;
 };
 
 /**
