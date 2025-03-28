@@ -173,18 +173,18 @@ class TestHistoricalMetricsDataEndpoint:
     )
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200(self, test_client, params, expected):
-        response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
+        response = test_client.get("/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
-            "/ui/dashboard/historical_metrics_data", params={"start_date": "2023-02-02T00:00"}
+            "/dashboard/historical_metrics_data", params={"start_date": "2023-02-02T00:00"}
         )
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(
-            "/ui/dashboard/historical_metrics_data", params={"start_date": "2023-02-02T00:00"}
+            "/dashboard/historical_metrics_data", params={"start_date": "2023-02-02T00:00"}
         )
         assert response.status_code == 403
