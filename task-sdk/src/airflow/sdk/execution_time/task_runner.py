@@ -927,10 +927,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         xcom_value = None
 
     has_mapped_dep = next(ti.task.iter_mapped_dependants(), None) is not None
-    is_mapped = ti.is_mapped
-    log.info("running through xcom checks", is_mapped=is_mapped, has_mapped_dep=has_mapped_dep)
     if xcom_value is None:
-        if not is_mapped and has_mapped_dep:
+        if not ti.is_mapped and has_mapped_dep:
             # Uhoh, a downstream mapped task depends on us to push something to map over
             from airflow.sdk.exceptions import XComForMappingNotPushed
 
@@ -938,7 +936,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         return
 
     mapped_length: int | None = None
-    if not is_mapped and has_mapped_dep:
+    if not ti.is_mapped and has_mapped_dep:
         from airflow.sdk.definitions.mappedoperator import is_mappable_value
         from airflow.sdk.exceptions import UnmappableXComTypePushed
 
