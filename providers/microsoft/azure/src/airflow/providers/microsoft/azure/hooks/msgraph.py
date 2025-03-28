@@ -413,7 +413,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 headers=headers,
                 data=data,
             ),
-            response_type=response_type,
+            response_type=str(response_type),
             error_map=self.error_mapping(),
         )
 
