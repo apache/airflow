@@ -103,4 +103,3 @@ class UIAlert(BaseModel):
 
     text: str
     category: Literal["info", "warning", "error"] | None = None
-    role: str | None = None

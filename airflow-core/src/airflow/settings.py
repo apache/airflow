@@ -134,14 +134,13 @@ STATE_COLORS = {
 # Useful for warning about setup issues or announcing changes to end users
 # List of UIAlerts, which allows for specifying the message, category, and roles the
 # message should be shown to. For example:
-#   from airflow.www.utils import UIAlert
+#   from airflow.api_fastapi.common.types import UIAlert
 #
 #   DASHBOARD_UIALERTS = [
-#       UIAlert("Welcome to Airflow"),  # All users
-#       UIAlert("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#       UIAlert(text="Welcome to Airflow"),  # All users
 #   ]
 #
-DASHBOARD_UIALERTS: list[UIAlert | None] = []
+DASHBOARD_UIALERTS: list[UIAlert] = []
 
 
 @functools.cache

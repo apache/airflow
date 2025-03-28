@@ -6446,17 +6446,6 @@ export const $UIAlert = {
       ],
       title: "Category",
     },
-    role: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Role",
-    },
   },
   type: "object",
   required: ["text"],

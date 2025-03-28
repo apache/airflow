@@ -1572,7 +1572,6 @@ export type TriggererInfoResponse = {
 export type UIAlert = {
   text: string;
   category?: "info" | "warning" | "error" | null;
-  role?: string | null;
 };
 
 export type ValidationError = {
