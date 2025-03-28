@@ -84,11 +84,12 @@ def upgrade():
     with op.batch_alter_table(
         "dag_code",
     ) as batch_op:
+        batch_op.drop_constraint("dag_code_pkey", type_="primary")
         batch_op.add_column(sa.Column("id", UUIDType(binary=False)))
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
         batch_op.add_column(sa.Column("source_code_hash", sa.String(length=32)))
-        batch_op.add_column(sa.Column("dag_id", sa.String(length=250)))
-        batch_op.add_column(sa.Column("created_at", TIMESTAMP()))
+        batch_op.add_column(sa.Column("dag_id", StringID()))
+        batch_op.add_column(sa.Column("created_at", TIMESTAMP(), default=timezone.utcnow))
 
     with op.batch_alter_table(
         "serialized_dag",
@@ -96,7 +97,7 @@ def upgrade():
         batch_op.add_column(sa.Column("id", UUIDType(binary=False)))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
-        batch_op.add_column(sa.Column("created_at", TIMESTAMP()))
+        batch_op.add_column(sa.Column("created_at", TIMESTAMP(), default=timezone.utcnow))
 
     # Data migration
     rows = _get_rows("SELECT dag_id FROM serialized_dag", conn)
@@ -127,14 +128,16 @@ def upgrade():
             sa.text("""
             UPDATE serialized_dag sd
             JOIN dag_version dv ON sd.dag_id = dv.dag_id
-            SET sd.dag_version_id = dv.id
+            SET sd.dag_version_id = dv.id,
+                created_at = dv.created_at
         """)
         )
     else:
         conn.execute(
             sa.text("""
             UPDATE serialized_dag
-            SET dag_version_id = dag_version.id
+            SET dag_version_id = dag_version.id,
+                created_at = dag_version.created_at
             FROM dag_version
             WHERE serialized_dag.dag_id = dag_version.dag_id
         """)
@@ -169,6 +172,7 @@ def upgrade():
         SELECT dag_id, fileloc, fileloc_hash, dag_version_id
         FROM serialized_dag
         WHERE dag_id NOT IN (SELECT dag_id FROM dag_code)
+        AND dag_id in (SELECT dag_id FROM dag)
     """
     rows = _get_rows(stmt, conn)
     # Insert the missing rows from serialized_dag to dag_code
@@ -219,8 +223,7 @@ def upgrade():
         )
 
     with op.batch_alter_table("dag_code") as batch_op:
-        batch_op.drop_constraint("dag_code_pkey", type_="primary")
-        batch_op.alter_column("dag_id", existing_type=StringID, nullable=False)
+        batch_op.alter_column("dag_id", existing_type=StringID(), nullable=False)
         batch_op.alter_column("id", existing_type=UUIDType(binary=False), nullable=False)
         batch_op.create_primary_key("dag_code_pkey", ["id"])
         batch_op.alter_column("dag_version_id", existing_type=UUIDType(binary=False), nullable=False)
