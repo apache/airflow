@@ -76,7 +76,7 @@ class DefaultResponseHandler(ResponseHandler):
         return content
 
     async def handle_response_async(
-        self, response: NativeResponseType, error_map: Optional[dict[str, ParsableFactory[Any]]]
+        self, response: NativeResponseType, error_map: dict[str, ParsableFactory[Any]] | None
     ) -> Any:
         """
         Invoke this callback method when a response is received.
@@ -471,5 +471,5 @@ class KiotaRequestAdapterHook(BaseHook):
         return {}
 
     @staticmethod
-    def error_mapping() -> Optional[dict[str, type[ParsableFactory[Any]]]]:
+    def error_mapping() -> dict[str, type[ParsableFactory[Any]]] | None:
         return {}
