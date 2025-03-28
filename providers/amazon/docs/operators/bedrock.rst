@@ -329,7 +329,7 @@ To wait on the state of an Amazon Bedrock data ingestion job until it reaches a 
     :start-after: [START howto_sensor_bedrock_ingest_data]
     :end-before: [END howto_sensor_bedrock_ingest_data]
 
-.. _howto/sensor:BedrockBatchInferenceJobScheduledSensor:
+.. _howto/sensor:BedrockBatchInferenceScheduledSensor:
 
 Wait for an Amazon Bedrock batch inference job to be Scheduled
 ===============================================================
@@ -343,7 +343,7 @@ To wait on the state of an Amazon Bedrock batch inference job until it reaches t
     :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
     :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
 
-.. _howto/sensor:BedrockBatchInferenceJobCompleteSensor:
+.. _howto/sensor:BedrockBatchInferenceCompleteSensor:
 
 Wait for an Amazon Bedrock batch inference job to be finished
 ===============================================================

@@ -552,7 +552,7 @@ class TestBedrockRaGOperator:
         validate_template_fields(op)
 
 
-class TestBedrockBatchInferenceOperator2:
+class TestBedrockBatchInferenceOperator:
     JOB_NAME = "job_name"
     ROLE_ARN = "role_arn"
     MODEL_ID = "model_id"
