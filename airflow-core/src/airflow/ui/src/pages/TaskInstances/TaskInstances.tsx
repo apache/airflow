@@ -145,7 +145,7 @@ const taskInstanceColumns = (
   {
     accessorKey: "dag_version",
     cell: ({ row: { original } }) => 
-        original.dag_version?.version_number === undefined ? "" : `v${original.dag_version.version_number}`,
+      original.dag_version?.version_number === undefined ? "" : `v${original.dag_version.version_number}`,
     enableSorting: false,
     header: "Dag Version",
   },
