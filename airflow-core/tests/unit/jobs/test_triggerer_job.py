@@ -644,7 +644,12 @@ class CustomTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             f"{type(self).__module__}.{type(self).__qualname__}",
-            {"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id},
+            {
+                "dag_id": self.dag_id,
+                "run_id": self.run_id,
+                "task_id": self.task_id,
+                "map_index": self.map_index,
+            },
         )
 
 
@@ -660,15 +665,10 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 
 @pytest.mark.asyncio
-async def test_trigger_can_access_variables_and_connections(session, dag_maker, supervisor_builder):
-    """
-    Checks that the trigger will successfully access Variables, Connections and XCom.
-
-    This is the Supervisor side of the error reported in TestTriggerRunner::test_invalid_trigger
-    """
-
+async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker, supervisor_builder):
+    """Checks that the trigger will successfully access Variables, Connections and XComs."""
     # Create the test DAG and task
-    with dag_maker(dag_id="trigger_accessing_variable_and_connection", session=session):
+    with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]
