@@ -152,6 +152,10 @@ class DefaultExtractor(BaseExtractor):
                 "OpenLineage provider method failed to import OpenLineage integration. "
                 "This should not happen."
             )
-        except Exception:
-            self.log.warning("OpenLineage provider method failed to extract data from provider.")
+        except Exception as e:
+            self.log.warning(
+                "OpenLineage method failed to extract data from Operator with the following exception: `%s`",
+                e,
+            )
+            self.log.debug("OpenLineage extraction failure details:", exc_info=True)
         return None
