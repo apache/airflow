@@ -62,8 +62,24 @@ class TestKiotaRequestAdapterHook:
     @staticmethod
     def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
         assert isinstance(request_adapter, HttpxRequestAdapter)
-        tenant_id = request_adapter._authentication_provider.access_token_provider._credentials._tenant_id
-        assert tenant_id == expected_tenant_id
+
+        auth_provider = getattr(request_adapter, "_authentication_provider", None)
+        if not auth_provider:
+            raise ValueError("Authentication provider is missing in the request adapter")
+
+        access_token_provider = getattr(auth_provider, "access_token_provider", None)
+        if not access_token_provider:
+            raise ValueError("Access token provider is missing in the authentication provider")
+
+        credentials = getattr(access_token_provider, "_credentials", None)
+        if not credentials:
+            raise ValueError("Credentials object is missing in the access token provider")
+
+        tenant_id = getattr(credentials, "_tenant_id", None)
+        if not tenant_id:
+            raise ValueError("Tenant ID is missing in credentials")
+
+        assert tenant_id == expected_tenant_id, f"Expected tenant ID '{expected_tenant_id}', but got '{tenant_id}'"
 
     def test_get_conn(self):
         with patch(
