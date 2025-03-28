@@ -31,6 +31,9 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTaskInstanceSummary,
 )
+from airflow.api_fastapi.core_api.datamodels.ui.structure import (
+    StructureDataResponse,
+)
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.taskmap import TaskMap
@@ -38,6 +41,7 @@ from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import task_group_to_dict
 
 
 @cache
@@ -147,7 +151,6 @@ def _get_total_task_count(
 def fill_task_instance_summaries(
     grouped_task_instances: dict[tuple[str, str], list],
     task_instance_summaries_to_fill: dict[str, list],
-    task_node_map: dict[str, dict[str, Any]],
     session: SessionDep,
 ) -> None:
     """
@@ -174,6 +177,9 @@ def fill_task_instance_summaries(
         for (task_id, run_id), tis in grouped_task_instances.items()
     }
     for (task_id, run_id), tis in grouped_task_instances.items():
+        serdag = tis[0].dag_version.serialized_dag.dag
+        task_node_map = get_task_group_map(dag=serdag)
+
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
@@ -206,7 +212,7 @@ def fill_task_instance_summaries(
                 )
                 + 1
                 for task_node_id in get_child_task_map(task_id, task_node_map)
-                if task_node_map[task_node_id]["is_group"]
+                if task_node_map[task_node_id]["is_group"] and (task_node_id, run_id) in overall_states
             }
         )
 
@@ -237,3 +243,41 @@ def fill_task_instance_summaries(
                 note=ti_note,
             )
         )
+
+
+def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
+    """If we do not have TIs, we just get the structure from the DAG."""
+    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    return StructureDataResponse(nodes=nodes, edges=[])
+
+
+def get_combined_structure(task_instances):
+    """Given task instances with varying DAG versions, get a combined structure."""
+    merged_nodes = []
+    # we dedup with serdag, as serdag.dag varies somehow?
+    serdags = {ti.dag_version.serialized_dag for ti in task_instances}
+    dags = [serdag.dag for serdag in serdags]
+    for dag in dags:
+        nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+        _merge_node_dicts(merged_nodes, nodes)
+
+    return StructureDataResponse(nodes=merged_nodes, edges=[])
+
+
+def _merge_node_dicts(current, new) -> None:
+    current_ids = {node["id"] for node in current}
+    for node in new:
+        if node["id"] in current_ids:
+            current_node = _get_node_by_id(current, node["id"])
+            # if we have children, merge those as well
+            if "children" in current_node:
+                _merge_node_dicts(current_node["children"], node["children"])
+        else:
+            current.append(node)
+
+
+def _get_node_by_id(nodes, node_id):
+    for node in nodes:
+        if node["id"] == node_id:
+            return node
+    return {}
