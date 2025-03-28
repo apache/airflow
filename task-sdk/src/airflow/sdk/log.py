@@ -466,7 +466,7 @@ def init_log_file(local_relative_path: str) -> Path:
     try:
         full_path.touch(new_file_permissions)
     except OSError as e:
-        log = structlog.get_logger()
+        log = structlog.get_logger(__name__)
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path
