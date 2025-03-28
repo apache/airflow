@@ -84,7 +84,7 @@ class BaseExtractor(ABC, LoggingMixin):
         return self.extract()
 
     def extract_on_failure(self, task_instance) -> OperatorLineage | None:
-        return self.extract()
+        return self.extract_on_complete(task_instance)
 
 
 class DefaultExtractor(BaseExtractor):

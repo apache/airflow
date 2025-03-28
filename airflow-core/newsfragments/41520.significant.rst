@@ -2,8 +2,8 @@ Removed deprecated methods in ``airflow/utils/helpers.py``
 
 * Methods removed:
 
-  * ``chain`` (Use ``airflow.models.baseoperator.chain``)
-  * ``cross_downstream`` (Use ``airflow.models.baseoperator.cross_downstream``)
+  * ``chain`` (Use ``airflow.sdk.chain``)
+  * ``cross_downstream`` (Use ``airflow.sdk.cross_downstream``)
 
 * Types of change
 
@@ -22,5 +22,5 @@ Removed deprecated methods in ``airflow/utils/helpers.py``
 
     * AIR302
 
-      * [x] ``airflow.utils.helpers.chain`` → ``airflow.models.baseoperator.chain``
-      * [x] ``airflow.utils.helpers.cross_downstream`` → ``airflow.models.baseoperator.cross_downstream``
+      * [x] ``airflow.utils.helpers.chain`` → ``airflow.sdk.chain``
+      * [x] ``airflow.utils.helpers.cross_downstream`` → ``airflow.sdk.cross_downstream``
