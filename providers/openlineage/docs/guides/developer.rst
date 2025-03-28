@@ -31,10 +31,6 @@ There might be some Operators that you can not modify (f.e. third party provider
 To handle this situation, OpenLineage allows you to provide custom Extractor for any Operator.
 See :ref:`custom_extractors:openlineage` for more details.
 
-If all of the above can not be implemented, as a fallback, there is a way to manually annotate lineage.
-Airflow allows Operators to track lineage by specifying the input and outputs of the Operators via inlets and outlets.
-See :ref:`inlets_outlets:openlineage` for more details.
-
 .. _extraction_precedence:openlineage:
 
 Extraction precedence
@@ -359,99 +355,6 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
 For more examples of OpenLineage Extractors, check out the source code of
 `BashExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/bash.py>`_ or
 `PythonExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/python.py>`_.
-
-.. _inlets_outlets:openlineage:
-
-Manually annotated lineage
-==========================
-
-This approach is rarely recommended, only in very specific cases, when it's impossible to extract some lineage information from the Operator itself.
-If you want to extract lineage from your own Operators, you may prefer directly implementing OpenLineage methods as described in :ref:`openlineage_methods:openlineage`.
-When dealing with Operators that you can not modify (f.e. third party providers), but still want the lineage to be extracted from them, see :ref:`custom_extractors:openlineage`.
-
-Airflow allows Operators to track lineage by specifying the input and outputs of the Operators via
-`inlets and outlets <https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/lineage.html#lineage>`_.
-OpenLineage will, by default, use inlets and outlets as input/output datasets if it cannot find any successful extraction from the OpenLineage methods or the Extractors.
-
-Airflow supports inlets and outlets to be either a Table, Column, File or User entity and so does OpenLineage.
-
-Example
-^^^^^^^
-
-An Operator inside the Airflow DAG can be annotated with inlets and outlets like in the below example:
-
-.. code-block:: python
-
-    """Example DAG demonstrating the usage of the extraction via Inlets and Outlets."""
-
-    import pendulum
-
-    from airflow import DAG
-    from airflow.providers.common.compat.lineage.entities import Table, File, Column, User
-    from airflow.providers.standard.operators.bash import BashOperator
-
-
-    t1 = Table(
-        cluster="c1",
-        database="d1",
-        name="t1",
-        owners=[User(email="jdoe@ok.com", first_name="Joe", last_name="Doe")],
-    )
-    t2 = Table(
-        cluster="c1",
-        database="d1",
-        name="t2",
-        columns=[
-            Column(name="col1", description="desc1", data_type="type1"),
-            Column(name="col2", description="desc2", data_type="type2"),
-        ],
-        owners=[
-            User(email="mike@company.com", first_name="Mike", last_name="Smith"),
-            User(email="theo@company.com", first_name="Theo"),
-            User(email="smith@company.com", last_name="Smith"),
-            User(email="jane@company.com"),
-        ],
-    )
-    t3 = Table(
-        cluster="c1",
-        database="d1",
-        name="t3",
-        columns=[
-            Column(name="col3", description="desc3", data_type="type3"),
-            Column(name="col4", description="desc4", data_type="type4"),
-        ],
-    )
-    t4 = Table(cluster="c1", database="d1", name="t4")
-    f1 = File(url="s3://bucket/dir/file1")
-
-
-    with DAG(
-        dag_id="example_operator",
-        schedule="@once",
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    ) as dag:
-        task1 = BashOperator(
-            task_id="task_1_with_inlet_outlet",
-            bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
-            inlets=[t1, t2],
-            outlets=[t3],
-        )
-
-        task2 = BashOperator(
-            task_id="task_2_with_inlet_outlet",
-            bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
-            inlets=[t3, f1],
-            outlets=[t4],
-        )
-
-        task1 >> task2
-
-    if __name__ == "__main__":
-        dag.cli()
-
-Conversion from Airflow Table entity to OpenLineage Dataset is made in the following way:
-- ``CLUSTER`` of the table entity becomes the namespace of OpenLineage's Dataset
-- The name of the dataset is formed by ``{{DATABASE}}.{{NAME}}`` where ``DATABASE`` and ``NAME`` are attributes specified by Airflow's Table entity.
 
 .. _custom_facets:openlineage:
 

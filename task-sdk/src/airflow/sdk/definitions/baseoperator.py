@@ -891,9 +891,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "executor",
     }
 
-    # Defines if the operator supports lineage without manual definitions
-    supports_lineage: bool = False
-
     # If True, the Rendered Template fields will be overwritten in DB after execution
     # This is useful for Taskflow decorators that modify the template fields during execution like
     # @task.bash decorator.
@@ -1199,24 +1196,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
-
-    # including lineage information
-    def __or__(self, other):
-        """
-        Return [This Operator] | [Operator].
-
-        The inlets of other will be set to pick up the outlets from this operator.
-        Other will be set as a downstream task of this operator.
-        """
-        if isinstance(other, BaseOperator):
-            if not self.outlets and not self.supports_lineage:
-                raise ValueError("No outlets defined for this operator")
-            other.add_inlets([self.task_id])
-            self.set_downstream(other)
-        else:
-            raise TypeError(f"Right hand side ({other}) is not an Operator")
-
-        return self
 
     # /Composing Operators ---------------------------------------------
 
