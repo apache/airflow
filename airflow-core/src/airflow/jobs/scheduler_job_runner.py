@@ -696,9 +696,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # across all executors.
         num_occupied_slots = sum([executor.slots_occupied for executor in self.job.executors])
         parallelism = conf.getint("core", "parallelism")
-        # Parallelism configured to 0 means infinite currently running tasks
-        if parallelism == 0:
-            parallelism = sys.maxsize
         if self.job.max_tis_per_query == 0:
             max_tis = parallelism - num_occupied_slots
         else:

@@ -209,7 +209,9 @@ def check_dag_init_decorator_arguments() -> int:
     items_to_check = [
         (
             "DAG",
-            list(_find_cls_attrs(dag_mod, "DAG", ignore=["full_filepath", "task_group"])),
+            list(
+                _find_cls_attrs(dag_mod, "DAG", ignore=["full_filepath", "task_group", "sla_miss_callback"])
+            ),
             "dag",
             _find_dag_deco(dag_mod),
             "dag_id",

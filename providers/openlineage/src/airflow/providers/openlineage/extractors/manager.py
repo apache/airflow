@@ -144,6 +144,7 @@ class ExtractorManager(LoggingMixin):
                     e,
                     task_info,
                 )
+                self.log.debug("OpenLineage extraction failure details:", exc_info=True)
         elif (hook_lineage := self.get_hook_lineage()) is not None:
             inputs, outputs = hook_lineage
             task_metadata = OperatorLineage(inputs=inputs, outputs=outputs)
@@ -199,12 +200,9 @@ class ExtractorManager(LoggingMixin):
             if d:
                 task_metadata.outputs.append(d)
 
-    @staticmethod
-    def get_hook_lineage() -> tuple[list[Dataset], list[Dataset]] | None:
+    def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from airflow.providers.common.compat.lineage.hook import (
-                get_hook_lineage_collector,
-            )
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
         except ImportError:
             return None
 
@@ -213,6 +211,7 @@ class ExtractorManager(LoggingMixin):
         if not get_hook_lineage_collector().has_collected:
             return None
 
+        self.log.debug("OpenLineage will extract lineage from Hook Lineage Collector.")
         return (
             [
                 asset
@@ -322,5 +321,5 @@ class ExtractorManager(LoggingMixin):
                 job_facets=task_metadata.job_facets,
             )
         except AttributeError:
-            self.log.warning("Extractor returns non-valid metadata: %s", task_metadata)
+            self.log.warning("OpenLineage extractor returns non-valid metadata: `%s`", task_metadata)
             return None

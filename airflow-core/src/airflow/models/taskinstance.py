@@ -362,10 +362,12 @@ def _run_raw_task(
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
-                )
-
+                try:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                    )
+                except Exception:
+                    log.exception("error calling listener")
         return None
 
 
@@ -603,7 +605,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
-    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
+    from airflow.sdk.bases.baseoperator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -2322,6 +2324,16 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
 
+        if not hasattr(self.task, "deps"):
+            # These deps are not on BaseOperator since they are only needed and evaluated
+            # in the scheduler and not needed at the Runtime.
+            from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+            serialized_op = SerializedBaseOperator.deserialize_operator(
+                SerializedBaseOperator.serialize_operator(self.task)
+            )
+            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
+
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
@@ -2900,9 +2912,12 @@ class TaskInstance(Base, LoggingMixin):
             self._run_execute_callback(context, self.task)
 
             # Run on_task_instance_running event
-            get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self
-            )
+            try:
+                get_listener_manager().hook.on_task_instance_running(
+                    previous_state=TaskInstanceState.QUEUED, task_instance=self
+                )
+            except Exception:
+                log.exception("error calling listener")
 
             def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
                 """Render named map index if the DAG author defined map_index_template at the task level."""
@@ -3143,9 +3158,12 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
 
         return {
             "ti": ti,
