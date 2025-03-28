@@ -32,8 +32,8 @@ MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
 
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
+    from airflow.sdk.bases.baseoperator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):

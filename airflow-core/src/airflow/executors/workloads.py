@@ -36,7 +36,7 @@ __all__ = [
     "ExecuteTask",
 ]
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 class BaseWorkload(BaseModel):

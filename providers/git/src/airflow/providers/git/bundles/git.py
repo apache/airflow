@@ -30,7 +30,7 @@ from airflow.dag_processing.bundles.base import (
 from airflow.exceptions import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 class GitDagBundle(BaseDagBundle):
