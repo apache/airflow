@@ -1577,6 +1577,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            include_prior_dates=False,
         )
 
         assert not any(

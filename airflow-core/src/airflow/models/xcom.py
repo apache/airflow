@@ -31,6 +31,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     delete,
+    func,
     select,
     text,
 )
@@ -303,8 +304,17 @@ class XComModel(TaskInstanceDependencies):
             query = query.filter(cls.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
-            query = query.filter(cls.logical_date <= dr.c.logical_date)
+            dr = (
+                session.query(
+                    func.coalesce(DagRun.logical_date, DagRun.run_after).label("logical_date_or_run_after")
+                )
+                .filter(DagRun.run_id == run_id)
+                .subquery()
+            )
+
+            query = query.filter(
+                func.coalesce(DagRun.logical_date, DagRun.run_after) <= dr.c.logical_date_or_run_after
+            )
         else:
             query = query.filter(cls.run_id == run_id)
 
