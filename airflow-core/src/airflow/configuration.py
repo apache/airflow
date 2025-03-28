@@ -653,7 +653,7 @@ class AirflowConfigParser(ConfigParser):
                     section_buffer.write("\n")
             content = section_buffer.getvalue().strip()
             if content:
-                file.write(content + "\n\n")
+                file.write(f"{content}\n\n")
 
     def write(  # type: ignore[override]
         self,

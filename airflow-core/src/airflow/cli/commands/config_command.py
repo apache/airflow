@@ -732,6 +732,10 @@ def update_config(args) -> None:
     the configuration file.
 
     CLI Arguments:
+        --dry-run: flag (optional)
+            Dry-run mode (print the changes without modifying airflow.cfg)
+            Example: --dry-run
+
         --section: str (optional)
             Comma-separated list of configuration sections to update.
             Example: --section core,database
@@ -748,30 +752,26 @@ def update_config(args) -> None:
             Comma-separated list of configuration options to ignore during update.
             Example: --ignore-option check_slas
 
-        --dry-run: flag (optional)
-            Dry-run mode (print the changes without modifying airflow.cfg)
-            Example: --dry-run
-
     Examples:
-        1. Update the entire configuration file:
+        1. Dry-run mode (print the changes without modifying airflow.cfg):
+            airflow config update --dry-run
+
+        2. Update the entire configuration file:
             airflow config update
 
-        2. Update only the 'core' and 'database' sections:
+        3. Update only the 'core' and 'database' sections:
             airflow config update --section core,database
 
-        3. Update only specific options:
+        4. Update only specific options:
             airflow config update --option sql_alchemy_conn,dag_concurrency
 
-        4. Ignore updates for a specific section:
+        5. Ignore updates for a specific section:
             airflow config update --ignore-section webserver
-
-        5. Dry-run mode (print the changes without modifying airflow.cfg):
-            airflow config update --dry-run
 
     :param args: The CLI arguments for updating configuration.
     """
     console = AirflowConsole()
-    changes_applied = []
+    changes_applied: list[str] = []
     modifications = ConfigModifications()
 
     update_sections = args.section if args.section else None
@@ -811,20 +811,22 @@ def update_config(args) -> None:
             if str(current_value) != str(change.new_default):
                 modifications.add_default_update(conf_section, conf_option, str(change.new_default))
                 changes_applied.append(
-                    f"Updated default value of '{conf_section}/{conf_option}' from '{current_value}' to '{change.new_default}'."
+                    f"Updated default value of '{conf_section}/{conf_option}' from "
+                    f"'{current_value}' to '{change.new_default}'."
                 )
         if change.renamed_to:
             modifications.add_rename(
                 conf_section, conf_option, change.renamed_to.section, change.renamed_to.option
             )
             changes_applied.append(
-                f"Renamed '{conf_section}/{conf_option}' to '{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
+                f"Renamed '{conf_section}/{conf_option}' to "
+                f"'{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
             )
         elif change.was_removed:
             modifications.add_remove(conf_section, conf_option)
             changes_applied.append(f"Removed '{conf_section}/{conf_option}' from configuration.")
 
-    backup_path = AIRFLOW_CONFIG + ".bak"
+    backup_path = f"{AIRFLOW_CONFIG}.bak"
     try:
         shutil.copy2(AIRFLOW_CONFIG, backup_path)
         console.print(f"Backup saved as '{backup_path}'.")
