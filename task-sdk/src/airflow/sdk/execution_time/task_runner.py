@@ -118,6 +118,8 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: datetime
     """Start date of the task instance."""
 
+    end_date: datetime | None = None
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
