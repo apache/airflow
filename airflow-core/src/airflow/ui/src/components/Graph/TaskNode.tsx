@@ -79,6 +79,7 @@ export const TaskNode = ({
           >
             <Box>
               <TaskLink
+                childCount={taskInstance?.task_count}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
