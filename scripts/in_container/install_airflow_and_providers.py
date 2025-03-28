@@ -230,7 +230,7 @@ def find_installation_spec(
         airflow_extras = f"[{airflow_extras}]"
     else:
         console.print("[bright_blue]No airflow extras specified.")
-    if use_airflow_version and (AIRFLOW_CORE_SOURCES_PATH / "airflow").exists():
+    if use_airflow_version and (AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__main__.py").exists():
         console.print(
             f"[red]The airflow source folder exists in {AIRFLOW_CORE_SOURCES_PATH}, but you are "
             f"removing it and installing airflow from {use_airflow_version}."
