@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Text, VStack } from "@chakra-ui/react";
+import { Box, Heading, VStack } from "@chakra-ui/react";
 
 import type { UIAlert } from "openapi/requests/types.gen";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion, Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
@@ -34,21 +35,24 @@ export const Dashboard = () => {
     <Box>
       <VStack alignItems="start">
         {alerts.length > 0 ? (
-          <Accordion.Root>
-            {alerts.map((alert: UIAlert | null) =>
-              alert ? (
-                <Accordion.Item key={alert.text} value={alert.text}>
-                  <Accordion.ItemTrigger />
-                  <Accordion.ItemContent>
-                    <Alert key={alert.text} status={alert.category ?? "info"}>
-                      <Text fontSize="xl" padding="-0.5">
-                        {alert.text}
-                      </Text>
+          <Accordion.Root collapsible>
+            <Accordion.Item key="ui_alerts" value="ui_alerts">
+              {alerts.map((alert: UIAlert, index) =>
+                index === 0 ? (
+                  <Accordion.ItemTrigger key={alert.text}>
+                    <Alert status={alert.category ?? "info"}>
+                      <ReactMarkdown>{alert.text}</ReactMarkdown>
+                    </Alert>
+                  </Accordion.ItemTrigger>
+                ) : (
+                  <Accordion.ItemContent key={alert.text} paddingRight="8">
+                    <Alert status={alert.category ?? "info"}>
+                      <ReactMarkdown>{alert.text}</ReactMarkdown>
                     </Alert>
                   </Accordion.ItemContent>
-                </Accordion.Item>
-              ) : undefined,
-            )}
+                ),
+              )}
+            </Accordion.Item>
           </Accordion.Root>
         ) : undefined}
         <Heading mb={4}>Welcome</Heading>
