@@ -15,10 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.sdk.definitions.sensors.base import (
-    BaseSensorOperator as BaseSensorOperator,
-    PokeReturnValue as PokeReturnValue,
-    poke_mode_only as poke_mode_only,
-)

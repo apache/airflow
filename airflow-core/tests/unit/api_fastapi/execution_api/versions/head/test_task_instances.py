@@ -1158,7 +1158,7 @@ class TestGetRescheduleStartDate:
     def test_get_start_date_not_found(self, client):
         ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
-        assert response.status_code == 404
+        assert response.json() is None
 
     def test_get_start_date_with_try_number(self, client, session, create_task_instance):
         # Create multiple reschedules

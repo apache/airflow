@@ -216,7 +216,9 @@ class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
 
 
 class TaskRescheduleStartDate(BaseModel):
-    start_date: datetime
+    """Response containing the first reschedule date for a task instance."""
+
+    start_date: datetime | None
     type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
 
 
