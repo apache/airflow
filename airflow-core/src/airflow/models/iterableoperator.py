@@ -117,7 +117,9 @@ class TaskExecutor(LoggingMixin):
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
             self.task_instance.set_state(TaskInstanceState.SCHEDULED)
-            self.task_instance._run_execute_callback(context=self.context, task=self.operator)
+            self.task_instance._run_execute_callback(
+                context=self.context, task=self.operator
+            )
         return self
 
     async def __aenter__(self):
@@ -205,7 +207,9 @@ class TriggerExecutor(TaskExecutor):
 
             if task_deferred.method_name:
                 try:
-                    next_method = self.operator.next_callable(task_deferred.method_name, task_deferred.kwargs)
+                    next_method = self.operator.next_callable(
+                        task_deferred.method_name, task_deferred.kwargs
+                    )
                     outlet_events = context_get_outlet_events(self.context)
                     return ExecutionCallableRunner(
                         func=next_method,
@@ -243,7 +247,9 @@ class IterableOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        self.timeout = (
+            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        )
         self._mapped_kwargs: Iterable[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -306,20 +312,18 @@ class IterableOperator(BaseOperator):
         self.log.debug("resolve_expand_input: %s", self.expand_input)
 
         if isinstance(self.expand_input.value, XComArg):
-            resolved_input = self.expand_input.value.resolve(context=context, session=session)
+            resolved_input = self.expand_input.value.resolve(
+                context=context, session=session
+            )
         else:
             resolved_input = self.expand_input.value
 
         self.log.debug("resolved_input: %s", resolved_input)
 
         if isinstance(resolved_input, _MapResult):
-            self._mapped_kwargs = map(
-                lambda value: self._resolve(value=value, context=context, session=session), resolved_input
-            )
+            self._mapped_kwargs = map(lambda value: self._resolve(value=value, context=context, session=session), resolved_input)
         else:
-            self._mapped_kwargs = iter(
-                self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session)
-            )
+            self._mapped_kwargs = iter(self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session))
 
         self.log.debug("mapped_kwargs: %s", self._mapped_kwargs)
 
@@ -338,6 +342,7 @@ class IterableOperator(BaseOperator):
     ) -> Iterable[Any] | None:
         exception: BaseException | None = None
         reschedule_date = timezone.utcnow()
+        prev_futures_count = 0
         futures: dict[ApplyResult, TaskInstance] = {}
         failed_tasks: list[TaskInstance] = []
         chunked_tasks: Iterator[Iterable[TaskInstance]] = ichunked(tasks, (self.max_active_tis_per_dag * 2))
@@ -348,11 +353,16 @@ class IterableOperator(BaseOperator):
                 futures[future] = task
 
             while futures:
-                self.log.info("Number of remaining futures: %s", len(futures))
+                futures_count = len(futures)
+
+                if futures_count != prev_futures_count:
+                    self.log.info("Number of remaining futures: %s", futures_count)
+                    prev_futures_count = futures_count
 
                 deferred_tasks: list[Coroutine[Any, Any, Any]] = []
+                ready_futures = [future for future in futures.keys() if future.ready()]
 
-                for future in filter(ApplyResult.ready, list(futures.keys())):
+                for future in ready_futures:
                     task = futures.pop(future)
 
                     try:
@@ -369,17 +379,21 @@ class IterableOperator(BaseOperator):
                                 )
                             )
                     except TimeoutError as e:
-                        self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                        self.log.warning(
+                            "A timeout occurred for task_id %s", task.task_id
+                        )
                         if task.next_try_number > self.retries:
                             exception = AirflowTaskTimeout(e)
                         else:
-                            reschedule_date = task.next_retry_datetime()
+                            reschedule_date = min(reschedule_date, task.next_retry_datetime())
                             failed_tasks.append(task)
                     except AirflowRescheduleTaskInstanceException as e:
-                        reschedule_date = e.reschedule_date
+                        reschedule_date = min(reschedule_date, e.reschedule_date)
                         failed_tasks.append(e.task)
                     except AirflowException as e:
-                        self.log.error("An exception occurred for task_id %s", task.task_id)
+                        self.log.error(
+                            "An exception occurred for task_id %s", task.task_id
+                        )
                         exception = e
 
                 for task in next(chunked_tasks, []):
@@ -391,18 +405,20 @@ class IterableOperator(BaseOperator):
 
                     with event_loop() as loop:
                         for result in loop.run_until_complete(
-                            gather(*deferred_tasks, return_exceptions=True)
+                            gather(*[loop.create_task(task) for task in deferred_tasks], return_exceptions=True)
                         ):
                             self.log.debug("result: %s", result)
 
                             if isinstance(result, Exception):
-                                if isinstance(result, AirflowRescheduleTaskInstanceException):
-                                    reschedule_date = result.reschedule_date
+                                if isinstance(
+                                    result, AirflowRescheduleTaskInstanceException
+                                ):
+                                    reschedule_date = min(reschedule_date, result.reschedule_date)
                                     failed_tasks.append(result.task)
                                 else:
                                     exception = result
-                # elif futures:
-                #     sleep(min(len(futures), os.cpu_count()))
+                elif not ready_futures and futures:
+                    sleep(len(futures) * 0.1)
 
         if not failed_tasks:
             if exception:
@@ -417,12 +433,9 @@ class IterableOperator(BaseOperator):
             return None
 
         # Calculate delay before the next retry
-        delay = reschedule_date - timezone.utcnow()
-        delay_seconds = ceil(delay.total_seconds())
+        if reschedule_date > timezone.utcnow():
+            delay_seconds = ceil((reschedule_date - timezone.utcnow()).total_seconds())
 
-        self.log.debug("delay_seconds: %s", delay_seconds)
-
-        if delay_seconds > 0:
             self.log.info(
                 "Attempting to run %s failed tasks within %s seconds...",
                 len(failed_tasks),
@@ -445,8 +458,10 @@ class IterableOperator(BaseOperator):
 
             self.log.debug("result: %s", result)
 
-            if not result:
-                with OperatorExecutor(context=context, task_instance=task_instance) as executor:
+            if result is None:
+                with OperatorExecutor(
+                    context=context, task_instance=task_instance
+                ) as executor:
                     result = executor.run()
                     if self.do_xcom_push:
                         task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
@@ -460,7 +475,9 @@ class IterableOperator(BaseOperator):
         self, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
     ):
         async with self._semaphore:
-            async with TriggerExecutor(context=context, task_instance=task_instance) as executor:
+            async with TriggerExecutor(
+                context=context, task_instance=task_instance
+            ) as executor:
                 result = await executor.run(task_deferred)
                 if self.do_xcom_push:
                     task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
@@ -478,9 +495,7 @@ class IterableOperator(BaseOperator):
             context=context,
             tasks=iter(
                 map(
-                    lambda mapped_kwargs: self._create_task(
-                        context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]
-                    ),
+                    lambda mapped_kwargs: self._create_task(context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]),
                     enumerate(self._mapped_kwargs),
                 )
             ),

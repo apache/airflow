@@ -161,9 +161,10 @@ class DeferredIterable(Iterator, LoggingMixin):
 
         try:
             with event_loop() as loop:
+                self.log.info("Running trigger: %s", self.trigger)
                 event = loop.run_until_complete(run_trigger(self.trigger))
                 next_method = getattr(self.operator, self.next_method)
-                self.log.debug("Triggering next method: %s", self.next_method)
+                self.log.info("Triggering next method: %s", self.next_method)
                 results = next_method(self.context, event.payload)
         except Exception as e:
             self.log.exception(e)
@@ -202,6 +203,7 @@ class DeferredIterable(Iterator, LoggingMixin):
     @classmethod
     def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> Operator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
+
         from airflow.models import DagBag
 
         dag_bag = DagBag(dag_folder=None)  # Avoid loading all DAGs
@@ -214,6 +216,7 @@ class DeferredIterable(Iterator, LoggingMixin):
     @classmethod
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
+
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
         operator = cls.get_operator_from_dag(data["dag_fileloc"], data["dag_id"], data["task_id"])
