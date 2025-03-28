@@ -161,11 +161,12 @@ def get_xcom(
     # performance hits from retrieving large data files into the API server.
     result = xcom_query.limit(1).first()
     if result is None:
+        map_index = params.map_index
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"XCom with {key=} {params.map_index=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}",
+                "message": f"XCom with {key=} {map_index=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}",
             },
         )
 
