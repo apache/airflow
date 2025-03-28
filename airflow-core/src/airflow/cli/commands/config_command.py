@@ -834,7 +834,7 @@ def update_config(args) -> None:
         console.print(f"Failed to create backup: {e}")
         raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
 
-    if getattr(args, "dry_run", False):
+    if args.dry_run:
         console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
         with StringIO() as config_output:
             conf.write_custom_config(
