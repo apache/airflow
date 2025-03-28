@@ -29,7 +29,6 @@ from urllib.parse import quote, urljoin, urlparse
 import httpx
 from azure.identity import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Timeout
-from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_abstractions.response_handler import ResponseHandler
@@ -398,7 +397,7 @@ class KiotaRequestAdapterHook(BaseHook):
         url: str = "",
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParameters ] | None = None,
+        query_parameters: dict[str, QueryParameters] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
@@ -474,4 +473,3 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def error_mapping() -> Optional[dict[str, type[ParsableFactory[Any]]]]:
         return {}
-    
