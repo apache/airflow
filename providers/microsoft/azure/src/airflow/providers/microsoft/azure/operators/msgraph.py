@@ -61,7 +61,8 @@ def execute_callable(
 ) -> Any:
     try:
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
             return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
@@ -327,7 +328,8 @@ class MSGraphAsyncOperator(BaseOperator):
         if isinstance(response, dict):
             try:
                 with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
+                    warnings.simplefilter("ignore", category=DeprecationWarning)
+                    warnings.filterwarnings("ignore", category=UserWarning)
                     url, query_parameters = self.pagination_function(self, response, **context)  # type: ignore
             except TypeError:
                 warnings.warn(
