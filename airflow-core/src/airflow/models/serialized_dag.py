@@ -376,13 +376,16 @@ class SerializedDagModel(Base):
         :returns: Boolean indicating if the DAG was written to the DB
         """
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
+        # or the file where the DAG located is changed before the DAG last serialized time
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
+            dag_file_modified_time = datetime.fromtimestamp(os.path.getmtime(dag.fileloc), tz=timezone.utc)
             if session.scalar(
                 select(literal(True)).where(
                     cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                    and_((timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                         cls.created_at > dag_file_modified_time)
                 )
             ):
                 return False
