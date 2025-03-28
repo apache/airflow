@@ -23,7 +23,7 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -68,15 +68,16 @@ class DefaultResponseHandler(ResponseHandler):
 
     @staticmethod
     def get_value(response: NativeResponseType) -> Any:
+        response_casted = cast(httpx.Response, response)
         with suppress(JSONDecodeError):
-            return response.json()
-        content = response.content
+            return response_casted.json()
+        content = response_casted.content
         if not content:
-            return {key: value for key, value in response.headers.items()}
+            return {key: value for key, value in response_casted.headers.items()}
         return content
 
     async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
+        self, response: NativeResponseType, error_map: Optional[dict[str, ParsableFactory[Any]]]
     ) -> Any:
         """
         Invoke this callback method when a response is received.
@@ -84,10 +85,11 @@ class DefaultResponseHandler(ResponseHandler):
         param response: The type of the native response object.
         param error_map: The error dict to use in case of a failed request.
         """
-        value = self.get_value(response)
-        if response.status_code not in {200, 201, 202, 204, 302}:
-            message = value or response.reason_phrase
-            status_code = HTTPStatus(response.status_code)
+        response_casted = cast(httpx.Response, response)  # Cast to httpx.Response
+        value = self.get_value(response_casted)
+        if response_casted.status_code not in {200, 201, 202, 204, 302}:
+            message = value or response_casted.reason_phrase
+            status_code = HTTPStatus(response_casted.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
             elif status_code == HTTPStatus.NOT_FOUND:
@@ -317,6 +319,8 @@ class KiotaRequestAdapterHook(BaseHook):
                 http_client=http_client,
                 base_url=base_url,
             )
+            if request_adapter is None:
+                raise AirflowException("Failed to create the HttpxRequestAdapter.")
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self._api_version = api_version
         return request_adapter
@@ -390,8 +394,8 @@ class KiotaRequestAdapterHook(BaseHook):
 
     async def run(
         self,
+        response_type: ResponseType,
         url: str = "",
-        response_type: ResponseType | None = None,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParameters ] | None = None,
@@ -400,7 +404,7 @@ class KiotaRequestAdapterHook(BaseHook):
     ):
         self.log.info("Executing url '%s' as '%s'", url, method)
 
-        response = await self.get_conn().send_primitive_async(
+        await self.get_conn().send_primitive_async(
             request_info=self.request_information(
                 url=url,
                 response_type=response_type,
@@ -413,10 +417,6 @@ class KiotaRequestAdapterHook(BaseHook):
             response_type=response_type,
             error_map=self.error_mapping(),
         )
-
-        self.log.debug("response: %s", response)
-
-        return response
 
     def request_information(
         self,
@@ -446,8 +446,12 @@ class KiotaRequestAdapterHook(BaseHook):
         headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
             request_information.headers.try_add(header_name=header_name, header_value=header_value)
-        if isinstance(data, BytesIO) or isinstance(data, bytes) or isinstance(data, str):
+        if isinstance(data, BytesIO):
+            request_information.content = data.read()
+        elif isinstance(data, bytes):
             request_information.content = data
+        elif isinstance(data, str):
+            request_information.content = data.encode("utf-8")
         elif data:
             request_information.headers.try_add(
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
@@ -468,8 +472,5 @@ class KiotaRequestAdapterHook(BaseHook):
         return {}
 
     @staticmethod
-    def error_mapping() -> dict[str, ParsableFactory | None]:
-        return {
-            "4XX": APIError,
-            "5XX": APIError,
-        }
+    def error_mapping() -> Optional[dict[str, type[ParsableFactory[Any]]]]:
+        return {}
