@@ -31,10 +31,10 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
- Generic Parameters
- ------------------
+Generic Parameters
+------------------
 
- .. include:: ../_partials/generic_parameters.rst
+.. include:: ../_partials/generic_parameters.rst
 
 Operators
 ---------
