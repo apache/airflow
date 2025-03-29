@@ -59,6 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "apache-airflow-providers-http>=5.1.0",
+    "apache-airflow-providers-common-compat>=1.5.0",
     "aiohttp>=3.9.2",
     "asgiref>=2.3.0",
 ]
@@ -68,6 +69,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-http",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
