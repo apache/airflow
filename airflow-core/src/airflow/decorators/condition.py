@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowSkipException
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
-    from airflow.sdk.bases.baseoperator import TaskPreExecuteHook
+    from airflow.sdk.bases.operator import TaskPreExecuteHook
     from airflow.sdk.definitions.context import Context
 
     BoolConditionFunc: TypeAlias = Callable[[Context], bool]

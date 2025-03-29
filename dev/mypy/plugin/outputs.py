@@ -25,7 +25,7 @@ from mypy.types import AnyType, Type, TypeOfAny
 OUTPUT_PROPERTIES = {
     "airflow.models.baseoperator.BaseOperator.output",
     "airflow.models.mappedoperator.MappedOperator.output",
-    "airflow.sdk.bases.baseoperator.BaseOperator.output",
+    "airflow.sdk.bases.operator.BaseOperator.output",
 }
 
 TASK_CALL_FUNCTIONS = {

@@ -605,7 +605,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
-    from airflow.sdk.bases.baseoperator import ExecutorSafeguard
+    from airflow.sdk.bases.operator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
