@@ -62,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -144,6 +145,7 @@ def patch_dag_run(
     patch_body: DAGRunPatchBody,
     session: SessionDep,
     request: Request,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
@@ -190,14 +192,12 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
-            # Once Authentication is implemented in this FastAPI app,
-            # user id will be added when updating dag run note
-            # Refer to https://github.com/apache/airflow/issues/43534
             dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
-                dag_run.note = (attr_value, None)
+                dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
+                dag_run.dag_run_note.user_id = user.get_id()
 
     dag_run = session.get(DagRun, dag_run.id)
 
@@ -382,6 +382,7 @@ def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
     request: Request,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
@@ -413,7 +414,7 @@ def trigger_dag_run(
         )
         dag_run_note = body.note
         if dag_run_note:
-            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except ValueError as e:
