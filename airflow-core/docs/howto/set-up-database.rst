@@ -468,5 +468,5 @@ Caution
 What's next?
 ------------
 
-By default, Airflow uses ``SequentialExecutor``, which does not provide parallelism. You should consider
+By default, Airflow uses ``LocalExecutor``. You should consider
 configuring a different :doc:`executor </core-concepts/executor/index>` for better performance.

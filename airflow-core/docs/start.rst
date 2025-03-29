@@ -102,14 +102,6 @@ the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
 if started by systemd.
 
-Out of the box, Airflow uses a SQLite database, which you should outgrow
-fairly quickly since no parallelization is possible using this database
-backend. It works in conjunction with the
-:class:`~airflow.executors.sequential_executor.SequentialExecutor` which will
-only run task instances sequentially. While this is very limiting, it allows
-you to get up and running quickly and take a tour of the UI and the
-command line utilities.
-
 As you grow and deploy Airflow to production, you will also want to move away
 from the ``standalone`` command we use here to running the components
 separately. You can read more in :doc:`/administration-and-deployment/production-deployment`.

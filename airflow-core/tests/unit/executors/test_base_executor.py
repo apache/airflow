@@ -29,7 +29,6 @@ from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
@@ -122,7 +121,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 
 @pytest.mark.parametrize(
     "executor_class, executor_name",
-    [(LocalExecutor, "LocalExecutor"), (SequentialExecutor, "SequentialExecutor")],
+    [(LocalExecutor, "LocalExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
 @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
