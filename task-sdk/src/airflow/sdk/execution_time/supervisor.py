@@ -1103,6 +1103,8 @@ def supervise(
     :return: Exit code of the process.
     """
     # One or the other
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
@@ -1134,8 +1136,6 @@ def supervise(
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     ensure_secrets_backend_loaded()
-
-    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
 
     reset_secrets_masker()
 
