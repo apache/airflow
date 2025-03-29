@@ -30,7 +30,13 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import type { Option } from "src/utils/option";
 
-const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean }) => {
+const DagVersionSelect = ({
+  disabled = false,
+  showLabel = true,
+}: {
+  readonly disabled?: boolean;
+  readonly showLabel?: boolean;
+}) => {
   const queryClient = useQueryClient();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -76,7 +82,8 @@ const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean })
   );
 
   return (
-    <Field.Root bg="bg" disabled={disabled} width="fit-content">
+    <Field.Root disabled={disabled} width="fit-content">
+      {showLabel ? <Field.Label fontSize="xs">Dag Version</Field.Label> : undefined}
       <AsyncSelect
         defaultOptions
         filterOption={undefined}

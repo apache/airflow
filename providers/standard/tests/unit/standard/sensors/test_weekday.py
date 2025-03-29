@@ -79,7 +79,7 @@ class TestDayOfWeekSensor:
         op = DayOfWeekSensor(
             task_id="weekday_sensor_check_true", week_day=week_day, use_task_logical_date=True, dag=self.dag
         )
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        op.execute({"logical_date": WEEKDAY_DATE})
         assert op.week_day == week_day
 
     def test_weekday_sensor_false(self):
@@ -92,7 +92,7 @@ class TestDayOfWeekSensor:
             dag=self.dag,
         )
         with pytest.raises(AirflowSensorTimeout):
-            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+            op.execute({"logical_date": WEEKDAY_DATE})
 
     def test_invalid_weekday_number(self):
         invalid_week_day = "Thsday"
@@ -129,7 +129,7 @@ class TestDayOfWeekSensor:
             dag=self.dag,
         )
         with pytest.raises(AirflowSensorTimeout):
-            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+            op.execute({"logical_date": WEEKDAY_DATE})
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
     def test_weekday_sensor_should_use_run_after_when_logical_date_is_not_provided(self, dag_maker):
