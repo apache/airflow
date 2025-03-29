@@ -24,6 +24,7 @@ import { usePoolServiceGetPools } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { type SearchParamsKeysType, SearchParamsKeys } from "src/constants/searchParams";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBar from "./PoolBar";
@@ -32,8 +33,17 @@ export const Pools = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  
+  const { tableURLState } = useTableURLState();
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
+
   const { data, error, isLoading } = usePoolServiceGetPools({
     poolNamePattern: poolNamePattern ?? undefined,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
   });
 
   const handleSearchChange = (value: string) => {
