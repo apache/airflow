@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-28T15:17:06.227763
+# This constraints file was automatically generated on 2025-03-29T02:19:06.498720
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -57,7 +57,7 @@ aiosignal==1.3.2
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
-alembic==1.15.1
+alembic==1.15.2
 alibabacloud-adb20211201==2.2.0
 alibabacloud-tea==0.4.3
 alibabacloud_credentials==0.3.6
@@ -151,7 +151,7 @@ cohere==5.14.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.8.2
+confluent-kafka==2.9.0
 connexion==2.14.2
 coverage==7.7.1
 crcmod==1.7
@@ -457,7 +457,7 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.0
+pydantic==2.11.1
 pydantic_core==2.33.0
 pydata-google-auth==1.9.1
 pydot==1.4.2

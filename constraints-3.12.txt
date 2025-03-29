@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-28T15:33:56.981054
+# This constraints file was automatically generated on 2025-03-29T02:35:14.514597
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -262,7 +262,7 @@ cohere==5.14.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.8.2
+confluent-kafka==2.9.0
 connexion==2.14.2
 coverage==7.7.1
 crcmod==1.7
@@ -570,7 +570,7 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.0
+pydantic==2.11.1
 pydantic_core==2.33.0
 pydata-google-auth==1.9.1
 pydot==1.4.2
