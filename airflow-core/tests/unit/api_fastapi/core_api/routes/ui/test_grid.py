@@ -438,17 +438,6 @@ STRUCTURE = {
     "nodes": [
         {
             "asset_condition_type": None,
-            "children": None,
-            "id": "task",
-            "is_mapped": None,
-            "label": "task",
-            "operator": "EmptyOperator",
-            "setup_teardown_type": None,
-            "tooltip": None,
-            "type": "task",
-        },
-        {
-            "asset_condition_type": None,
             "children": [
                 {
                     "asset_condition_type": None,
@@ -468,6 +457,17 @@ STRUCTURE = {
             "operator": None,
             "setup_teardown_type": None,
             "tooltip": "",
+            "type": "task",
+        },
+        {
+            "asset_condition_type": None,
+            "children": None,
+            "id": "task",
+            "is_mapped": None,
+            "label": "task",
+            "operator": "EmptyOperator",
+            "setup_teardown_type": None,
+            "tooltip": None,
             "type": "task",
         },
         {
