@@ -358,7 +358,10 @@ class SecretsMasker(logging.Filter):
                         new_mask = True
 
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Match pattern followed by either end of string or non-alphanumeric character
+                # This prevents matching substrings within words while handling special characters
+                pattern = r"\b(" + "|".join(self.patterns) + r")(?=$|[^a-zA-Z0-9])"
+                self.replacer = re.compile(pattern)
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
