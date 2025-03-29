@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 from unittest import mock
 
 import httpx
@@ -107,6 +108,29 @@ class TestClient:
             client.get("http://error")
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
+
+    def test_server_response_error_pickling(self):
+        responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        assert err.args == ("Server returned error",)
+        assert err.detail == {"detail": {"message": "Invalid input"}}
+
+        # Check that the error is picklable
+        pickled = pickle.dumps(err)
+        unpickled = pickle.loads(pickled)
+
+        assert isinstance(unpickled, ServerResponseError)
+
+        # Test that unpickled error has the same attributes as the original
+        assert unpickled.response.json() == {"detail": {"message": "Invalid input"}}
+        assert unpickled.detail == {"detail": {"message": "Invalid input"}}
+        assert unpickled.response.status_code == 404
+        assert unpickled.request.url == "http://error"
 
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_unrecoverable_error(self, mock_sleep):
