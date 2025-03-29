@@ -369,8 +369,6 @@ class TestSecretsMasker:
         val = ["mask_this", "and_this", "maybe_this_too"]
 
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-            print(secrets_masker.patterns, secrets_masker.replacer)
-
             got = redact(val)
             assert got == ["***"] * 3
 
