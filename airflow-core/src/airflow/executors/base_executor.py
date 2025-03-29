@@ -432,7 +432,7 @@ class BaseExecutor(LoggingMixin):
                 from airflow.executors import workloads
 
                 carrier: dict = {}
-                if isinstance(item, workloads.TaskInstance) and hasattr(item, "ti"):
+                if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                     ti = item.ti
 
                     # If it's None, then the span for the current TaskInstanceKey hasn't been started.
@@ -448,13 +448,11 @@ class BaseExecutor(LoggingMixin):
                         # Start a new span using the context from the parent.
                         # Attributes will be set once the task has finished so that all
                         # values will be available (end_time, duration, etc.).
-                        from airflow.utils import timezone
 
                         span = Trace.start_child_span(
                             span_name=f"{ti.task_id}",
                             parent_context=parent_context,
                             component="task",
-                            start_time=timezone.utcnow(),
                             start_as_current=False,
                         )
                         self.active_spans.set(key, span)

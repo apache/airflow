@@ -26,6 +26,7 @@ from sqlalchemy import select
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models import TaskInstance
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk import chain
 from airflow.traces import otel_tracer
 from airflow.traces.tracer import Trace
@@ -55,14 +56,16 @@ def task1(ti):
 
         # If the task takes too long to execute, then the ti should be read from the db
         # to make sure that the initial context_carrier is the same.
-        with create_session() as session:
-            session_ti: TaskInstance = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.run_id == ti.run_id,
-                )
-            ).one()
-        context_carrier = session_ti.context_carrier
+        # Since Airflow 3, direct db access has been removed entirely.
+        if not AIRFLOW_V_3_0_PLUS:
+            with create_session() as session:
+                session_ti: TaskInstance = session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.task_id == ti.task_id,
+                        TaskInstance.run_id == ti.run_id,
+                    )
+                ).one()
+            context_carrier = session_ti.context_carrier
 
         parent_context = Trace.extract(context_carrier)
         with otel_task_tracer.start_child_span(
@@ -82,15 +85,16 @@ def task1(ti):
                     s3.set_attribute("attr3", "val3")
                     logger.info("From task sub_span3.")
 
-        with create_session() as session:
-            session_ti: TaskInstance = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.run_id == ti.run_id,
-                )
-            ).one()
-        context_carrier = session_ti.context_carrier
-        parent_context = Trace.extract(context_carrier)
+        if not AIRFLOW_V_3_0_PLUS:
+            with create_session() as session:
+                session_ti: TaskInstance = session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.task_id == ti.task_id,
+                        TaskInstance.run_id == ti.run_id,
+                    )
+                ).one()
+            context_carrier = session_ti.context_carrier
+            parent_context = Trace.extract(context_carrier)
 
         with otel_task_tracer.start_child_span(
             span_name="task1_sub_span4",

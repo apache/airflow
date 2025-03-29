@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 import signal
@@ -25,6 +26,7 @@ from typing import Any
 
 import pytest
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.models import DAG, DagBag, DagRun
@@ -532,21 +534,28 @@ def print_ti_output(ti: TaskInstance):
         metadata: dict[str, Any] = {}
         logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
         log_entry = logs[0]
-        assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
-        if ti.hostname in dict(log_entry):
-            output = (
-                str(dict(logs[0])[ti.hostname])
-                .replace("\\n", "\n")
-                .replace("{log.py:232} WARNING - {", "\n{")
-            )
-            while metadata["end_of_log"] is False:
-                logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number - 1, metadata)
-                log_entry = logs[0]
-                assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
-                if ti.hostname in dict(log_entry):
-                    output = output + str(dict(log_entry)[ti.hostname]).replace("\\n", "\n")
-            # Logging the output is enough for capfd to capture it.
-            log.info(format(output))
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+            assert isinstance(log_entry, StructuredLogMessage)
+            if log_entry.event is not None:
+                log.info(format(log_entry.event))
+        else:
+            assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
+            if ti.hostname in dict(log_entry):
+                output = (
+                    str(dict(logs[0])[ti.hostname])
+                    .replace("\\n", "\n")
+                    .replace("{log.py:232} WARNING - {", "\n{")
+                )
+                while metadata["end_of_log"] is False:
+                    logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number - 1, metadata)
+                    log_entry = logs[0]
+                    assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
+                    if ti.hostname in dict(log_entry):
+                        output = output + str(dict(log_entry)[ti.hostname]).replace("\\n", "\n")
+                # Logging the output is enough for capfd to capture it.
+                log.info(format(output))
 
 
 @pytest.mark.integration("redis")
@@ -588,6 +597,14 @@ class TestOtelIntegration:
         "scheduler",
     ]
 
+    apiserver_command_args = [
+        "airflow",
+        "api-server",
+        "--port",
+        "8080",
+        "--daemon",
+    ]
+
     dags: dict[str, DAG] = {}
 
     @classmethod
@@ -613,6 +630,7 @@ class TestOtelIntegration:
         os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = f"{cls.dag_folder}"
 
         os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
+        os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = "/dev/null"
         os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
 
         if cls.log_level == "debug":
@@ -642,13 +660,28 @@ class TestOtelIntegration:
                     if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
-                    dag.bulk_write_to_db("testing", None, [dag], session)
+                    dag.bulk_write_to_db(
+                        bundle_name="testing", bundle_version=None, dags=[dag], session=session
+                    )
                 else:
                     dag.sync_to_db(session=session)
                 # Manually serialize the dag and write it to the db to avoid a db error.
                 SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
             session.commit()
+
+        TESTING_BUNDLE_CONFIG = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": f"{cls.dag_folder}", "refresh_interval": 1},
+            }
+        ]
+
+        os.environ["AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"] = json.dumps(TESTING_BUNDLE_CONFIG)
+        # Initial add
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
 
         return dag_dict
 
@@ -677,10 +710,11 @@ class TestOtelIntegration:
         """The same scheduler will start and finish the dag processing."""
         celery_worker_process = None
         scheduler_process = None
+        apiserver_process = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag"
 
@@ -731,6 +765,14 @@ class TestOtelIntegration:
                 scheduler_status is not None
             ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
+            apiserver_status = apiserver_process.poll()
+            assert (
+                apiserver_status is not None
+            ), "The apiserver process status is None, which means that it hasn't terminated as expected."
+
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
@@ -741,10 +783,11 @@ class TestOtelIntegration:
         """The same scheduler will start and finish the dag processing."""
         celery_worker_process = None
         scheduler_process = None
+        apiserver_process = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag"
 
@@ -793,6 +836,14 @@ class TestOtelIntegration:
                 scheduler_status is not None
             ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
+            apiserver_status = apiserver_process.poll()
+            assert (
+                apiserver_status is not None
+            ), "The apiserver process status is None, which means that it hasn't terminated as expected."
+
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
@@ -811,11 +862,12 @@ class TestOtelIntegration:
 
         celery_worker_process = None
         scheduler_process_1 = None
+        apiserver_process = None
         scheduler_process_2 = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag"
             dag = self.dags[dag_id]
@@ -891,6 +943,9 @@ class TestOtelIntegration:
             scheduler_process_1.terminate()
             scheduler_process_1.wait()
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
@@ -922,11 +977,12 @@ class TestOtelIntegration:
 
         celery_worker_process = None
         scheduler_process_1 = None
+        apiserver_process = None
         scheduler_process_2 = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
@@ -1004,6 +1060,9 @@ class TestOtelIntegration:
             scheduler_process_1.terminate()
             scheduler_process_1.wait()
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
@@ -1026,11 +1085,12 @@ class TestOtelIntegration:
 
         celery_worker_process = None
         scheduler_process_1 = None
+        apiserver_process = None
         scheduler_process_2 = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
@@ -1093,6 +1153,9 @@ class TestOtelIntegration:
 
             scheduler_process_1.wait()
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
@@ -1114,10 +1177,11 @@ class TestOtelIntegration:
 
         celery_worker_process = None
         scheduler_process_2 = None
+        apiserver_process = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause_in_task"
             dag = self.dags[dag_id]
@@ -1182,6 +1246,9 @@ class TestOtelIntegration:
             celery_worker_process.terminate()
             celery_worker_process.wait()
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
@@ -1204,11 +1271,12 @@ class TestOtelIntegration:
         """
 
         celery_worker_process = None
+        apiserver_process = None
         scheduler_process_2 = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+            celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause"
             dag = self.dags[dag_id]
@@ -1273,6 +1341,9 @@ class TestOtelIntegration:
             celery_worker_process.terminate()
             celery_worker_process.wait()
 
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
@@ -1299,7 +1370,14 @@ class TestOtelIntegration:
             stderr=None,
         )
 
+        apiserver_process = subprocess.Popen(
+            self.apiserver_command_args,
+            env=os.environ.copy(),
+            stdout=None,
+            stderr=None,
+        )
+
         # Wait to ensure both processes have started.
         time.sleep(10)
 
-        return celery_worker_process, scheduler_process
+        return celery_worker_process, scheduler_process, apiserver_process
