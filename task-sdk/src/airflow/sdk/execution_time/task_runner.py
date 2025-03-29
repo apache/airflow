@@ -343,7 +343,10 @@ class RuntimeTaskInstance(TaskInstance):
                 map_index=m_idx,
                 include_prior_dates=include_prior_dates,
             )
-            xcoms.append(value if value else default)
+            if value is None:
+                xcoms.append(default)
+            else:
+                xcoms.append(value)
 
         if len(xcoms) == 1:
             return xcoms[0]
