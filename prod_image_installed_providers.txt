@@ -7,7 +7,6 @@ common.io
 common.sql
 docker
 elasticsearch
-fab
 ftp
 git
 google
