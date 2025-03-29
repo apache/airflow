@@ -1210,12 +1210,8 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
         assert task.region == "region"
         assert task.project_id == "project_id"
         assert task.impersonation_chain == "impersonation-chain"
-
-        # Deprecated aliases
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            assert task.training_pipeline == "training-pipeline-id"
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            assert task.custom_job == "custom_job_id"
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.custom_job_id == "custom_job_id"
 
 
 class TestVertexAIListCustomTrainingJobOperator:
@@ -1935,9 +1931,7 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
         assert task.region == "region"
         assert task.project_id == "project-id"
         assert task.impersonation_chain == "impersonation-chain"
-
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            assert task.training_pipeline == "training-pipeline-id"
+        assert task.training_pipeline_id == "training-pipeline-id"
 
 
 class TestVertexAIListAutoMLTrainingJobOperator:

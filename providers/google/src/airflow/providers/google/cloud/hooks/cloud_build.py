@@ -27,9 +27,8 @@ from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
@@ -177,58 +176,6 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         self.log.info("Build has been created: %s.", id_)
 
         return operation, id_
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="create_build_without_waiting_for_result",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def create_build(
-        self,
-        build: dict | Build,
-        project_id: str = PROVIDE_PROJECT_ID,
-        wait: bool = True,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> Build:
-        """
-        Start a build with the specified configuration.
-
-        :param build: The build resource to create. If a dict is provided, it must be of the same form
-            as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
-        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
-        :param wait: Optional, wait for operation to finish.
-        :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
-            will not be retried.
-        :param timeout: Optional, the amount of time, in seconds, to wait for the request to complete.
-            Note that if `retry` is specified, the timeout applies to each individual attempt.
-        :param metadata: Optional, additional metadata that is provided to the method.
-
-        """
-        client = self.get_conn()
-
-        self.log.info("Start creating build...")
-
-        operation = client.create_build(
-            request={"project_id": project_id, "build": build},
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-
-        id_ = self._get_build_id_from_operation(operation)
-
-        if not wait:
-            return self.get_build(id_=id_, project_id=project_id)
-
-        operation.result()
-
-        self.log.info("Build has been created: %s.", id_)
-
-        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build_trigger(

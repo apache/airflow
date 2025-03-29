@@ -27,6 +27,68 @@
 Changelog
 ---------
 
+15.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``MLEngineStartBatchPredictionJobOperator`` use ``CreateBatchPredictionJobOperator`` instead
+    * Removed ``MLEngineManageModelOperator`` use ``MLEngineCreateModelOperator`` or ``GetModelOperator`` from Vertex AI
+      instead
+    * Removed ``MLEngineDeleteModelOperator`` use ``DeleteModelOperator`` from Vertex AI instead
+    * Removed ``MLEngineManageVersionOperator`` use appropriate operator from Vertex AI instead,
+      e.g ``AddVersionAliasesOnModelOperator``
+    * Removed ``MLEngineCreateVersionOperator`` use ``parent_model`` parameter for VertexAI operators
+    * Removed ``MLEngineSetDefaultVersionOperator`` use ``SetDefaultVersionOnModelOperator`` from Vertex AI
+      instead
+    * Removed ``MLEngineListVersionsOperator`` use ``ListModelVersionsOperator`` from Vertex AI instead
+    * Removed ``MLEngineDeleteVersionOperator`` use ``DeleteModelVersionOperator`` from Vertex AI instead
+    * Removed ``MLEngineStartTrainingJobOperator`` use ``CreateCustomPythonPackageTrainingJobOperator`` from
+      Vertex AI instead
+    * Removed ``MLEngineTrainingCancelJobOperator`` use ``CancelCustomTrainingJobOperator`` from Vertex AI
+      instead
+    * Removed ``DataProcScaleClusterOperator`` use ``DataprocUpdateClusterOperator`` instead
+    * Removed ``page_size`` parameter from ``GoogleAdsToGcsOperator``
+    * Removed ``DeleteAutoMLTrainingJobOperator.training_pipeline`` method use ``training_pipeline_id`` parameter instead
+    * Removed ``DeleteCustomTrainingJobOperator.training_pipeline`` method use ``training_pipeline_id`` parameter instead
+    * Removed ``DeleteCustomTrainingJobOperator.custom_job`` method use ``custom_job_id`` parameter instead
+
+  * Links
+
+    * Removed ``DataFusionPipelineLinkHelper`` use ``airflow.providers.google.cloud.utils.helpers.resource_path_to_dict``
+      instead
+
+  * Hooks
+
+    * Removed ``page_size`` parameter from ``GoogleAdsHook.search``, ``GoogleAdsHook.search_proto_plus``,
+      ``GoogleAdsHook._search`` methods
+    * Removed ``CloudBuildHook.create_build`` method use ``CloudBuildHook.create_build_without_waiting_for_result`` method
+    * Removed ``DataflowHook.start_java_dataflow`` method please use ``airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline``
+      method to start pipeline and ``providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`` method
+      to wait for the required pipeline state instead
+    * Removed ``DataflowHook.start_python_dataflow`` method please use ``airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline``
+      method to start pipeline and ``providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`` method
+      to wait for the required pipeline state instead
+    * Removed ``CustomJobHook.cancel_pipeline_job`` method use ``PipelineJobHook.cancel_pipeline_job`` method instead
+    * Removed ``CustomJobHook.create_pipeline_job`` method use ``PipelineJobHook.create_pipeline_job`` method instead
+    * Removed ``CustomJobHook.get_pipeline_job`` method use ``PipelineJobHook.get_pipeline_job`` method instead
+    * Removed ``CustomJobHook.list_pipeline_jobs`` method use ``PipelineJobHook.list_pipeline_jobs``  method instead
+    * Removed ``CustomJobHook.delete_pipeline_job`` method use ``PipelineJobHook.delete_pipeline_job`` method instead
+    * Removed ``GoogleBaseHook.get_client_info`` method use ``airflow.providers.google.common.consts.CLIENT_INFO`` instead
+    * ``LifeSciencesHook`` life period extended to July 08, 2025
+
+  * Utils
+
+    * Removed ``create_evaluate_ops`` method
+
+* ``Remove deprecated for February and March 2025 in providers/google. #48018``
 
 14.1.0
 ......
