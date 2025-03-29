@@ -35,7 +35,7 @@ from unit.serialization.test_dag_serialization import AIRFLOW_REPO_ROOT_PATH
 
 pytestmark = pytest.mark.db_test
 
-API_PREFIX = "/api/v2/dagSources"
+API_PREFIX = "/dagSources"
 
 # Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = (

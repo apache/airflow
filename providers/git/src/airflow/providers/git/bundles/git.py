@@ -223,6 +223,11 @@ class GitDagBundle(BaseDagBundle):
         host = parsed_url.hostname
         if not host:
             return None
+        if parsed_url.username or parsed_url.password:
+            new_netloc = host
+            if parsed_url.port:
+                new_netloc += f":{parsed_url.port}"
+            url = parsed_url._replace(netloc=new_netloc).geturl()
         host_patterns = {
             "github.com": f"{url}/tree/{version}",
             "gitlab.com": f"{url}/-/tree/{version}",

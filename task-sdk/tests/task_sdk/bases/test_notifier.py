@@ -24,8 +24,8 @@ import jinja2
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.notifier import BaseNotifier
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
