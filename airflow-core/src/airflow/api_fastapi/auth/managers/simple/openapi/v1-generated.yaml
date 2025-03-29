@@ -108,7 +108,8 @@ components:
         detail:
           anyOf:
           - type: string
-          - type: object
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:

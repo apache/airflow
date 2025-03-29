@@ -274,7 +274,13 @@ class XComOperations:
         return int(content_range[len("map_indexes ") :])
 
     def get(
-        self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -282,6 +288,8 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
+        if include_prior_dates:
+            params.update({"include_prior_dates": include_prior_dates})
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
@@ -589,6 +597,10 @@ class ServerResponseError(httpx.HTTPStatusError):
         super().__init__(message, request=request, response=response)
 
     detail: list[RemoteValidationError] | str | dict[str, Any] | None
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
+        return Exception.__new__, (type(self),) + self.args, self.__dict__
 
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:

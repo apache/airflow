@@ -58,7 +58,7 @@ class TestLogin:
         assert response.json()["detail"] == "Invalid credentials"
 
     def test_create_token_all_admins(self, test_client):
-        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true", ("api", "ssl_cert"): "false"}):
             response = test_client.get("/auth/token", follow_redirects=False)
             assert response.status_code == 307
             assert "location" in response.headers

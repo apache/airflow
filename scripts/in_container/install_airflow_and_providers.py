@@ -230,7 +230,7 @@ def find_installation_spec(
         airflow_extras = f"[{airflow_extras}]"
     else:
         console.print("[bright_blue]No airflow extras specified.")
-    if use_airflow_version and (AIRFLOW_CORE_SOURCES_PATH / "airflow").exists():
+    if use_airflow_version and (AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__main__.py").exists():
         console.print(
             f"[red]The airflow source folder exists in {AIRFLOW_CORE_SOURCES_PATH}, but you are "
             f"removing it and installing airflow from {use_airflow_version}."
@@ -370,6 +370,9 @@ def find_installation_spec(
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
+
+INIT_CONTENT = '__path__ = __import__("pkgutil").extend_path(__path__, __name__) # type: ignore'
+FUTURE_CONTENT = "from __future__ import annotations"
 
 
 @click.command()
@@ -694,18 +697,44 @@ def install_airflow_and_providers(
         if spec is None or spec.origin is None:
             console.print("[red]Airflow not found - cannot mount sources")
             sys.exit(1)
-        console.print(
-            "[blue]Modifying installed airflow's providers __init__.py "
-            "in order to load providers from separate packages."
-        )
-        airflow_path = Path(spec.origin).parent
-        # Make sure old Airflow will include providers including common subfolder allow to extend loading
-        # providers from the installed separate source packages
-        airflow_providers_init_py = airflow_path / "providers" / "__init__.py"
-        airflow_providers_common_init_py = airflow_path / "providers" / "common" / "__init__.py"
-        init_content = '__path__ = __import__("pkgutil").extend_path(__path__, __name__) # type: ignore'
-        airflow_providers_init_py.write_text(init_content)
-        airflow_providers_common_init_py.write_text(init_content)
+        from packaging.version import Version
+
+        from airflow import __version__
+
+        version = Version(__version__)
+        if version.major == 2:
+            console.print(
+                "[yellow]Patching airflow 2 installation "
+                "in order to load providers from separate distributions.\n"
+            )
+            airflow_path = Path(spec.origin).parent
+            # Make sure old Airflow will include providers including common subfolder allow to extend loading
+            # providers from the installed separate source packages
+            console.print("[yellow]Uninstalling Airflow-3 only providers\n")
+            providers_to_uninstall_for_airflow_2 = [
+                "apache-airflow-providers-common-messaging",
+                "apache-airflow-providers-git",
+            ]
+            run_command(
+                ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
+                github_actions=github_actions,
+                check=False,
+            )
+            console.print("[yellow]Uninstalling Airflow-3 only providers")
+            console.print(
+                "[yellow]Patching airflow 2 __init__.py -> replacing `from future`"
+                "with legacy namespace packages.\n"
+            )
+            airflow_init_path = airflow_path / "__init__.py"
+            airflow_init_content = airflow_init_path.read_text()
+            airflow_init_path.write_text(airflow_init_content.replace(FUTURE_CONTENT, INIT_CONTENT))
+            console.print("[yellow]Creating legacy `providers.common` and `providers` namespace packages.\n")
+            airflow_providers_init_py = airflow_path / "providers" / "__init__.py"
+            airflow_providers_common_init_py = airflow_path / "providers" / "common" / "__init__.py"
+            airflow_providers_init_py.parent.mkdir(exist_ok=True)
+            airflow_providers_init_py.write_text(INIT_CONTENT + "\n")
+            airflow_providers_common_init_py.parent.mkdir(exist_ok=True)
+            airflow_providers_common_init_py.write_text(INIT_CONTENT + "\n")
 
     console.print("\n[green]Done!")
 

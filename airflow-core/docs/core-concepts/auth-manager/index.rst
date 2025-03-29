@@ -37,6 +37,11 @@ If you want to check which auth manager is currently set, you can use the
     $ airflow config get-value core auth_manager
     airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+.. toctree::
+    :hidden:
+
+    simple/index
+
 Available auth managers to use
 ------------------------------
 
@@ -44,10 +49,7 @@ Here is the list of auth managers available today that you can use in your Airfl
 
 Provided by Airflow:
 
-.. toctree::
-    :maxdepth: 1
-
-    simple
+* :doc:`simple/index`
 
 Provided by providers:
 
@@ -145,7 +147,9 @@ delete the cookie.
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
     response = RedirectResponse(url="/")
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
+
+    secure = conf.has_option("api", "ssl_cert")
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
 .. note::

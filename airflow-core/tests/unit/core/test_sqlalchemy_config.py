@@ -33,16 +33,18 @@ pytestmark = pytest.mark.db_test
 
 
 class TestSqlAlchemySettings:
-    def setup_method(self):
-        self.old_engine = settings.engine
-        self.old_session = settings.Session
-        self.old_conn = settings.SQL_ALCHEMY_CONN
-        settings.SQL_ALCHEMY_CONN = "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
-
-    def teardown_method(self):
-        settings.engine = self.old_engine
-        settings.Session = self.old_session
-        settings.SQL_ALCHEMY_CONN = self.old_conn
+    @pytest.fixture(autouse=True, scope="class")
+    def reset(self):
+        try:
+            with pytest.MonkeyPatch.context() as mp:
+                mp.setattr(
+                    settings,
+                    "SQL_ALCHEMY_CONN",
+                    "mysql+foobar://user:pass@host/dbname?inline=param&another=param",
+                )
+                yield
+        finally:
+            settings.configure_orm()
 
     @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.scoped_session")
