@@ -129,16 +129,21 @@ def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, in
 
     timestamp = None
     next_timestamp = None
+    if isinstance(lines, str):
+        lines = lines.splitlines()
+
     for idx, line in enumerate(lines):
         if line:
             try:
-                # Try to parse it as json first
-                log = StructuredLogMessage.model_validate_json(line)
+                if isinstance(line, dict):
+                    log = StructuredLogMessage.model_validate(line)
+                else:
+                    log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
                     next_timestamp = _parse_timestamp(line)
-                log = StructuredLogMessage(event=line, timestamp=next_timestamp)
+                log = StructuredLogMessage(event=str(line), timestamp=next_timestamp)
             if log.timestamp:
                 log.timestamp = coerce_datetime(log.timestamp)
                 timestamp = log.timestamp
@@ -148,7 +153,7 @@ def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, in
 def _interleave_logs(*logs: str) -> Iterable[StructuredLogMessage]:
     min_date = pendulum.datetime(2000, 1, 1)
 
-    records = itertools.chain.from_iterable(_parse_log_lines(log.splitlines()) for log in logs)
+    records = itertools.chain.from_iterable(_parse_log_lines(log) for log in logs)
     last = None
     for timestamp, _, msg in sorted(records, key=lambda x: (x[0] or min_date, x[1])):
         if msg != last or not timestamp:  # dedupe
