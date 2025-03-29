@@ -124,8 +124,8 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
             need_path_extension = (
                 root_path == providers_base_folder
                 or len(relative_root_path.parts) == 2
-                and relative_root_path.parts[0] in KNOWN_SECOND_LEVEL_PATHS
-                and relative_root_path.parts[1] == "providers"
+                and relative_root_path.parts[1] in KNOWN_SECOND_LEVEL_PATHS
+                and relative_root_path.parts[0] == "providers"
             )
             print("Needs path extension: ", need_path_extension)
             _determine_init_py_action(need_path_extension, root_path)

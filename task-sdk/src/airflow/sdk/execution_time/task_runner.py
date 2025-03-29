@@ -46,10 +46,10 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIRunContext,
 )
+from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
-from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import ErrorType
@@ -341,8 +341,12 @@ class RuntimeTaskInstance(TaskInstance):
                 task_id=t_id,
                 dag_id=dag_id,
                 map_index=m_idx,
+                include_prior_dates=include_prior_dates,
             )
-            xcoms.append(value if value else default)
+            if value is None:
+                xcoms.append(default)
+            else:
+                xcoms.append(value)
 
         if len(xcoms) == 1:
             return xcoms[0]
@@ -364,7 +368,7 @@ class RuntimeTaskInstance(TaskInstance):
         return None
 
     def get_first_reschedule_date(self, context: Context) -> datetime | None:
-        """Get the first reschedule date for the task instance."""
+        """Get the first reschedule date for the task instance if found, none otherwise."""
         if context.get("task_reschedule_count", 0) == 0:
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
@@ -385,16 +389,14 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert isinstance(response, TaskRescheduleStartDate)
 
-        start_date = response.start_date
-        log.debug("First reschedule date from supervisor: %s", start_date)
-
-        return start_date
+        return response.start_date
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
+
     XCom.set(
         key=key,
         value=value,
@@ -526,14 +528,18 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
-    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+    log = structlog.get_logger(logger_name="task")
+
+    try:
+        get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+    except Exception:
+        log.exception("error calling listener")
 
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
-        log = structlog.get_logger(logger_name="task")
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
@@ -588,10 +594,14 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
 
-    # TODO: Call pre execute etc.
-    get_listener_manager().hook.on_task_instance_running(
-        previous_state=TaskInstanceState.QUEUED, task_instance=ti
-    )
+    try:
+        # TODO: Call pre execute etc.
+        get_listener_manager().hook.on_task_instance_running(
+            previous_state=TaskInstanceState.QUEUED, task_instance=ti
+        )
+    except Exception:
+        log.exception("error calling listener")
+
     # No error, carry on and execute the task
     return None
 
@@ -844,12 +854,23 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
+def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception: BaseException) -> None:
+    from airflow.models.taskinstance import _get_email_subject_content
+    from airflow.utils.email import send_email
+
+    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception)
+    try:
+        send_email(to, subject, content)
+    except Exception:
+        send_email(to, subject, err)
+
+
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
     task = ti.task
-    execute = task.execute  # type: ignore[attr-defined]
+    execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -971,23 +992,39 @@ def finalize(
     log.debug("Running finalizers", ti=ti)
     if state == TerminalTIState.SUCCESS:
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
-        get_listener_manager().hook.on_task_instance_success(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_success(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
     elif state == TerminalTIState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
     elif state == IntermediateTIState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
+        if error and task.email_on_retry and task.email:
+            _send_task_error_email(task.email, ti, error)
     elif state == TerminalTIState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
+        if error and task.email_on_failure and task.email:
+            _send_task_error_email(task.email, ti, error)
 
-    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
+    try:
+        get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
+    except Exception:
+        log.exception("error calling listener")
 
 
 def main():

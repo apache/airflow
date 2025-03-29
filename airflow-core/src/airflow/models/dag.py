@@ -1465,6 +1465,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         Clear a set of task instances associated with the current dag for a specified date range.
 
         :param task_ids: List of task ids or (``task_id``, ``map_index``) tuples to clear
+        :param run_id: The run_id for which the tasks should be cleared
         :param start_date: The minimum logical_date to clear
         :param end_date: The maximum logical_date to clear
         :param only_failed: Only clear failed tasks

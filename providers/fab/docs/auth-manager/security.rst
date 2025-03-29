@@ -15,10 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-Webserver
-=========
+FAB auth manager UI security options
+====================================
 
-This topic describes how to configure Airflow to secure your webserver.
+.. note::
+    This guide only applies to FAB auth manager UI pages. These pages are accessible under category "Security" in the
+    menu.
 
 Rendering Airflow UI in a Web Frame from another site
 ------------------------------------------------------
@@ -47,14 +49,6 @@ Sensitive Variable fields
 
 Variable values that are deemed "sensitive" based on the variable name will be masked in the UI automatically.
 See :ref:`security:mask-sensitive-values` for more details.
-
-.. _web-authentication:
-
-Web Authentication
-------------------
-
-The webserver authentication is handled by the auth manager. For more information about webserver authentication, please refer to the auth manager documentation used by your environment.
-By default Airflow uses the FAB auth manager, if you did not specify any other auth manager, please look at :doc:`apache-airflow-providers-fab:auth-manager/webserver-authentication`.
 
 SSL
 ---

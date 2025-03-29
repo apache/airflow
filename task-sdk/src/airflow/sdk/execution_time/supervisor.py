@@ -103,7 +103,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -123,8 +123,6 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
-
-SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -898,7 +896,9 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            xcom = self.client.xcoms.get(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+            )
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
         elif isinstance(msg, GetXComCount):
@@ -1070,22 +1070,12 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
-def initialize_secrets_backend_on_workers():
+def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """Initialize the secrets backend on workers."""
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    global SECRETS_BACKEND
-    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
-
-
-def register_secrets_masker():
-    """Register the secrets masker to mask task logs."""
-    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
-
-    for field in get_sensitive_variables_fields():
-        mask_secret(field)
+    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
 
 def supervise(
@@ -1115,6 +1105,8 @@ def supervise(
     :return: Exit code of the process.
     """
     # One or the other
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
@@ -1145,9 +1137,9 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    initialize_secrets_backend_on_workers()
+    ensure_secrets_backend_loaded()
 
-    register_secrets_masker()
+    reset_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

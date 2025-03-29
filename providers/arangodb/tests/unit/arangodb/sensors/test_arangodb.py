@@ -66,5 +66,5 @@ class TestAQLSensor:
             dag=self.dag,
         )
 
-        arangodb_tag_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        arangodb_tag_sensor.execute({})
         assert arangodb_hook_mock.query.return_value.count.called

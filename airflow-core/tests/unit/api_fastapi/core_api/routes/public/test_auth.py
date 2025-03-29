@@ -46,7 +46,7 @@ class TestGetLogin(TestAuthEndpoint):
         ],
     )
     def test_should_respond_307(self, test_client, params):
-        response = test_client.get("/api/v2/auth/login", follow_redirects=False, params=params)
+        response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
         assert (
@@ -64,7 +64,7 @@ class TestGetLogin(TestAuthEndpoint):
     )
     @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
     def test_should_respond_400(self, test_client, params):
-        response = test_client.get("/api/v2/auth/login", follow_redirects=False, params=params)
+        response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
 
@@ -86,7 +86,7 @@ class TestLogout(TestAuthEndpoint):
         expected_redirection,
     ):
         test_client.app.state.auth_manager.get_url_logout.return_value = mock_logout_url
-        response = test_client.get("/api/v2/auth/logout", follow_redirects=False)
+        response = test_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
         assert response.headers["location"] == expected_redirection

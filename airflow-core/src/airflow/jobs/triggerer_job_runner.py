@@ -316,6 +316,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
+        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
+        reset_secrets_masker()
+
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")

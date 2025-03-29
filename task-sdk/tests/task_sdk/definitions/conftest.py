@@ -34,7 +34,7 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
         """Run the task and return the state that the SDK sent as the result for easier asserts"""
         from airflow.sdk.execution_time.task_runner import run
 
-        log = structlog.get_logger()
+        log = structlog.get_logger(__name__)
 
         mock_supervisor_comms.send_request.reset_mock()
         ti = create_runtime_ti(dag.task_dict[task_id], map_index=map_index)

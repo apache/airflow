@@ -99,7 +99,7 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.10.0", "pydantic>=2.10.2", "retryhttp>=1.2.0,!=1.3.0"],
+        "dependencies": ["apache-airflow>=2.10.0", "pydantic>=2.11.0", "retryhttp>=1.2.0,!=1.3.0"],
         "optional-dependencies": {"fab": ["apache-airflow-providers-fab"]},
         "devel-dependencies": [],
     }

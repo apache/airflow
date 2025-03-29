@@ -32,6 +32,7 @@ from airflow import settings
 from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
@@ -118,7 +119,12 @@ class TestExternalTaskSensor:
         self.dag_run_id = DagRunType.MANUAL.generate_run_id(suffix=DEFAULT_DATE.isoformat())
 
     def add_time_sensor(self, task_id=TEST_TASK_ID):
-        op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)
+        # TODO: Remove BaseOperator in https://github.com/apache/airflow/issues/47447
+        class TimeSensorNew(TimeSensor, BaseOperator):
+            def poke(self, context):
+                return True
+
+        op = TimeSensorNew(task_id=task_id, target_time=time(0), dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def add_fake_task_group(self, target_states=None):

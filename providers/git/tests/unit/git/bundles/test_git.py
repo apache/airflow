@@ -357,33 +357,61 @@ class TestGitDagBundle:
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(
-        "repo_url, expected_url",
+        "repo_url, extra_conn_kwargs, expected_url",
         [
-            ("git@github.com:apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
-            ("git@github.com:apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
-            ("https://github.com/apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
-            ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
-            ("git@gitlab.com:apache/airflow.git", "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),
-            ("git@bitbucket.org:apache/airflow.git", "https://bitbucket.org/apache/airflow/src/0f0f0f"),
+            ("git@github.com:apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("git@gitlab.com:apache/airflow.git", None, "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),
+            ("git@bitbucket.org:apache/airflow.git", None, "https://bitbucket.org/apache/airflow/src/0f0f0f"),
             (
                 "git@myorg.github.com:apache/airflow.git",
+                None,
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
             (
                 "https://myorg.github.com/apache/airflow.git",
+                None,
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
-            ("/dev/null", None),
-            ("file:///dev/null", None),
+            ("/dev/null", None, None),
+            ("file:///dev/null", None, None),
+            (
+                "https://github.com/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com/apache/airflow/tree/0f0f0f",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123"},
+                "https://github.com/apache/airflow/tree/0f0f0f",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123", "password": "def456"},
+                "https://github.com/apache/airflow/tree/0f0f0f",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                None,
+                "https://github.com:443/apache/airflow/tree/0f0f0f",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com:443/apache/airflow/tree/0f0f0f",
+            ),
         ],
     )
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_view_url(self, mock_gitrepo, repo_url, expected_url, session):
+    def test_view_url(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
         session.query(Connection).delete()
         conn = Connection(
             conn_id="git_default",
             host=repo_url,
             conn_type="git",
+            **(extra_conn_kwargs or {}),
         )
         session.add(conn)
         session.commit()

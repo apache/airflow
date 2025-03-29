@@ -35,7 +35,7 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => (
         margin={1}
         padding={0}
         title="Filter table columns"
-        variant="plain"
+        variant="ghost"
       >
         <MdFilterList size="1" />
       </IconButton>
