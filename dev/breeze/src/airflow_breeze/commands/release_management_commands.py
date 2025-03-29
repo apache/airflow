@@ -382,9 +382,12 @@ def _build_local_build_image():
 
 def get_current_package_version(package_directory_path: Path) -> str:
     get_console().print("[info]Checking package version\n")
-    package_version = subprocess.check_output(
-        [sys.executable, "-m", "hatch", "version"], text=True, cwd=package_directory_path
-    ).strip()
+    try:
+        package_version = subprocess.check_output(
+            [sys.executable, "-m", "hatch", "version"], text=True, cwd=package_directory_path
+        ).strip()
+    except Exception as ex:
+        print(f"test {ex}")
     get_console().print(f"[success]Version: {package_version}\n")
     return package_version
 
@@ -789,7 +792,7 @@ def prepare_airflow_ctl_distributions(
         use_local_hatch=use_local_hatch,
         # Distribution specific parameters
         root_path=AIRFLOW_CTL_ROOT_PATH,
-        init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflow" / "ctl" / "__init__.py",
+        init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
         distribution_name="airflow-ctl",
         distribution_pretty_name="CTL",

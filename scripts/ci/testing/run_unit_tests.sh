@@ -131,11 +131,11 @@ function task_sdk_tests() {
 
 
 function airflow_ctl_tests() {
-    echo "${COLOR_BLUE}Running Task SDK tests${COLOR_RESET}"
+    echo "${COLOR_BLUE}Running Airflow CTL tests${COLOR_RESET}"
     set -x
     breeze testing airflow-ctl-tests
     set +x
-    echo "${COLOR_BLUE}Task SDK tests completed${COLOR_RESET}"
+    echo "${COLOR_BLUE}Airflow CTL tests completed${COLOR_RESET}"
 }
 
 
