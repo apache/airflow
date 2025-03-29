@@ -25,7 +25,7 @@ import pendulum
 import pytest
 
 from airflow.sdk.api.datamodels._generated import TerminalTIState
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.bases.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg

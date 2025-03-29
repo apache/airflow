@@ -84,7 +84,7 @@ def login_callback(request: Request):
     token = get_auth_manager().generate_jwt(user)
     response = RedirectResponse(url=url, status_code=303)
 
-    secure = conf.getboolean("api", "ssl_cert")
+    secure = conf.has_option("api", "ssl_cert")
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 

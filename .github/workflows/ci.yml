@@ -636,35 +636,36 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  notify-slack-failure:
-    name: "Notify Slack on Failure"
-    needs:
-      - basic-tests
-      - additional-ci-image-checks
-      - providers
-      - tests-helm
-      - tests-special
-      - tests-with-lowest-direct-resolution
-      - additional-prod-image-tests
-      - tests-kubernetes
-      - tests-task-sdk
-      - finalize-tests
-    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
-    runs-on: ["ubuntu-22.04"]
-    steps:
-      - name: Notify Slack
-        id: slack
-        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
-        with:
-          method: chat.postMessage
-          token: ${{ env.SLACK_BOT_TOKEN }}
-          # yamllint disable rule:line-length
-          payload: |
-            channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
-            blocks:
-              - type: "section"
-                text:
-                  type: "mrkdwn"
-                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
-          # yamllint enable rule:line-length
+# disabled for now until slack action added to approved patterns
+#  notify-slack-failure:
+#    name: "Notify Slack on Failure"
+#    needs:
+#      - basic-tests
+#      - additional-ci-image-checks
+#      - providers
+#      - tests-helm
+#      - tests-special
+#      - tests-with-lowest-direct-resolution
+#      - additional-prod-image-tests
+#      - tests-kubernetes
+#      - tests-task-sdk
+#      - finalize-tests
+#    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
+#    runs-on: ["ubuntu-22.04"]
+#    steps:
+#      - name: Notify Slack
+#        id: slack
+#        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
+#        with:
+#          method: chat.postMessage
+#          token: ${{ env.SLACK_BOT_TOKEN }}
+#          # yamllint disable rule:line-length
+#          payload: |
+#            channel: "internal-airflow-ci-cd"
+#            text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+#            blocks:
+#              - type: "section"
+#                text:
+#                  type: "mrkdwn"
+#                  text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+#          # yamllint enable rule:line-length

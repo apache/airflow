@@ -1,4 +1,4 @@
-Catchup is now disabled by default.
+The ``catchup_by_default`` configuration is now ``False`` by default. This means dags which do not explicitly define ``catchup`` will not display catchup behavior.
 
 * Types of change
 
@@ -10,3 +10,10 @@ Catchup is now disabled by default.
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
+
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``scheduler.catchup_by_default`` default change from ``True`` to ``False``.

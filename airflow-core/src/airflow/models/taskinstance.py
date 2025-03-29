@@ -605,7 +605,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
-    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
+    from airflow.sdk.bases.baseoperator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -2323,6 +2323,16 @@ class TaskInstance(Base, LoggingMixin):
         """Get failed Dependencies."""
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
+
+        if not hasattr(self.task, "deps"):
+            # These deps are not on BaseOperator since they are only needed and evaluated
+            # in the scheduler and not needed at the Runtime.
+            from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+            serialized_op = SerializedBaseOperator.deserialize_operator(
+                SerializedBaseOperator.serialize_operator(self.task)
+            )
+            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
 
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:

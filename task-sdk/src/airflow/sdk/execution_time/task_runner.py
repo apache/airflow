@@ -46,10 +46,10 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIRunContext,
 )
+from airflow.sdk.bases.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
-from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import ErrorType
@@ -341,6 +341,7 @@ class RuntimeTaskInstance(TaskInstance):
                 task_id=t_id,
                 dag_id=dag_id,
                 map_index=m_idx,
+                include_prior_dates=include_prior_dates,
             )
             xcoms.append(value if value else default)
 
@@ -364,7 +365,7 @@ class RuntimeTaskInstance(TaskInstance):
         return None
 
     def get_first_reschedule_date(self, context: Context) -> datetime | None:
-        """Get the first reschedule date for the task instance."""
+        """Get the first reschedule date for the task instance if found, none otherwise."""
         if context.get("task_reschedule_count", 0) == 0:
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
@@ -385,16 +386,14 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert isinstance(response, TaskRescheduleStartDate)
 
-        start_date = response.start_date
-        log.debug("First reschedule date from supervisor: %s", start_date)
-
-        return start_date
+        return response.start_date
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
+
     XCom.set(
         key=key,
         value=value,
@@ -868,7 +867,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     from airflow.exceptions import AirflowTaskTimeout
 
     task = ti.task
-    execute = task.execute  # type: ignore[attr-defined]
+    execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
         from airflow.serialization.serialized_objects import BaseSerialization

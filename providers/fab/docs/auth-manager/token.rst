@@ -15,15 +15,15 @@
     specific language governing permissions and limitations
     under the License.
 
-Generate JWT token for Airflow public API
-=========================================
+Generate JWT token with FAB auth manager
+========================================
 
 .. note::
     This guide only applies if your environment is configured with FAB auth manager.
 
-In order to use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you need a JWT token to authenticate yourself.
-Then you can use this token in the Airflow public API request to access it.
-To generate a JWT token, you need to use the API ``Create Token`` in :doc:`/api-ref/fab-token-api-ref`.
+In order to use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you need a JWT token for authentication.
+You can then include this token in your Airflow public API requests.
+To generate a JWT token, use the ``Create Token`` API in :doc:`/api-ref/fab-token-api-ref`.
 
 Example
 '''''''

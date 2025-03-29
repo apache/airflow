@@ -23,7 +23,7 @@ from typing import Any
 import pytest
 
 from airflow.exceptions import DuplicateTaskIdFound
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.bases.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 

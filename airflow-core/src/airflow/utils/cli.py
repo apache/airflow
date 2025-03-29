@@ -289,12 +289,12 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     return dag
 
 
-def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
+def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
     if not use_regex:
-        return [get_dag(subdir, dag_id)]
+        return [get_dag(subdir=subdir, dag_id=dag_id, from_db=from_db)]
     dagbag = DagBag(process_subdir(subdir))
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
