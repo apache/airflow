@@ -118,3 +118,43 @@ use-union-operator=true # 3.9+annotations, not `Union[]`
 
 url = "http://0.0.0.0:8080/openapi.json"
 output = "src/airflowctl/api/datamodels/generated.py"
+
+## pytest settings ##
+[tool.pytest.ini_options]
+addopts = [
+    "--tb=short",
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
+
+
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+pythonpath = "tests"
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"

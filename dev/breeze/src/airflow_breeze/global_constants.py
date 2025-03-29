@@ -242,10 +242,15 @@ class SelectiveTaskSdkTestType(SelectiveTestType):
     TASK_SDK = "TaskSdk"
 
 
+class SelectiveAirflowCtlTestType(SelectiveTestType):
+    AIRFLOW_CTL = "AirflowCTL"
+
+
 class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -281,6 +286,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+    GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
 
 
@@ -301,6 +307,26 @@ def all_task_sdk_test_packages() -> list[str]:
 ALLOWED_TASK_SDK_TEST_PACKAGES = [
     "all",
     *all_task_sdk_test_packages(),
+]
+
+
+@clearable_cache
+def all_ctl_test_packages() -> list[str]:
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_ROOT_PATH / "airflow-ctl" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
+
+
+ALLOWED_CTL_TEST_PACKAGES = [
+    "all",
+    *all_ctl_test_packages(),
 ]
 
 ALLOWED_DISTRIBUTION_FORMATS = ["wheel", "sdist", "both"]

@@ -177,6 +177,26 @@ Here is the detailed set of options for the ``breeze testing task-sdk-tests`` co
   :alt: Breeze testing task-sdk-tests
 
 
+Using ``breeze testing airflow-ctl-tests`` command
+...............................................
+
+The ``breeze testing airflow-ctl-tests`` command allows you to run tests for Airflow CTL without
+initializing database. Airflow CTL should not require a database to start, so this acts as a
+good check to see if the Airflow CTL tests are working properly.
+
+Run all Airflow CTL tests:
+
+.. code-block:: bash
+
+   breeze testing airflow-ctl-tests
+
+Here is the detailed set of options for the ``breeze testing airflow-ctl-tests`` command.
+
+.. image:: ./images/output_testing_airflow-ctl-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-ctl-tests
+
 Running integration core tests
 ...............................
 

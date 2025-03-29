@@ -589,7 +589,7 @@ function install_airflow() {
         # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
         # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
         # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
-        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl --editable ./devel-common"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -1011,7 +1011,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./airflow-core" --editable "./task-sdk" --editable "./devel-common"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./airflow-core" --editable "./task-sdk" --editable "./devel-common" --editable "./airflow-ctl"
     set +x
 }
 

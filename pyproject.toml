@@ -791,6 +791,7 @@ dev = [
     "apache-airflow[all-core]",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-ctl",
 ]
 
 
@@ -901,6 +902,7 @@ apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
+apache-airflow-ctl = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -1003,4 +1005,5 @@ members = [
     "providers/ydb",
     "providers/zendesk",
     "devel-common",
+    "airflow-ctl",
 ]

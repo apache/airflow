@@ -116,7 +116,7 @@ PRE_COMMIT_LIST = [
     "lint-markdown",
     "mixed-line-ending",
     "mypy-airflow",
-    "mypy-airflowctl",
+    "mypy-airflow-ctl",
     "mypy-dev",
     "mypy-docs",
     "mypy-providers",

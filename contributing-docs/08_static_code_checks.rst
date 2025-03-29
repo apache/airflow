@@ -321,8 +321,8 @@ require Breeze Docker image to be built locally.
 | mypy-airflow                                              | * Run mypy for airflow                                 | *       |
 |                                                           | * Run mypy for airflow (manual)                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-airflowctl                                           | * Run mypy for airflowctl                              | *       |
-|                                                           | * Run mypy for airflowctl (manual)                     |         |
+| mypy-airflow-ctl                                          | * Run mypy for airflow-ctl                             | *       |
+|                                                           | * Run mypy for airflow-ctl (manual)                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-dev                                                  | * Run mypy for dev                                     | *       |
 |                                                           | * Run mypy for dev (manual)                            |         |

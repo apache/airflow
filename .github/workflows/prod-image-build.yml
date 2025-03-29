@@ -177,6 +177,11 @@ jobs:
         run: >
           breeze release-management prepare-task-sdk-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
+      - name: "Prepare airflow-ctl package"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
+        if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
         with:
