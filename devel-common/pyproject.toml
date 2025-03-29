@@ -179,3 +179,7 @@ name = "tests_common"
 # Test compat imports banned imports to allow testing against older airflow versions
 "src/tests_common/test_utils/compat.py" = ["TID251", "F401"]
 "src/tests_common/pytest_plugin.py" = ["F811"]
+
+# docker_tests will install devel-common over git as dependencies
+[tool.setuptools]
+packages = ["tests_common"]
