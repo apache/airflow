@@ -122,7 +122,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set relatives for the task or task list."""
-        from airflow.sdk.definitions.baseoperator import BaseOperator
+        from airflow.sdk.bases.baseoperator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if not isinstance(task_or_task_list, Sequence):

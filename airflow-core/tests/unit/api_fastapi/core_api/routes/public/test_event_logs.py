@@ -48,7 +48,7 @@ EVENT_NON_EXISTED_ID = 9999
 
 
 class TestEventLogsEndpoint:
-    """Common class for /api/v2/eventLogs related unit tests."""
+    """Common class for /eventLogs related unit tests."""
 
     @staticmethod
     def _clear_db():
@@ -154,7 +154,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
     def test_get_event_log(self, test_client, setup, event_log_key, expected_status_code, expected_body):
         event_log: Log | None = setup.get(event_log_key, None)
         event_log_id = event_log.id if event_log else EVENT_NON_EXISTED_ID
-        response = test_client.get(f"/api/v2/eventLogs/{event_log_id}")
+        response = test_client.get(f"/eventLogs/{event_log_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -179,12 +179,12 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, setup):
         event_log_id = setup[EVENT_NORMAL].id
-        response = unauthenticated_test_client.get(f"/api/v2/eventLogs/{event_log_id}")
+        response = unauthenticated_test_client.get(f"/eventLogs/{event_log_id}")
         assert response.status_code == 401
 
     def test_should_raises_403_forbidden(self, unauthorized_test_client, setup):
         event_log_id = setup[EVENT_NORMAL].id
-        response = unauthorized_test_client.get(f"/api/v2/eventLogs/{event_log_id}")
+        response = unauthorized_test_client.get(f"/eventLogs/{event_log_id}")
         assert response.status_code == 403
 
 
@@ -307,7 +307,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        response = test_client.get("/api/v2/eventLogs", params=query_params)
+        response = test_client.get("/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -318,9 +318,9 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             assert event_log["event"] == expected_event
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/eventLogs")
+        response = unauthenticated_test_client.get("/eventLogs")
         assert response.status_code == 401
 
     def test_should_raises_403_forbidden(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/eventLogs")
+        response = unauthorized_test_client.get("/eventLogs")
         assert response.status_code == 403

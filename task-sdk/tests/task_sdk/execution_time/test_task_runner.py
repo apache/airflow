@@ -974,7 +974,7 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
             "dag_run": dr,
             "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
-            "data_interval_start": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "data_interval_start": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "task_reschedule_count": 0,
             "ds": "2024-12-01",
@@ -1577,6 +1577,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            include_prior_dates=False,
         )
 
         assert not any(

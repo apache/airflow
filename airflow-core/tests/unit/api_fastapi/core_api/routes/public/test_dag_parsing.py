@@ -50,10 +50,10 @@ class TestDagParsingEndpoint:
         test_dag = dagbag.get_dag(TEST_DAG_ID)
 
         # grab the token
-        token = test_client.get(f"/api/v2/dags/{TEST_DAG_ID}").json()["file_token"]
+        token = test_client.get(f"/dags/{TEST_DAG_ID}").json()["file_token"]
 
         # First parsing request
-        url = f"/api/v2/parseDagFile/{token}"
+        url = f"/parseDagFile/{token}"
         response = test_client.put(url, headers={"Accept": "application/json"})
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
@@ -73,19 +73,17 @@ class TestDagParsingEndpoint:
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.put(
-            "/api/v2/parseDagFile/token", headers={"Accept": "application/json"}
+            "/parseDagFile/token", headers={"Accept": "application/json"}
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.put(
-            "/api/v2/parseDagFile/token", headers={"Accept": "application/json"}
-        )
+        response = unauthorized_test_client.put("/parseDagFile/token", headers={"Accept": "application/json"})
         assert response.status_code == 403
 
     def test_bad_file_request(self, url_safe_serializer, session, test_client):
         payload = {"bundle_name": "some_bundle", "relative_fileloc": "/some/random/file.py"}
-        url = f"/api/v2/parseDagFile/{url_safe_serializer.dumps(payload)}"
+        url = f"/parseDagFile/{url_safe_serializer.dumps(payload)}"
         response = test_client.put(url, headers={"Accept": "application/json"})
         assert response.status_code == 404
 
