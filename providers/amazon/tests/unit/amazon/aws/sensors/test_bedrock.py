@@ -24,6 +24,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockBatchInferenceCompleteSensor,
+    BedrockBatchInferenceScheduledSensor,
     BedrockCustomizeModelCompletedSensor,
     BedrockIngestionJobSensor,
     BedrockKnowledgeBaseActiveSensor,
@@ -244,3 +246,65 @@ class TestBedrockIngestionJobSensor:
         sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [
+        pytest.param(BedrockBatchInferenceCompleteSensor, id="BedrockBatchInferenceCompleteSensor"),
+        pytest.param(BedrockBatchInferenceScheduledSensor, id="BedrockBatchInferenceScheduledSensor"),
+    ],
+)
+class TestBedrockBatchInferenceSensor:
+    HOOK = BedrockHook
+
+    def setup_method(self):
+        self.default_op_kwargs = dict(
+            task_id="test_bedrock_batch_inference_sensor",
+            job_arn="job_arn",
+        )
+
+    def test_base_aws_op_attributes(self, sensor):
+        op = sensor(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = sensor(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    @mock.patch.object(HOOK, "conn")
+    def test_poke_success_states(self, mock_conn, sensor):
+        op = sensor(**self.default_op_kwargs)
+
+        for state in op.SUCCESS_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+            assert op.poke({}) is True
+
+    @mock.patch.object(HOOK, "conn")
+    def test_poke_intermediate_states(self, mock_conn, sensor):
+        op = sensor(**self.default_op_kwargs)
+
+        for state in op.INTERMEDIATE_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+            assert op.poke({}) is False
+
+    @mock.patch.object(HOOK, "conn")
+    def test_poke_failure_states(self, mock_conn, sensor):
+        op = sensor(**self.default_op_kwargs)
+
+        for state in op.FAILURE_STATES:
+            mock_conn.get_model_invocation_job.return_value = {"status": state}
+            with pytest.raises(AirflowException, match=op.FAILURE_MESSAGE):
+                op.poke({})
