@@ -1865,7 +1865,7 @@ class TaskGroupSerialization(BaseSerialization):
                 if _type == DAT.OP
                 else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             )
-            for label, (_type, val) in encoded_group["children"].items()
+            for label, (_type, val) in sorted(encoded_group["children"].items(), key=lambda x: x[0])
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
         group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))
