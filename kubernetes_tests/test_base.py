@@ -156,7 +156,7 @@ class BaseK8STest:
             url,
             json={"username": username, "password": password},
         )
-        jwt_token = login_response.json().get("jwt_token")
+        jwt_token = login_response.json().get("access_token")
 
         assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
         return jwt_token
