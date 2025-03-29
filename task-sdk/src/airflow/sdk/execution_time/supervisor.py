@@ -1076,14 +1076,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
 
-def register_secrets_masker():
-    """Register the secrets masker to mask task logs."""
-    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
-
-    for field in get_sensitive_variables_fields():
-        mask_secret(field)
-
-
 def supervise(
     *,
     ti: TaskInstance,
@@ -1143,7 +1135,9 @@ def supervise(
 
     ensure_secrets_backend_loaded()
 
-    register_secrets_masker()
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
+    reset_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

@@ -130,6 +130,10 @@ def _secrets_masker() -> SecretsMasker:
     )
 
 
+def reset_secrets_masker() -> None:
+    _secrets_masker().reset_masker()
+
+
 @cache
 def _get_v1_env_var_type() -> type:
     try:
@@ -350,6 +354,11 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
+
+    def reset_masker(self):
+        """Reset the patterns and the replacer in the masker instance."""
+        self.patterns = set()
+        self.replacer = None
 
 
 class RedactedIO(TextIO):
