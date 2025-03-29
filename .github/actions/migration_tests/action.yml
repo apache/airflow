@@ -30,6 +30,7 @@ runs:
         airflow db migrate"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
     - name: "Bring composer down"
       shell: bash
       run: breeze down
@@ -45,6 +46,7 @@ runs:
         COMPOSE_PROJECT_NAME: "docker-compose"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
     - name: "Bring compose down again"
       shell: bash
       run: breeze down
@@ -58,6 +60,7 @@ runs:
         airflow db migrate -s"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
+        AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
       if: env.BACKEND != 'sqlite'
     - name: "Bring any containers left down"
       shell: bash
