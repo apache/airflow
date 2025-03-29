@@ -129,7 +129,7 @@ def run_command_via_breeze_shell(
     cmd: list[str],
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     backend: str = "none",
-    executor: str = "SequentialExecutor",
+    executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
     project_name: str = "pre-commit",
     skip_environment_initialization: bool = True,
