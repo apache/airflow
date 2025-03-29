@@ -1229,6 +1229,13 @@ export const $ConfigResponse = {
       type: "object",
       title: "State Color Mapping",
     },
+    dashboard_alert: {
+      items: {
+        $ref: "#/components/schemas/UIAlert",
+      },
+      type: "array",
+      title: "Dashboard Alert",
+    },
   },
   type: "object",
   required: [
@@ -1251,6 +1258,7 @@ export const $ConfigResponse = {
     "audit_view_included_events",
     "test_connection",
     "state_color_mapping",
+    "dashboard_alert",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",
@@ -6435,6 +6443,31 @@ export const $TriggererInfoResponse = {
   required: ["status", "latest_triggerer_heartbeat"],
   title: "TriggererInfoResponse",
   description: "Triggerer info serializer for responses.",
+} as const;
+
+export const $UIAlert = {
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+    },
+    category: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["info", "warning", "error"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Category",
+    },
+  },
+  type: "object",
+  required: ["text"],
+  title: "UIAlert",
+  description: "Optional alert to be shown at the top of the page.",
 } as const;
 
 export const $ValidationError = {
