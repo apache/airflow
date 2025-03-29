@@ -25,9 +25,12 @@ runs:
       shell: bash
       run: >
         breeze shell "airflow db reset --skip-init -y &&
-        airflow db migrate --to-revision heads &&
-        airflow db downgrade -r 937cbd173ca1 -y &&
-        airflow db migrate"
+                airflow db migrate --to-revision heads &&
+                airflow db downgrade -n 2.0.0 -y &&
+                airflow db migrate" --use-airflow-version 2.10.5 --answer y &&
+        breeze shell "airflow db migrate --to-revision heads &&
+        airflow db downgrade -n 2.7.0 -y &&
+        airflow db migrate" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
     - name: "Bring composer down"
@@ -40,7 +43,7 @@ runs:
       run: >
         breeze shell "airflow db reset -y &&
         airflow db migrate &&
-        airflow db downgrade -r 22ed7efa9da2 -y &&
+        airflow db downgrade -n 2.7.0 -y &&
         airflow db migrate"
         COMPOSE_PROJECT_NAME: "docker-compose"
       env:
