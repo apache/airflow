@@ -73,6 +73,30 @@ ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
 
 
+class ConfigModifications:
+    """
+    Holds modifications to be applied when writing out the config.
+
+    :param rename: Mapping from (old_section, old_option) to (new_section, new_option)
+    :param remove: Set of (section, option) to remove
+    :param default_updates: Mapping from (section, option) to new default value
+    """
+
+    def __init__(self) -> None:
+        self.rename: dict[tuple[str, str], tuple[str, str]] = {}
+        self.remove: set[tuple[str, str]] = set()
+        self.default_updates: dict[tuple[str, str], str] = {}
+
+    def add_rename(self, old_section: str, old_option: str, new_section: str, new_option: str) -> None:
+        self.rename[(old_section, old_option)] = (new_section, new_option)
+
+    def add_remove(self, section: str, option: str) -> None:
+        self.remove.add((section, option))
+
+    def add_default_update(self, section: str, option: str, new_default: str) -> None:
+        self.default_updates[(section, option)] = new_default
+
+
 def _parse_sqlite_version(s: str) -> tuple[int, ...]:
     match = _SQLITE3_VERSION_PATTERN.match(s)
     if match is None:
@@ -548,6 +572,88 @@ class AirflowConfigParser(ConfigParser):
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
+
+    def write_custom_config(
+        self,
+        file: IO[str],
+        comment_out_defaults: bool = True,
+        include_descriptions: bool = True,
+        extra_spacing: bool = True,
+        modifications: ConfigModifications | None = None,
+    ) -> None:
+        """
+        Write a configuration file using a ConfigModifications object.
+
+        This method includes only options from the current airflow.cfg. For each option:
+          - If it's marked for removal, omit it.
+          - If renamed, output it under its new name and add a comment indicating its original location.
+          - If a default update is specified, apply the new default and output the option as a commented line.
+          - Otherwise, if the current value equals the default and comment_out_defaults is True, output it as a comment.
+        Options absent from the current airflow.cfg are omitted.
+
+        :param file: File to write the configuration.
+        :param comment_out_defaults: If True, options whose value equals the default are written as comments.
+        :param include_descriptions: Whether to include section descriptions.
+        :param extra_spacing: Whether to insert an extra blank line after each option.
+        :param modifications: ConfigModifications instance with rename, remove, and default updates.
+        """
+        modifications = modifications or ConfigModifications()
+        output: dict[str, list[tuple[str, str, bool, str]]] = {}
+
+        for section in self._sections:  # type: ignore[attr-defined]  # accessing _sections from ConfigParser
+            for option, orig_value in self._sections[section].items():  # type: ignore[attr-defined]
+                key = (section.lower(), option.lower())
+                if key in modifications.remove:
+                    continue
+
+                mod_comment = ""
+                if key in modifications.rename:
+                    new_sec, new_opt = modifications.rename[key]
+                    effective_section = new_sec
+                    effective_option = new_opt
+                    mod_comment += f"# Renamed from {section}.{option}\n"
+                else:
+                    effective_section = section
+                    effective_option = option
+
+                value = orig_value
+                if key in modifications.default_updates:
+                    mod_comment += (
+                        f"# Default updated from {orig_value} to {modifications.default_updates[key]}\n"
+                    )
+                    value = modifications.default_updates[key]
+
+                default_value = self.get_default_value(effective_section, effective_option, fallback="")
+                is_default = str(value) == str(default_value)
+                output.setdefault(effective_section.lower(), []).append(
+                    (effective_option, str(value), is_default, mod_comment)
+                )
+
+        for section, options in output.items():
+            section_buffer = StringIO()
+            section_buffer.write(f"[{section}]\n")
+            if include_descriptions:
+                description = self.configuration_description.get(section, {}).get("description", "")
+                if description:
+                    for line in description.splitlines():
+                        section_buffer.write(f"# {line}\n")
+                    section_buffer.write("\n")
+            for option, value_str, is_default, mod_comment in options:
+                key = (section.lower(), option.lower())
+                if key in modifications.default_updates and comment_out_defaults:
+                    section_buffer.write(f"# {option} = {value_str}\n")
+                else:
+                    if mod_comment:
+                        section_buffer.write(mod_comment)
+                    if is_default and comment_out_defaults:
+                        section_buffer.write(f"# {option} = {value_str}\n")
+                    else:
+                        section_buffer.write(f"{option} = {value_str}\n")
+                if extra_spacing:
+                    section_buffer.write("\n")
+            content = section_buffer.getvalue().strip()
+            if content:
+                file.write(f"{content}\n\n")
 
     def write(  # type: ignore[override]
         self,
