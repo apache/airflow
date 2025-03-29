@@ -76,7 +76,6 @@ Airflow tasks are run locally within the scheduler process.
     :maxdepth: 1
 
     local
-    sequential
 
 Remote Executors
 ^^^^^^^^^^^^^^^^

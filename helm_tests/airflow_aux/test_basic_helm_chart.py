@@ -550,7 +550,7 @@ class TestBaseChartTest:
             render_chart(
                 "test-basic",
                 {
-                    "executor": "SequentialExecutor",
+                    "executor": "SequentialExecutor",  # just keeping this one here as its an incompatible one
                 },
             )
 

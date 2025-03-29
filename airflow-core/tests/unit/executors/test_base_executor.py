@@ -124,7 +124,6 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
     [(LocalExecutor, "LocalExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
-@mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
 @mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
@@ -132,7 +131,6 @@ def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
     mock_stats_gauge,
     mock_trigger_tasks,
-    mock_sequential_sync,
     mock_local_sync,
     executor_class,
     executor_name,
