@@ -133,7 +133,7 @@ def dag_trigger(args) -> None:
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
-            logical_date=args.exec_date,
+            logical_date=args.logical_date,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(

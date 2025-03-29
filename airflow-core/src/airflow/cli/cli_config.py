@@ -144,7 +144,7 @@ def string_lower_type(val):
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
-ARG_LOGICAL_DATE = Arg(("logical_date",), help="The logical date of the DAG", type=parsedate)
+ARG_LOGICAL_DATE = Arg(("-l", "--logical-date"), help="The logical date of the DAG", type=parsedate)
 ARG_LOGICAL_DATE_OPTIONAL = Arg(
     ("logical_date",), nargs="?", help="The logical date of the DAG (optional)", type=parsedate
 )
@@ -420,7 +420,6 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The logical date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -1026,7 +1025,7 @@ DAGS_COMMANDS = (
             ARG_DAG_ID,
             ARG_RUN_ID,
             ARG_CONF,
-            ARG_EXEC_DATE,
+            ARG_LOGICAL_DATE,
             ARG_VERBOSE,
             ARG_REPLACE_MICRO,
             ARG_OUTPUT,
