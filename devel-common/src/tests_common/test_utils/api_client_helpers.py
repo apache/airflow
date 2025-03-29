@@ -33,7 +33,8 @@ def generate_jwt_token(username: str, password: str, host: str) -> str:
     :return: The JWT token
     """
     Retry.DEFAULT_BACKOFF_MAX = 32
-    retry = Retry(total=10, backoff_factor=1)
+    # retry for rate limit errors (429) and server errors (500, 502, 503, 504)
+    retry = Retry(total=10, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     # Backoff Retry Formula: min(1 × (2^(retry - 1)), 32) seconds
     # 1 + 2 + 4 + 8 + 16 + 32 + 32 + 32 + 32 + 32 = 191 sec (~3.2 min)
     session = requests.Session()
