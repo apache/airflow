@@ -1,6 +1,6 @@
-For the Airflow CLI, we have changed CLI parameter ``--exec-date`` to ``--logical-date`` for the command ``airflow dags trigger`` to maintain consistency with other Airflow commands.
+For the Airflow CLI, we have changed the CLI parameter ``--exec-date`` to ``--logical-date`` for the command ``airflow dags trigger`` to maintain consistency with Airflow 3.0 and above.
 
-This is a breaking change for users who are currently using the ``--exec-date`` parameter in their scripts or workflows.
+This is a breaking change for users using the ``airflow dags trigger`` command with the ``--exec-date`` parameter in their scripts or workflows.
 
 * Types of change
 
