@@ -51,7 +51,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk.bases.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,

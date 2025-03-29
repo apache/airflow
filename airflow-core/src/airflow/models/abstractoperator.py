@@ -33,7 +33,7 @@ from airflow.utils.weight_rule import db_safe_priority
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.bases.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
 

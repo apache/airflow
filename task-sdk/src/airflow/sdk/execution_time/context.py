@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.bases.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (

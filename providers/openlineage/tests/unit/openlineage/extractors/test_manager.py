@@ -76,7 +76,7 @@ if AIRFLOW_V_2_10_PLUS:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance as SDKTaskInstance
-    from airflow.sdk.bases.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse

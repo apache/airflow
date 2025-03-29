@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.operator import Operator
-    from airflow.sdk.bases.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
