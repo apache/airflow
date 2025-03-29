@@ -179,6 +179,32 @@ class TestBranchDayOfWeekOperator:
                 },
             )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
+    @time_machine.travel("2021-01-25")  # Monday
+    def test_choose_branch_should_use_run_after_when_logical_date_none(self, dag_maker):
+        with dag_maker(
+            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+        ):
+            branch_op = BranchDayOfWeekOperator(
+                task_id="make_choice",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                week_day="Wednesday",
+                use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
+            )
+            branch_1 = EmptyOperator(task_id="branch_1")
+            branch_2 = EmptyOperator(task_id="branch_2")
+            branch_1.set_upstream(branch_op)
+            branch_2.set_upstream(branch_op)
+
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            **{"run_after": DEFAULT_DATE},
+        )
+        assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"
+
     @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_false(self, dag_maker):
         """Checks if BranchDayOfWeekOperator follow false branch"""

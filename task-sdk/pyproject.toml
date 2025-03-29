@@ -120,7 +120,7 @@ apache-airflow-providers-standard = {workspace = true}
 
 # To use:
 #
-#   uv run --group codegen --project apache-airflow-task-sdk --directory task_sdk datamodel-codegen
+#   uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true
@@ -137,7 +137,7 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
-custom-formatters = ['dev.datamodel_code_formatter',]
+custom-formatters = ['datamodel_code_formatter']
 
 url = 'http://0.0.0.0:8080/execution/openapi.json'
 output = 'src/airflow/sdk/api/datamodels/_generated.py'

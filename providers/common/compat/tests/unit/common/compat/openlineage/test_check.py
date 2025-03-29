@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 import types
 from importlib import metadata
@@ -25,6 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
 
 
@@ -79,37 +79,32 @@ def test_no_arguments_provided():
 
 @pytest.mark.parametrize("provider_min_version", ("1.0.0", "0.9", "0", "0.9.9", "1.0.0.dev0", "1.0.0rc1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_provider_version_sufficient(mock_version, caplog, provider_min_version):
+def test_provider_version_sufficient(mock_version, provider_min_version):
     @require_openlineage_version(provider_min_version=provider_min_version)
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
     result = dummy()
     assert result == "result"
-    # No log messages about skipping should be emitted.
-    assert "skipping function" not in caplog.text
 
 
 @pytest.mark.parametrize("provider_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_provider_version_insufficient(mock_version, caplog, provider_min_version):
+def test_provider_version_insufficient(mock_version, provider_min_version):
     @require_openlineage_version(provider_min_version=provider_min_version)
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
-    result = dummy()
-    assert result is None
-
-    expected_log = (
+    expected_err = (
         f"OpenLineage provider version `1.0.0` is lower than required `{provider_min_version}`, "
         "skipping function `dummy` execution"
     )
-    assert expected_log in caplog.text
+
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        dummy()
 
 
-def test_provider_not_found(caplog):
+def test_provider_not_found():
     def fake_version(package):
         if package == "apache-airflow-providers-openlineage":
             raise metadata.PackageNotFoundError
@@ -124,17 +119,15 @@ def test_provider_not_found(caplog):
             def dummy():
                 return "result"
 
-            caplog.set_level(logging.INFO)
-            result = dummy()
-            assert result is None
-
-            expected_log = (
+            expected_err = (
                 "OpenLineage provider not found or has no version, skipping function `dummy` execution"
             )
-            assert expected_log in caplog.text
+
+            with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+                dummy()
 
 
-def test_provider_fallback_import(caplog):
+def test_provider_fallback_import():
     def fake_version(package):
         if package == "apache-airflow-providers-openlineage":
             raise metadata.PackageNotFoundError
@@ -150,45 +143,38 @@ def test_provider_fallback_import(caplog):
             def dummy():
                 return "result"
 
-            caplog.set_level(logging.INFO)
             result = dummy()
             assert result == "result"
-            assert "skipping function" not in caplog.text
 
 
 @pytest.mark.parametrize("client_min_version", ("1.0.0", "0.9", "0", "0.9.9", "1.0.0.dev0", "1.0.0rc1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_client_version_sufficient(mock_version, caplog, client_min_version):
+def test_client_version_sufficient(mock_version, client_min_version):
     @require_openlineage_version(client_min_version=client_min_version)
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
     result = dummy()
     assert result == "result"
-    # No log messages about skipping should be emitted.
-    assert "skipping function" not in caplog.text
 
 
 @pytest.mark.parametrize("client_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_client_version_insufficient(mock_version, caplog, client_min_version):
+def test_client_version_insufficient(mock_version, client_min_version):
     @require_openlineage_version(client_min_version=client_min_version)
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
-    result = dummy()
-    assert result is None
-
-    expected_log = (
+    expected_err = (
         f"OpenLineage client version `1.0.0` is lower than required `{client_min_version}`, "
         "skipping function `dummy` execution"
     )
-    assert expected_log in caplog.text
+
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        dummy()
 
 
-def test_client_version_not_found(caplog):
+def test_client_version_not_found():
     def fake_version(package):
         if package == "openlineage-python":
             raise metadata.PackageNotFoundError
@@ -200,81 +186,68 @@ def test_client_version_not_found(caplog):
         def dummy():
             return "result"
 
-        caplog.set_level(logging.INFO)
-        result = dummy()
-        assert result is None
-        expected_log = "OpenLineage client not found, skipping function `dummy` execution"
-        assert expected_log in caplog.text
+        expected_err = "OpenLineage client not found, skipping function `dummy` execution"
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+            dummy()
 
 
 @pytest.mark.parametrize("client_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_client_version_insufficient_when_both_passed(mock_version, caplog, client_min_version):
+def test_client_version_insufficient_when_both_passed(mock_version, client_min_version):
     @require_openlineage_version(provider_min_version="1.0.0", client_min_version=client_min_version)
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
-    result = dummy()
-    assert result is None
-
-    expected_log = (
+    expected_err = (
         f"OpenLineage client version `1.0.0` is lower than required `{client_min_version}`, "
         "skipping function `dummy` execution"
     )
-    assert expected_log in caplog.text
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        dummy()
 
 
 @pytest.mark.parametrize("provider_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_provider_version_insufficient_when_both_passed(mock_version, caplog, provider_min_version):
+def test_provider_version_insufficient_when_both_passed(mock_version, provider_min_version):
     @require_openlineage_version(provider_min_version=provider_min_version, client_min_version="1.0.0")
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
-    result = dummy()
-    assert result is None
-
-    expected_log = (
+    expected_err = (
         f"OpenLineage provider version `1.0.0` is lower than required `{provider_min_version}`, "
         "skipping function `dummy` execution"
     )
-    assert expected_log in caplog.text
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        dummy()
 
 
 @pytest.mark.parametrize("client_min_version", ("1.0.0", "0.9", "0", "0.9.9", "1.0.0.dev0", "1.0.0rc1"))
 @pytest.mark.parametrize("provider_min_version", ("1.0.0", "0.9", "0", "0.9.9", "1.0.0.dev0", "1.0.0rc1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_both_versions_sufficient(mock_version, caplog, provider_min_version, client_min_version):
+def test_both_versions_sufficient(mock_version, provider_min_version, client_min_version):
     @require_openlineage_version(
         provider_min_version=provider_min_version, client_min_version=client_min_version
     )
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
     result = dummy()
     assert result == "result"
-    assert "skipping function" not in caplog.text
 
 
 @pytest.mark.parametrize("client_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @pytest.mark.parametrize("provider_min_version", ("1.1.0", "1.0.1.dev0", "1.0.1rc1", "2", "1.1"))
 @patch("importlib.metadata.version", side_effect=_mock_version)
-def test_both_versions_insufficient(mock_version, caplog, provider_min_version, client_min_version):
+def test_both_versions_insufficient(mock_version, provider_min_version, client_min_version):
     @require_openlineage_version(
         provider_min_version=provider_min_version, client_min_version=client_min_version
     )
     def dummy():
         return "result"
 
-    caplog.set_level(logging.INFO)
-    result = dummy()
-    assert result is None
-
-    expected_log = (
+    expected_err = (
         f"OpenLineage provider version `1.0.0` is lower than required `{provider_min_version}`, "
         "skipping function `dummy` execution"
     )
-    assert expected_log in caplog.text
+    with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
+        dummy()

@@ -158,6 +158,3 @@ notifications:
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org
   discussions: commits@airflow.apache.org
-
-meta:
-  prevgen: true

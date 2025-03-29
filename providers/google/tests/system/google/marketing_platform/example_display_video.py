@@ -96,7 +96,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "display_video_misc"],
-) as dag_misc:
+) as dag:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
         task_id="upload_erf_to_bq",
@@ -220,3 +220,11 @@ with DAG(
     # [END howto_google_display_video_delete_query_report_operator]
 
     create_query_v2 >> run_query_v2 >> wait_for_query >> get_report_v2 >> delete_report_v2
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
+test_run_sdf = get_test_run(dag_sdf)
+test_run_v2 = get_test_run(dag_v2)

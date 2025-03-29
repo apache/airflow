@@ -133,7 +133,6 @@ def is_core_commit(files: list[str]) -> bool:
         # Providers
         "airflow/providers/",
         "airflow/provider.yaml.schema.json",
-        "provider_packages/",
         "docs/apache-airflow-providers-",
         # chart
         "chart/",

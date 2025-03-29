@@ -23,6 +23,7 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

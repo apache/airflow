@@ -176,10 +176,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     appbuilder: AirflowAppBuilder | None = None
 
-    def init(self) -> None:
-        """Run operations when Airflow is initializing."""
-        if self.appbuilder:
-            self._sync_appbuilder_roles()
+    def init_flask_resources(self) -> None:
+        self._sync_appbuilder_roles()
 
     @cached_property
     def apiserver_endpoint(self) -> str:
@@ -522,6 +520,10 @@ class FabAuthManager(BaseAuthManager[User]):
             for item in items
             if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
         ]
+
+    @staticmethod
+    def get_db_manager() -> str | None:
+        return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
     def _is_authorized(
         self,

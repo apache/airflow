@@ -25,6 +25,7 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 # TODO: FIXME The argument types here seems somewhat tricky to fix

@@ -24,6 +24,7 @@ from google.cloud.videointelligence_v1 import Feature
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT_URI = "gs://bucket-name/input-file"

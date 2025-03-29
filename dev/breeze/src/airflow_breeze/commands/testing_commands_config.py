@@ -88,9 +88,9 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--clean-airflow-installation",
         "--force-lowest-dependencies",
         "--install-airflow-with-constraints",
-        "--package-format",
+        "--distribution-format",
         "--use-airflow-version",
-        "--use-packages-from-dist",
+        "--use-distributions-from-dist",
     ],
 }
 

@@ -15,34 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-API Authentication
-==================
+FAB auth manager API authentication
+===================================
 
-Authentication for the API is handled separately to the Web Authentication. The default is to
-check the user session:
+.. note::
+    This guide only applies to :doc:`FAB auth manager API </api-ref/fab-public-api-ref>`.
+
+Authentication for the APIs is handled by what is called an authentication backend. The default is to check the user session:
 
 .. code-block:: ini
 
-    [api]
+    [fab]
     auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.session
 
-.. versionchanged:: 1.10.11
-
-    In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
-    posed security risks for if the Webserver is publicly accessible.
-
-.. versionchanged:: 2.3.0
-
-    In Airflow <2.3.0 this setting was ``auth_backend`` and allowed only one
-    value. In 2.3.0 it was changed to support multiple backends that are tried
-    in turn.
-
-If you want to check which authentication backends are currently set, you can use ``airflow config get-value api auth_backends``
+If you want to check which authentication backends are currently set, you can use ``airflow config get-value fab auth_backends``
 command as in the example below.
 
 .. code-block:: console
 
-    $ airflow config get-value api auth_backends
+    $ airflow config get-value fab auth_backends
     airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 .. versionchanged:: 3.0.0
@@ -50,30 +41,6 @@ command as in the example below.
     In Airflow, the default setting is using token based authentication.
     This approach is independent from which ``auth_backend`` is used.
     The default setting is using Airflow public API to create a token (JWT) first and use this token in the requests to access the API.
-
-
-JWT Token based authentication
-''''''''''''''''''''''''''''''
-The JWT token based authentication is the default setting for the API.
-To be able to use the Airflow Public API, you need to create a token first and use this token in the requests to access the API.
-
-Endpoints are populated under ``/auth`` path. These endpoints are mounted to the Airflow API.
-You should use your username and password, as seen in the example below.
-The token is valid for seconds defined in ``auth_jwt_expiration_time`` which can be set from ``airflow.cfg``.
-
-Example of creating a token:
-.. code-block:: bash
-
-    curl -X 'POST' \
-      'http://localhost:32784/auth/token' \
-      -H 'accept: application/json' \
-      -H 'Content-Type: application/json' \
-      -d '{
-      "username": "username",
-      "password": "password"
-      }'
-
-This process will return a token that you can use in the requests to access the API.
 
 Kerberos authentication
 '''''''''''''''''''''''
@@ -84,7 +51,7 @@ To enable Kerberos authentication, set the following in the configuration:
 
 .. code-block:: ini
 
-    [api]
+    [fab]
     auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth
 
     [kerberos]
@@ -109,7 +76,7 @@ work. This means that your user name should be ``user_name@REALM``.
 
 .. note::
 
-    Remember that the stable API is secured by both authentication and `access control <./access-control.html>`_.
+    Remember that the APIs are secured by both authentication and `access control <./access-control.html>`_.
     This means that your user needs to have a Role with necessary associated permissions, otherwise you'll receive
     a 403 response.
 
@@ -125,7 +92,7 @@ To enable basic authentication, set the following in the configuration:
 
 .. code-block:: ini
 
-    [api]
+    [fab]
     auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Username and password needs to be base64 encoded and send through the
@@ -162,7 +129,7 @@ and may have one of the following to support API client authorizations used by :
 * function ``create_client_session() -> requests.Session``
 * attribute ``CLIENT_AUTH: tuple[str, str] | requests.auth.AuthBase | None``
 
-After writing your backend module, provide the fully qualified module name in the ``auth_backends`` key in the ``[api]``
+After writing your backend module, provide the fully qualified module name in the ``auth_backends`` key in the ``[fab]``
 section of ``airflow.cfg``.
 
 Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.

@@ -39,7 +39,7 @@ cmd = [
     "--rm",
     "--platform",
     "linux/amd64",
-    "ghcr.io/apache/airflow-apache-rat:0.13-2021.07.04",
+    "ghcr.io/apache/airflow-apache-rat:0.16.1-2024.03.23@sha256:83c4d2610ec4a439d1809a67fadbdc9a1df089ab130b32209351bdd4527a3f02",
     "-d",
     "/opt/airflow",
     "--exclude-file",

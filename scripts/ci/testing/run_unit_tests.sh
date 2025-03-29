@@ -59,7 +59,7 @@ function core_tests() {
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
-        breeze testing system-tests tests/system/example_empty.py
+        breeze testing system-tests airflow-core/tests/system/example_empty.py
         RESULT=$?
         set +x
     else

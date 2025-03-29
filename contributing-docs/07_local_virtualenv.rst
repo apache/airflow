@@ -136,6 +136,44 @@ However ``uv`` creation/re-creation of venvs is so fast that you can easily crea
 So usually you do not need to have more than one venv and recreate it as needed - for example when you
 need to change the python version.
 
+Runtime vs. development dependencies
+....................................
+
+Airflow and providers when installed from .whl distribution package have "runtime" dependencies
+(both required and optional dependencies). Those dependencies will be installed when you install
+airflow from ``PyPI`` - required dependencies when you install bare package,
+and "optional" dependencies when you provide extra.
+
+For example:
+
+.. code-block::bash
+
+    pip install apache-airflow # <- installs airflow with all required dependencies
+    pip install apache-airflow[s3fs] # <- install airflow with extra "s3fs" dependencies needed for object storage in S3
+    pip install apache-airflow[amazon] # <- install airflow with extra "amazon" which installs apache-airflow-providers-amazon provider (and its required dependencies)
+
+
+However, in order to run tests, some additional dependencies are needed - for example Amazon provider requires ``moto`` to mock boto calls.
+To make it easier Airflow packaging setup will automatically install development dependencies when you install
+airflow project dependencies, depending on the scope of your installation. This works a bit differently with
+``pip`` and ``uv`` for now, because ``uv`` (with dependency groups) already installs ``dev`` dependencies for
+the current package it is installing automatically, while ``pip`` does not have - yet - support for ``dev``
+dependencies and we need to emulate it with injecting development dependencies into ``extras`` in editable
+mode - and we can do it only in the top-level metadata project of airflow, not in ``airflow-core`` that has
+fixed set of dependencies. For example you need to run ``pip install .[all-core]`` to
+install all development dependencies of airflow-core dynamically when installed with ``pip``.
+
+.. code-block::bash
+
+    pip install -e . # <- installs airflow with all required dependencies and it's development dependencies
+    pip install -e ".[all-core]" # <- install airflow with all core development dependencies - including those needed to run extra tests
+    pip install -e ".[amazon]" # <- install airflow with extra "amazon" which installs amazon provider dependencies (including development ones)
+
+This situation might change in April 2025 when ``pip`` will bring dependency-group support (already merged) in
+which case we will be able to get rid of some dynamic extras we have now
+
+The below scenarios of syncing the project with ``uv`` or using ``pip`` depending what you want to work on.
+
 Syncing project (including providers) with uv
 .............................................
 
@@ -148,17 +186,18 @@ airflow, all providers dependencies.
 
     uv sync
 
-This will synchronize core dependencies and provider extras that you need for development and testing of
-Airflow and provider dependencies - including their dependencies. But it will not
-install dependencies for development of some providers (like amazon) that need
-additional dependencies to be installed. For example this is how you install additional dependencies for
-amazon provider:
+This will synchronize core dependencies of airflow including all optional core dependencies as well as
+installs sources for all preinstalled providers and their dependencies.
+
+For example this is how you install dependencies for amazon provider, amazon provider sources,
+all provider sources that amazon provider depends on and all development dependencies of the provider:
 
 .. code:: bash
 
-    uv sync --extra amazon
+    uv sync --package apache-airflow-providers-amazon
 
-You can also synchronize all extras including development dependencies of all providers by running:
+You can also synchronize all extras including development dependencies of all providers, task-sdk and other
+packages by running:
 
 .. code:: bash
 
@@ -166,6 +205,27 @@ You can also synchronize all extras including development dependencies of all pr
 
 This will synchronize all development extras of airflow and all packages (this might require some additional
 system dependencies to be installed - depending on your OS requirements).
+
+Working on airflow-core only
+............................
+
+When you only want to work on airflow-core, you can run ``uv sync`` in the ``airflow-core`` folder. This
+will install all dependencies needed to run tests for airflow-core.
+
+.. code:: bash
+
+    cd airflow-core
+    uv sync
+
+
+TODO(potiuk): This will not work yet - until we move some remaining provider tests from airflow-core. For
+now you need to add ``--all-package`` to install all providers and their dependencies.
+
+.. code:: bash
+
+    cd airflow-core
+    uv sync --all-packages
+
 
 Working on individual provider dependencies
 ...........................................
@@ -212,11 +272,14 @@ package.
 
 .. code:: bash
 
-    pip install -e "."
+    pip install -e ".[all-core]"
+    pip install -e "./airflow-core"
     pip install -e "./devel-common"
 
-This will install airflow in ``editable`` mode and ``devel-common`` dependencies needed to run airflow
-tests.
+This will install:
+* the "metadata" project with all core extra development dependencies for airflow tests including extras
+* ``airflow-core`` project in ``editable`` mode
+* the ``devel-common`` dependencies needed to run airflow tests.
 
 You need to run this command in the virtualenv you want to install Airflow in and you need to have the
 virtualenv activated to run any command.
@@ -227,6 +290,7 @@ dependencies. For example, to install Amazon provider you need to install ``amaz
 
 .. code:: bash
 
+   pip install -e "./airflow-core"
    pip install -e "./task-sdk"
    pip install -e "./devel-common"
    pip install -e "./providers/amazon"
@@ -235,10 +299,11 @@ dependencies. For example, to install Amazon provider you need to install ``amaz
 
 This will install:
 
+* airflow in ``editable`` mode with development dependencies
 * task sdk library for providers
 * common test dependencies
-* airflow in ``editable`` mode with development dependencies of amazon
 * amazon provider in ``editable`` mode
+* development dependencies of the amazon provider
 
 Note that installing extras will not be needed (similarly as in case of ``uv``) when dependency groups
 (see https://peps.python.org/pep-0735/) will be implemented in ``pip`` - around April 2025.
@@ -276,19 +341,19 @@ providers, you also need to install them in the virtualenv you work on (after in
 the extras in airflow, that correspond to the provider you want to develop). This is something
 you need to do manually if not using ``uv sync`` to synchronize the whole Airflow workspace.
 
-
 If you use ``pip`` it is quite a bit more:
 
 You can run the following command in the venv that you have installed airflow in (also in editable mode):
 
 .. code:: bash
 
-    pip install -e ".[google]"
+    pip install -e "./airflow-core"
     pip install -e "./task-sdk"
     pip install -e "./devel-common"
     pip install -e "./providers/google"
+    pip install -e ".[google]"
 
-The first command installs airflow, it's development dependencies, test dependencies and
+The first command installs airflow core, it's development dependencies, test dependencies and
 both runtime and development dependencies of the google provider (Note that in the future, when
 dependency groups will be implemented in ``pip`` - April 2025) - it will not be needed to use ``google`` extra
 when installing airflow - currently with ``pip`` it is the only way to install development dependencies

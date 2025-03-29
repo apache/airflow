@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v4"

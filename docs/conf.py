@@ -53,7 +53,7 @@ from docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
-ROOT_DIR = CONF_DIR.parent
+AIRFLOW_REPO_ROOT_PATH = CONF_DIR.parent
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
@@ -63,9 +63,11 @@ SYSTEM_TESTS_DIR: pathlib.Path | None
 conf_py_path = f"/docs/{PACKAGE_NAME}/"
 
 if PACKAGE_NAME == "apache-airflow":
-    PACKAGE_DIR = ROOT_DIR / "airflow"
+    PACKAGE_DIR = AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "src"
     PACKAGE_VERSION = airflow.__version__
-    SYSTEM_TESTS_DIR = (ROOT_DIR / "tests" / "system" / "core").resolve(strict=True)
+    SYSTEM_TESTS_DIR = (AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "system" / "core").resolve(
+        strict=True
+    )
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
@@ -79,26 +81,26 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     except StopIteration:
         raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
 
-    # Oddity: since we set autoapi_python_use_implicit_namespaces for provider packages, it does a "../"on the
+    # Oddity: since we set autoapi_python_use_implicit_namespaces for provider distributions, it does a "../"on the
     # dir we give it. So we want to set the package dir to be airflow so it goes up to src, else we end up
     # with "src" in the output paths of modules which we don't want
 
     package_id = PACKAGE_NAME[len("apache-airflow-providers-") :].replace("-", ".")
-    base_provider_dir = (ROOT_DIR / "providers").joinpath(*package_id.split("."))
+    base_provider_dir = (AIRFLOW_REPO_ROOT_PATH / "providers").joinpath(*package_id.split("."))
     PACKAGE_DIR = base_provider_dir / "src" / "airflow"
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
     SYSTEM_TESTS_DIR = base_provider_dir / "tests" / "system"
-    target_dir = ROOT_DIR / "docs" / PACKAGE_NAME
+    target_dir = AIRFLOW_REPO_ROOT_PATH / "docs" / PACKAGE_NAME
     conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
 elif PACKAGE_NAME == "apache-airflow-providers":
     from provider_yaml_utils import load_package_data
 
-    PACKAGE_DIR = ROOT_DIR / "providers" / "src"
+    PACKAGE_DIR = AIRFLOW_REPO_ROOT_PATH / "providers" / "src"
     PACKAGE_VERSION = "devel"
     ALL_PROVIDER_YAMLS = load_package_data()
     SYSTEM_TESTS_DIR = None
 elif PACKAGE_NAME == "helm-chart":
-    PACKAGE_DIR = ROOT_DIR / "chart"
+    PACKAGE_DIR = AIRFLOW_REPO_ROOT_PATH / "chart"
     chart_yaml_file = PACKAGE_DIR / "Chart.yaml"
 
     with chart_yaml_file.open() as chart_file:
@@ -126,7 +128,6 @@ global_substitutions = {
 
 if PACKAGE_NAME != "apache-airflow":
     global_substitutions["experimental"] = "This is an :external:ref:`experimental feature <experimental>`."
-
 
 # == Sphinx configuration ======================================================
 
@@ -166,6 +167,21 @@ extensions = [
     "substitution_extensions",
     "sphinx_design",
 ]
+
+
+packages_with_redoc = ["apache-airflow", "apache-airflow-providers-fab"]
+if PACKAGE_NAME in packages_with_redoc:
+    extensions.extend(
+        [
+            "autoapi.extension",
+            # First, generate redoc
+            "sphinxcontrib.redoc",
+            # Second, update redoc script
+            "sphinx_script_update",
+        ]
+    )
+
+
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
         [
@@ -174,14 +190,9 @@ if PACKAGE_NAME == "apache-airflow":
             "sphinxcontrib.httpdomain",
             "sphinxcontrib.httpdomain",
             "extra_files_with_substitutions",
-            # First, generate redoc
-            "sphinxcontrib.redoc",
-            # Second, update redoc script
-            "sphinx_script_update",
         ]
     )
-
-if PACKAGE_NAME == "apache-airflow-providers":
+elif PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
             "sphinx_jinja",
@@ -201,8 +212,9 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "providers_extensions",
         ]
     )
-else:
+elif PACKAGE_NAME not in packages_with_redoc:
     extensions.append("autoapi.extension")
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns: list[str]
@@ -210,11 +222,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
-        # Included in the cluster-policies doc
-        "_api/airflow/policies/index.rst",
+        "_api/system/core",
         "README.rst",
-        "_api/client",
-        "_api/common",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
@@ -235,13 +244,14 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
         "_api/airflow/providers/dbt/index.rst",
         "_api/airflow/providers/microsoft/index.rst",
+        *[f"_api/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
         *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     ]
 else:
     exclude_patterns = []
 
 
-def _get_rst_filepath_from_path(filepath: pathlib.Path):
+def _get_rst_filepath_from_path(filepath: pathlib.Path, root: pathlib.Path):
     if filepath.is_dir():
         result = filepath
     else:
@@ -251,13 +261,13 @@ def _get_rst_filepath_from_path(filepath: pathlib.Path):
             result = filepath.with_name(filepath.stem)
         result /= "index.rst"
 
-    return f"_api/{result.relative_to(ROOT_DIR)}"
+    return f"_api/{result.relative_to(root)}"
 
 
 if PACKAGE_NAME == "apache-airflow":
     # Exclude top-level packages
     # do not exclude these top-level modules from the doc build:
-    _allowed_top_level = ("exceptions.py", "policies.py")
+    _allowed_top_level = ("exceptions.py",)
 
     browsable_packages = {
         "hooks",
@@ -290,26 +300,26 @@ if PACKAGE_NAME == "apache-airflow":
         "xcom.py",
     }
 
-    root = ROOT_DIR / "airflow"
+    root = AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "src" / "airflow"
     for path in root.iterdir():
         if path.is_file() and path.name not in _allowed_top_level:
-            exclude_patterns.append(_get_rst_filepath_from_path(path))
+            exclude_patterns.append(_get_rst_filepath_from_path(path, root.parent))
         if path.is_dir() and path.name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{path.name}")
-
     # Don't include all of utils, just the specific ones we decided to include
     for path in (root / "utils").iterdir():
         if path.name not in browsable_utils:
-            exclude_patterns.append(_get_rst_filepath_from_path(path))
+            exclude_patterns.append(_get_rst_filepath_from_path(path, root.parent))
 
     for path in (root / "models").iterdir():
         if path.name not in models_included:
-            exclude_patterns.append(_get_rst_filepath_from_path(path))
+            exclude_patterns.append(_get_rst_filepath_from_path(path, root.parent))
 
 
-elif PACKAGE_NAME != "docker-stack":
+elif PACKAGE_NAME != "docker-stack" and PACKAGE_NAME != "apache-airflow":
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
+        _get_rst_filepath_from_path(f, AIRFLOW_REPO_ROOT_PATH)
+        for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -338,7 +348,7 @@ html_short_title = ""
 #  configuration directory) that is the favicon of the docs. Modern browsers
 #  use this as the icon for tabs, windows and bookmarks. It should be a
 #  Windows-style icon file (.ico), which is 16x16 or 32x32 pixels large.
-html_favicon = "../airflow/ui/public/pin_32.png"
+html_favicon = "../airflow-core/src/airflow/ui/public/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -360,10 +370,10 @@ else:
     html_js_files = []
 if PACKAGE_NAME == "apache-airflow":
     html_extra_path = [
-        f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/airflow.sh",
+        f"{AIRFLOW_REPO_ROOT_PATH}/airflow-core/docs/howto/docker-compose/airflow.sh",
     ]
     html_extra_with_substitutions = [
-        f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/docker-compose.yaml",
+        f"{AIRFLOW_REPO_ROOT_PATH}/airflow-core/docs/howto/docker-compose/docker-compose.yaml",
     ]
     # Substitute in links
     manual_substitutions_in_generated_html = [
@@ -450,7 +460,7 @@ html_context = {
 airflow_version = parse_version(
     re.search(  # type: ignore[union-attr,arg-type]
         r"__version__ = \"([0-9\.]*)(\.dev[0-9]*)?\"",
-        (Path(__file__).parents[1] / "airflow" / "__init__.py").read_text(),
+        (Path(__file__).parents[1] / "airflow-core" / "src" / "airflow" / "__init__.py").read_text(),
     ).groups(0)[0]
 )
 
@@ -767,6 +777,8 @@ autoapi_dirs: list[os.PathLike] = []
 if PACKAGE_NAME != "docker-stack":
     autoapi_dirs.append(PACKAGE_DIR)
 
+if PACKAGE_NAME == "apache-airflow":
+    autoapi_dirs.append(PACKAGE_DIR)
 
 # A directory that has user-defined templates to override our default templates.
 if PACKAGE_NAME == "apache-airflow":
@@ -886,43 +898,65 @@ graphviz_output_format = "svg"
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+if PACKAGE_NAME in packages_with_redoc:
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
 if PACKAGE_NAME == "apache-airflow":
-    OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "api_fastapi", "core_api", "openapi", "v1-generated.yaml"
-    )
+    from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
+    from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
+
+    main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-generated.yaml")
+    sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-generated.yaml")
     redoc = [
         {
             "name": "Airflow REST API",
             "page": "stable-rest-api-ref",
-            "spec": OPENAPI_FILE,
+            "spec": main_openapi_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,
             },
         },
+        {
+            "name": "Simple auth manager token API",
+            "page": "core-concepts/auth-manager/simple/sam-token-api-ref",
+            "spec": sam_openapi_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+            },
+        },
     ]
-
-    # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
-
 elif PACKAGE_NAME == "apache-airflow-providers-fab":
-    OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
+        __file__ as fab_auth_manager_fastapi_api_file,
+    )
+    from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
+
+    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath("v1.yaml")
+    fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
+        "v1-generated.yaml"
     )
     redoc = [
         {
-            "name": "Fab provider REST API",
-            "page": "stable-rest-api-ref",
-            "spec": OPENAPI_FILE,
+            "name": "Fab auth manager API",
+            "page": "api-ref/fab-public-api-ref",
+            "spec": fab_auth_manager_flask_api_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+        {
+            "name": "Fab auth manager token API",
+            "page": "api-ref/fab-token-api-ref",
+            "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,
             },
         },
     ]
-
-    # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
 
 
 def skip_util_classes(app, what, name, obj, skip, options):

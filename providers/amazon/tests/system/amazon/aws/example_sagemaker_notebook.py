@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartNoteBookOperator,
     SageMakerStopNotebookOperator,
 )
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_sagemaker_notebook"

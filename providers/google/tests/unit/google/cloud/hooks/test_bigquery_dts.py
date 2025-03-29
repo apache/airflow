@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.hooks.bigquery_dts import (
     AsyncBiqQueryDataTransferServiceHook,
     BiqQueryDataTransferServiceHook,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"

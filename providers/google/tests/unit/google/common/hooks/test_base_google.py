@@ -38,6 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, is_refresh_credentials_exception
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True

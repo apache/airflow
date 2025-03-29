@@ -30,13 +30,14 @@ import os
 import sys
 from collections import defaultdict
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, Callable, NamedTuple, TypeVar
 
 from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, DOCS_DIR, ROOT_PROJECT_DIR
+from docs.exts.docs_build.code_utils import AIRFLOW_DOCS_PATH, AIRFLOW_ROOT_PATH, CONSOLE_WIDTH
 from docs.exts.docs_build.docs_builder import AirflowDocsBuilder, get_available_packages
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
 from docs.exts.docs_build.fetch_inventories import fetch_inventories
@@ -139,7 +140,7 @@ def _get_parser():
         "--skip-deletion",
         dest="skip_deletion",
         action="store_true",
-        help="Skip deletion of generated files (for new package structure only)",
+        help="Skip deletion of generated files in the `docs` folder",
     )
     parser.add_argument("--docs-only", dest="docs_only", action="store_true", help="Only build documentation")
     parser.add_argument(
@@ -478,11 +479,15 @@ def main():
     for package in available_packages:
         if package.startswith("apache-airflow-providers-"):
             package_id = package.replace("apache-airflow-providers-", "").replace("-", ".")
-            api_dir = os.path.join(ROOT_PROJECT_DIR, "providers", *package_id.split("."), "docs", "_api")
+            api_dir: Path = (
+                (AIRFLOW_ROOT_PATH / "providers").joinpath(*package_id.split(".")) / "docs" / "_api"
+            )
+        elif package == "apache-airflow":
+            api_dir = AIRFLOW_DOCS_PATH / "apache-airflow" / "_api"
         else:
-            api_dir = os.path.join(DOCS_DIR, package, "_api")
-        if os.path.exists(api_dir):
-            if not os.listdir(api_dir):
+            api_dir = AIRFLOW_DOCS_PATH / package / "_api"
+        if api_dir.exists():
+            if not next(api_dir.iterdir()):
                 console.print(
                     "[red]The toctree already contains a reference to a non-existing document "
                     f"for provider [green]'{package}'[/green]: {api_dir}. "
@@ -504,7 +509,7 @@ def main():
     jobs = args.jobs if args.jobs != 0 else os.cpu_count()
 
     with with_group(
-        f"Documentation will be built for {len(packages_to_build)} package(s) with {jobs} parallel jobs"
+        f"Documentation will be built for {len(packages_to_build)} package(s) with up to {jobs} parallel jobs"
     ):
         for pkg_no, pkg in enumerate(packages_to_build, start=1):
             console.print(f"{pkg_no}. {pkg}")
@@ -594,7 +599,7 @@ def main():
         if general_errors:
             all_build_errors[None] = general_errors
 
-    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
+    dev_index_generator.generate_index(f"{AIRFLOW_DOCS_PATH}/_build/index.html")
 
     if not package_filters:
         _promote_new_flags()

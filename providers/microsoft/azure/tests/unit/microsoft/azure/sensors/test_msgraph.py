@@ -25,12 +25,12 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response
 
 from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.microsoft.azure.base import Base
+from unit.microsoft.azure.test_utils import mock_json_response
 
 
 class TestMSGraphSensor(Base):

@@ -29,7 +29,6 @@ from airflow.example_dags import example_complex
 from airflow.models import DagBag, TaskInstance
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
-from unit.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
@@ -38,6 +37,7 @@ from tests_common.test_utils.gcp_system_helpers import (
     provide_gcp_context,
     resolve_full_gcp_key_path,
 )
+from unit.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 
 
 @pytest.mark.system

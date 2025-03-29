@@ -32,6 +32,7 @@ from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, GetBuildR
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 PROJECT_ID = "cloud-build-project"

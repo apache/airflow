@@ -36,6 +36,7 @@ from airflow.models.dag import DAG
 from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
@@ -46,6 +47,11 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
+
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.mock_security_manager import MockSecurityManager
+from tests_common.test_utils.permissions import _resource_name
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
@@ -53,11 +59,6 @@ from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
     set_user_single_role,
 )
-
-from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.mock_security_manager import MockSecurityManager
-from tests_common.test_utils.permissions import _resource_name
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
@@ -184,9 +185,17 @@ def clear_db_before_test():
 
 @pytest.fixture(scope="module")
 def app():
-    _app = application.create_app(enable_plugins=False)
-    _app.config["WTF_CSRF_ENABLED"] = False
-    return _app
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        _app = application.create_app(enable_plugins=False)
+        _app.config["WTF_CSRF_ENABLED"] = False
+        yield _app
 
 
 @pytest.fixture(scope="module")
@@ -1055,7 +1064,6 @@ def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_
 
     assert new_user.login_count == 1
     assert new_user.fail_login_count == 0
-    assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
     mock_security_manager.update_user.assert_called_once_with(new_user)
 
 
@@ -1065,7 +1073,6 @@ def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager,
 
     assert old_user.login_count == 43
     assert old_user.fail_login_count == 0
-    assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
     mock_security_manager.update_user.assert_called_once_with(old_user)
 
 

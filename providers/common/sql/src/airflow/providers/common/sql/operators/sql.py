@@ -478,7 +478,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
-        self.partition_clause = partition_clause
+        self.partition_clause = _initialize_partition_clause(partition_clause)
         self.accept_none = accept_none
 
         def _build_checks_sql():
@@ -699,7 +699,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.checks = checks
-        self.partition_clause = partition_clause
+        self.partition_clause = _initialize_partition_clause(partition_clause)
         self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
 
     def execute(self, context: Context):
@@ -1243,3 +1243,14 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
         # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
         self.skip_all_except(context["ti"], follow_branch)  # type: ignore[arg-type]
+
+
+def _initialize_partition_clause(clause: str | None) -> str | None:
+    """Ensure the partition_clause contains only valid patterns."""
+    if clause is None:
+        return None
+
+    if ";" in clause:
+        raise ValueError("Invalid partition_clause: semicolons (;) not allowed.")
+
+    return clause

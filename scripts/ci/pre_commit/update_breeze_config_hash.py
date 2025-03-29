@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -26,8 +27,8 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-BREEZE_PROJECT_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import AIRFLOW_BREEZE_SOURCES_PATH
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -41,14 +42,14 @@ def get_package_setup_metadata_hash() -> str:
     """
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((BREEZE_PROJECT_ROOT / "pyproject.toml").read_bytes())
+        the_hash.update((AIRFLOW_BREEZE_SOURCES_PATH / "pyproject.toml").read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:
         return f"Missing file {e.filename}"
 
 
 def process_breeze_readme():
-    breeze_readme = BREEZE_PROJECT_ROOT / "README.md"
+    breeze_readme = AIRFLOW_BREEZE_SOURCES_PATH / "README.md"
     lines = breeze_readme.read_text().splitlines(keepends=True)
     result_lines = []
     for line in lines:

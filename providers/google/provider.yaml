@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1741121879
+source-date-epoch: 1742980830
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 14.1.0
   - 14.0.0
   - 12.0.0
   - 11.0.0

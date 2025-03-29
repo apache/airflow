@@ -150,6 +150,11 @@ Private clusters have two unique endpoint values: ``privateEndpoint``, which is 
 sets the external IP address as the endpoint by default. If you prefer to use the internal IP as the
 endpoint, you need to set ``use_internal_ip`` parameter to ``True``.
 
+Using with DNS endpoint cluster
+'''''''''''''''''''''''''''''''
+
+For running ``GKEStartPodOperator`` using DNS endpoint you need to set ``use_dns_endpoint`` parameter to ``True``.
+
 Using with Autopilot (serverless) cluster
 '''''''''''''''''''''''''''''''''''''''''
 

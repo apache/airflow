@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperat
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

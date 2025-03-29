@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import shutil
+from contextlib import nullcontext
 from copy import copy
 from unittest import mock
 from unittest.mock import ANY, MagicMock
@@ -1455,21 +1456,29 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
 
 
 class TestKubernetesPodOperator(BaseK8STest):
-    @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
-    def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+    @pytest.mark.parametrize(
+        "active_deadline_seconds,should_fail",
+        [(3, True), (60, False)],
+        ids=["should_fail", "should_not_fail"],
+    )
+    def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds, should_fail):
         ns = "default"
+        echo = "echo 'hello world'"
+        if should_fail:
+            echo += " && sleep 10"
         k = KubernetesPodOperator(
             task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
             image="busybox",
-            cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
+            cmds=["sh", "-c", echo],
             namespace=ns,
             on_finish_action="keep_pod",
         )
 
         context = create_context(k)
 
-        with pytest.raises(AirflowException):
+        ctx_manager = pytest.raises(AirflowException) if should_fail else nullcontext()
+        with ctx_manager:
             k.execute(context)
 
         pod = k.find_pod(ns, context, exclude_checked=False)
@@ -1480,5 +1489,12 @@ class TestKubernetesPodOperator(BaseK8STest):
         phase = pod_status.status.phase
         reason = pod_status.status.reason
 
-        assert phase == "Failed"
-        assert reason == "DeadlineExceeded"
+        if should_fail:
+            expected_phase = "Failed"
+            expected_reason = "DeadlineExceeded"
+        else:
+            expected_phase = "Succeeded"
+            expected_reason = None
+
+        assert phase == expected_phase
+        assert reason == expected_reason

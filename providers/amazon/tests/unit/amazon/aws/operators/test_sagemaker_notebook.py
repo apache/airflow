@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartNoteBookOperator,
     SageMakerStopNotebookOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 INSTANCE_NAME = "notebook"

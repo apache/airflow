@@ -20,8 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+from airflow.providers.common.compat.notifier import BaseNotifier
 
 
 class JiraNotifier(BaseNotifier):

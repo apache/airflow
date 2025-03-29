@@ -23,9 +23,8 @@ from unittest import mock
 
 import pytest
 
-from unit.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
-
 from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from unit.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
 
 BACKEND_IMPORT_PATH = "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
 

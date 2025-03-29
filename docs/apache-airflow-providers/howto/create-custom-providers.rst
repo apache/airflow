@@ -18,8 +18,8 @@
 How to create your own provider
 -------------------------------
 
-Custom provider packages
-''''''''''''''''''''''''
+Custom providers
+''''''''''''''''
 
 You can develop and release your own providers. Your custom operators, hooks, sensors, transfer operators
 can be packaged together in a standard airflow package and installed using the same mechanisms.
@@ -40,7 +40,7 @@ the package. We are using standard mechanism of python to define
 needs to define appropriate entry-point ``apache_airflow_provider`` which has to point to a callable
 implemented by your package and return a dictionary containing the list of discoverable capabilities
 of your package. The dictionary has to follow the
-`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider_info.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/provider_info.schema.json>`_.
 
 Most of the schema provides extension point for the documentation (which you might want to also use for
 your own purpose) but the important fields from the extensibility point of view are those:
@@ -116,7 +116,7 @@ they define the extensions properly. See :doc:`apache-airflow:cli-and-env-variab
 sub-commands.
 
 When you write your own provider, consider following the
-`Naming conventions for provider packages <https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_packages.rst#naming-conventions-for-provider-packages>`_
+`Naming conventions for providers <https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_distributions.rst#naming-conventions-for-provider-distributions>`_
 
 Special considerations
 ''''''''''''''''''''''
@@ -215,7 +215,7 @@ You need to do the following to turn an existing Python package into a provider 
   documentation, but the requirement for runtime information only contains several fields which are defined
   in the schema:
 
-.. exampleinclude:: /../../airflow/provider_info.schema.json
+.. exampleinclude:: /../../airflow-core/src/airflow/provider_info.schema.json
     :language: json
 
 Example ``pyproject.toml``:

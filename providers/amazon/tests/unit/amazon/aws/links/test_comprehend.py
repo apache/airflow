@@ -21,6 +21,7 @@ from airflow.providers.amazon.aws.links.comprehend import (
     ComprehendPiiEntitiesDetectionLink,
 )
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:

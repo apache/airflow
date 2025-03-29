@@ -26,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
+
 from unit.apache.hive import (
     DEFAULT_DATE,
     DEFAULT_DATE_DS,

@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.9.4
+.....
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.9.3
 .....
 
@@ -161,7 +175,7 @@ Misc
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Update information about links into the provider.yaml files (#35837)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 3.4.1
 .....

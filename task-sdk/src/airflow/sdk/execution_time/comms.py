@@ -61,8 +61,8 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
-    TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
@@ -215,6 +215,13 @@ class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
         return cls(**prev_dag_run.model_dump(exclude_defaults=True), type="PrevSuccessfulDagRunResult")
 
 
+class TaskRescheduleStartDate(BaseModel):
+    """Response containing the first reschedule date for a task instance."""
+
+    start_date: datetime | None
+    type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
+
+
 class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
@@ -235,6 +242,7 @@ ToTask = Annotated[
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
+        TaskRescheduleStartDate,
         VariableResult,
         XComResult,
         XComCountResponse,
@@ -257,7 +265,6 @@ class TaskState(BaseModel):
         TerminalTIState.FAILED,
         TerminalTIState.SKIPPED,
         TerminalTIState.REMOVED,
-        TerminalTIState.FAIL_WITHOUT_RETRY,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
@@ -288,6 +295,12 @@ class DeferTask(TIDeferredStatePayload):
         return BaseSerialization.serialize(val or {})
 
 
+class RetryTask(TIRetryStatePayload):
+    """Update a task instance state to up_for_retry."""
+
+    type: Literal["RetryTask"] = "RetryTask"
+
+
 class RescheduleTask(TIRescheduleStatePayload):
     """Update a task instance state to reschedule/up_for_reschedule."""
 
@@ -300,16 +313,13 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
     type: Literal["SkipDownstreamTasks"] = "SkipDownstreamTasks"
 
 
-class RuntimeCheckOnTask(TIRuntimeCheckPayload):
-    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
-
-
 class GetXCom(BaseModel):
     key: str
     dag_id: str
     run_id: str
     task_id: str
     map_index: int | None = None
+    include_prior_dates: bool = False
     type: Literal["GetXCom"] = "GetXCom"
 
 
@@ -429,6 +439,12 @@ class GetPrevSuccessfulDagRun(BaseModel):
     type: Literal["GetPrevSuccessfulDagRun"] = "GetPrevSuccessfulDagRun"
 
 
+class GetTaskRescheduleStartDate(BaseModel):
+    ti_id: UUID
+    try_number: int = 1
+    type: Literal["GetTaskRescheduleStartDate"] = "GetTaskRescheduleStartDate"
+
+
 ToSupervisor = Annotated[
     Union[
         SucceedTask,
@@ -440,17 +456,18 @@ ToSupervisor = Annotated[
         GetConnection,
         GetDagRunState,
         GetPrevSuccessfulDagRun,
+        GetTaskRescheduleStartDate,
         GetVariable,
         GetXCom,
         GetXComCount,
         PutVariable,
         RescheduleTask,
+        RetryTask,
         SkipDownstreamTasks,
         SetRenderedFields,
         SetXCom,
         TaskState,
         TriggerDagRun,
-        RuntimeCheckOnTask,
         DeleteXCom,
     ],
     Field(discriminator="type"),

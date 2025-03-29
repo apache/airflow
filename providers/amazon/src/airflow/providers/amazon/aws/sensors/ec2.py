@@ -18,21 +18,21 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class EC2InstanceStateSensor(BaseSensorOperator):
+class EC2InstanceStateSensor(AwsBaseSensor[EC2Hook]):
     """
     Poll the state of the AWS EC2 instance until the instance reaches the target state.
 
@@ -46,7 +46,8 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     :param deferrable: if True, the sensor will run in deferrable mode
     """
 
-    template_fields: Sequence[str] = ("target_state", "instance_id", "region_name")
+    aws_hook_class = EC2Hook
+    template_fields: Sequence[str] = aws_template_fields("target_state", "instance_id", "region_name")
     ui_color = "#cc8811"
     ui_fgcolor = "#ffffff"
     valid_states = ["running", "stopped", "terminated"]
@@ -56,8 +57,6 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         *,
         target_state: str,
         instance_id: str,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -66,8 +65,6 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.target_state = target_state
         self.instance_id = instance_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> Any:
@@ -84,10 +81,6 @@ class EC2InstanceStateSensor(BaseSensorOperator):
             )
         else:
             super().execute(context=context)
-
-    @cached_property
-    def hook(self):
-        return EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def poke(self, context: Context):
         instance_state = self.hook.get_instance_state(instance_id=self.instance_id)

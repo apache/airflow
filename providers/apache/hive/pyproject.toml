@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-hive"
-version = "9.0.3"
+version = "9.0.4"
 description = "Provider package apache-airflow-providers-apache-hive for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -91,6 +91,9 @@ dependencies = [
 "vertica" = [
     "apache-airflow-providers-vertica"
 ]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
 
 [dependency-groups]
 dev = [
@@ -98,6 +101,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-mysql",
@@ -118,8 +122,8 @@ apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.4"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.4/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

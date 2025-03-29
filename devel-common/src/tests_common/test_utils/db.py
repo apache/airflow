@@ -85,9 +85,10 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
+    from flask import Flask
+
     from airflow.configuration import conf
     from airflow.utils import db
-    from flask import Flask
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -335,6 +336,7 @@ def clear_dag_specific_permissions():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()
     clear_db_dag_code()
@@ -352,4 +354,6 @@ def clear_all():
     clear_db_deadline()
     clear_dag_specific_permissions()
     if AIRFLOW_V_3_0_PLUS:
+        clear_db_backfills()
         clear_db_dag_bundles()
+        clear_db_dag_parsing_requests()

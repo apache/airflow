@@ -28,7 +28,7 @@ import yaml
 ROOT_DIR = Path(__file__).parents[2].resolve()
 AIRFLOW_PROVIDERS_DIR = ROOT_DIR / "providers"
 AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_DIR / "src"
-PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
+PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow-core" / "src" / "airflow" / "provider.yaml.schema.json"
 
 
 @cache

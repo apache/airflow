@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationDeleteStackSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

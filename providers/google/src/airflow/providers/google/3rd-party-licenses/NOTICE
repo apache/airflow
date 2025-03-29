@@ -1,0 +1,15 @@
+Apache Airflow
+Copyright 2016-2025 The Apache Software Foundation
+
+This product includes software developed at The Apache Software
+Foundation (http://www.apache.org/).
+
+=======================================================================
+
+json-merge-patch:
+-----------------
+
+This product contains a modified portion of 'json-merge-patch' developed by Open Data Services Coop
+https://github.com/OpenDataServices/json-merge-patch).
+
+Copyright (c) 2015, Open Data Services Coop

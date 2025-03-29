@@ -44,13 +44,6 @@ if __name__ == "__main__":
     for provider_id in all_providers:
         expected_provider_package = f"apache-airflow-providers-{provider_id.replace('.', '-')}"
         expected_member = "providers/" + provider_id.replace(".", "/")
-        dev_dependency_group = toml_dict["dependency-groups"]["dev"]
-        if expected_provider_package not in dev_dependency_group:
-            console.print(
-                f"[red]ERROR: {expected_provider_package} is not found in airflow's pyproject.toml "
-                f"in dev dependency-group: {dev_dependency_group}[/red]"
-            )
-            error = True
         tool_uv_sources = toml_dict["tool"]["uv"]["sources"]
         if expected_provider_package not in tool_uv_sources:
             console.print(

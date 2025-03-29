@@ -26,19 +26,26 @@ import sys
 import textwrap
 from pathlib import Path
 
-from rich.console import Console
-
-AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
-AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
-AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_SOURCES_ROOT_PATH / "providers"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
+AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
+AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
+AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
-console = Console(width=400, color_system="standard")
+try:
+    from rich.console import Console
+
+    console = Console(width=400, color_system="standard")
+except ImportError:
+    console = None  # type: ignore[assignment]
 
 
 def read_airflow_version() -> str:
-    ast_obj = ast.parse((AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text())
+    ast_obj = ast.parse((AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py").read_text())
     for node in ast_obj.body:
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
@@ -52,30 +59,14 @@ def pre_process_files(files: list[str]) -> list[str]:
 
     * Exclude conftest.py files and __init__.py files
     * When running build on non-main branch do not take providers into account.
-    * When running "airflow/providers" package, then we need to add --namespace-packages flag.
-    * When running "airflow" package, then we need to exclude providers.
+    * When running "airflow-core" package, then we need to exclude providers.
     """
 
     files = [file for file in files if not file.endswith("conftest.py") and not file.endswith("__init__.py")]
     default_branch = os.environ.get("DEFAULT_BRANCH")
     if not default_branch or default_branch == "main":
         return files
-    result = [file for file in files if not file.startswith("providers")]
-    if "airflow/providers" in files:
-        if len(files) > 1:
-            raise RuntimeError(
-                "When running `airflow/providers` package, you cannot run any other packages because only "
-                "airflow/providers package requires --namespace-packages flag to be set"
-            )
-        result.append("--no-namespace-packages")
-    if "airflow" in files:
-        if len(files) > 1:
-            raise RuntimeError(
-                "When running `airflow` package, you cannot run any other packages because only "
-                "airflow/providers package requires --exclude providers/.* flag to be set"
-            )
-        result.extend(["--exclude", "providers/.*"])
-    return result
+    return [file for file in files if not file.startswith("providers")]
 
 
 def insert_documentation(

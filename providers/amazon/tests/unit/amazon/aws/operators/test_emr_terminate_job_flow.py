@@ -24,6 +24,7 @@ import pytest
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TERMINATE_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}}

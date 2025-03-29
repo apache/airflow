@@ -48,8 +48,10 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task-sdk --editable ./devel-common"
+        # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
+        # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
+        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -68,7 +70,7 @@ function install_airflow() {
     fi
     if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
-        echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
+        echo "${COLOR_BLUE}Remove airflow and all provider distributions installed before potentially${COLOR_RESET}"
         echo
         set -x
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true

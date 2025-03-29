@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.operators.dlp import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_info_types"

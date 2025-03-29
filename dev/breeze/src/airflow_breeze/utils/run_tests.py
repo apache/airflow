@@ -35,13 +35,13 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
-DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
+DOCKER_TESTS_ROOT = AIRFLOW_ROOT_PATH / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
 
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
@@ -152,67 +152,61 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
-    "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_fastapi"],
-    "CLI": ["tests/cli"],
+    "Always": ["airflow-core/tests/unit/always"],
+    "API": ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
+    "CLI": ["airflow-core/tests/unit/cli"],
     "Core": [
-        "tests/core",
-        "tests/executors",
-        "tests/jobs",
-        "tests/models",
-        "tests/ti_deps",
-        "tests/utils",
+        "airflow-core/tests/unit/core",
+        "airflow-core/tests/unit/executors",
+        "airflow-core/tests/unit/jobs",
+        "airflow-core/tests/unit/models",
+        "airflow-core/tests/unit/ti_deps",
+        "airflow-core/tests/unit/utils",
     ],
-    "Integration": ["tests/integration"],
+    "Integration": ["airflow-core/tests/integration"],
     "Serialization": [
-        "tests/serialization",
+        "airflow-core/tests/unit/serialization",
     ],
     "TaskSDK": ["task-sdk/tests"],
-    "WWW": [
-        "tests/www",
-    ],
     "OpenAPI": ["clients/python"],
 }
 
 ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
-    [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
-    ]
+    [path.relative_to(AIRFLOW_ROOT_PATH).as_posix() for path in AIRFLOW_ROOT_PATH.glob("providers/*/tests/")]
     + [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/")
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/*/tests/")
     ]
 )
 ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
     [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/integration/")
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/tests/integration/")
     ]
     + [
-        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
-        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/integration/")
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+        for path in AIRFLOW_ROOT_PATH.glob("providers/*/*/tests/integration/")
     ]
 )
 
 
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
-    GroupOfTests.CORE: ["tests"],
+    GroupOfTests.CORE: ["airflow-core/tests/unit/"],
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
     GroupOfTests.HELM: ["helm_tests"],
-    GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
+    GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
 }
 
 
-# Those directories are already ignored vu pyproject.toml. We want to exclude them here as well.
+# Those directories are already ignored in pyproject.toml. We want to exclude them here as well.
 NO_RECURSE_DIRS = [
-    "tests/_internals",
-    "tests/dags_with_system_exit",
-    "tests/dags_corrupted",
-    "tests/dags",
+    "airflow-core/tests/unit/_internals",
+    "airflow-core/tests/unit/dags_with_system_exit",
+    "airflow-core/tests/unit/dags_corrupted",
+    "airflow-core/tests/unit/dags",
     "providers/google/tests/system/google/cloud/dataproc/resources",
     "providers/google/tests/system/google/cloud/gcs/resources",
 ]
@@ -225,13 +219,13 @@ def find_all_other_tests() -> list[str]:
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS])
-    all_named_test_folders.append("tests/system")
+    all_named_test_folders.append("airflow-core/tests/system")
     all_named_test_folders.append("providers/tests/system")
     all_named_test_folders.extend(NO_RECURSE_DIRS)
 
     all_current_test_folders = [
-        str(path.relative_to(AIRFLOW_SOURCES_ROOT))
-        for path in AIRFLOW_SOURCES_ROOT.glob("tests/*")
+        str(path.relative_to(AIRFLOW_ROOT_PATH))
+        for path in AIRFLOW_ROOT_PATH.glob("airflow-core/tests/unit/*")
         if path.is_dir() and path.name != "__pycache__"
     ]
     for named_test_folder in all_named_test_folders:
@@ -295,8 +289,8 @@ def convert_test_type_to_pytest_args(
             providers_to_test = []
             for provider in provider_list:
                 provider_path = (
-                    AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
-                        AIRFLOW_SOURCES_ROOT
+                    AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(provider.replace(".", "/")).relative_to(
+                        AIRFLOW_ROOT_PATH
                     )
                     / "tests"
                 )

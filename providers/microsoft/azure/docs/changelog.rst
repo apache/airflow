@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+12.2.2
+......
+
+Misc
+~~~~
+
+* ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Remove default_view property from DAG class and model (#47616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 12.2.1
 ......
 
@@ -505,7 +521,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 8.2.0
 .....

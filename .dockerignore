@@ -27,7 +27,7 @@
 **
 
 # Allow only these directories
-!airflow
+!airflow-core
 !common
 !dags
 !dev
@@ -75,19 +75,24 @@
 !pyproject.toml
 !manifests
 !generated
+
+# Reproducible build configuration
+!reproducible_build.yaml
+
 # Now - ignore unnecessary files inside allowed directories
 # This goes after the allowed directories
 
 # Git version is dynamically generated
-airflow/git_version
+airflow-core/src/airflow/git_version
 
 # Exclude node/pmpme caches..
 **/.pnpm-store
 **/node_modules
 # Exclude link to docs
-airflow/ui/static/docs
+airflow-core/src/airflow/ui/static/docs
 
 # Legacy www exclusions (just to exclude things in case you switch to old branches and generate assets)
+# THey should not be in airflow-core as "www" never was there.
 airflow/www/static/docs
 airflow/www/static/dist
 airflow/www/node_modules
@@ -123,7 +128,7 @@ docs/**/_api/**
 **/*.egg
 
 # But ensure UI dist files are included
-!airflow/ui/dist
+!airflow-core/src/airflow/ui/dist
 !providers/fab/src/airflow/providers/fab/www/dist
 
 # Exclude temporary vi files

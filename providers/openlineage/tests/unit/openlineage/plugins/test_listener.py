@@ -904,6 +904,7 @@ class TestOpenLineageListenerAirflow3:
                 ),
                 task_reschedule_count=0,
                 max_tries=1,
+                should_retry=False,
             ),
             start_date=dt.datetime(2023, 1, 1, 13, 1, 1),
         )

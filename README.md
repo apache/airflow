@@ -136,7 +136,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals).
 
-Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
+Documentation for dependent projects like provider distributions, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
 <!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
@@ -186,7 +186,7 @@ pip install 'apache-airflow[postgres,google]==2.10.5' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
 ```
 
-For information on installing provider packages, check
+For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
@@ -231,27 +231,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
+  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/dags.png)
 
 - **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/graph.png)
+  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/duration.png)
+  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
 
 - **Gantt**: Duration and overlap of a DAG.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/gantt.png)
+  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
 
 - **Code**: Quick way to view source code of a DAG.
 
-  ![Code](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/code.png)
+  ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/code.png)
 
 ## Semantic versioning
 
@@ -520,7 +520,7 @@ repository.
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/airflow-core/docs/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Links
 

@@ -32,8 +32,8 @@ from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-from system.amazon.aws.utils import set_env_id
 
+from system.amazon.aws.utils import set_env_id
 from tests_common.test_utils.config import conf_vars
 
 SAML_METADATA_URL = "/saml/metadata"

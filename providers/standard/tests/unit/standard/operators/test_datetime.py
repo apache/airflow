@@ -312,3 +312,34 @@ class TestBranchDateTimeOperator:
                     "branch_2": State.SKIPPED,
                 }
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
+    @time_machine.travel("2020-12-01 09:00:00")
+    def test_choose_branch_should_use_run_after_when_logical_date_none(self, dag_maker):
+        with dag_maker(
+            "branch_datetime_operator_uses_run_after",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            branch_1 = EmptyOperator(task_id="branch_1")
+            branch_2 = EmptyOperator(task_id="branch_2")
+
+            branch_op = BranchDateTimeOperator(
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                target_upper=datetime.datetime(2020, 9, 7, 11, 0, 0),
+                target_lower=datetime.datetime(2020, 6, 7, 10, 0, 0),
+                use_task_logical_date=True,
+            )
+            branch_1.set_upstream(branch_op)
+            branch_2.set_upstream(branch_op)
+
+        dr = dag_maker.create_dagrun(
+            run_id="manual__run_after",
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            **{"run_after": timezone.datetime(2020, 8, 7)},
+        )
+        assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"

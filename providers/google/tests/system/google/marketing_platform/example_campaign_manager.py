@@ -55,6 +55,7 @@ from airflow.providers.google.marketing_platform.sensors.campaign_manager import
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

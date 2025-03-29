@@ -197,7 +197,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
-          ./scripts/ci/testing/run_system_tests.sh tests/system/example_empty.py
+          ./scripts/ci/testing/run_system_tests.sh airflow-core/tests/system/example_empty.py
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

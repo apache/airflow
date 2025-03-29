@@ -23,7 +23,6 @@ import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
-from airflow_breeze.utils.cache import check_if_cache_exists
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
@@ -85,10 +84,7 @@ def create_venv(
                 f"{result.stdout}\n{result.stderr}"
             )
             sys.exit(result.returncode)
-    if check_if_cache_exists("use_uv"):
-        command = create_uv_command(python_path)
-    else:
-        command = create_pip_command(python_path)
+    command = create_uv_command(python_path)
     if requirements_file:
         requirements_file = Path(requirements_file).absolute().as_posix()
         result = run_command(

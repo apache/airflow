@@ -34,9 +34,9 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from unit.standard.operators.test_python import BasePythonTest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg

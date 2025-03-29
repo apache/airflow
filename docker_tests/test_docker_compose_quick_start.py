@@ -74,7 +74,7 @@ def get_jwt_token() -> str:
 
 
 def api_request(
-    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
+    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2", **kwargs
 ) -> dict:
     response = requests.request(
         method=method,
@@ -105,7 +105,7 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
 
     compose_file_path = (
-        SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
+        SOURCE_ROOT / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
     )
     copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 

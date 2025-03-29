@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import (
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr_serverless"

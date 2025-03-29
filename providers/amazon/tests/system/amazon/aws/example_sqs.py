@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

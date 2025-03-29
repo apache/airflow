@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartYamlJobOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -29,7 +29,7 @@ Helm Chart for Apache Airflow
     quick-start
     airflow-configuration
     adding-connections-and-variables
-    manage-dags-files
+    manage-dag-files
     manage-logs
     setting-resources-for-containers
     keda
@@ -59,7 +59,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.26+ cluster
+-  Kubernetes 1.29+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 

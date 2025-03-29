@@ -53,6 +53,7 @@ from moto.eks.models import (
 )
 
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
+
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
     DEFAULT_NAMESPACE,

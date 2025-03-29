@@ -92,10 +92,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--installation-method",
                 "--install-airflow-reference",
-                "--install-packages-from-context",
+                "--install-distributions-from-context",
                 "--install-mysql-client-type",
                 "--cleanup-context",
-                "--use-constraints-for-context-packages",
+                "--use-constraints-for-context-distributions",
                 "--disable-airflow-repo-cache",
                 "--disable-mysql-client-installation",
                 "--disable-mssql-client-installation",

@@ -24,7 +24,7 @@ from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 CI = os.environ.get("CI")
@@ -174,7 +174,7 @@ def push_tag_for_final_version(version, release_candidate):
             """
         This step should only be done now and not before, because it triggers an automated
         build of the production docker image, using the packages that are currently released
-        in PyPI (both airflow and latest provider packages).
+        in PyPI (both airflow and latest provider distributions).
         """
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
@@ -205,7 +205,7 @@ def airflow_release(release_candidate, previous_release):
     if "rc" in previous_release:
         exit("Previous release must not contain 'rc'")
     version = release_candidate[:-3]
-    os.chdir(AIRFLOW_SOURCES_ROOT)
+    os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
     console_print()
     console_print("Release candidate:", release_candidate)

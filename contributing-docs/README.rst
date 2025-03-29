@@ -91,10 +91,10 @@ Advanced Topics
 Developing Providers
 .....................
 
-You can learn how Airflow repository is a monorepo split into airflow and provider packages,
+You can learn how Airflow repository is a monorepo split into airflow and providers,
 and how to contribute to the providers:
 
-* `Provider packages <11_provider_packages.rst>`__ describes the provider packages and how they
+* `Provider distributions <11_provider_distributions.rst>`__ describes the providers and how they
   are used in Airflow.
 
 

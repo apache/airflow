@@ -24,6 +24,7 @@ from google.cloud.automl_v1beta1 import AutoMlClient
 
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
