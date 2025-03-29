@@ -22,7 +22,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.models.dag import DAG
+from airflow.sdk import DAG
 
 with DAG(
     dag_id="example_setup_teardown_taskflow",

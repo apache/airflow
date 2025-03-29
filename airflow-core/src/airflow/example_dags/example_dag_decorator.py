@@ -27,7 +27,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.bash import BashOperator
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk import Context
 
 
 class GetRequestOperator(BaseOperator):
