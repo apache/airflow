@@ -22,7 +22,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from airflow.ctl.api.client import Client, Credentials
+from airflowctl.api.client import Client, Credentials
 
 
 @pytest.fixture(scope="session")

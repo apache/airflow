@@ -266,7 +266,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-ctl/tests/",
         ],
         FileGroupForCi.AIRFLOW_CTL_FILES: [
-            r"^airflow-ctl/src/airflow/ctl/.*\.py$",
+            r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
         ],
     }
@@ -284,7 +284,7 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^airflow-core/tests/unit/dags/test_imports.py",
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
-            r"^airflow-ctl/src/airflow/ctl/.*\.py$",
+            r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
         ]
     }

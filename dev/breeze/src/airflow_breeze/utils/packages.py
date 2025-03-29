@@ -843,9 +843,6 @@ def regenerate_pyproject_toml(
     in_optional_dependencies = False
     in_additional_devel_dependency_groups = False
     for line in pyproject_toml_content.splitlines():
-        print(f"LINE: {line}")
-        if "ctl" in line:
-            continue
         if line == "dependencies = [":
             in_required_dependencies = True
             continue

@@ -82,7 +82,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     # Find Provider/TaskSDK/CTL distributions in docker-context files
-    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,airflow?ctl}*.{whl,tar.gz} 2>/dev/null || true)
+    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,airflowctl}*.{whl,tar.gz} 2>/dev/null || true)
     echo
     echo "${COLOR_BLUE}Found provider distributions in docker-context-files folder: ${airflow_distributions[*]}${COLOR_RESET}"
     echo

@@ -34,17 +34,17 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.ctl.cli.cli_config import (
+from airflowctl.ctl.cli_config import (
     ActionCommand,
     DefaultHelpParser,
     GroupCommand,
     core_commands,
 )
-from airflow.ctl.exceptions import AirflowCtlException
-from airflow.ctl.utils.helpers import partition
+from airflowctl.exceptions import AirflowCtlException
+from airflowctl.utils.helpers import partition
 
 if TYPE_CHECKING:
-    from airflow.ctl.cli.cli_config import (
+    from airflowctl.ctl.cli_config import (
         Arg,
         CLICommand,
     )

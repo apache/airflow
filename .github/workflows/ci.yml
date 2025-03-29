@@ -600,6 +600,8 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       distribution-name: "task-sdk"
+      distribution-cmd-format: "prepare-task-sdk-distributions"
+      test-type: "task-sdk-tests"
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -619,6 +621,8 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       distribution-name: "airflow-ctl"
+      distribution-cmd-format: "prepare-airflow-ctl-distributions"
+      test-type: "airflow-ctl-tests"
     if: >
       ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&

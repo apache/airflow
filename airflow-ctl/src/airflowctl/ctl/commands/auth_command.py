@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# PYTHON_ARGCOMPLETE_OK
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,21 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Main executable module."""
 
 from __future__ import annotations
 
-import argcomplete
+import os
+import sys
 
-from airflow.ctl.cli import cli_parser
+import rich
 
-
-def main():
-    parser = cli_parser.get_parser()
-    argcomplete.autocomplete(parser)
-    args = parser.parse_args()
-    args.func(args)
+from airflowctl.api.client import Credentials
 
 
-if __name__ == "__main__":
-    main()
+def login(args) -> None:
+    """Login to a provider."""
+    if not (token := args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")):
+        # Exit
+        rich.print("[red]No token found.")
+        rich.print(
+            "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
+            "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
+        )
+        sys.exit(1)
+    Credentials(
+        api_url=args.api_url,
+        api_token=token,
+        api_environment=args.env,
+    ).save()
