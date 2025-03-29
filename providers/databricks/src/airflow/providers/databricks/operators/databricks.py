@@ -650,9 +650,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+    Runs an existing job in Databricks using the api/2.1/jobs/run-now API endpoint.
 
-    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
+    See: https://docs.databricks.com/api/workspace/jobs_21/runnow
 
     There are two ways to instantiate this operator.
 
@@ -675,23 +675,11 @@ class DatabricksRunNowOperator(BaseOperator):
 
         job_id = 42
 
-        dbt_commands = ["dbt deps", "dbt seed", "dbt run"]
+        job_parameters = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 
-        notebook_params = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
-
-        python_params = ["douglas adams", "42"]
-
-        jar_params = ["douglas adams", "42"]
-
-        spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
-
-        notebook_run = DatabricksRunNowOperator(
+        job_run = DatabricksRunNowOperator(
             job_id=job_id,
-            dbt_commands=dbt_commands,
-            notebook_params=notebook_params,
-            python_params=python_params,
-            jar_params=jar_params,
-            spark_submit_params=spark_submit_params,
+            job_parameters=job_parameters,
         )
 
     In the case where both the json parameter **AND** the named parameters
