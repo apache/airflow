@@ -36,6 +36,7 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.hooks.dataflow import (
+    DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
     DataflowJobStatus,
     process_line_and_extract_dataflow_job_id_callback,
@@ -436,7 +437,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                     job_id=self.dataflow_job_id,
                     expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                     project_id=self.dataflow_config.project_id,
-                    location=self.dataflow_config.location,
+                    location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
                     gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",

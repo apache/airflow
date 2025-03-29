@@ -58,7 +58,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 
-dynamic = ["version"]
+version = "3.0.0.dev0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
@@ -89,7 +89,7 @@ dependencies = [
     'importlib_metadata>=6.5;python_version<"3.12"',
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
-    "jsonschema>=4.18.0",
+    "jsonschema>=4.19.1",
     "lazy-object-proxy>=1.2.0",
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
@@ -132,6 +132,18 @@ dependencies = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
+    # Werkzug 3 breaks Flask-Login 0.6.2
+    # we should remove this limitation when FAB supports Flask 2.3
+    "werkzeug>=2.0,<3",
+    # pre-installed providers
+    "apache-airflow-providers-common-compat>=1.6.0b1",
+    "apache-airflow-providers-common-io>=1.5.2b1",
+    "apache-airflow-providers-common-sql>=1.24.1b1",
+    "apache-airflow-providers-openlineage>=2.1.2b1",
+    "apache-airflow-providers-fab>=2.0.0b1",
+    "apache-airflow-providers-smtp>=2.0.1",
+    "apache-airflow-providers-standard>=0.2.0b1",
+    "apache-airflow-providers-sqlite>=4.0.1",
 ]
 
 
@@ -220,6 +232,9 @@ dependencies = [
 "uv" = [
     "uv>=0.6.3",
 ]
+"all" = [
+    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,leveldb,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+]
 
 [project.scripts]
 airflow = "airflow.__main__:main"
@@ -251,7 +266,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.custom]
-path = "./hatch_build_airflow_core.py"
+path = "./hatch_build.py"
 
 artifacts = [
     "src/airflow/ui/dist/",
@@ -274,7 +289,6 @@ exclude = [
 
 [dependency-groups]
 dev = [
-    "apache-airflow[all-core]",
     "apache-airflow-devel-common",
 ]
 

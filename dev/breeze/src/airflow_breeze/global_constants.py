@@ -270,7 +270,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_ROOT_PATH / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "helm-tests" / "tests" / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
@@ -535,7 +535,7 @@ FILES_FOR_REBUILD_CHECK = [
     "generated/provider_dependencies.json",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
-    "scripts/docker/install_airflow.sh",
+    "scripts/docker/install_airflow_when_building_images.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
@@ -598,7 +598,19 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join([])
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "celery",
+        "cncf.kubernetes",
+        "common.compat",
+        "common.io",
+        "common.messaging",
+        "common.sql",
+        "fab",
+        "openlineage",
+        "standard",
+    ]
+)
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [

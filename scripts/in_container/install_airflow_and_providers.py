@@ -313,6 +313,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
+        airflow_task_sdk_constraints_location = None
     elif use_airflow_version in ["wheel", "sdist"] and not use_distributions_from_dist:
         console.print(
             "[red]USE_AIRFLOW_VERSION cannot be 'wheel' or 'sdist' without --use-distributions-from-dist"

@@ -70,7 +70,11 @@ def install_development_dependencies(constraint: str, github_actions: bool):
                 marker = requirement.marker
                 if marker and not marker.evaluate():
                     continue
-                development_dependencies.append(dependency.split(";")[0])
+                dep = dependency.split(";")[0]
+                if dep.startswith("apache-airflow-devel-common"):
+                    local_dep = dep[len("apache-airflow-") :]
+                    dep = f"{AIRFLOW_ROOT_PATH}/{local_dep}"
+                development_dependencies.append(dep)
     providers_dependencies = json.loads(
         (AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
     )

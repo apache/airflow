@@ -23,16 +23,6 @@ are installing Airflow. Those extras are a good way for the users to manage thei
 they are useful for contributors to airflow when they want to contribute some of the features - including
 optional integrations of Airflow - via providers.
 
-.. warning::
-
-    Traditionally in Airflow some of the extras used `.` and `_` to separate the parts of the extra name.
-    This was not PEP-685 normalized name and we opted to change it to to `-` for all our extras, Expecting that
-    PEP-685 will be implemented in full by `pip` and other tools we change all our extras to use `-` as
-    separator even if in some cases it will introduce warnings (the warnings are harmless). This is future
-    proof approach. It's also fully backwards-compatible if you use `_` or `.` in your extras, but we
-    recommend using `-` as separator in the future.
-
-
 Here's the list of all the extra dependencies of Apache Airflow.
 
 Core Airflow extras
@@ -353,15 +343,14 @@ pre-installed when Airflow is installed.
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
-Doc extras
+All extras
 ==========
 
-Those are the extras that are needed to generated documentation for Airflow. This is used for development time only
+The ``all`` extra is a convenience extra that installs all the extras listed above.
+It is not recommended to use it in production, but it is useful for CI, development and testing purposes.
 
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                                |
-+=====================+=====================================================+========================================================================+
-| doc                 | ``pip install -e '.[doc]'``                         | Packages needed to build docs (included in ``devel``)                  |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| doc-gen             | ``pip install -e '.[doc-gen]'``                     | Packages needed to generate er diagrams (included in ``devel-all``)    |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
++---------+-------------------------------------+-------------------------+
+| extra   | install command                     | enables                 |
++=========+=====================================+=========================+
+| all     | ``pip install apache-airflow[all]`` | All hooks and operators |
++---------+-------------------------------------+-------------------------+

@@ -22,7 +22,7 @@ import os
 import re
 import shutil
 
-from docs.exts.provider_yaml_utils import load_package_data
+from sphinx_exts.provider_yaml_utils import load_package_data
 
 AIRFLOW_SITE_DIR = os.environ.get("AIRFLOW_SITE_DIRECTORY")
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))

@@ -46,7 +46,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -63,6 +62,7 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -97,7 +97,7 @@ if AIRFLOW_V_3_0_PLUS:
 class BasePythonTest:
     """Base test class for TestPythonOperator and TestPythonSensor classes"""
 
-    opcls: type[BaseOperator]
+    opcls: type[TaskSDKBaseOperator]
     dag_id: str
     task_id: str
     run_id: str
@@ -1838,7 +1838,7 @@ class TestCurrentContext:
             ctx_list[i].__exit__(None, None, None)
 
 
-class MyContextAssertOperator(BaseOperator):
+class MyContextAssertOperator(TaskSDKBaseOperator):
     def execute(self, context: Context):
         assert context == get_current_context()
 

@@ -43,6 +43,7 @@ Airflow 3.0
     ``uv tool`` instead of ``pipx`` and ``mssql-cli`` is not used in the image by default as we do not
     have mssql metadata support any more.
   * The ``INSTALL_PACKAGES_FROM_CONTEXT`` arg changed to ``INSTALL_DISTRIBUTIONS_FROM_CONTEXT``
+  * The parameter ``UPGRADE_INVALIDATION_STRING`` is renamed to ``UPGRADE_RANDOM_INDICATOR_STRING``
 
 Airflow 2.10
 ~~~~~~~~~~~~

@@ -18,7 +18,7 @@
 version: 2
 formats: []
 sphinx:
-    configuration: docs/rtd-deprecation/conf.py
+    configuration: devel-common/src/docs/rtd-deprecation/conf.py
 python:
     version: "3.9"
     install:

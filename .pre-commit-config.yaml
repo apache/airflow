@@ -453,20 +453,6 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0', 'tabulate']
-      - id: check-hatch-build-order
-        name: Check order of dependencies in hatch_build.py
-        language: python
-        files: ^hatch_build.py$
-        pass_filenames: false
-        entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
-      - id: update-extras
-        name: Update extras in documentation
-        entry: ./scripts/ci/pre_commit/insert_extras.py
-        language: python
-        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/.*/provider\.yaml$|^Dockerfile.*
-        pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -587,52 +573,53 @@ repos:
           (?x)
           ^clients/python/openapi_v1.yaml$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
-          ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command.py$|
+          ^airflow-core/src/airflow/cli/commands/local_commands/fastapi_api_command\.py$|
           ^airflow-core/src/airflow/config_templates/|
-          ^airflow-core/src/airflow/models/baseoperator.py$|
-          ^airflow-core/src/airflow/operators/__init__.py$|
-          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
-          ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr.py$|
-          ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py$|
-          ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
-          ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py$|
-          ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow-core/src/airflow/models/baseoperator\.py$|
+          ^airflow-core/src/airflow/operators/__init__\.py$|
+          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute\.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr\.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr\.py$|
+          ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
+          ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
+          ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
-          ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
+          ^providers/exasol/src/airflow/providers/exasol/hooks/exasol\.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/fab/src/airflow/providers/fab/www/static/|
           ^providers/fab/src/airflow/providers/fab/www/templates/|
-          ^providers/google/src/airflow/providers/google/cloud/hooks/bigquery.py$|
-          ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py$|
-          ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
-          ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
-          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
-          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
-          ^airflow-core/docs/.*commits.rst$|
-          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
-          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
-          ^providers/redis/src/airflow/providers/redis/provider.yaml$|
-          ^airflow-core/src/airflow/serialization/serialized_objects.py$|
+          ^providers/google/src/airflow/providers/google/cloud/hooks/bigquery\.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
+          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|
+          ^airflow-core/docs/.*commits\.rst$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm\.py$|
+          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie\.py$|
+          ^providers/redis/src/airflow/providers/redis/provider\.yaml$|
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/ui/pnpm-lock.yaml$|
-          ^airflow-core/src/airflow/utils/db.py$|
-          ^airflow-core/src/airflow/utils/trigger_rule.py$|
-          ^chart/values.schema.json$|
+          ^airflow-core/src/airflow/utils/db\.py$|
+          ^airflow-core/src/airflow/utils/trigger_rule\.py$|
+          ^chart/values.schema\.json$|
+          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
           ^dev/|
-          ^docs/README.rst$|
-          ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
-          ^providers/apache/kafka/docs/connections/kafka.rst$|
-          ^providers/apache/hdfs/docs/connections.rst$|
-          ^providers/apache/spark/docs/decorators/pyspark.rst$|
-          ^providers/microsoft/azure/docs/connections/azure_cosmos.rst$|
-          ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
-          ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
-          ^providers/cncf/kubernetes/docs/operators.rst$|
-          ^docs/conf.py$|
-          ^docs/exts/removemarktransform.py$|
-          ^airflow-core/newsfragments/41761.significant.rst$|
-          ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
+          ^devel-common/src/docs/README\.rst$|
+          ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
+          ^providers/apache/kafka/docs/connections/kafka\.rst$|
+          ^providers/apache/hdfs/docs/connections\.rst$|
+          ^providers/apache/spark/docs/decorators/pyspark\.rst$|
+          ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
+          ^providers/fab/docs/auth-manager/webserver-authentication\.rst$|
+          ^providers/google/docs/operators/cloud/kubernetes_engine\.rst$|
+          ^providers/cncf/kubernetes/docs/operators\.rst$|
+          ^docs/conf\.py$|
+          ^devel-common/src/sphinx_exts/removemarktransform\.py|
+          ^airflow-core/newsfragments/41761.significant\.rst$|
+          ^scripts/ci/pre_commit/vendor_k8s_json_schema\.py$|
           ^scripts/ci/docker-compose/integration-keycloak.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^airflow-core/tests/|
@@ -642,7 +629,7 @@ repos:
           ^.*changelog\.(rst|txt)$|
           ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
-          ^contributing-docs/03_contributors_quick_start.rst$|
+          ^contributing-docs/03_contributors_quick_start\.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
@@ -795,7 +782,7 @@ repos:
         pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
-        entry: ./scripts/ci/pre_commit/helm_lint.py
+        entry: ./scripts/ci/pre_commit/lint_helm.py
         language: python
         pass_filenames: false
         files: ^chart
@@ -803,7 +790,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4','requests']
       - id: kubeconform
         name: Kubeconform check on our helm chart
-        entry: ./scripts/ci/pre_commit/kubeconform.py
+        entry: ./scripts/ci/pre_commit/check_kubeconform.py
         language: python
         pass_filenames: false
         files: ^chart
@@ -875,10 +862,10 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-pyproject-toml-consistency
-        name: Check consistency of Airflow's pyproject.toml
+      - id: update-pyproject-toml
+        name: Update Airflow's meta-package pyproject.toml
         language: python
-        entry: ./scripts/ci/pre_commit/check_pyproject_toml_consistency.py
+        entry: ./scripts/ci/pre_commit/update_airflow_pyproject_toml.py
         files: ^pyproject.toml$
         pass_filenames: false
         require_serial: true
@@ -1228,34 +1215,20 @@ repos:
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflow
-        name: Run mypy for airflow
+      - id: mypy-airflow-core
+        name: Run mypy for airflow-core
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
-        files: \.py$
-        exclude: |
-          (?x)^(
-            airflow-ctl|
-            airflow/migrations|
-            clients/python/test_.*\.py|
-            dev|
-            docs|
-            performance/|
-            providers/|
-            scripts|
-            task-sdk/|
-            tests/dags/test_imports\.py|
-            setup_idea\.py
-          )
+        files: airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflow
+      - id: mypy-airflow-core
         stages: ['manual']
-        name: Run mypy for airflow (manual)
+        name: Run mypy for airflow-core (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-core/src/airflow
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-core
         pass_filenames: false
-        files: ^.*\.py$
+        files: airflow-core/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1269,56 +1242,55 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py all_providers
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-docs
-        name: Run mypy for /docs/ folder
-        language: python
-        entry: ./scripts/ci/pre_commit/mypy.py
-        files: ^docs/.*\.py$
-        exclude: ^docs/rtd-deprecation
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-docs
-        stages: ['manual']
-        name: Run mypy for /docs/ folder (manual)
-        language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py docs
+        entry: ./scripts/ci/pre_commit/mypy_folder.py providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
-        name: Run mypy for Task SDK
+        name: Run mypy for task-sdk
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
-        files: ^task-sdk/src/airflow/sdk/.*\.py$|^task-sdk/tests//.*\.py$
+        files: ^task-sdk/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
         stages: ['manual']
-        name: Run mypy for Task SDK (manual)
+        name: Run mypy for task-sdk (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py task-sdk/src/airflow/sdk
+        entry: ./scripts/ci/pre_commit/mypy_folder.py task-sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflowctl
-        name: Run mypy for airflowctl
+      - id: mypy-devel-common
+        name: Run mypy for devel-common
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy.py
+        files: ^devel-common/.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-devel-common
+        stages: ['manual']
+        name: Run mypy for devel-common (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy_folder.py devel-common
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflow-ctl
+        name: Run mypy for airflow-ctl
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests//.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflowctl
+      - id: mypy-airflow-ctl
         stages: ['manual']
-        name: Run mypy for airflowctl (manual)
+        name: Run mypy for airflow-ctl (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflowctl
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

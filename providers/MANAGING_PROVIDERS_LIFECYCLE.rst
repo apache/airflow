@@ -416,7 +416,7 @@ The fix for that is to turn the feature into an optional provider feature (in th
 
 
 * In case we suspend an important provider, which is part of the default Dockerfile you might want to
-  update the tests for PROD docker image in ``docker_tests/test_prod_image.py``.
+  update the tests for PROD docker image in ``docker-tests/tests/docker_tests/test_prod_image.py``.
 
 * Some of the suspended providers might also fail ``breeze`` unit tests that expect a fixed set of providers.
   Those tests should be adjusted (but this is not very likely to happen, because the tests are using only

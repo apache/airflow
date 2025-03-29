@@ -20,7 +20,7 @@
 Dags
 ====
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: ../../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
@@ -32,7 +32,7 @@ It defines four Tasks - A, B, C, and D - and dictates the order in which they ha
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: ../../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 

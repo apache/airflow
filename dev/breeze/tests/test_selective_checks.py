@@ -47,6 +47,77 @@ LIST_OF_ALL_PROVIDER_TESTS = " ".join(
     f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)
 )
 
+ALL_MYPY_CHECKS_ARRAY = [
+    "mypy-airflow",
+    "mypy-providers",
+    "mypy-dev",
+    "mypy-task-sdk",
+    "mypy-devel-common",
+    "mypy-airflow-ctl",
+]
+
+ALL_MYPY_CHECKS = str(ALL_MYPY_CHECKS_ARRAY)
+
+ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
+    [check for check in ALL_MYPY_CHECKS_ARRAY if check != "mypy-providers"]
+)
+
+ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = (
+    "identity,mypy-airflow,mypy-airflow-ctl,mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
+)
+
+ALL_SKIPPED_COMMITS_IF_NO_UI = (
+    "identity,mypy-airflow,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+    "mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
+    "identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+    "mypy-providers,mypy-task-sdk"
+)
+
+ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
+    "identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,mypy-dev,mypy-devel-common,"
+    "mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
+    "check-provider-yaml-valid,identity,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
+    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+
+ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
+    "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk"
+)
+
+ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,"
+    "mypy-dev,mypy-devel-common,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
+)
+
+
+All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
+    "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,"
+    "identity,lint-helm-chart,mypy-airflow,mypy-airflow-ctl,mypy-dev,"
+    "mypy-devel-common,mypy-providers,mypy-task-sdk,validate-operators-init"
+)
+
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
@@ -124,8 +195,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "false",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": None,
                     "providers-test-types-list-as-string": None,
@@ -159,13 +229,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests should be run when API file changed",
             )
@@ -184,13 +254,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests should be run when fastapi files change",
             )
@@ -209,13 +279,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests should run when API test files change",
             )
@@ -235,8 +305,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
@@ -262,8 +331,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always Serialization",
                     "providers-test-types-list-as-string": "",
@@ -292,13 +360,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests and docs should run on API change",
             )
@@ -318,10 +386,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": (
-                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
-                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
-                    ),
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -348,10 +413,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": (
-                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
-                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
-                    ),
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -382,10 +444,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": (
-                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
-                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
-                    ),
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -416,10 +475,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
-                    "skip-pre-commits": (
-                        "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs"
-                        ",mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui"
-                    ),
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -447,8 +503,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "false",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": None,
@@ -476,11 +531,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-task-sdk-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "false",
-                    "skip-pre-commits": (
-                        "check-provider-yaml-valid,identity,lint-helm-chart"
-                        ",mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk"
-                        ",ts-compile-format-lint-ui"
-                    ),
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ("API Always CLI Core Other Serialization"),
@@ -509,8 +560,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                    "ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -543,8 +593,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                    "ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -578,8 +627,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                    "ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
@@ -609,8 +657,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI,
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -639,12 +686,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "true",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as pyproject.toml changed and all Python versions",
@@ -666,12 +713,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "true",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -691,8 +738,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
@@ -717,8 +763,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "false",
                 "docs-build": "false",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
@@ -744,8 +789,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-tests": "true",
                 "run-amazon-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
@@ -774,8 +818,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
                 "providers-test-types-list-as-string": "Providers[common.compat,common.io,openlineage]",
@@ -799,8 +842,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always Core Serialization",
                 "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
@@ -824,8 +866,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always Core Serialization",
                 "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
@@ -850,12 +891,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests should be run when tests/utils/ change",
             )
@@ -876,14 +917,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "testable-core-integrations": "['celery', 'kerberos']",
                     "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All tests should be run when devel-common/ change",
             )
@@ -904,7 +945,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "false",
                     "full-tests-needed": "false",
-                    "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
@@ -1077,12 +1118,12 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including all providers when full tests are needed, "
                 "and all versions are required.",
@@ -1113,12 +1154,12 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if `default versions only` label is set",
@@ -1149,12 +1190,12 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",
@@ -1186,12 +1227,12 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if `latest versions only` label is set",
@@ -1223,12 +1264,12 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -1257,13 +1298,13 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                     "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="Everything should run including full providers when "
                 "full tests are needed even if no files are changed",
@@ -1291,11 +1332,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
+                    "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                    "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
                 },
                 id="Everything should run except Providers and lint pre-commit "
                 "when full tests are needed for non-main branch",
@@ -1454,11 +1495,11 @@ def test_expected_output_pull_request_v2_7(
                 "run-tests": "true",
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -1474,12 +1515,12 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
+                "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -1497,12 +1538,12 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
             id="All tests run on push if core file changed",
         ),
@@ -1541,8 +1582,7 @@ def test_expected_output_push(
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
-                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-                "mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED,
                 "core-test-types-list-as-string": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
@@ -1563,8 +1603,7 @@ def test_expected_output_push(
                 "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS,
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
                 "needs-mypy": "true",
@@ -1596,7 +1635,7 @@ def test_expected_output_push(
                 "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
@@ -1622,8 +1661,7 @@ def test_expected_output_push(
                 "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow",
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
@@ -1646,10 +1684,10 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
             id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
         ),
@@ -1672,8 +1710,7 @@ def test_expected_output_push(
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
-                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
@@ -1726,13 +1763,13 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "needs-helm-tests": "true",
             "run-tests": "true",
             "docs-build": "true",
-            "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+            "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
             "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
-            "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+            "mypy-checks": ALL_MYPY_CHECKS,
         },
         str(stderr),
     )
@@ -1765,13 +1802,13 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             "needs-helm-tests": "true",
             "run-tests": "true",
             "docs-build": "true",
-            "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+            "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
             "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
-            "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+            "mypy-checks": ALL_MYPY_CHECKS,
         },
         str(stderr),
     )
@@ -1961,7 +1998,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     "files, expected_outputs,",
     [
         pytest.param(
-            ("helm_tests/random_helm_test.py",),
+            ("helm-tests/tests/helm_tests/random_helm_test.py",),
             {
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -2437,20 +2474,10 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="Airflow mypy checks on Task SDK files (implies providers)",
         ),
         pytest.param(
-            ("docs/a_file.py",),
-            {
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-docs']",
-            },
-            "main",
-            (),
-            id="Doc checks on doc files",
-        ),
-        pytest.param(
             ("dev/a_package/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
             "main",
             (),
@@ -2460,7 +2487,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("readme.md",),
             {
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
+                "mypy-checks": ALL_MYPY_CHECKS,
             },
             "main",
             ("full tests needed",),

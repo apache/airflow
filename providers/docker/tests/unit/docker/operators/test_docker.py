@@ -790,7 +790,7 @@ class TestDockerOperator:
     @pytest.mark.parametrize("labels", ({"key": "value"}, ["key=value"]))
     def test_labels(self, labels: dict[str, str] | list[str]):
         operator = DockerOperator(task_id="test", image="test", labels=labels)
-        operator.execute(None)
+        operator.execute({})
         self.client_mock.create_container.assert_called_once()
         assert "labels" in self.client_mock.create_container.call_args.kwargs
         assert labels == self.client_mock.create_container.call_args.kwargs["labels"]

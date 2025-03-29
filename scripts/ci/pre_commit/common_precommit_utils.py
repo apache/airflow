@@ -149,6 +149,7 @@ def run_command_via_breeze_shell(
         "--quiet",
         "--restart",
         "--skip-image-upgrade-check",
+        # Note: The terminal is disabled - because pre-commit is run inside git without pseudo-terminal
         "--tty",
         "disabled",
     ]

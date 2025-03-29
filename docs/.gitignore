@@ -1,2 +1,6 @@
+_build
+_inventory
+*/_api/
+apache-airflow/
 apache-airflow-providers-*
-apache-airflow
+helm-chart/
