@@ -889,33 +889,3 @@ class TestTaskRescheduleOperations:
 
         assert isinstance(result, TaskRescheduleStartDate)
         assert result.start_date == "2024-01-01T00:00:00Z"
-
-
-# def test_server_response_error_pickling():
-#     """Test that ServerResponseError can be pickled and unpickled."""
-#     def handle_request(request: httpx.Request) -> httpx.Response:
-#         return httpx.Response(
-#             status_code=400,
-#             request=request,
-#             json={"detail": {"message": "Invalid input"}},
-#         )
-#
-#     client = make_client(transport=httpx.MockTransport(handle_request))
-#
-#     # Create an error by making a request that will fail
-#     with pytest.raises(ServerResponseError) as exc_info:
-#         client.get("http://fake-url-for-testing")
-#
-#     err = exc_info.value
-#
-#     # Pickle and unpickle
-#     pickled = pickle.dumps(err)
-#     unpickled = pickle.loads(pickled)
-#
-#     assert isinstance(unpickled, ServerResponseError)
-#
-#     # Error message from response
-#     assert unpickled.response.json() == {"detail": {"message": "Invalid input"}}
-#     assert unpickled.detail == {"detail": {"message": "Invalid input"}}
-#     assert unpickled.response.status_code == 400
-#     assert unpickled.request.url == "http://fake-url-for-testing"
