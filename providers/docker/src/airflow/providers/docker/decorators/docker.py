@@ -132,8 +132,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
-                f"Unsupported serializer {serializer!r}. "
-                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+                f"Unsupported serializer {serializer!r}. Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
 
@@ -148,9 +147,10 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     def generate_command(self):
         return (
-            f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
-                                                     self.python_command)} &&"""
-            f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
+            f"""bash -cx  '{
+                _generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py", self.python_command)
+            } &&"""
+            f"{_generate_decode_command('__PYTHON_INPUT', '/tmp/script.in', self.python_command)} &&"
             f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out none /tmp/script.out'"
         )
 

@@ -415,9 +415,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={"ti": mock.MagicMock()})
-        assert isinstance(
-            exc.value.trigger, CustomContainerTrainingJobTrigger
-        ), "Trigger is not a CustomContainerTrainingJobTrigger"
+        assert isinstance(exc.value.trigger, CustomContainerTrainingJobTrigger), (
+            "Trigger is not a CustomContainerTrainingJobTrigger"
+        )
 
     @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.xcom_push"))
@@ -741,9 +741,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={"ti": mock.MagicMock()})
-        assert isinstance(
-            exc.value.trigger, CustomPythonPackageTrainingJobTrigger
-        ), "Trigger is not a CustomPythonPackageTrainingJobTrigger"
+        assert isinstance(exc.value.trigger, CustomPythonPackageTrainingJobTrigger), (
+            "Trigger is not a CustomPythonPackageTrainingJobTrigger"
+        )
 
     @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.xcom_push"))
@@ -1052,9 +1052,9 @@ class TestVertexAICreateCustomTrainingJobOperator:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={"ti": mock.MagicMock()})
-        assert isinstance(
-            exc.value.trigger, CustomTrainingJobTrigger
-        ), "Trigger is not a CustomTrainingJobTrigger"
+        assert isinstance(exc.value.trigger, CustomTrainingJobTrigger), (
+            "Trigger is not a CustomTrainingJobTrigger"
+        )
 
     @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.xcom_push"))

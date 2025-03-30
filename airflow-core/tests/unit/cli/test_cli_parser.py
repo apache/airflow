@@ -103,9 +103,9 @@ class TestCli:
         for group, command in subcommand.items():
             for com in command:
                 conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
-                assert (
-                    conflict_arg == []
-                ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
+                assert conflict_arg == [], (
+                    f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
+                )
 
     def test_subcommand_arg_flag_conflict(self):
         """

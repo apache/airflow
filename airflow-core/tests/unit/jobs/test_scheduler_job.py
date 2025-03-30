@@ -2819,9 +2819,9 @@ class TestSchedulerJob:
         if ti1s and ti2s:
             recent_ti1 = ti1s[0]
             recent_ti2 = ti2s[0]
-            assert (
-                recent_ti1.logical_date == recent_ti2.logical_date
-            ), "Both tasks should be scheduled for the same interval"
+            assert recent_ti1.logical_date == recent_ti2.logical_date, (
+                "Both tasks should be scheduled for the same interval"
+            )
 
     def test_scheduler_multiprocessing(self):
         """
@@ -5847,9 +5847,9 @@ class TestSchedulerJob:
                 return
             queued_any_tis = any(val > 0 for val in num_queued_tis)
             finished_any_events = any(val > 0 for val in num_finished_events)
-            assert (
-                queued_any_tis or finished_any_events
-            ), "Scheduler has stalled without setting the DagRun state!"
+            assert queued_any_tis or finished_any_events, (
+                "Scheduler has stalled without setting the DagRun state!"
+            )
 
         set_state_spy = mock.patch.object(DagRun, "set_state", new=watch_set_state)
         heartbeat_spy = mock.patch.object(self.job_runner.job, "heartbeat", new=watch_heartbeat)

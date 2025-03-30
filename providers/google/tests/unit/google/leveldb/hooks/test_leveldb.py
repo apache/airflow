@@ -45,9 +45,9 @@ class TestLevelDBHook:
         hook.get_conn(name=tmp_path.as_posix(), create_if_missing=True)
         assert hook.run("get", b"test_key0") is None, "Initially, this key in LevelDB is empty"
         hook.run("put", b"test_key0", b"test_value0")
-        assert (
-            hook.run("get", b"test_key0") == b"test_value0"
-        ), "Connection to LevelDB with PUT and GET works."
+        assert hook.run("get", b"test_key0") == b"test_value0", (
+            "Connection to LevelDB with PUT and GET works."
+        )
         hook.run("delete", b"test_key0")
         assert hook.run("get", b"test_key0") is None, "Connection to LevelDB with DELETE works."
         hook.close_conn()

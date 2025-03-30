@@ -114,9 +114,9 @@ class HookMetaService:
         """Mock any flask appbuilder widget."""
 
     @staticmethod
-    def _get_hooks_with_mocked_fab() -> (
-        tuple[MutableMapping[str, HookInfo | None], dict[str, ConnectionFormWidgetInfo], dict[str, dict]]
-    ):
+    def _get_hooks_with_mocked_fab() -> tuple[
+        MutableMapping[str, HookInfo | None], dict[str, ConnectionFormWidgetInfo], dict[str, dict]
+    ]:
         """Get hooks with all details w/o FAB needing to be installed."""
         from unittest import mock
 

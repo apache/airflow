@@ -1463,8 +1463,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         """Initialize `self.job_template` with default values."""
         if self.project_id is None:
             raise AirflowException(
-                "project id should either be set via project_id "
-                "parameter or retrieved from the connection,"
+                "project id should either be set via project_id parameter or retrieved from the connection,"
             )
         job_template = DataProcJobBuilder(
             project_id=self.project_id,
