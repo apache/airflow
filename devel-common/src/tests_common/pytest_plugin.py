@@ -829,9 +829,18 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dagbag.bag_dag(dag)
 
         def _activate_assets(self):
-            from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+            from sqlalchemy import select
 
-            SchedulerJobRunner._update_asset_orphanage(session=self.session)
+            from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+            from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+
+            assets = self.session.scalars(
+                select(AssetModel).where(
+                    AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id == self.dag.dag_id)
+                    | AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id == self.dag.dag_id)
+                )
+            ).all()
+            SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
