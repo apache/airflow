@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+from airflow.api_fastapi.execution_api.versions import bundle
 
 pytestmark = pytest.mark.db_test
 
@@ -39,4 +40,5 @@ def test_custom_openapi_includes_extra_schemas(client):
 def test_access_api_contract(client):
     response = client.get("/execution/docs")
     assert response.status_code == 200
-    assert "OpenAPI Contracts" in response.text
+    response = client.get("/execution/docs")
+    assert response.headers["airflow-api-version"] == bundle.versions[0].value
