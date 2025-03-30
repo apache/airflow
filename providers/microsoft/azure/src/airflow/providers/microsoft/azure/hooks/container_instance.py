@@ -85,7 +85,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=cast(str, tenant)
+                client_id=conn.login, client_secret=conn.password, tenant_id=cast("str", tenant)
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
@@ -96,7 +96,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
-        subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
+        subscription_id = cast("str", conn.extra_dejson.get("subscriptionId"))
         return ContainerInstanceManagementClient(
             credential=credential,
             subscription_id=subscription_id,

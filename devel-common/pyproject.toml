@@ -37,7 +37,7 @@ dependencies = [
     "duckdb>=0.9.0; python_version < '3.12'",
     # Static checks devel
     "black>=23.12.0",
-    "ruff==0.8.1",
+    "ruff==0.11.2",
     "yamllint>=1.33.0",
     # devscripts
     "click>=8.1.8",
