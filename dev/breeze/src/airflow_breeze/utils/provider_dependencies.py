@@ -92,8 +92,7 @@ def generate_providers_metadata_for_package(
         }
     if not provider_mentioned_in_constraints:
         get_console().print(
-            f"[warning]No constraints mention {provider_id} in any Airflow version. "
-            f"Skipping it altogether."
+            f"[warning]No constraints mention {provider_id} in any Airflow version. Skipping it altogether."
         )
         return {}
     return provider_metadata

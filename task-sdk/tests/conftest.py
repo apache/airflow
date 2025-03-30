@@ -118,9 +118,9 @@ def captured_logs(request):
         # We need to replace remove the last processor (the one that turns JSON into text, as we want the
         # event dict for tests)
         proc = processors.pop()
-        assert isinstance(
-            proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
-        ), "Pre-condition"
+        assert isinstance(proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)), (
+            "Pre-condition"
+        )
     try:
         cap = LogCapture()
         processors.append(cap)

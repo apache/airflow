@@ -41,11 +41,7 @@ class ExecutorName(LoggingMixin):
         if self.alias in CORE_EXECUTOR_NAMES:
             # This is a "core executor" we can refer to it by its known short name
             return f"{self.team_id if self.team_id else ''}:{self.alias}:"
-        return (
-            f"{self.team_id if self.team_id else ''}:"
-            f"{self.alias if self.alias else ''}:"
-            f"{self.module_path}"
-        )
+        return f"{self.team_id if self.team_id else ''}:{self.alias if self.alias else ''}:{self.module_path}"
 
     def __eq__(self, other) -> bool:
         """Implement eq."""

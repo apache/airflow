@@ -27,15 +27,6 @@ from fastapi import FastAPI
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import (
-    AccessView,
-    BackfillDetails,
-    ConnectionDetails,
-    DagAccessEntity,
-    DagDetails,
-    PoolDetails,
-    VariableDetails,
-)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -59,9 +50,16 @@ if TYPE_CHECKING:
         IsAuthorizedVariableRequest,
     )
     from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AccessView,
         AssetAliasDetails,
         AssetDetails,
+        BackfillDetails,
         ConfigurationDetails,
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+        PoolDetails,
+        VariableDetails,
     )
     from airflow.api_fastapi.common.types import MenuItem
 
@@ -256,7 +254,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.CONNECTION,
-                "entity_id": cast(ConnectionDetails, request["details"]).conn_id
+                "entity_id": cast("ConnectionDetails", request["details"]).conn_id
                 if request.get("details")
                 else None,
             }
@@ -274,10 +272,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.DAG,
-                "entity_id": cast(DagDetails, request["details"]).id if request.get("details") else None,
+                "entity_id": cast("DagDetails", request["details"]).id if request.get("details") else None,
                 "context": {
                     "dag_entity": {
-                        "string": cast(DagAccessEntity, request["access_entity"]).value,
+                        "string": cast("DagAccessEntity", request["access_entity"]).value,
                     },
                 }
                 if request.get("access_entity")
@@ -297,7 +295,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.POOL,
-                "entity_id": cast(PoolDetails, request["details"]).name if request.get("details") else None,
+                "entity_id": cast("PoolDetails", request["details"]).name if request.get("details") else None,
             }
             for request in requests
         ]
@@ -313,7 +311,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             {
                 "method": request["method"],
                 "entity_type": AvpEntities.VARIABLE,
-                "entity_id": cast(VariableDetails, request["details"]).key
+                "entity_id": cast("VariableDetails", request["details"]).key
                 if request.get("details")
                 else None,
             }

@@ -24,9 +24,9 @@ from starlette.exceptions import HTTPException
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 if TYPE_CHECKING:
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.models import User
 
 
@@ -43,7 +43,7 @@ class FABAuthManagerLogin:
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password must be provided"
             )
 
-        auth_manager = cast(FabAuthManager, get_auth_manager())
+        auth_manager = cast("FabAuthManager", get_auth_manager())
         user: User = auth_manager.security_manager.find_user(username=body.username)
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")

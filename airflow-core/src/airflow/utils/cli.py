@@ -116,7 +116,7 @@ def action_cli(func=None, check_db=True):
                 metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
-        return cast(T, wrapper)
+        return cast("T", wrapper)
 
     if func:
         return action_logging(func)
@@ -155,7 +155,7 @@ def _build_metrics(func_name, namespace):
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
                 for sensitive_field in sensitive_fields:
                     if command.startswith(f"{sensitive_field}="):
-                        full_command[idx] = f'{sensitive_field}={"*" * 8}'
+                        full_command[idx] = f"{sensitive_field}={'*' * 8}"
 
     # handle conn-json and conn-uri separately as it requires different handling
     if "--conn-json" in full_command:
@@ -401,7 +401,7 @@ def suppress_logs_and_warning(f: T) -> T:
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
 
-    return cast(T, _wrapper)
+    return cast("T", _wrapper)
 
 
 def validate_dag_bundle_arg(bundle_names: list[str]) -> None:

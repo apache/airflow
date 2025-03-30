@@ -145,7 +145,7 @@ def mkpipe(
     io: BinaryIO | socket
     if remote_read:
         # If _we_ are writing, we don't want to buffer
-        io = cast(BinaryIO, local.makefile("wb", buffering=0))
+        io = cast("BinaryIO", local.makefile("wb", buffering=0))
     else:
         io = local
 
