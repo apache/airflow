@@ -46,7 +46,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIRunContext,
 )
-from airflow.sdk.bases.baseoperator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
@@ -343,7 +343,10 @@ class RuntimeTaskInstance(TaskInstance):
                 map_index=m_idx,
                 include_prior_dates=include_prior_dates,
             )
-            xcoms.append(value if value else default)
+            if value is None:
+                xcoms.append(default)
+            else:
+                xcoms.append(value)
 
         if len(xcoms) == 1:
             return xcoms[0]

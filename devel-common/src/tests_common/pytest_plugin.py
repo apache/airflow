@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
-    from airflow.sdk.bases.baseoperator import BaseOperator as TaskSDKBaseOperator
+    from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.timetables.base import DataInterval
@@ -784,6 +784,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         (want_activate_assets,) = serialized_marker.args or (True,)
 
     from airflow.utils.log.logging_mixin import LoggingMixin
+    from airflow.utils.types import NOTSET
 
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
@@ -901,10 +902,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             else:
                 self._bag_dag_compat(self.dag)
 
-        def create_dagrun(self, *, logical_date=None, **kwargs):
+        def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils import timezone
             from airflow.utils.state import DagRunState
-            from airflow.utils.types import NOTSET, DagRunType
+            from airflow.utils.types import DagRunType
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -932,10 +933,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if not isinstance(run_type, DagRunType):
                 run_type = DagRunType(run_type)
 
-            if logical_date is NOTSET:
+            if logical_date is None:
                 # Explicit non requested
                 logical_date = None
-            elif logical_date is None:
+            elif logical_date is NOTSET:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
@@ -1227,7 +1228,7 @@ class CreateTaskInstance(Protocol):
     def __call__(
         self,
         *,
-        logical_date: datetime = ...,
+        logical_date: datetime | None = ...,
         dagrun_state: DagRunState = ...,
         state: TaskInstanceState = ...,
         run_id: str = ...,
@@ -1366,11 +1367,13 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 @pytest.fixture
 def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from airflow.utils.types import NOTSET
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        logical_date=None,
+        logical_date=NOTSET,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
@@ -1384,11 +1387,13 @@ def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTa
 
 @pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from airflow.utils.types import NOTSET
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        logical_date=None,
+        logical_date=NOTSET,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:

@@ -545,7 +545,7 @@ def get_previous_successful_dagrun(
     """
     ti_id_str = str(task_instance_id)
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if not task_instance:
+    if not task_instance or not task_instance.logical_date:
         return PrevSuccessfulDagRunResponse()
 
     dag_run = session.scalar(
