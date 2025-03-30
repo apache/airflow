@@ -120,7 +120,13 @@ class AzureContainerInstancesOperator(BaseOperator):
             },
             secured_variables=["POSTGRES_PASSWORD"],
             volumes=[
-                ("azure_container_instance_conn_id", "my_storage_container", "my_fileshare", "/input-data", True),
+                (
+                    "azure_container_instance_conn_id",
+                    "my_storage_container",
+                    "my_fileshare",
+                    "/input-data",
+                    True,
+                ),
             ],
             memory_in_gb=14.0,
             cpu=4.0,

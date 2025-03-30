@@ -272,7 +272,7 @@ def clear_dag_run(
         )
 
         return TaskInstanceCollectionResponse(
-            task_instances=cast(list[TaskInstanceResponse], task_instances),
+            task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
     else:

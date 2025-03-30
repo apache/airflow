@@ -278,7 +278,7 @@ class AwsEcsExecutor(BaseExecutor):
         if not has_exit_codes:
             return ""
         reasons = [
-            f'{container["container_arn"]} - {container["reason"]}'
+            f"{container['container_arn']} - {container['reason']}"
             for container in containers
             if "reason" in container
         ]

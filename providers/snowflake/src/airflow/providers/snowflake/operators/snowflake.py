@@ -505,7 +505,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast(list[str], event["statement_query_ids"])
+                query_ids = cast("list[str]", event["statement_query_ids"])
                 hook.check_query_output(query_ids)
                 self.log.info("%s completed successfully.", self.task_id)
         else:

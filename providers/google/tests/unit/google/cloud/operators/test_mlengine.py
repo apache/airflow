@@ -1302,9 +1302,9 @@ def test_async_create_training_job_should_execute_successfully(
     with pytest.raises(TaskDeferred) as exc:
         ti.task.execute({"ti": ti})
 
-    assert isinstance(
-        exc.value.trigger, MLEngineStartTrainingJobTrigger
-    ), "Trigger is not a MLEngineStartTrainingJobTrigger"
+    assert isinstance(exc.value.trigger, MLEngineStartTrainingJobTrigger), (
+        "Trigger is not a MLEngineStartTrainingJobTrigger"
+    )
 
 
 def test_async_create_training_job_should_throw_exception():

@@ -215,7 +215,7 @@ class TestSecretsMasker:
             The above exception was the direct cause of the following exception:
 
             Traceback (most recent call last):
-              File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_explicit_context_exceptions
+              File ".../test_secrets_masker.py", line {line + 4}, in test_masking_in_explicit_context_exceptions
                 raise RuntimeError(f"Exception: {{exception}}") from exception
             RuntimeError: Exception: Cannot connect to user:***
             """

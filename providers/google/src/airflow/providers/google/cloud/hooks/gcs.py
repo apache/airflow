@@ -41,7 +41,6 @@ from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.cloud import storage  # type: ignore[attr-defined]
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
-from requests import Session
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -62,6 +61,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
+    from requests import Session
 
 
 RT = TypeVar("RT")
@@ -135,16 +135,16 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(Callable[FParams, RT], _inner_wrapper)
+        return cast("Callable[FParams, RT]", _inner_wrapper)
 
-    return cast(Callable[[T], T], _wrapper)
+    return cast("Callable[[T], T]", _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
 # This allows the 'bucket' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-PROVIDE_BUCKET: str = cast(str, None)
+PROVIDE_BUCKET: str = cast("str", None)
 
 
 class GCSHook(GoogleBaseHook):
@@ -1494,5 +1494,5 @@ class GCSAsyncHook(GoogleBaseAsyncHook):
         token = await self.get_token(session=session)
         return Storage(
             token=token,
-            session=cast(Session, session),
+            session=cast("Session", session),
         )

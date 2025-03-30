@@ -70,6 +70,6 @@ def get_dag_reports(
         filtered_dagbag_stats = []
 
     return DagReportCollectionResponse(
-        dag_reports=cast(list[DagReportResponse], filtered_dagbag_stats),
+        dag_reports=cast("list[DagReportResponse]", filtered_dagbag_stats),
         total_entries=len(filtered_dagbag_stats),
     )

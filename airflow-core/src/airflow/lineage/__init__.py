@@ -92,7 +92,7 @@ def apply_lineage(func: T) -> T:
 
         return ret_val
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 def prepare_lineage(func: T) -> T:
@@ -155,4 +155,4 @@ def prepare_lineage(func: T) -> T:
 
         return func(self, context, *args, **kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)

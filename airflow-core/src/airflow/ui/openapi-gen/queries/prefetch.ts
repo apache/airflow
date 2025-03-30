@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -2510,4 +2511,24 @@ export const prefetchUseLoginServiceLogout = (
   queryClient.prefetchQuery({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDefaultServiceNotFoundHandler = (
+  queryClient: QueryClient,
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

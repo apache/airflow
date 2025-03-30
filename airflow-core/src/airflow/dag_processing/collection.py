@@ -51,7 +51,6 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.serialization.serialized_objects import SerializedAssetWatcher
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
@@ -65,7 +64,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG, SerializedAssetWatcher
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
@@ -799,7 +798,7 @@ class AssetModelOperation(NamedTuple):
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watchers: list[SerializedAssetWatcher] = (
-                [cast(SerializedAssetWatcher, watcher) for watcher in asset.watchers]
+                [cast("SerializedAssetWatcher", watcher) for watcher in asset.watchers]
                 if name_uri in active_assets
                 else []
             )
