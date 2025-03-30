@@ -34,3 +34,9 @@ def test_custom_openapi_includes_extra_schemas(client):
     schema = openapi_schema["components"]["schemas"]["TaskInstance"]
 
     assert schema == TaskInstance.model_json_schema()
+
+
+def test_access_api_contract(client):
+    response = client.get("/execution/docs")
+    assert response.status_code == 200
+    assert "OpenAPI Contracts" in response.text
