@@ -7304,6 +7304,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/{rest_of_path}:
+    get:
+      summary: Not Found Handler
+      description: Catch all route to handle invalid endpoints.
+      operationId: not_found_handler
+      parameters:
+      - name: rest_of_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rest Of Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
