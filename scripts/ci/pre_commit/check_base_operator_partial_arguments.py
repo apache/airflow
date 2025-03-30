@@ -30,7 +30,7 @@ sys.path.insert(
 from common_precommit_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH, console
 
 BASEOPERATOR_PY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "models" / "baseoperator.py"
-SDK_BASEOPERATOR_PY = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "definitions" / "baseoperator.py"
+SDK_BASEOPERATOR_PY = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "bases" / "operator.py"
 SDK_MAPPEDOPERATOR_PY = (
     AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "definitions" / "mappedoperator.py"
 )

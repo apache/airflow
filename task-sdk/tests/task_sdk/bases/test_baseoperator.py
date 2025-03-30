@@ -29,7 +29,7 @@ import pytest
 import structlog
 
 from airflow.decorators import task as task_decorator
-from airflow.sdk.definitions.baseoperator import (
+from airflow.sdk.bases.operator import (
     BaseOperator,
     BaseOperatorMeta,
     ExecutorSafeguard,
@@ -822,7 +822,7 @@ def test_render_template_fields_logging(
 
 
 class HelloWorldOperator(BaseOperator):
-    log = structlog.get_logger()
+    log = structlog.get_logger(__name__)
 
     def execute(self, context):
         return f"Hello {self.owner}!"

@@ -25,6 +25,13 @@ Simple auth manager
 The simple auth manager is the auth manager that comes by default in Airflow 3. As its name suggests,
 the logic and implementation of the simple auth manager is **simple**.
 
+.. toctree::
+    :maxdepth: 1
+
+    token
+    sam-token-api-ref
+
+
 Manage users
 ------------
 

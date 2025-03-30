@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Table } from "@chakra-ui/react";
+import { Button, Table, Box } from "@chakra-ui/react";
 import { flexRender, type Row, type Table as TanStackTable } from "@tanstack/react-table";
 import React, { Fragment } from "react";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
+import FilterMenuButton from "./FilterMenuButton";
+
 type DataTableProps<TData> = {
+  readonly allowFiltering: boolean;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly table: TanStackTable<TData>;
 };
 
-export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<TData>) => (
+export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => (
   <Table.Root data-testid="table-list" striped>
     <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
       {table.getHeaderGroups().map((headerGroup) => (
@@ -71,6 +74,11 @@ export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<
           })}
         </Table.Row>
       ))}
+      {allowFiltering ? (
+        <Box position="absolute" right={0} top={2}>
+          <FilterMenuButton table={table} />
+        </Box>
+      ) : undefined}
     </Table.Header>
     <Table.Body>
       {table.getRowModel().rows.map((row) => (

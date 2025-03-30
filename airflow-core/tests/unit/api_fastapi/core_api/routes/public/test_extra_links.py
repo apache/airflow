@@ -123,19 +123,19 @@ class TestGetExtraLinks:
         "url, expected_status_code, expected_response",
         [
             pytest.param(
-                "/api/v2/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
+                "/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
                 404,
                 {"detail": "DAG with ID = INVALID not found"},
                 id="missing_dag",
             ),
             pytest.param(
-                "/api/v2/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_LINK/links",
+                "/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_LINK/links",
                 404,
                 {"detail": "DAG Run with ID = INVALID not found"},
                 id="missing_dag_run",
             ),
             pytest.param(
-                "/api/v2/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
+                "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
                 404,
                 {"detail": "Task with ID = INVALID not found"},
                 id="missing_task",
@@ -165,7 +165,7 @@ class TestGetExtraLinks:
         )
 
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
 
         assert response.status_code == 200
@@ -175,7 +175,7 @@ class TestGetExtraLinks:
 
     def test_should_respond_200_missing_xcom(self, test_client):
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
 
         assert response.status_code == 200
@@ -209,7 +209,7 @@ class TestGetExtraLinks:
         session.commit()
 
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
         )
 
         assert response.status_code == 200
@@ -220,7 +220,7 @@ class TestGetExtraLinks:
 
     def test_should_respond_200_multiple_links_missing_xcom(self, test_client):
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
         )
 
         assert response.status_code == 200
@@ -229,7 +229,7 @@ class TestGetExtraLinks:
     @pytest.mark.mock_plugin_manager(plugins=[AirflowPluginWithOperatorLinks])
     def test_should_respond_200_support_plugins(self, test_client):
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
 
         assert response, response.status_code == 200
@@ -251,7 +251,7 @@ class TestGetExtraLinks:
             map_index=map_index,
         )
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
             params={"map_index": map_index},
         )
         assert response.status_code == 200
@@ -261,21 +261,21 @@ class TestGetExtraLinks:
 
     def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
 
         assert response.status_code == 401
 
     def test_should_respond_403_unauthorized(self, unauthorized_test_client):
         response = unauthorized_test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
 
         assert response.status_code == 403
 
     def test_should_respond_404_invalid_map_index(self, test_client):
         response = test_client.get(
-            f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
             params={"map_index": 4},
         )
         assert response.status_code == 404

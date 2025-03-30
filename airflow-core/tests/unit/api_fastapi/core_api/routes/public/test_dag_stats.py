@@ -34,7 +34,7 @@ DAG1_ID = "test_dag1"
 DAG2_ID = "test_dag2"
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
-API_PREFIX = "/api/v2/dagStats"
+API_PREFIX = "/dagStats"
 
 
 class TestDagStatsEndpoint:

@@ -903,38 +903,45 @@ if PACKAGE_NAME in packages_with_redoc:
     redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
 
 if PACKAGE_NAME == "apache-airflow":
-    OPENAPI_FILE = (
-        Path(__file__).parents[1]
-        / "airflow-core"
-        / "src"
-        / "airflow"
-        / "api_fastapi"
-        / "core_api"
-        / "openapi"
-        / "v1-generated.yaml"
-    )
+    from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
+    from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
+
+    main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-generated.yaml")
+    sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-generated.yaml")
     redoc = [
         {
             "name": "Airflow REST API",
             "page": "stable-rest-api-ref",
-            "spec": OPENAPI_FILE.as_posix(),
+            "spec": main_openapi_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+        {
+            "name": "Simple auth manager token API",
+            "page": "core-concepts/auth-manager/simple/sam-token-api-ref",
+            "spec": sam_openapi_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
             },
         },
     ]
 elif PACKAGE_NAME == "apache-airflow-providers-fab":
-    from airflow.providers.fab.auth_manager import __file__ as auth_manager_path
+    from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
+        __file__ as fab_auth_manager_fastapi_api_file,
+    )
+    from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
 
-    fab_flask_openapi_file = Path(auth_manager_path).parent.joinpath("openapi", "v1.yaml")
-    fab_fastapi_openapi_file = Path(auth_manager_path).parent.joinpath(
-        "api_fastapi", "openapi", "v1-generated.yaml"
+    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath("v1.yaml")
+    fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
+        "v1-generated.yaml"
     )
     redoc = [
         {
             "name": "Fab auth manager API",
             "page": "api-ref/fab-public-api-ref",
-            "spec": fab_flask_openapi_file.as_posix(),
+            "spec": fab_auth_manager_flask_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,
@@ -943,7 +950,7 @@ elif PACKAGE_NAME == "apache-airflow-providers-fab":
         {
             "name": "Fab auth manager token API",
             "page": "api-ref/fab-token-api-ref",
-            "spec": fab_fastapi_openapi_file.as_posix(),
+            "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,

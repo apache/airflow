@@ -151,8 +151,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
-    :param num_times_parse_dags: The number of times to try to parse each DAG file.
-        -1 for unlimited times.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
     :param log: override the default Logger
@@ -164,16 +162,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         num_runs: int = conf.getint("scheduler", "num_runs"),
-        num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: logging.Logger | None = None,
     ):
         super().__init__(job)
         self.num_runs = num_runs
-        # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
-        # number of times. This is only to support testing, and isn't something a user is likely to want to
-        # configure -- they'll want num_runs
-        self.num_times_parse_dags = num_times_parse_dags
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
@@ -914,8 +907,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("Starting the scheduler")
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
-
-        self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
         reset_signals = self.register_signals()
         try:

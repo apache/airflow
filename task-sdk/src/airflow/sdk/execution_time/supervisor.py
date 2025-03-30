@@ -896,7 +896,9 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            xcom = self.client.xcoms.get(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+            )
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
         elif isinstance(msg, GetXComCount):
@@ -1076,14 +1078,6 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
 
-def register_secrets_masker():
-    """Register the secrets masker to mask task logs."""
-    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
-
-    for field in get_sensitive_variables_fields():
-        mask_secret(field)
-
-
 def supervise(
     *,
     ti: TaskInstance,
@@ -1111,6 +1105,8 @@ def supervise(
     :return: Exit code of the process.
     """
     # One or the other
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
@@ -1143,7 +1139,7 @@ def supervise(
 
     ensure_secrets_backend_loaded()
 
-    register_secrets_masker()
+    reset_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

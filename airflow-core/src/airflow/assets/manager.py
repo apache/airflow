@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 class AssetManager(LoggingMixin):

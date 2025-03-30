@@ -553,7 +553,7 @@ def _freeze_time_for_dagruns(time_machine):
 @pytest.mark.usefixtures("_freeze_time_for_dagruns")
 class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
-        response = test_client.get(f"/ui/grid/{DAG_ID}")
+        response = test_client.get(f"/grid/{DAG_ID}")
         assert response.status_code == 200
         assert response.json() == {
             "dag_runs": [GRID_RUN_1, GRID_RUN_2],
@@ -601,7 +601,7 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_order_by(self, test_client, order_by, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"order_by": order_by})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"order_by": order_by})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -850,7 +850,7 @@ class TestGetGridDataEndpoint:
         self, test_client, include_upstream, include_downstream, expected
     ):
         response = test_client.get(
-            f"/ui/grid/{DAG_ID}",
+            f"/grid/{DAG_ID}",
             params={
                 "root": SUB_TASK_ID,
                 "include_upstream": include_upstream,
@@ -878,7 +878,7 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_limit(self, test_client, limit, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"limit": limit})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"limit": limit})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -921,7 +921,7 @@ class TestGetGridDataEndpoint:
     )
     def test_should_response_200_date_filters(self, test_client, params, expected):
         response = test_client.get(
-            f"/ui/grid/{DAG_ID}",
+            f"/grid/{DAG_ID}",
             params=params,
         )
         assert response.status_code == 200
@@ -945,7 +945,7 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_run_types(self, test_client, run_type, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"run_type": run_type})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"run_type": run_type})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -959,7 +959,7 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_run_types_invalid(self, test_client, run_type, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"run_type": run_type})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"run_type": run_type})
         assert response.status_code == 422
         assert response.json() == expected
 
@@ -985,7 +985,7 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_states(self, test_client, state, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"state": state})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"state": state})
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -999,30 +999,30 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_states_invalid(self, test_client, state, expected):
-        response = test_client.get(f"/ui/grid/{DAG_ID}", params={"state": state})
+        response = test_client.get(f"/grid/{DAG_ID}", params={"state": state})
         assert response.status_code == 422
         assert response.json() == expected
 
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/ui/grid/{DAG_ID_3}")
+        response = unauthenticated_test_client.get(f"/grid/{DAG_ID_3}")
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/ui/grid/{DAG_ID_3}")
+        response = unauthorized_test_client.get(f"/grid/{DAG_ID_3}")
         assert response.status_code == 403
 
     def test_should_response_404(self, test_client):
-        response = test_client.get("/ui/grid/invalid_dag")
+        response = test_client.get("/grid/invalid_dag")
         assert response.status_code == 404
         assert response.json() == {"detail": "Dag with id invalid_dag was not found"}
 
     def test_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/ui/grid/{DAG_ID_2}")
+        response = test_client.get(f"/grid/{DAG_ID_2}")
         assert response.status_code == 200
         assert response.json() == {"dag_runs": []}
 
     def test_should_response_200_with_deleted_task(self, test_client):
-        response = test_client.get(f"/ui/grid/{DAG_ID_3}")
+        response = test_client.get(f"/grid/{DAG_ID_3}")
         assert response.status_code == 200
         assert response.json() == {
             "dag_runs": [
