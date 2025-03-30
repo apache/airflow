@@ -40,5 +40,4 @@ def test_custom_openapi_includes_extra_schemas(client):
 def test_access_api_contract(client):
     response = client.get("/execution/docs")
     assert response.status_code == 200
-    response = client.get("/execution/docs")
     assert response.headers["airflow-api-version"] == bundle.versions[0].value
