@@ -53,7 +53,6 @@ class GridDAGRunwithTIs(BaseModel):
     logical_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
-    version_number: int | None
     note: str | None
     task_instances: list[GridTaskInstanceSummary]
 

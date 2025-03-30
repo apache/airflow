@@ -3747,17 +3747,6 @@ export const $GridDAGRunwithTIs = {
       ],
       title: "Data Interval End",
     },
-    version_number: {
-      anyOf: [
-        {
-          type: "integer",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Version Number",
-    },
     note: {
       anyOf: [
         {
@@ -3789,7 +3778,6 @@ export const $GridDAGRunwithTIs = {
     "logical_date",
     "data_interval_start",
     "data_interval_end",
-    "version_number",
     "note",
     "task_instances",
   ],

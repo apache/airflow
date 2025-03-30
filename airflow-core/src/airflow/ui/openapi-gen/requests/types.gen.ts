@@ -994,7 +994,6 @@ export type GridDAGRunwithTIs = {
   logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
