@@ -18,7 +18,7 @@
  */
 
 import React, {useState} from "react";
-import {Alert, CloseButton, Container, Heading, Text} from "@chakra-ui/react";
+import {Alert, CloseButton, Container, Heading, Span, Text} from "@chakra-ui/react";
 
 import {useCreateToken} from "src/queries/useCreateToken";
 import {LoginForm} from "src/login/LoginForm";
@@ -69,7 +69,7 @@ export const Login = () => {
             <Alert.Description>
               The Simple auth manager is intended for development and testing. If you're using it in production,
               ensure that access is controlled through other means.
-              Please read <a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html" target="_blank">the documentation</a> to learn more about simple auth manager.
+              Please read <Span textDecoration={"underline"}><a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html" target="_blank">the documentation</a></Span> to learn more about simple auth manager.
             </Alert.Description>
           </Alert.Content>
           <CloseButton
@@ -82,6 +82,7 @@ export const Login = () => {
             }}
           />
         </Alert.Root>
+
       }
 
       <Container mt={2} maxW="2xl" p="4" border="1px" borderColor="gray.500" borderWidth="1px" borderStyle="solid">
