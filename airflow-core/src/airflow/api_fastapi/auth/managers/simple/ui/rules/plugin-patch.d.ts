@@ -16,20 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
-import { RouterProvider } from "react-router-dom";
-import { router } from "src/router";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./queryClient";
 
-createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <ChakraProvider value={defaultSystem}>
-    <ThemeProvider attribute="class" disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ThemeProvider>
-  </ChakraProvider>,
-);
+declare module "eslint-plugin-local-patch" {
+  import type { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+
+  /**
+   * @deprecated This type was patched because it's currently broken.
+   */
+  const plugin: FlatConfig.Plugin;
+
+  export default plugin;
+}
+
+declare module "@stylistic/eslint-plugin" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-jsx-a11y" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-hooks" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-refresh" {
+  export { default } from "eslint-plugin-local-patch";
+}

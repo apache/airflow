@@ -3,10 +3,10 @@
 import { type QueryClient } from "@tanstack/react-query";
 import { SimpleAuthManagerLoginService } from "../requests/services.gen";
 import * as Common from "./common";
-export const prefetchUseSimpleAuthManagerLoginServiceCreateTokenAllAdmins = (
+export const ensureUseSimpleAuthManagerLoginServiceCreateTokenAllAdminsData = (
   queryClient: QueryClient,
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey:
       Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(),
     queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins(),

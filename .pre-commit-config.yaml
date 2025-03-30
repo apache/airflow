@@ -615,6 +615,7 @@ repos:
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/redis/src/airflow/providers/redis/provider.yaml$|
           ^airflow-core/src/airflow/serialization/serialized_objects.py$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml|
           ^airflow-core/src/airflow/ui/pnpm-lock.yaml$|
           ^airflow-core/src/airflow/utils/db.py$|
           ^airflow-core/src/airflow/utils/trigger_rule.py$|

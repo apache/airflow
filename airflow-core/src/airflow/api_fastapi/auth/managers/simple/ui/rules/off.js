@@ -16,20 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
-import { RouterProvider } from "react-router-dom";
-import { router } from "src/router";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./queryClient";
+import { OFF } from "./levels.js";
 
-createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <ChakraProvider value={defaultSystem}>
-    <ThemeProvider attribute="class" disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ThemeProvider>
-  </ChakraProvider>,
-);
+/**
+ * Generates an object with all the given rules set to {@link OFF}.
+ *
+ * @template {string} Rule
+ * @param {ReadonlyArray<Rule>} rules Array of rules to turn off.
+ * @returns Object with rules set to {@link OFF}.
+ */
+export const off = (...rules) =>
+  /** @type {Readonly<Record<Rule, typeof OFF>>} */ (
+    Object.fromEntries(rules.map((rule) => [rule, OFF]))
+  );

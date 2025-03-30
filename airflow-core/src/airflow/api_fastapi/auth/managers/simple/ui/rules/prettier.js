@@ -16,20 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
-import { RouterProvider } from "react-router-dom";
-import { router } from "src/router";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./queryClient";
 
-createRoot(document.querySelector("#root") as HTMLDivElement).render(
-  <ChakraProvider value={defaultSystem}>
-    <ThemeProvider attribute="class" disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ThemeProvider>
-  </ChakraProvider>,
-);
+/**
+ * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+ */
+import prettier from "eslint-plugin-prettier";
+
+import { off } from "./off.js";
+
+/**
+ * ESLint TypeScript namespace.
+ */
+export const prettierNamespace = "prettier";
+
+/**
+ * ESLint Prettier rules.
+ * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
+ */
+export const prettierRules =
+  /** @type {const} @satisfies {FlatConfig.Config} */ ({
+    plugins: { [prettierNamespace]: prettier },
+    rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
+  });
