@@ -24,7 +24,7 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunDetailsException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
@@ -364,7 +364,7 @@ class TestDbtCloudRunJobOperator:
             elif expected_output == "exception":
                 # The operator should fail if the job run fails or is cancelled.
                 error_message = r"has failed or has been cancelled\..*"
-                with pytest.raises(DbtCloudJobRunException, match=error_message):
+                with pytest.raises(DbtCloudJobRunDetailsException, match=error_message):
                     operator.execute(context=self.mock_context)
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
