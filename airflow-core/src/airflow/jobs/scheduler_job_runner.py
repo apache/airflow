@@ -2082,8 +2082,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return task_instance_heartbeat_timeout_message_details
 
+    @classmethod
     @provide_session
-    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(cls, session: Session = NEW_SESSION) -> None:
         """
         Check assets orphanization and update their active entry.
 
@@ -2106,8 +2107,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             orphaned: [asset for _, asset in group]
             for orphaned, group in itertools.groupby(asset_reference_query, key=operator.itemgetter(0))
         }
-        self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
-        self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
+        cls._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
+        cls._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
