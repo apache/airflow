@@ -22,7 +22,6 @@ import os
 import signal
 import subprocess
 import time
-from typing import Any
 
 import pytest
 
@@ -518,44 +517,28 @@ def check_spans_for_paused_dag(
         )
 
 
-def print_output_for_dag_tis(dag: DAG):
-    with create_session() as session:
-        tis: list[TaskInstance] = dag.get_task_instances(session=session)
+def print_ti_output_for_dag_run(dag_id: str, run_id: str):
+    breeze_logs_dir = "/root/airflow/logs"
 
-    for ti in tis:
-        print_ti_output(ti)
+    # For structured logs, the path is:
+    #   '/root/airflow/logs/dag_id=.../run_id=.../task_id=.../attempt=1.log'
+    # TODO: if older airflow versions start throwing errors,
+    #   then check if the path needs to be adjusted to something like
+    #   '/root/airflow/logs/<dag_id>/<task_id>/<run_id>/...'
+    dag_run_path = os.path.join(breeze_logs_dir, f"dag_id={dag_id}", f"run_id={run_id}")
 
+    for root, _dirs, files in os.walk(dag_run_path):
+        for filename in files:
+            if filename.endswith(".log"):
+                full_path = os.path.join(root, filename)
+                log.info("\n===== LOG FILE: %s - START =====\n", full_path)
+                try:
+                    with open(full_path) as f:
+                        log.info(f.read())
+                except Exception as e:
+                    log.error("Could not read %s: %s", full_path, e)
 
-def print_ti_output(ti: TaskInstance):
-    from airflow.utils.log.log_reader import TaskLogReader
-
-    task_log_reader = TaskLogReader()
-    if task_log_reader.supports_read:
-        metadata: dict[str, Any] = {}
-        logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
-        log_entry = logs[0]
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-            assert isinstance(log_entry, StructuredLogMessage)
-            if log_entry.event is not None:
-                log.info(format(log_entry.event))
-        else:
-            assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
-            if ti.hostname in dict(log_entry):
-                output = (
-                    str(dict(logs[0])[ti.hostname])
-                    .replace("\\n", "\n")
-                    .replace("{log.py:232} WARNING - {", "\n{")
-                )
-                while metadata["end_of_log"] is False:
-                    logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number - 1, metadata)
-                    log_entry = logs[0]
-                    assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
-                    if ti.hostname in dict(log_entry):
-                        output = output + str(dict(log_entry)[ti.hostname]).replace("\\n", "\n")
-                # Logging the output is enough for capfd to capture it.
-                log.info(format(output))
+                log.info("\n===== END =====\n")
 
 
 @pytest.mark.integration("redis")
@@ -742,7 +725,8 @@ class TestOtelIntegration:
                 check_ti_state_and_span_status(
                     task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=None
                 )
-                print_ti_output(ti)
+
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -813,7 +797,8 @@ class TestOtelIntegration:
                 check_ti_state_and_span_status(
                     task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
                 )
-                print_ti_output(ti)
+
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -930,7 +915,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=30, span_status=SpanStatus.ENDED
             )
 
-            print_output_for_dag_tis(dag=dag)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -1047,7 +1032,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=30, span_status=SpanStatus.ENDED
             )
 
-            print_output_for_dag_tis(dag=dag)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -1141,7 +1126,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
 
-            print_output_for_dag_tis(dag=dag)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -1236,7 +1221,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
 
-            print_output_for_dag_tis(dag=dag)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
@@ -1331,7 +1316,7 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
 
-            print_output_for_dag_tis(dag=dag)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
             if self.log_level == "debug":
                 with create_session() as session:
