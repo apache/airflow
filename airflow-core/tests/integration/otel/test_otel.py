@@ -986,10 +986,11 @@ class TestOtelIntegration:
                             log.info("Control file exists and the task has been paused.")
                             break
                         else:
+                            time.sleep(1)
                             continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
-                    time.sleep(1)
+                    time.sleep(3)
                     continue
 
             with capfd.disabled():
@@ -1094,15 +1095,17 @@ class TestOtelIntegration:
                             log.info("Control file exists and the task has been paused.")
                             break
                         else:
+                            time.sleep(1)
                             continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
-                    time.sleep(1)
+                    time.sleep(3)
                     continue
 
             # Since, we are past the loop, then the file exists and the dag has been paused.
             # Terminate scheduler1 and start scheduler2.
-            scheduler_process_1.terminate()
+            with capfd.disabled():
+                scheduler_process_1.terminate()
 
             check_dag_run_state_and_span_status(
                 dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.NEEDS_CONTINUANCE
@@ -1185,15 +1188,17 @@ class TestOtelIntegration:
                             log.info("Control file exists and the task has been paused.")
                             break
                         else:
+                            time.sleep(1)
                             continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
-                    time.sleep(1)
+                    time.sleep(3)
                     continue
 
             # Since, we are past the loop, then the file exists and the dag has been paused.
             # Kill scheduler1 and start scheduler2.
-            scheduler_process_1.send_signal(signal.SIGKILL)
+            with capfd.disabled():
+                scheduler_process_1.send_signal(signal.SIGKILL)
 
             # The process shouldn't have changed the span_status.
             check_dag_run_state_and_span_status(
@@ -1280,15 +1285,17 @@ class TestOtelIntegration:
                             log.info("Control file exists and the task has been paused.")
                             break
                         else:
+                            time.sleep(1)
                             continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
-                    time.sleep(1)
+                    time.sleep(3)
                     continue
 
             # Since, we are past the loop, then the file exists and the dag has been paused.
             # Kill scheduler1 and start scheduler2.
-            scheduler_process_1.send_signal(signal.SIGKILL)
+            with capfd.disabled():
+                scheduler_process_1.send_signal(signal.SIGKILL)
 
             # The process shouldn't have changed the span_status.
             check_dag_run_state_and_span_status(

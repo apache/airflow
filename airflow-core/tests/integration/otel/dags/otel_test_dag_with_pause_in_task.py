@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import datetime
 
 from opentelemetry import trace
@@ -63,6 +64,7 @@ def task1(ti):
 
         if "pause" in file_contents:
             logger.info("Task has been paused.")
+            time.sleep(1)
             continue
         else:
             logger.info("Resuming task execution.")
