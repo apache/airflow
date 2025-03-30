@@ -126,12 +126,9 @@ export const renderStructuredLog = ({
   if (errorDetail !== undefined) {
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => (
-        <chakra.p key="test">
-          File{" "}
-          <chakra.span color="fg.info" key="test">
-            {JSON.stringify(frame.filename)}
-          </chakra.span>
-          , line {frame.lineno} in {frame.name}
+        <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
+          File <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>, line{" "}
+          {frame.lineno} in {frame.name}
         </chakra.p>
       ));
 
@@ -172,8 +169,8 @@ export const renderStructuredLog = ({
   );
 
   return (
-    <chakra.p key={index} lineHeight={1.5}>
+    <chakra.div key={index} lineHeight={1.5}>
       {elements}
-    </chakra.p>
+    </chakra.div>
   );
 };

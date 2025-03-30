@@ -63,7 +63,6 @@ from airflow.sdk.api.datamodels._generated import (
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
-    TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TriggerDAGRunPayload,
@@ -217,7 +216,9 @@ class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
 
 
 class TaskRescheduleStartDate(BaseModel):
-    start_date: datetime
+    """Response containing the first reschedule date for a task instance."""
+
+    start_date: datetime | None
     type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
 
 
@@ -312,16 +313,13 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
     type: Literal["SkipDownstreamTasks"] = "SkipDownstreamTasks"
 
 
-class RuntimeCheckOnTask(TIRuntimeCheckPayload):
-    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
-
-
 class GetXCom(BaseModel):
     key: str
     dag_id: str
     run_id: str
     task_id: str
     map_index: int | None = None
+    include_prior_dates: bool = False
     type: Literal["GetXCom"] = "GetXCom"
 
 
@@ -470,7 +468,6 @@ ToSupervisor = Annotated[
         SetXCom,
         TaskState,
         TriggerDagRun,
-        RuntimeCheckOnTask,
         DeleteXCom,
     ],
     Field(discriminator="type"),

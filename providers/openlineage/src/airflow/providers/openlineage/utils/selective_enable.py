@@ -38,7 +38,7 @@ DISABLE_OL_PARAM = Param(False, const=False)
 T = TypeVar("T", bound="DAG | Operator")
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.baseoperator import BaseOperator as SdkBaseOperator
+    from airflow.sdk.bases.operator import BaseOperator as SdkBaseOperator
 
 
 log = logging.getLogger(__name__)

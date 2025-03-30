@@ -25,6 +25,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.9.0"
 ):
     raise AirflowOptionalProviderFeatureException(
-        "The package xcom backend feature of `apache-airflow-providers-common-io` needs "
-        "Apache Airflow 2.9.0+"
+        "The package xcom backend feature of `apache-airflow-providers-common-io` needs Apache Airflow 2.9.0+"
     )

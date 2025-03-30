@@ -307,7 +307,7 @@ def get_task_instance_tries(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
+        task_instances=cast("list[TaskInstanceHistoryResponse]", task_instances),
         total_entries=len(task_instances),
     )
 

@@ -66,7 +66,7 @@ def replace_match(file: Path, line: str) -> str | None:
         provider, version = get_provider_and_version(url_path_to_dir)
         proper_system_tests_url = (
             f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
-            f"/providers/{provider.replace('.','/')}/tests/system/{url_path_to_dir}"
+            f"/providers/{provider.replace('.', '/')}/tests/system/{url_path_to_dir}"
         )
         if not example_dags_folder.exists():
             if proper_system_tests_url in file.read_text():

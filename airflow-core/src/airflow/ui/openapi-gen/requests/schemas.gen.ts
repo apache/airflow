@@ -216,6 +216,7 @@ export const $AssetEventResponse = {
     extra: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -301,6 +302,7 @@ export const $AssetResponse = {
     extra: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -399,6 +401,7 @@ export const $BackfillPostBody = {
       default: false,
     },
     dag_run_conf: {
+      additionalProperties: true,
       type: "object",
       title: "Dag Run Conf",
       default: {},
@@ -441,6 +444,7 @@ export const $BackfillResponse = {
       title: "To Date",
     },
     dag_run_conf: {
+      additionalProperties: true,
       type: "object",
       title: "Dag Run Conf",
     },
@@ -612,6 +616,7 @@ export const $BulkActionResponse = {
     },
     errors: {
       items: {
+        additionalProperties: true,
         type: "object",
       },
       type: "array",
@@ -1220,6 +1225,7 @@ export const $ConfigResponse = {
       title: "Test Connection",
     },
     state_color_mapping: {
+      additionalProperties: true,
       type: "object",
       title: "State Color Mapping",
     },
@@ -1487,6 +1493,7 @@ export const $ConnectionHookMetaData = {
     extra_fields: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -1640,6 +1647,7 @@ export const $CreateAssetEventsBody = {
       title: "Asset Id",
     },
     extra: {
+      additionalProperties: true,
       type: "object",
       title: "Extra",
     },
@@ -1866,6 +1874,7 @@ export const $DAGDetailsResponse = {
     asset_expression: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -1923,6 +1932,7 @@ export const $DAGDetailsResponse = {
     params: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -2456,6 +2466,7 @@ export const $DAGRunResponse = {
       $ref: "#/components/schemas/DagRunTriggeredByType",
     },
     conf: {
+      additionalProperties: true,
       type: "object",
       title: "Conf",
     },
@@ -3033,6 +3044,7 @@ export const $DAGWithLatestDagRunsResponse = {
     asset_expression: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -3919,6 +3931,7 @@ export const $HTTPExceptionResponse = {
           type: "string",
         },
         {
+          additionalProperties: true,
           type: "object",
         },
       ],
@@ -5444,6 +5457,7 @@ export const $TaskInstanceResponse = {
       title: "Rendered Map Index",
     },
     rendered_fields: {
+      additionalProperties: true,
       type: "object",
       title: "Rendered Fields",
     },
@@ -6176,6 +6190,7 @@ export const $TaskResponse = {
     params: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -6187,6 +6202,7 @@ export const $TaskResponse = {
     class_ref: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -6338,6 +6354,7 @@ export const $TriggerDAGRunPostBody = {
       title: "Run After",
     },
     conf: {
+      additionalProperties: true,
       type: "object",
       title: "Conf",
     },

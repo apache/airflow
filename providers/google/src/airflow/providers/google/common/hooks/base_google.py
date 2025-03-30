@@ -153,7 +153,7 @@ class retry_if_temporary_refresh_credentials(tenacity.retry_if_exception):
 # This allows the 'project_id' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-PROVIDE_PROJECT_ID: str = cast(str, None)
+PROVIDE_PROJECT_ID: str = cast("str", None)
 
 T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
@@ -499,7 +499,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+            return cast("T", tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 
@@ -517,7 +517,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+            return cast("T", tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 
@@ -569,7 +569,7 @@ class GoogleBaseHook(BaseHook):
             with self.provide_gcp_credential_file_as_context():
                 return func(self, *args, **kwargs)
 
-        return cast(T, wrapper)
+        return cast("T", wrapper)
 
     @contextmanager
     def provide_gcp_credential_file_as_context(self) -> Generator[str | None, None, None]:
@@ -718,7 +718,7 @@ class _CredentialsToken(Token):
         scopes: Sequence[str] | None = None,
     ) -> None:
         _scopes: list[str] | None = list(scopes) if scopes else None
-        super().__init__(session=cast(Session, session), scopes=_scopes)
+        super().__init__(session=cast("Session", session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
 
@@ -743,7 +743,7 @@ class _CredentialsToken(Token):
     async def refresh(self, *, timeout: int) -> TokenResponse:
         await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
 
-        self.access_token = cast(str, self.credentials.token)
+        self.access_token = cast("str", self.credentials.token)
         self.access_token_duration = 3600
         self.access_token_acquired_at = self._now()
         return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)

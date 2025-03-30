@@ -35,13 +35,14 @@ from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
+
+    from airflow.models.connection import Connection as AirflowConnection
 
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
@@ -167,7 +168,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         if self._sql_conn is None:
             raise AirflowException("SQL connection is not initialized")
-        return cast(AirflowConnection, self._sql_conn)
+        return cast("AirflowConnection", self._sql_conn)
 
     @overload  # type: ignore[override]
     def run(
@@ -295,11 +296,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 return []
             rows_fields = tuple(rows[0].__fields__)
             rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
-            return cast(list[tuple[Any, ...]], [rows_object(*row) for row in rows])
+            return cast("list[tuple[Any, ...]]", [rows_object(*row) for row in rows])
         elif isinstance(result, Row):
             row_fields = tuple(result.__fields__)
             row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore
-            return cast(tuple[Any, ...], row_object(*result))
+            return cast("tuple[Any, ...]", row_object(*result))
         else:
             raise TypeError(f"Expected Sequence[Row] or Row, but got {type(result)}")
 

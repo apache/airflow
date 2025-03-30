@@ -133,9 +133,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(
-    enable_pretty_log: bool,
-):
+def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
     if enable_pretty_log:
         timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
     else:
@@ -148,9 +146,11 @@ def logging_processors(
         structlog.stdlib.PositionalArgumentsFormatter(),
         logger_name,
         redact_jwt,
-        mask_logs,
         structlog.processors.StackInfoRenderer(),
     ]
+
+    if mask_secrets:
+        processors.append(mask_logs)
 
     # Imports to suppress showing code from these modules. We need the import to get the filepath for
     # structlog to ignore.
@@ -255,7 +255,7 @@ def configure_logging(
         formatter = "colored"
     else:
         formatter = "plain"
-    processors, named = logging_processors(enable_pretty_log)
+    processors, named = logging_processors(enable_pretty_log, mask_secrets=not sending_to_supervisor)
     timestamper = named["timestamper"]
 
     pre_chain: list[structlog.typing.Processor] = [
@@ -466,7 +466,7 @@ def init_log_file(local_relative_path: str) -> Path:
     try:
         full_path.touch(new_file_permissions)
     except OSError as e:
-        log = structlog.get_logger()
+        log = structlog.get_logger(__name__)
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path

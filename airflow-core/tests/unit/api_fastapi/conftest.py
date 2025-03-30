@@ -36,9 +36,24 @@ from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_d
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
+API_PATHS = {
+    "public": "/api/v2",
+    "ui": "/ui",
+}
+
+BASE_URL = "http://testserver"
+
+
+def get_api_path(request):
+    """Determine the API path based on the test's subdirectory."""
+    test_dir = os.path.dirname(request.path)
+    subdirectory_name = test_dir.split("/")[-1]
+
+    return API_PATHS.get(subdirectory_name, "/")
+
 
 @pytest.fixture
-def test_client():
+def test_client(request):
     with conf_vars(
         {
             (
@@ -61,16 +76,18 @@ def test_client():
                 **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
             }
         )
-        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
+        yield TestClient(
+            app, headers={"Authorization": f"Bearer {token}"}, base_url=f"{BASE_URL}{get_api_path(request)}"
+        )
 
 
 @pytest.fixture
-def unauthenticated_test_client():
-    return TestClient(create_app())
+def unauthenticated_test_client(request):
+    return TestClient(create_app(), base_url=f"{BASE_URL}{get_api_path(request)}")
 
 
 @pytest.fixture
-def unauthorized_test_client():
+def unauthorized_test_client(request):
     with conf_vars(
         {
             (
@@ -84,16 +101,18 @@ def unauthorized_test_client():
         token = auth_manager._get_token_signer().generate(
             auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
         )
-        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
+        yield TestClient(
+            app, headers={"Authorization": f"Bearer {token}"}, base_url=f"{BASE_URL}{get_api_path(request)}"
+        )
 
 
 @pytest.fixture
-def client():
+def client(request):
     """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
 
     def create_test_client(apps="all"):
         app = create_app(apps=apps)
-        return TestClient(app)
+        return TestClient(app, base_url=f"{BASE_URL}{get_api_path(request)}")
 
     return create_test_client
 

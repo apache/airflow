@@ -33,6 +33,8 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.providers_manager import ProvidersManager
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -366,3 +368,21 @@ class TestBaseAuthManager:
         session.execute.return_value = dags
         result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected
+
+
+def test_auth_managers_have_create_token_endpoint(test_client):
+    auth_managers = ProvidersManager().auth_managers
+    auth_managers.append("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager")
+
+    for auth_manager_module in auth_managers:
+        auth_manager_cls = import_string(auth_manager_module)
+        am = auth_manager_cls()
+        am.init()
+
+        response = test_client.post(
+            "/auth/token",
+            json={"username": "", "password": ""},
+        )
+        assert response.status_code not in [404, 405], (
+            f"The auth manager {auth_manager_module} does not provide an endpoint to create a JWT token. This endpoint should be POST /auth/token"
+        )

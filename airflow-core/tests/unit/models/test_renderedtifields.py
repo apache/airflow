@@ -137,12 +137,12 @@ class TestRenderedTaskInstanceFields:
             ),
             pytest.param(
                 "a" * 5000,
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a'*5000)[:max_length-79]!r}... ",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a' * 5000)[: max_length - 79]!r}... ",
                 id="large_string",
             ),
             pytest.param(
                 LargeStrObject(),
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[:max_length-79]!r}... ",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[: max_length - 79]!r}... ",
                 id="large_object",
             ),
         ],

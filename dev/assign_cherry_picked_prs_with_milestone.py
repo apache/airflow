@@ -28,12 +28,12 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import rich_click as click
 from github import Github, UnknownObjectException
-from github.PullRequest import PullRequest
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
 if TYPE_CHECKING:
     from github.Milestone import Milestone
+    from github.PullRequest import PullRequest
     from github.Repository import Repository
 
 CHANGELOG_SKIP_LABEL = "changelog:skip"
@@ -303,7 +303,7 @@ def assign_prs(
             # Fallback to issue if PR not found
             try:
                 # PR has almost the same fields as Issue
-                pr = cast(PullRequest, repo.get_issue(pr_number))
+                pr = cast("PullRequest", repo.get_issue(pr_number))
             except UnknownObjectException:
                 console.print(f"[red]The PR #{pr_number} could not be found[/]")
                 continue

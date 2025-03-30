@@ -210,10 +210,22 @@ def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
 
     if not ti.task.reschedule:
         return False
-
+    if AIRFLOW_V_3_0_PLUS:
+        return (
+            session.query(
+                exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+            ).scalar()
+            is True
+        )
     return (
         session.query(
-            exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+            exists().where(
+                TaskReschedule.dag_id == ti.dag_id,
+                TaskReschedule.task_id == ti.task_id,
+                TaskReschedule.run_id == ti.run_id,
+                TaskReschedule.map_index == ti.map_index,
+                TaskReschedule.try_number == ti.try_number,
+            )
         ).scalar()
         is True
     )
@@ -745,7 +757,9 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception:
                 log.warning(
-                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    "OpenLineage event emission failed. "
+                    "Exception below is being caught but it's printed for visibility. "
+                    "This has no impact on actual task execution status.",
                     exc_info=True,
                 )
 

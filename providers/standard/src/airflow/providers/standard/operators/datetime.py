@@ -77,7 +77,10 @@ class BranchDateTimeOperator(BaseBranchOperator):
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
-            now = context["logical_date"]
+            now = context.get("logical_date")
+            if not now:
+                dag_run = context.get("dag_run")
+                now = dag_run.run_after  # type: ignore[union-attr]
         else:
             now = timezone.coerce_datetime(timezone.utcnow())
         lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)

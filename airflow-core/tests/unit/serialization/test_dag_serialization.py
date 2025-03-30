@@ -79,6 +79,7 @@ from airflow.serialization.serialized_objects import (
     XComOperatorLink,
 )
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
@@ -661,9 +662,9 @@ class TestStringifiedDAGs:
                     # Check we stored _something_.
                     assert k in serialized_dag.default_args
                 else:
-                    assert (
-                        v == serialized_dag.default_args[k]
-                    ), f"{dag.dag_id}.default_args[{k}] does not match"
+                    assert v == serialized_dag.default_args[k], (
+                        f"{dag.dag_id}.default_args[{k}] does not match"
+                    )
 
         assert serialized_dag.timetable.summary == dag.timetable.summary
         assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
@@ -709,7 +710,6 @@ class TestStringifiedDAGs:
                 "resources",
                 "on_failure_fail_dagrun",
                 "_needs_expansion",
-                # Side effect -- all we want to check is `deps`
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
@@ -730,8 +730,6 @@ class TestStringifiedDAGs:
                 "expand_input",
             }
 
-        fields_to_check |= {"deps"}
-
         assert serialized_task.task_type == task.task_type
 
         assert set(serialized_task.template_ext) == set(task.template_ext)
@@ -741,14 +739,21 @@ class TestStringifiedDAGs:
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(
-                task, field
-            ), f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
+            assert getattr(serialized_task, field) == getattr(task, field), (
+                f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
+            )
 
         if serialized_task.resources is None:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        # `deps` are set in the Scheduler's BaseOperator as that is where we need to evaluate deps
+        # so only serialized tasks that are sensors should have the ReadyToRescheduleDep.
+        if task._is_sensor:
+            assert ReadyToRescheduleDep() in serialized_task.deps
+        else:
+            assert ReadyToRescheduleDep() not in serialized_task.deps
 
         # Ugly hack as some operators override params var in their init
         if isinstance(task.params, ParamsDict) and isinstance(serialized_task.params, ParamsDict):
@@ -1315,9 +1320,9 @@ class TestStringifiedDAGs:
         assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):
-        assert (
-            BaseOperator(task_id="dummy").do_xcom_push is True
-        ), "Precondition check! If this fails the test won't make sense"
+        assert BaseOperator(task_id="dummy").do_xcom_push is True, (
+            "Precondition check! If this fails the test won't make sense"
+        )
 
         class MyOperator(BaseOperator):
             def __init__(self, do_xcom_push=False, **kwargs):
@@ -1395,7 +1400,6 @@ class TestStringifiedDAGs:
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": False,
             "run_as_user": None,
-            "sla": None,
             "start_date": None,
             "start_from_trigger": False,
             "start_trigger_args": None,
@@ -2011,7 +2015,7 @@ class TestStringifiedDAGs:
     @pytest.mark.db_test
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_serialize_sensor(self, mode):
-        from airflow.sensors.base import BaseSensorOperator
+        from airflow.sdk.bases.sensor import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
             def poke(self, context: Context):
@@ -2024,11 +2028,11 @@ class TestStringifiedDAGs:
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
         assert serialized_op.reschedule == (mode == "reschedule")
-        assert op.deps == serialized_op.deps
+        assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
 
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_serialize_mapped_sensor_has_reschedule_dep(self, mode):
-        from airflow.sensors.base import BaseSensorOperator
+        from airflow.sdk.bases.sensor import BaseSensorOperator
         from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 
         class DummySensor(BaseSensorOperator):

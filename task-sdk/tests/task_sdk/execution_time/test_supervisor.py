@@ -47,7 +47,6 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
-    AssetProfile,
     AssetResponse,
     DagRunState,
     TaskInstance,
@@ -76,7 +75,6 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
@@ -1018,7 +1016,7 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
@@ -1029,7 +1027,7 @@ class TestHandleRequest:
                 ),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", 2),
+                ("test_dag", "test_run", "test_task", "test_key", 2, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom_map_index",
@@ -1038,10 +1036,25 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":null,"type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value=None, type="XComResult"),
                 id="get_xcom_not_found",
+            ),
+            pytest.param(
+                GetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    include_prior_dates=True,
+                ),
+                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", None, True),
+                {},
+                XComResult(key="test_key", value=None, type="XComResult"),
+                id="get_xcom_include_prior_dates",
             ),
             pytest.param(
                 SetXCom(
@@ -1293,25 +1306,6 @@ class TestHandleRequest:
                     data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
                 ),
                 id="get_prev_successful_dagrun",
-            ),
-            pytest.param(
-                RuntimeCheckOnTask(
-                    inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                    outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                ),
-                b'{"ok":true,"type":"OKResponse"}\n',
-                "task_instances.runtime_checks",
-                (),
-                {
-                    "id": TI_ID,
-                    "msg": RuntimeCheckOnTask(
-                        inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        type="RuntimeCheckOnTask",
-                    ),
-                },
-                OKResponse(ok=True),
-                id="runtime_check_on_task",
             ),
             pytest.param(
                 TriggerDagRun(

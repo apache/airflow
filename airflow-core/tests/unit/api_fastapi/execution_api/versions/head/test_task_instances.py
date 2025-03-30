@@ -804,35 +804,6 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
-    @pytest.mark.parametrize(
-        ("state", "expected_status_code"),
-        [
-            (State.RUNNING, 204),
-            (State.SUCCESS, 409),
-            (State.QUEUED, 409),
-            (State.FAILED, 409),
-        ],
-    )
-    def test_ti_runtime_checks_success(
-        self, client, session, create_task_instance, state, expected_status_code
-    ):
-        ti = create_task_instance(
-            task_id="test_ti_runtime_checks",
-            state=state,
-        )
-        session.commit()
-
-        response = client.post(
-            f"/execution/task-instances/{ti.id}/runtime-checks",
-            json={
-                "inlets": [],
-                "outlets": [],
-            },
-        )
-        assert response.status_code == expected_status_code
-
-        session.expire_all()
-
 
 class TestTISkipDownstream:
     def setup_method(self):
@@ -1161,6 +1132,39 @@ class TestPreviousDagRun:
             "end_date": None,
         }
 
+    def test_ti_with_none_as_logical_date(self, client, session, create_task_instance, dag_maker):
+        ti = create_task_instance(
+            task_id="test_ti_with_none_as_logical_date",
+            dag_id="test_dag",
+            logical_date=None,
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 17),
+            session=session,
+        )
+        session.commit()
+
+        assert ti.logical_date is None
+
+        dr1 = dag_maker.create_dagrun(
+            run_id="test_ti_with_none_as_logical_date",
+            logical_date=timezone.datetime(2025, 1, 17),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+        dr1.end_date = timezone.datetime(2025, 1, 17, 1, 0, 0)
+
+        session.commit()
+
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
+
 
 class TestGetRescheduleStartDate:
     def test_get_start_date(self, client, session, create_task_instance):
@@ -1187,7 +1191,7 @@ class TestGetRescheduleStartDate:
     def test_get_start_date_not_found(self, client):
         ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
-        assert response.status_code == 404
+        assert response.json() is None
 
     def test_get_start_date_with_try_number(self, client, session, create_task_instance):
         # Create multiple reschedules

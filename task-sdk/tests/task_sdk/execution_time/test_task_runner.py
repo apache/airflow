@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
@@ -56,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
 )
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -72,7 +74,6 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -804,9 +805,6 @@ def test_run_with_asset_outlets(
     ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
-    mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=True,
-    )
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
@@ -855,75 +853,6 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(KeyError):
         inlet_events[Asset(name="no such asset in inlets")]
-
-
-@pytest.mark.parametrize(
-    ["ok", "last_expected_msg"],
-    [
-        pytest.param(
-            True,
-            SucceedTask(
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[
-                    AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-                    AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-                ],
-                outlet_events=[],
-            ),
-            id="runtime_checks_pass",
-        ),
-        pytest.param(
-            False,
-            TaskState(
-                state=TerminalTIState.FAILED,
-                end_date=timezone.datetime(2024, 12, 3, 10, 0),
-            ),
-            id="runtime_checks_fail",
-        ),
-    ],
-)
-def test_run_with_inlets_and_outlets(
-    create_runtime_ti, mock_supervisor_comms, time_machine, ok, last_expected_msg
-):
-    """Test running a basic tasks with inlets and outlets."""
-
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    task = BashOperator(
-        outlets=[
-            Asset(name="name", uri="s3://bucket/my-task"),
-            Asset(name="new-name", uri="s3://bucket/my-task"),
-        ],
-        inlets=[
-            Asset(name="name", uri="s3://bucket/my-task"),
-            Asset(name="new-name", uri="s3://bucket/my-task"),
-        ],
-        task_id="inlets-and-outlets",
-        bash_command="echo 'hi'",
-    )
-
-    ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
-    mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=ok,
-    )
-
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
-
-    expected = RuntimeCheckOnTask(
-        inlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-        ],
-        outlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
-        ],
-    )
-    mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
-    mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
@@ -1047,7 +976,7 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
             "dag_run": dr,
             "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
-            "data_interval_start": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "data_interval_start": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "task_reschedule_count": 0,
             "ds": "2024-12-01",
@@ -1239,11 +1168,25 @@ class TestRuntimeTaskInstance:
             pytest.param(NOTSET, id="tid_not_set"),
         ],
     )
+    @pytest.mark.parametrize(
+        "xcom_values",
+        [
+            pytest.param("hello", id="string_value"),
+            pytest.param("'hello'", id="quoted_string_value"),
+            pytest.param({"key": "value"}, id="json_value"),
+            pytest.param((1, 2, 3), id="tuple_int_value"),
+            pytest.param([1, 2, 3], id="list_int_value"),
+            pytest.param(42, id="int_value"),
+            pytest.param(True, id="boolean_value"),
+            pytest.param(pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}), id="dataframe_value"),
+        ],
+    )
     def test_xcom_pull(
         self,
         create_runtime_ti,
         mock_supervisor_comms,
         spy_agency,
+        xcom_values,
         task_ids,
         map_indexes,
     ):
@@ -1266,7 +1209,8 @@ class TestRuntimeTaskInstance:
         extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
-        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
+        ser_value = BaseXCom.serialize_value(xcom_values)
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value=ser_value)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
@@ -1650,6 +1594,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            include_prior_dates=False,
         )
 
         assert not any(
@@ -2218,7 +2163,7 @@ class TestTriggerDagRunOperator:
         ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run", run_id="test_run", task=task)
 
         log = mock.MagicMock()
-        mock_supervisor_comms.get_message.return_value = OKResponse(ok=True)
+
         state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == TaskInstanceState.SUCCESS

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import StringIO
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import pygments
 from pygments.lexers.configs import IniLexer
@@ -88,6 +88,7 @@ class ConfigChange:
     :param renamed_to: The new section and option if the configuration is renamed.
     :param was_deprecated: If the config is removed, whether the old config was deprecated.
     :param was_removed: If the config is removed.
+    :param is_invalid_if: If the current config value is invalid in the future.
     """
 
     config: ConfigParameter
@@ -97,6 +98,7 @@ class ConfigChange:
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
     was_removed: bool = True
+    is_invalid_if: Any = None
 
     @property
     def message(self) -> str | None:
@@ -126,6 +128,13 @@ class ConfigChange:
                 f"from `{self.config.section}` section. "
                 f"{self.suggestion}"
             )
+        if self.is_invalid_if is not None:
+            value = conf.get(self.config.section, self.config.option)
+            if value == self.is_invalid_if:
+                return (
+                    f"Invalid value `{self.is_invalid_if}` set for `{self.config.option}` configuration parameter "
+                    f"in `{self.config.section}` section. {self.suggestion}"
+                )
         return None
 
 
@@ -228,6 +237,12 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("core", "log_processor_filename_template"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "parallelism"),
+        was_removed=False,
+        is_invalid_if="0",
+        suggestion="Please set the `parallelism` configuration parameter to a value greater than 0.",
     ),
     # api
     ConfigChange(

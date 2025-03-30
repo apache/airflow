@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
+# TODO: Add definition from Task SDK here and remove `base.py` file
 __deprecated_classes = {
     "python":{
         "PythonSensor": "airflow.providers.standard.sensors.python.PythonSensor",
