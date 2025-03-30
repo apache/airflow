@@ -4,3 +4,5 @@ pytest-xdist
 requests>=2.27.0,<3
 python-on-whales>=0.70.0
 hatchling==1.27.0
+# For tests_common module
+git+https://github.com/apache/airflow.git@main#egg=apache-airflow-devel-common&subdirectory=devel-common
