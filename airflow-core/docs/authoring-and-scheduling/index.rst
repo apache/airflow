@@ -30,6 +30,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
     serializers
     connections
     dynamic-task-mapping
+    assets
 
 
 **Scheduling**
@@ -39,6 +40,6 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
     cron
     timezone
-    Assets <datasets>
+    Data-ware scheduling with assets <datasets>
     timetable
     Event-driven scheduling <event-scheduling>

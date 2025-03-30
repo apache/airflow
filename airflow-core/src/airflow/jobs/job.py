@@ -128,7 +128,10 @@ class Job(Base, LoggingMixin):
             self.heartrate = heartrate
         self.unixname = getuser()
         self.max_tis_per_query: int = conf.getint("scheduler", "max_tis_per_query")
-        get_listener_manager().hook.on_starting(component=self)
+        try:
+            get_listener_manager().hook.on_starting(component=self)
+        except Exception:
+            self.log.exception("error calling listener")
         super().__init__(**kwargs)
 
     @property
@@ -268,7 +271,10 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def complete_execution(self, session: Session = NEW_SESSION):
-        get_listener_manager().hook.before_stopping(component=self)
+        try:
+            get_listener_manager().hook.before_stopping(component=self)
+        except Exception:
+            self.log.exception("error calling listener")
         self.end_date = timezone.utcnow()
         session.merge(self)
         session.commit()

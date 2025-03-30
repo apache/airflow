@@ -19,4 +19,4 @@
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink as BaseOperatorLink
+from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink

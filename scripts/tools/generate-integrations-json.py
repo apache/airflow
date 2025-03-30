@@ -53,7 +53,7 @@ for provider_info in ALL_PROVIDER_YAMLS:
         doc_url = integration.get("how-to-guide")
         if doc_url:
             doc_url = doc_url[0].strip()
-            doc_url = re.sub(f'/{provider_info["package-name"]}/', r"\g<0>stable/", doc_url)
+            doc_url = re.sub(f"/{provider_info['package-name']}/", r"\g<0>stable/", doc_url)
             doc_url = re.sub(r"\.rst", ".html", doc_url)
         else:
             doc_url = f"/docs/{provider_info['package-name'].lower()}/stable/index.html"

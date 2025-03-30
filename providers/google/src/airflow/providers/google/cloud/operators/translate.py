@@ -1145,7 +1145,7 @@ class TranslateDocumentOperator(GoogleCloudBaseOperator):
                 project_id=self.project_id or hook.project_id,
                 output_config=self.document_output_config,
             )
-        return cast(dict, type(doc_translation_result).to_dict(doc_translation_result))
+        return cast("dict", type(doc_translation_result).to_dict(doc_translation_result))
 
 
 class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
@@ -1310,7 +1310,7 @@ class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
         )
         result = hook.wait_for_operation_result(batch_document_translate_operation)
         self.log.info("Batch document translation job finished")
-        return cast(dict, type(result).to_dict(result))
+        return cast("dict", type(result).to_dict(result))
 
 
 class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):

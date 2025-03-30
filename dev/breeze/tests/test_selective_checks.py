@@ -95,8 +95,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     assert received_value == expected_value, f"Correct value for {expected_key!r}"
                 else:
                     print_in_color(
-                        f"\n[red]ERROR: The key '{expected_key}' missing but "
-                        f"it is expected. Expected value:"
+                        f"\n[red]ERROR: The key '{expected_key}' missing but it is expected. Expected value:"
                     )
                     print_in_color(expected_value)
                     print_in_color("\nOutput received:")
@@ -531,8 +530,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy "
-                    "dbt.cloud dingding discord http",
+                    "selected-providers-list-as-string": "amazon apache.livy dbt.cloud dingding discord http",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",

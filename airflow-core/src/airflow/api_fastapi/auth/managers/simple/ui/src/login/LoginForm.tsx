@@ -40,7 +40,10 @@ export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
   });
 
   return (
-    <form onSubmit={() => void handleSubmit(onLogin)()}>
+    <form onSubmit={(e: React.SyntheticEvent) => {
+      e.preventDefault();
+      handleSubmit(onLogin)();
+    }}>
       <Stack gap={4}>
         <Controller
           name="username"

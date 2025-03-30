@@ -44,6 +44,7 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: true
                 title: Response Next Run Assets
         '422':
           description: Validation Error
@@ -7303,6 +7304,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/{rest_of_path}:
+    get:
+      summary: Not Found Handler
+      description: Catch all route to handle invalid endpoints.
+      operationId: not_found_handler
+      parameters:
+      - name: rest_of_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rest Of Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -7443,7 +7468,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra
         source_task_id:
@@ -7498,7 +7524,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra
         created_at:
@@ -7571,6 +7598,7 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
+          additionalProperties: true
           type: object
           title: Dag Run Conf
           default: {}
@@ -7606,6 +7634,7 @@ components:
           format: date-time
           title: To Date
         dag_run_conf:
+          additionalProperties: true
           type: object
           title: Dag Run Conf
         is_paused:
@@ -7750,6 +7779,7 @@ components:
           default: []
         errors:
           items:
+            additionalProperties: true
             type: object
           type: array
           title: Errors
@@ -8187,6 +8217,7 @@ components:
           type: string
           title: Test Connection
         state_color_mapping:
+          additionalProperties: true
           type: object
           title: State Color Mapping
       type: object
@@ -8346,7 +8377,8 @@ components:
           - type: 'null'
         extra_fields:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra Fields
       type: object
@@ -8441,6 +8473,7 @@ components:
           type: integer
           title: Asset Id
         extra:
+          additionalProperties: true
           type: object
           title: Extra
       additionalProperties: false
@@ -8577,7 +8610,8 @@ components:
           title: Dag Run Timeout
         asset_expression:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Asset Expression
         doc_md:
@@ -8604,7 +8638,8 @@ components:
           title: Is Paused Upon Creation
         params:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Params
         render_template_as_native_obj:
@@ -8946,6 +8981,7 @@ components:
         triggered_by:
           $ref: '#/components/schemas/DagRunTriggeredByType'
         conf:
+          additionalProperties: true
           type: object
           title: Conf
         note:
@@ -9318,7 +9354,8 @@ components:
           title: Owners
         asset_expression:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Asset Expression
         latest_dag_runs:
@@ -9925,7 +9962,8 @@ components:
         detail:
           anyOf:
           - type: string
-          - type: object
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:
@@ -10924,6 +10962,7 @@ components:
           - type: 'null'
           title: Rendered Map Index
         rendered_fields:
+          additionalProperties: true
           type: object
           title: Rendered Fields
         trigger:
@@ -11345,12 +11384,14 @@ components:
           title: Operator Name
         params:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Params
         class_ref:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Class Ref
         is_mapped:
@@ -11450,6 +11491,7 @@ components:
           - type: 'null'
           title: Run After
         conf:
+          additionalProperties: true
           type: object
           title: Conf
         note:
@@ -11782,7 +11824,15 @@ components:
   securitySchemes:
     OAuth2PasswordBearer:
       type: oauth2
+      description: To authenticate Airflow API requests, clients must include a JWT
+        (JSON Web Token) in the Authorization header of each request. This token is
+        used to verify the identity of the client and ensure that they have the appropriate
+        permissions to access the requested resources. You can use the endpoint ``POST
+        /auth/token`` in order to generate a JWT token. Upon successful authentication,
+        the server will issue a JWT token that contains the necessary information
+        (such as user identity and scope) to authenticate subsequent requests. To
+        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
       flows:
         password:
           scopes: {}
-          tokenUrl: token
+          tokenUrl: /auth/token
