@@ -102,4 +102,4 @@ class UIAlert(BaseModel):
     """Optional alert to be shown at the top of the page."""
 
     text: str
-    category: Literal["info", "warning", "error"] | None = None
+    category: Literal["info", "warning", "error"] = "info"

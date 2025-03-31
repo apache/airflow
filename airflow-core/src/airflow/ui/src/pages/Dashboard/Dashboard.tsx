@@ -28,8 +28,7 @@ import { HistoricalMetrics } from "./HistoricalMetrics";
 import { Stats } from "./Stats";
 
 export const Dashboard = () => {
-  const confAlerts = useConfig("dashboard_alert");
-  const alerts = Array.isArray(confAlerts) ? confAlerts : [];
+  const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
 
   return (
     <Box>

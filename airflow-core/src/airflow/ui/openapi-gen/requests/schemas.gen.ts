@@ -6452,16 +6452,10 @@ export const $UIAlert = {
       title: "Text",
     },
     category: {
-      anyOf: [
-        {
-          type: "string",
-          enum: ["info", "warning", "error"],
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      enum: ["info", "warning", "error"],
       title: "Category",
+      default: "info",
     },
   },
   type: "object",
