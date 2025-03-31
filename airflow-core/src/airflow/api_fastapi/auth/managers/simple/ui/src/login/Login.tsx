@@ -18,7 +18,14 @@
  */
 
 import { useState } from "react";
-import { Alert, CloseButton, Container, Heading, Text } from "@chakra-ui/react";
+import {
+  Alert,
+  CloseButton,
+  Container,
+  Heading,
+  Span,
+  Text,
+} from "@chakra-ui/react";
 
 import { useCreateToken } from "src/queries/useCreateToken";
 import { LoginForm } from "src/login/LoginForm";
@@ -45,7 +52,7 @@ export const Login = () => {
     // Redirect to appropriate page with the token
     const next = searchParams.get("next");
 
-    setCookie("_token", data.jwt_token, {
+    setCookie("_token", data.access_token, {
       path: "/",
       secure: globalThis.location.protocol !== "http:",
     });
@@ -72,13 +79,15 @@ export const Login = () => {
               The Simple auth manager is intended for development and testing.
               If you&apos;re using it in production, ensure that access is
               controlled through other means. Please read{" "}
-              <a
-                href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"
-                rel="noreferrer"
-                target="_blank"
-              >
-                the documentation
-              </a>{" "}
+              <Span textDecoration="underline">
+                <a
+                  href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  the documentation
+                </a>
+              </Span>{" "}
               to learn more about simple auth manager.
             </Alert.Description>
           </Alert.Content>

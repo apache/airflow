@@ -34,7 +34,7 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>((props, ref) => {
   const { children, closable, endElement, icon, onClose, startElement, title, ...rest } = props;
 
   return (
-    <ChakraAlert.Root ref={ref} {...rest}>
+    <ChakraAlert.Root ref={ref} {...rest} alignItems="center">
       {startElement ?? <ChakraAlert.Indicator>{icon}</ChakraAlert.Indicator>}
       {Boolean(children) ? (
         <ChakraAlert.Content>

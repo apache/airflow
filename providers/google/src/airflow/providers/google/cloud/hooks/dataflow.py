@@ -51,7 +51,6 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -136,7 +135,7 @@ def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) ->
 
             return func(self, *args, **kwargs)
 
-        return cast(T, inner_wrapper)
+        return cast("T", inner_wrapper)
 
     return _wrapper
 
@@ -589,66 +588,6 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline, "
-        "providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done",
-        instructions="Please use airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline "
-        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
-        "to wait for the required pipeline state instead.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def start_java_dataflow(
-        self,
-        job_name: str,
-        variables: dict,
-        jar: str,
-        project_id: str,
-        job_class: str | None = None,
-        append_job_name: bool = True,
-        multiple_jobs: bool = False,
-        on_new_job_id_callback: Callable[[str], None] | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> None:
-        """
-        Start Dataflow java job.
-
-        :param job_name: The name of the job.
-        :param variables: Variables passed to the job.
-        :param project_id: Optional, the Google Cloud project ID in which to start a job.
-            If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :param jar: Name of the jar for the job
-        :param job_class: Name of the java class for the job.
-        :param append_job_name: True if unique suffix has to be appended to job name.
-        :param multiple_jobs: True if to check for multiple job in dataflow
-        :param on_new_job_id_callback: Callback called when the job ID is known.
-        :param location: Job location.
-        """
-        name = self.build_dataflow_job_name(job_name, append_job_name)
-
-        variables["jobName"] = name
-        variables["region"] = location
-        variables["project"] = project_id
-
-        if "labels" in variables:
-            variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
-
-        self.beam_hook.start_java_pipeline(
-            variables=variables,
-            jar=jar,
-            job_class=job_class,
-            process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
-        )
-        self.wait_for_done(
-            job_name=name,
-            location=location,
-            job_id=self.job_id,
-            multiple_jobs=multiple_jobs,
-        )
-
-    @_fallback_to_location_from_variables
-    @_fallback_to_project_id_from_variables
-    @GoogleBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
         job_name: str,
@@ -1027,82 +966,6 @@ class DataflowHook(GoogleBaseHook):
                 "While reading job object after template execution error occurred. Job object has no id."
             )
 
-    @_fallback_to_location_from_variables
-    @_fallback_to_project_id_from_variables
-    @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline method, "
-        "providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done",
-        instructions="Please use airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline method "
-        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
-        "to wait for the required pipeline state instead.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def start_python_dataflow(
-        self,
-        job_name: str,
-        variables: dict,
-        dataflow: str,
-        py_options: list[str],
-        project_id: str,
-        py_interpreter: str = "python3",
-        py_requirements: list[str] | None = None,
-        py_system_site_packages: bool = False,
-        append_job_name: bool = True,
-        on_new_job_id_callback: Callable[[str], None] | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-    ):
-        """
-        Start Dataflow job.
-
-        :param job_name: The name of the job.
-        :param variables: Variables passed to the job.
-        :param dataflow: Name of the Dataflow process.
-        :param py_options: Additional options.
-        :param project_id: The ID of the GCP project that owns the job.
-            If set to ``None`` or missing, the default project_id from the GCP connection is used.
-        :param py_interpreter: Python version of the beam pipeline.
-            If None, this defaults to the python3.
-            To track python versions supported by beam and related
-            issues check: https://issues.apache.org/jira/browse/BEAM-1251
-        :param py_requirements: Additional python package(s) to install.
-            If a value is passed to this parameter, a new virtual environment has been created with
-            additional packages installed.
-
-            You could also install the apache-beam package if it is not installed on your system or you want
-            to use a different version.
-        :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
-            See virtualenv documentation for more information.
-
-            This option is only relevant if the ``py_requirements`` parameter is not None.
-        :param append_job_name: True if unique suffix has to be appended to job name.
-        :param project_id: Optional, the Google Cloud project ID in which to start a job.
-            If set to None or missing, the default project_id from the Google Cloud connection is used.
-        :param on_new_job_id_callback: Callback called when the job ID is known.
-        :param location: Job location.
-        """
-        name = self.build_dataflow_job_name(job_name, append_job_name)
-        variables["job_name"] = name
-        variables["region"] = location
-        variables["project"] = project_id
-
-        self.beam_hook.start_python_pipeline(
-            variables=variables,
-            py_file=dataflow,
-            py_options=py_options,
-            py_interpreter=py_interpreter,
-            py_requirements=py_requirements,
-            py_system_site_packages=py_system_site_packages,
-            process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
-        )
-
-        self.wait_for_done(
-            job_name=name,
-            location=location,
-            job_id=self.job_id,
-        )
-
     @staticmethod
     def build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:
         """Build Dataflow job name."""
@@ -1271,7 +1134,7 @@ class DataflowHook(GoogleBaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
-            on_new_job_id_callback(cast(str, job.get("id")))
+            on_new_job_id_callback(cast("str", job.get("id")))
 
         if on_new_job_callback:
             on_new_job_callback(job)

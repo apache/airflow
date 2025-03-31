@@ -35,6 +35,7 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     create_openapi_http_exception_doc,
     status,
 )
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.session import NEW_SESSION, provide_session
 
 logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
@@ -44,8 +45,6 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 @provide_session
 def _logfile_path(task: TaskInstanceKey, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
-    from airflow.utils.log.file_task_handler import FileTaskHandler
-
     ti = TaskInstance.get_task_instance(
         dag_id=task.dag_id,
         run_id=task.run_id,

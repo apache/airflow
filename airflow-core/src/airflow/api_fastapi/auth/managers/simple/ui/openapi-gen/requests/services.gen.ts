@@ -4,6 +4,7 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
+  CreateTokenAllAdminsResponse,
   CreateTokenData,
   CreateTokenResponse,
   CreateTokenCliData,
@@ -14,14 +15,14 @@ export class SimpleAuthManagerLoginService {
   /**
    * Create Token All Admins
    * Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
+   * @returns LoginResponse Successful Response
    * @throws ApiError
    */
-  public static createTokenAllAdmins(): CancelablePromise<void> {
+  public static createTokenAllAdmins(): CancelablePromise<CreateTokenAllAdminsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/auth/token",
       errors: {
-        307: "Successful Response",
         403: "Forbidden",
       },
     });
@@ -47,6 +48,22 @@ export class SimpleAuthManagerLoginService {
         400: "Bad Request",
         401: "Unauthorized",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Login All Admins
+   * Login the user with no credentials.
+   * @throws ApiError
+   */
+  public static loginAllAdmins(): CancelablePromise<void> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/auth/token/login",
+      errors: {
+        307: "Successful Response",
+        403: "Forbidden",
       },
     });
   }

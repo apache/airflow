@@ -11,3 +11,10 @@ export const ensureUseSimpleAuthManagerLoginServiceCreateTokenAllAdminsData = (
       Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(),
     queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins(),
   });
+export const ensureUseSimpleAuthManagerLoginServiceLoginAllAdminsData = (
+  queryClient: QueryClient,
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(),
+    queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins(),
+  });

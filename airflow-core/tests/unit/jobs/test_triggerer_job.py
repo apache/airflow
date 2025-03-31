@@ -22,13 +22,16 @@ import datetime
 import os
 import selectors
 import time
-from typing import TYPE_CHECKING
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, patch
 
 import pendulum
 import pytest
+from asgiref.sync import sync_to_async
 
 from airflow.executors import workloads
+from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggererJobRunner,
@@ -38,17 +41,26 @@ from airflow.jobs.triggerer_job_runner import (
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_variables,
+    clear_db_xcom,
+)
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -61,9 +73,15 @@ def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
     clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
     yield  # Test runs here
-    clear_db_dags()
     clear_db_runs()
+    clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -589,3 +607,124 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_method == "__fail__"
     assert task_instance.next_kwargs["error"] == "Trigger failure"
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+
+class CustomTrigger(BaseTrigger):
+    """Custom Trigger that will access one Variable and one Connection."""
+
+    def __init__(self, dag_id, run_id, task_id, map_index):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.task_id = task_id
+        self.map_index = map_index
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        import attrs
+
+        from airflow.sdk import Variable
+        from airflow.sdk.execution_time.xcom import XCom
+
+        conn = await sync_to_async(BaseHook.get_connection)("test_connection")
+        self.log.info("Loaded conn %s", conn.conn_id)
+
+        variable = await sync_to_async(Variable.get)("test_variable")
+        self.log.info("Loaded variable %s", variable)
+
+        xcom = await sync_to_async(XCom.get_one)(
+            key="test_xcom",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Loaded XCom %s", xcom)
+
+        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "dag_id": self.dag_id,
+                "run_id": self.run_id,
+                "task_id": self.task_id,
+                "map_index": self.map_index,
+            },
+        )
+
+
+class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
+    """
+    Make sure that the Supervisor stops after handling the events and do not keep running forever so the
+    test can continue.
+    """
+
+    def handle_events(self):
+        self.stop = bool(self.events)
+        super().handle_events()
+
+
+@pytest.mark.asyncio
+async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
+    """Checks that the trigger will successfully access Variables, Connections and XComs."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    # Make a task instance based on that and tie it to the trigger
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Create a Trigger
+    trigger = CustomTrigger(dag_id=dr.dag_id, run_id=dr.run_id, task_id=task_instance.task_id, map_index=-1)
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
+    )
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    # Create the appropriate Connection, Variable and XCom
+    connection = Connection(conn_id="test_connection", conn_type="http")
+    variable = Variable(key="test_variable", val="some_variable_value")
+    XComModel.set(
+        key="test_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
+    session.add(connection)
+    session.add(variable)
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {
+        "event": {
+            "connection": {
+                "conn_id": "test_connection",
+                "conn_type": "http",
+                "description": None,
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
+            },
+            "variable": "some_variable_value",
+            "xcom": '"some_xcom_value"',
+        }
+    }

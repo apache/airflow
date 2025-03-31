@@ -61,7 +61,7 @@ def prepare_stat_with_tags(fn: T) -> T:
                             log.error("Dropping invalid tag: %s=%s.", k, v)
         return fn(self, stat, *args, tags=tags, **kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 class SafeStatsdLogger:

@@ -149,7 +149,7 @@ def start_generating_back_references(airflow_site_directory: Path, short_provide
     if short_provider_ids:
         for p in short_provider_ids:
             slash_based_short_provider_id = p.replace(".", "/")
-            full_provider_name = f"apache-airflow-providers-{p.replace('.','-')}"
+            full_provider_name = f"apache-airflow-providers-{p.replace('.', '-')}"
             get_console().print(f"Processing airflow provider: {full_provider_name}")
             generate_back_references(
                 get_github_provider_redirects_url(slash_based_short_provider_id),

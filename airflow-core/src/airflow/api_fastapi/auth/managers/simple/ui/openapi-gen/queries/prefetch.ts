@@ -11,3 +11,10 @@ export const prefetchUseSimpleAuthManagerLoginServiceCreateTokenAllAdmins = (
       Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(),
     queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins(),
   });
+export const prefetchUseSimpleAuthManagerLoginServiceLoginAllAdmins = (
+  queryClient: QueryClient,
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(),
+    queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins(),
+  });

@@ -219,13 +219,13 @@ class BaseAwsLinksTestCase:
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_task = deserialized_dag.task_dict[self.task_id]
 
-        assert (
-            ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
-        ), "Operator link should only be added if job id is available in XCom"
+        assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == "", (
+            "Operator link should only be added if job id is available in XCom"
+        )
 
-        assert (
-            deserialized_task.get_extra_links(ti, self.link_class.name) == ""
-        ), "Operator link should be empty for deserialized task with no XCom push"
+        assert deserialized_task.get_extra_links(ti, self.link_class.name) == "", (
+            "Operator link should be empty for deserialized task with no XCom push"
+        )
 
     def test_suppress_error_on_xcom_pull(self):
         """Test ignore any error on XCom pull"""

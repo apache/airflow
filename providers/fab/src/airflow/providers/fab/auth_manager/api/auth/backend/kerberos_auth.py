@@ -28,11 +28,11 @@ from requests_kerberos import HTTPKerberosAuth
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.utils.net import getfqdn
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 log = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def find_user(username=None, email=None):
-    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
+    security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
     return security_manager.find_user(username=username, email=email)
 
 
@@ -143,4 +143,4 @@ def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | 
                 return _forbidden()
         return _unauthorized()
 
-    return cast(T, decorated)
+    return cast("T", decorated)

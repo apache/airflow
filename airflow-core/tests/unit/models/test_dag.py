@@ -1166,9 +1166,9 @@ class TestDag:
         assert dag.dag_id == dag_run.dag_id
         assert dag_run.run_id is not None
         assert dag_run.run_id != ""
-        assert (
-            dag_run.logical_date == TEST_DATE
-        ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
+        assert dag_run.logical_date == TEST_DATE, (
+            f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
+        )
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
         dag.clear()

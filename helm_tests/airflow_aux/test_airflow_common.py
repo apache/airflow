@@ -345,9 +345,9 @@ class TestAirflowCommon:
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
-            assert variables == jmespath.search(
-                "spec.template.spec.containers[0].env[*].name", doc
-            ), f"Wrong vars in {component}"
+            assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
+                f"Wrong vars in {component}"
+            )
 
     def test_have_all_variables(self):
         docs = render_chart(
@@ -373,9 +373,9 @@ class TestAirflowCommon:
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
-            assert variables == jmespath.search(
-                "spec.template.spec.containers[0].env[*].name", doc
-            ), f"Wrong vars in {component}"
+            assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
+                f"Wrong vars in {component}"
+            )
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(

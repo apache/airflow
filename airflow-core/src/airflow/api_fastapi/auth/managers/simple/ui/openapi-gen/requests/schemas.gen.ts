@@ -55,13 +55,13 @@ export const $LoginBody = {
 
 export const $LoginResponse = {
   properties: {
-    jwt_token: {
+    access_token: {
       type: "string",
-      title: "Jwt Token",
+      title: "Access Token",
     },
   },
   type: "object",
-  required: ["jwt_token"],
+  required: ["access_token"],
   title: "LoginResponse",
   description: "Login serializer for responses.",
 } as const;

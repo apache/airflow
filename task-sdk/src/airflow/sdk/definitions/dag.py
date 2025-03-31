@@ -67,7 +67,6 @@ from airflow.timetables.simple import (
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import EdgeInfoType
 
 if TYPE_CHECKING:
     # TODO: Task-SDK: Remove pendulum core dep
@@ -77,6 +76,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
+    from airflow.utils.types import EdgeInfoType
 
 
 log = logging.getLogger(__name__)
@@ -992,7 +992,7 @@ class DAG:
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
         # Note - older serialized DAGs may not have edge_info being a dict at all
-        empty = cast(EdgeInfoType, {})
+        empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
         else:

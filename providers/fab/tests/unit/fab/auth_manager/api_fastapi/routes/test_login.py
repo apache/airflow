@@ -27,7 +27,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import Logi
 @pytest.mark.db_test
 class TestLogin:
     dummy_login_body = LoginBody(username="dummy", password="dummy")
-    dummy_token = LoginResponse(jwt_token="DUMMY_TOKEN")
+    dummy_token = LoginResponse(access_token="DUMMY_TOKEN")
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
     def test_create_token(self, mock_fab_auth_manager_login, test_client):
@@ -38,15 +38,15 @@ class TestLogin:
             json=self.dummy_login_body.model_dump(),
         )
         assert response.status_code == 201
-        assert response.json()["jwt_token"] == self.dummy_token.jwt_token
+        assert response.json()["access_token"] == self.dummy_token.access_token
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
     def test_create_token_cli(self, mock_fab_auth_manager_login, test_client):
-        mock_fab_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
+        mock_fab_auth_manager_login.create_token.return_value = LoginResponse(access_token="DUMMY_TOKEN")
 
         response = test_client.post(
             "/token/cli",
             json=self.dummy_login_body.model_dump(),
         )
         assert response.status_code == 201
-        assert response.json()["jwt_token"] == self.dummy_token.jwt_token
+        assert response.json()["access_token"] == self.dummy_token.access_token

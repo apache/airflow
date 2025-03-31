@@ -26,6 +26,20 @@ export const useSimpleAuthManagerLoginServiceCreateTokenAllAdmins = <
       SimpleAuthManagerLoginService.createTokenAllAdmins() as TData,
     ...options,
   });
+export const useSimpleAuthManagerLoginServiceLoginAllAdmins = <
+  TData = Common.SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey:
+      Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(queryKey),
+    queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins() as TData,
+    ...options,
+  });
 export const useSimpleAuthManagerLoginServiceCreateToken = <
   TData = Common.SimpleAuthManagerLoginServiceCreateTokenMutationResult,
   TError = unknown,

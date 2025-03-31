@@ -20,3 +20,17 @@ export const useSimpleAuthManagerLoginServiceCreateTokenAllAdminsSuspense = <
       SimpleAuthManagerLoginService.createTokenAllAdmins() as TData,
     ...options,
   });
+export const useSimpleAuthManagerLoginServiceLoginAllAdminsSuspense = <
+  TData = Common.SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey:
+      Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(queryKey),
+    queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins() as TData,
+    ...options,
+  });

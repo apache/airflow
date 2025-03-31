@@ -18,6 +18,17 @@ export const UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn = (
   useSimpleAuthManagerLoginServiceCreateTokenAllAdminsKey,
   ...(queryKey ?? []),
 ];
+export type SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse =
+  Awaited<ReturnType<typeof SimpleAuthManagerLoginService.loginAllAdmins>>;
+export type SimpleAuthManagerLoginServiceLoginAllAdminsQueryResult<
+  TData = SimpleAuthManagerLoginServiceLoginAllAdminsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useSimpleAuthManagerLoginServiceLoginAllAdminsKey =
+  "SimpleAuthManagerLoginServiceLoginAllAdmins";
+export const UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn = (
+  queryKey?: Array<unknown>,
+) => [useSimpleAuthManagerLoginServiceLoginAllAdminsKey, ...(queryKey ?? [])];
 export type SimpleAuthManagerLoginServiceCreateTokenMutationResult = Awaited<
   ReturnType<typeof SimpleAuthManagerLoginService.createToken>
 >;

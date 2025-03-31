@@ -15,6 +15,6 @@ Move bash operators from airflow core to standard provider
 
   * ruff
 
-    * AIR302
+    * AIR303
 
       * [ ] ``airflow.operators.bash.BashOperator`` → ``airflow.providers.standard.operators.bash.BashOperator``

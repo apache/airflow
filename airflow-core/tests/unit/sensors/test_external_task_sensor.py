@@ -399,8 +399,7 @@ class TestExternalTaskSensor:
             caplog.clear()
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f"Poking for tasks ['{TEST_TASK_ID}'] "
-                f"in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
+                f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
             ) in caplog.messages
 
     def test_external_task_sensor_external_task_ids_param(self, caplog):
@@ -418,8 +417,7 @@ class TestExternalTaskSensor:
             caplog.clear()
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f"Poking for tasks ['{TEST_TASK_ID}'] "
-                f"in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
+                f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
             ) in caplog.messages
 
     def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self, caplog):
@@ -1437,13 +1435,13 @@ def dag_bag_cyclic():
                 dags.append(dag)
                 task_a = ExternalTaskSensor(
                     task_id=f"task_a_{n}",
-                    external_dag_id=f"dag_{n-1}",
-                    external_task_id=f"task_b_{n-1}",
+                    external_dag_id=f"dag_{n - 1}",
+                    external_task_id=f"task_b_{n - 1}",
                 )
                 task_b = ExternalTaskMarker(
                     task_id=f"task_b_{n}",
-                    external_dag_id=f"dag_{n+1}",
-                    external_task_id=f"task_a_{n+1}",
+                    external_dag_id=f"dag_{n + 1}",
+                    external_task_id=f"task_a_{n + 1}",
                     recursion_depth=3,
                 )
                 task_a >> task_b
@@ -1453,8 +1451,8 @@ def dag_bag_cyclic():
             dags.append(dag)
             task_a = ExternalTaskSensor(
                 task_id=f"task_a_{depth}",
-                external_dag_id=f"dag_{depth-1}",
-                external_task_id=f"task_b_{depth-1}",
+                external_dag_id=f"dag_{depth - 1}",
+                external_task_id=f"task_b_{depth - 1}",
             )
             task_b = ExternalTaskMarker(
                 task_id=f"task_b_{depth}",

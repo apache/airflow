@@ -27,7 +27,7 @@ export type LoginBody = {
  * Login serializer for responses.
  */
 export type LoginResponse = {
-  jwt_token: string;
+  access_token: string;
 };
 
 export type ValidationError = {
@@ -35,6 +35,8 @@ export type ValidationError = {
   msg: string;
   type: string;
 };
+
+export type CreateTokenAllAdminsResponse = LoginResponse;
 
 export type CreateTokenData = {
   requestBody: LoginBody;
@@ -55,7 +57,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        307: unknown;
+        201: LoginResponse;
         /**
          * Forbidden
          */
@@ -81,6 +83,20 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/auth/token/login": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        307: unknown;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };
