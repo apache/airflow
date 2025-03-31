@@ -3364,7 +3364,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ),
             (
                 None,
-                {"content": "placeholder-note", "user_id": None},
+                {"content": None, "user_id": "test"},
             ),
         ],
     )
