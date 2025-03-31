@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-30T13:48:34.581158
+# This constraints file was automatically generated on 2025-03-31T02:20:53.628255
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -75,7 +75,7 @@ ansicolors==1.1.8
 anyio==4.9.0
 apache-beam==2.59.0
 apispec==6.8.1
-apprise==1.9.2
+apprise==1.9.3
 argcomplete==3.6.1
 asana==5.1.0
 asgiref==3.8.1
@@ -85,7 +85,7 @@ asttokens==3.0.0
 asyncpg==0.30.0
 asyncssh==2.20.0
 atlasclient==1.0.0
-atlassian-python-api==4.0.0
+atlassian-python-api==4.0.1
 attrs==25.3.0
 aws-sam-translator==1.95.0
 aws-xray-sdk==2.14.0
@@ -121,6 +121,7 @@ beautifulsoup4==4.13.3
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
+bleach==6.2.0
 blinker==1.9.0
 boto3==1.37.1
 botocore==1.37.1
@@ -151,7 +152,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.9.0
 connexion==2.14.2
-coverage==7.7.1
+coverage==7.8.0
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -195,12 +196,12 @@ fastjsonschema==2.21.1
 filelock==3.18.0
 flower==2.0.1
 frozenlist==1.5.0
-fsspec==2025.3.0
+fsspec==2025.3.1
 future==1.0.0
 gcloud-aio-auth==5.4.0
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
-gcsfs==2025.3.0
+gcsfs==2025.3.1
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.12
@@ -324,10 +325,11 @@ jsonschema-specifications==2024.10.1
 jsonschema==4.23.0
 jupyter_client==8.6.3
 jupyter_core==5.7.2
+jupyterlab_pygments==0.3.0
 kerberos==1.3.1
 keyring==25.6.0
 kgb==7.2
-kombu==5.4.2
+kombu==5.5.2
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
@@ -353,10 +355,11 @@ microsoft-kiota-authentication-azure==1.1.0
 microsoft-kiota-http==1.3.3
 microsoft-kiota-serialization-json==1.0.0
 microsoft-kiota-serialization-text==1.0.0
+mistune==3.1.3
 mmh3==5.1.0
 mongomock==4.3.0
 more-itertools==10.6.0
-moto==5.1.1
+moto==5.1.2
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.32.0
@@ -375,6 +378,7 @@ mypy==1.9.0
 mysql-connector-python==9.2.0
 mysqlclient==2.2.7
 nbclient==0.10.2
+nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==5.28.1
 nest-asyncio==1.6.0
@@ -411,6 +415,7 @@ packaging==24.2
 pandas-gbq==0.28.0
 pandas-stubs==2.2.3.250308
 pandas==2.1.4
+pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.4
@@ -523,8 +528,8 @@ rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.24.0
 rsa==4.9
-ruff==0.8.1
-s3fs==2025.3.0
+ruff==0.11.2
+s3fs==2025.3.1
 s3transfer==0.11.3
 sagemaker_studio==1.0.9
 scikit-learn==1.6.1
@@ -593,6 +598,7 @@ threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
+tinycss2==1.4.0
 tokenizers==0.21.1
 tomlkit==0.13.2
 tornado==6.4.2
@@ -643,6 +649,7 @@ watchfiles==1.0.4
 watchtower==3.4.0
 wcwidth==0.2.13
 weaviate-client==4.9.6
+webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
 wheel==0.45.1
