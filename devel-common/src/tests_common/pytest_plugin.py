@@ -33,6 +33,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -868,9 +869,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             if self.want_serialized:
                 self.serialized_model = SerializedDagModel(dag)
-                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                sdm = self.session.scalar(
+                    select(SerializedDagModel).where(
+                        SerializedDagModel.dag_id == dag.dag_id,
+                        SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
+                    )
+                )
 
-                if AIRFLOW_V_3_0_PLUS and not sdm:
+                if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
                     from airflow.models.dag_version import DagVersion
                     from airflow.models.dagcode import DagCode
 
