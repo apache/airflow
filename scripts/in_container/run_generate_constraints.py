@@ -399,6 +399,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             ".[all-core]",
             "./airflow-core",
             "./task-sdk",
+            "./airflow-ctl",
             "--reinstall",  # We need to pull the provider distributions from PyPI - not use the local ones
             *packages_to_install,
             *config_params.eager_upgrade_additional_requirements_list,

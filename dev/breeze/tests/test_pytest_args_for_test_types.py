@@ -309,6 +309,13 @@ def test_pytest_args_for_missing_provider():
             ],
         ),
         (
+            GroupOfTests.CTL,
+            "All",
+            [
+                "airflow-ctl/tests",
+            ],
+        ),
+        (
             GroupOfTests.INTEGRATION_CORE,
             "All",
             [
