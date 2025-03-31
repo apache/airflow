@@ -383,8 +383,12 @@ class TestDbtCloudRunJobOperator:
                 additional_run_config=self.config["additional_run_config"],
             )
 
-            if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
+            # When job status is SUCCESS, it will only run get_job_run() once
+            if job_run_status == "SUCCESS":
                 assert mock_get_job_run.call_count == 1
+            # When job status is ERROR or CANCELLED, the operator will gather all the logs of the job run, requiring exactly 2 get_job_run() calls
+            elif job_run_status in ("ERROR", "CANCELLED"):
+                assert mock_get_job_run.call_count == 2
             else:
                 # When the job run status is not in a terminal status or "Success", the operator will
                 # continue to call ``get_job_run()`` until a ``timeout`` number of seconds has passed
