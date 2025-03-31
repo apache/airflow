@@ -55,6 +55,7 @@ dependencies = [
 "debuggers" = [
     "ipdb>=0.13.13",
     "pdbr>=0.8.9",
+    "keyrings.alt>=5.0.2",
 ]
 "devscripts" = [
     "click>=8.1.8",
