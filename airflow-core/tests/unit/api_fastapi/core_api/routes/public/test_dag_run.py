@@ -38,7 +38,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
@@ -938,17 +938,8 @@ class TestPatchDagRun:
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
-        dr_note = (
-            session.query(DagRunNote)
-            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
-            .filter(DagRun.run_id == run_id)
-            .one_or_none()
-        )
-        if note_data is None:
-            assert dr_note is None
-        else:
-            assert dr_note.user_id == note_data.get("user_id")
-            assert dr_note.content == note_data.get("content")
+
+        _check_dag_run_note(session, run_id, note_data)
         _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -1343,17 +1334,7 @@ class TestTriggerDagRun:
 
         assert response.json() == expected_response_json
 
-        dr_note = (
-            session.query(DagRunNote)
-            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
-            .filter(DagRun.run_id == expected_dag_run_id)
-            .one_or_none()
-        )
-        if note_data is None:
-            assert dr_note is None
-        else:
-            assert dr_note.user_id == note_data.get("user_id")
-            assert dr_note.content == note_data.get("content")
+        _check_dag_run_note(session, expected_dag_run_id, note_data)
 
         _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
