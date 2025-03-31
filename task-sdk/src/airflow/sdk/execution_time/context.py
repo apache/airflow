@@ -166,8 +166,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 return var_val
         except Exception:
             log.exception(
-                "Unable to retrieve variable from secrets backend (%s). "
-                "Checking subsequent secrets backend.",
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 

@@ -67,7 +67,7 @@ from airflow_client.client.model.dag_run import DAGRun
 
 
 create_app()
-auth_manager = cast(get_auth_manager(), SimpleAuthManager)
+auth_manager = cast("get_auth_manager()", SimpleAuthManager)
 users = auth_manager.get_users()
 passwords = auth_manager.get_passwords(users)
 username, password = next(iter(passwords.items()))

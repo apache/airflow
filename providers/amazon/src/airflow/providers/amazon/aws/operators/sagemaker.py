@@ -170,7 +170,7 @@ class SageMakerBaseOperator(BaseOperator):
                 timestamp = str(
                     time.time_ns() // 1000000000
                 )  # only keep the relevant datetime (first 10 digits)
-                name = f"{proposed_name[:max_name_len - len(timestamp) - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
+                name = f"{proposed_name[: max_name_len - len(timestamp) - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
                 self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
         return name
 
@@ -178,8 +178,7 @@ class SageMakerBaseOperator(BaseOperator):
         """Raise exception if resource type is not 'model' or 'job'."""
         if resource_type not in ("model", "job"):
             raise AirflowException(
-                "Argument resource_type accepts only 'model' and 'job'. "
-                f"Provided value: '{resource_type}'."
+                f"Argument resource_type accepts only 'model' and 'job'. Provided value: '{resource_type}'."
             )
 
     def _check_if_job_exists(self, job_name: str, describe_func: Callable[[str], Any]) -> bool:
@@ -559,8 +558,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                 self.operation = "update"
                 sagemaker_operation = self.hook.update_endpoint
                 self.log.warning(
-                    "cannot create already existing endpoint %s, "
-                    "updating it with the given config instead",
+                    "cannot create already existing endpoint %s, updating it with the given config instead",
                     endpoint_info["EndpointName"],
                 )
                 if "Tags" in endpoint_info:

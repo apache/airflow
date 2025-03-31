@@ -136,7 +136,7 @@ def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) ->
 
             return func(self, *args, **kwargs)
 
-        return cast(T, inner_wrapper)
+        return cast("T", inner_wrapper)
 
     return _wrapper
 
@@ -1271,7 +1271,7 @@ class DataflowHook(GoogleBaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
-            on_new_job_id_callback(cast(str, job.get("id")))
+            on_new_job_id_callback(cast("str", job.get("id")))
 
         if on_new_job_callback:
             on_new_job_callback(job)

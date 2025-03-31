@@ -96,13 +96,11 @@ def get_provider_info():
         "extra-links": ["airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperatorLink"],
         "dependencies": [
             "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
             "apache-airflow-providers-http",
             "asgiref>=2.3.0",
             "aiohttp>=3.9.2",
         ],
-        "optional-dependencies": {
-            "openlineage": ["apache-airflow-providers-openlineage>=1.7.0"],
-            "common.compat": ["apache-airflow-providers-common-compat"],
-        },
+        "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage>=2.0.0"]},
         "devel-dependencies": [],
     }

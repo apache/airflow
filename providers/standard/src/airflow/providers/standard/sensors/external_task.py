@@ -400,8 +400,7 @@ class ExternalTaskSensor(BaseSensorOperator, BaseOperator):
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
                     raise AirflowException(
-                        f"The external task {external_task_id} in "
-                        f"DAG {self.external_dag_id} does not exist."
+                        f"The external task {external_task_id} in DAG {self.external_dag_id} does not exist."
                     )
 
         if self.external_task_group_id:

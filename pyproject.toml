@@ -369,7 +369,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
 
-
+"docs/exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -791,6 +791,7 @@ dev = [
     "apache-airflow[all-core]",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-ctl",
 ]
 
 
@@ -901,6 +902,7 @@ apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
+apache-airflow-ctl = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -1003,4 +1005,5 @@ members = [
     "providers/ydb",
     "providers/zendesk",
     "devel-common",
+    "airflow-ctl",
 ]

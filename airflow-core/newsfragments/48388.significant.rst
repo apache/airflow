@@ -1,0 +1,18 @@
+Task-level auto lineage collection is removed
+
+The ``prepare_lineage``, ``apply_lineage`` mechanism, along with the custom
+lineage backend type that supports it, has been removed. This has been an
+experimental feature that never caught on.
+
+The ``airflow.lineage.hook`` submodule is not affected.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

@@ -84,9 +84,9 @@ class TestEmrContainerSensor:
         mock_poke.return_value = False
         with pytest.raises(TaskDeferred) as e:
             self.sensor.execute(context=None)
-        assert isinstance(
-            e.value.trigger, EmrContainerTrigger
-        ), f"{e.value.trigger} is not a EmrContainerTrigger"
+        assert isinstance(e.value.trigger, EmrContainerTrigger), (
+            f"{e.value.trigger} is not a EmrContainerTrigger"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
     def test_sensor_defer_with_timeout(self, mock_poke):
