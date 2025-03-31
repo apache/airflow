@@ -53,7 +53,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
@@ -508,6 +508,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             # If we read a startup message, pull out the FDs we care about!
             if msg.requests_fd > 0:
                 self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+        elif isinstance(msg, ErrorResponse) and msg.error == ErrorType.API_SERVER_ERROR:
+            structlog.get_logger(logger_name="task").error("Error response from the API Server")
+            raise AirflowRuntimeError(error=msg)
+
         return msg
 
     def send_request(self, log: Logger, msg: SendMsgType):
