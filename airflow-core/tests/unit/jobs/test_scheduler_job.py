@@ -5809,8 +5809,7 @@ class TestSchedulerJob:
         """
 
         # Spy on _do_scheduling and _process_executor_events so we can notice
-        # if nothing happened, and abort early! Given we are using
-        # SequentialExecutor this shouldn't be possible -- if there is nothing
+        # if nothing happened, and abort early! If there is nothing
         # to schedule and no events, it means we have stalled.
         def spy_on_return(orig, result):
             def spy(*args, **kwargs):
