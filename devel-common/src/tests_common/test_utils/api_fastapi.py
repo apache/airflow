@@ -89,6 +89,9 @@ def _check_task_instance_note(session, ti_id, note_data):
     if note_data is None:
         assert ti_note is None
     else:
+        # Had to add this refresh because TestPatchTaskInstance::test_set_note_should_respond_200_mapped_task_instance_with_rtif
+        # was failing for map index = 2. Unless I force refresh ti_note, it was returning the old value.
+        # Even if I reverse the order of map indexes, only the map index 2 was returning older value.
         session.refresh(ti_note)
         assert ti_note.content == note_data["content"]
         assert ti_note.user_id == note_data["user_id"]
