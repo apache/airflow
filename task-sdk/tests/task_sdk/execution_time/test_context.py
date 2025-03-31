@@ -53,6 +53,7 @@ from airflow.sdk.execution_time.context import (
     context_to_airflow_vars,
     set_current_context,
 )
+from airflow.utils import timezone
 
 
 def test_convert_connection_result_conn():
@@ -471,7 +472,7 @@ class TestInletEventAccessor:
         asset_event_resp = AssetEventResponse(
             id=1,
             created_dagruns=[],
-            timestamp=datetime.now(),
+            timestamp=timezone.utcnow(),
             asset=AssetResponse(name="test", uri="test", group="asset"),
         )
         events_result = AssetEventsResult(asset_events=[asset_event_resp])
