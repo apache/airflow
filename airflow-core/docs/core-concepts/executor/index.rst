@@ -55,7 +55,7 @@ Executor Types
 
 There is only one type of executor that runs tasks *locally* (inside the ``scheduler`` process),
 and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``LocalExecutor`` by default, which is a local executor, and the simplest option for execution.
-However, the ``LocalExecutor`` is not advised for production use since it runs processes in the scheduler process and that can have an impact on the performance of the scheduler. You can use the ``LocalExecutor``
+However, as the ``LocalExecutor`` runs processes in the scheduler process that can have an impact on the performance of the scheduler. You can use the ``LocalExecutor``
 for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
 
 
