@@ -90,6 +90,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk import TaskGroup
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -1996,6 +1997,79 @@ class DAG(TaskSDKDag, LoggingMixin):
                 for port in ports:
                     if isinstance(port, of_type):
                         yield task.task_id, port
+
+    @classmethod
+    def from_sdk_dag(cls, dag: TaskSDKDag) -> DAG:
+        """Create a new (Scheduler) DAG object from a TaskSDKDag."""
+        if not isinstance(dag, TaskSDKDag):
+            return dag
+
+        fields = attrs.fields(dag.__class__)
+
+        kwargs = {}
+        for field in fields:
+            # Skip fields that are:
+            # 1. Initialized after creation (init=False)
+            # 2. Internal state fields that shouldn't be copied
+            if not field.init or field.name in ["edge_info"]:
+                continue
+
+            value = getattr(dag, field.name)
+
+            # Handle special cases where values need conversion
+            if field.name == "max_consecutive_failed_dag_runs":
+                # SchedulerDAG requires this to be >= 0, while TaskSDKDag allows -1
+                if value == -1:
+                    # If it is -1, we get the default value from the DAG
+                    continue
+
+            kwargs[field.name] = value
+
+        new_dag = cls(**kwargs)
+
+        task_group_map = {}
+
+        def create_task_groups(task_group, parent_group=None):
+            new_task_group = copy.deepcopy(task_group)
+
+            new_task_group.dag = new_dag
+            new_task_group.parent_group = parent_group
+            new_task_group.children = {}
+
+            task_group_map[task_group.group_id] = new_task_group
+
+            for child in task_group.children.values():
+                if isinstance(child, TaskGroup):
+                    create_task_groups(child, new_task_group)
+
+        create_task_groups(dag.task_group)
+
+        def create_tasks(task):
+            if isinstance(task, TaskGroup):
+                return task_group_map[task.group_id]
+
+            new_task = copy.deepcopy(task)
+
+            # Only overwrite the specific attributes we want to change
+            new_task.task_id = task.task_id
+            new_task.dag = None  # Don't set dag yet
+            new_task.task_group = task_group_map.get(task.task_group.group_id) if task.task_group else None
+
+            return new_task
+
+        # Process all tasks in the original DAG
+        for task in dag.tasks:
+            new_task = create_tasks(task)
+            if not isinstance(new_task, TaskGroup):
+                # Add the task to the DAG
+                new_dag.task_dict[new_task.task_id] = new_task
+                if new_task.task_group:
+                    new_task.task_group.children[new_task.task_id] = new_task
+                new_task.dag = new_dag
+
+        new_dag.edge_info = dag.edge_info.copy()
+
+        return new_dag
 
 
 class DagTag(Base):

@@ -30,6 +30,7 @@ from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
@@ -54,7 +55,8 @@ def make_example_dags(module):
             session.add(testing)
 
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
+    dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
+    DAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
 
@@ -142,7 +144,9 @@ class TestDagCode:
         """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag, bundle_name="testing")
-        example_dag.create_dagrun(
+
+        dag = DAG.from_sdk_dag(example_dag)
+        dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,

@@ -72,6 +72,3 @@ this_will_skip = BashOperator(
 )
 # [END howto_operator_bash_skip]
 this_will_skip >> run_this_last
-
-if __name__ == "__main__":
-    dag.test()
