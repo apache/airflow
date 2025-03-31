@@ -17,23 +17,11 @@
  * under the License.
  */
 
-import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+/** Disabled rule */
+export const OFF = 0;
 
-import { Login } from "src/login/Login";
-import { Wrapper } from "src/test-utils";
+/** Rule will show a warning. */
+export const WARN = 1;
 
-describe("Login page", () => {
-  test("Components renders properly", () => {
-    const { getAllByText } = render(<Login />, {
-      wrapper: Wrapper,
-    });
-
-    expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(
-      1,
-    );
-    expect(getAllByText("Username")).toHaveLength(1);
-    expect(getAllByText("Password")).toHaveLength(1);
-  });
-});
+/** Rule will show an error. */
+export const ERROR = 2;

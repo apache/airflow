@@ -17,23 +17,24 @@
  * under the License.
  */
 
-import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+/**
+ * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+ */
+import prettier from "eslint-plugin-prettier";
 
-import { Login } from "src/login/Login";
-import { Wrapper } from "src/test-utils";
+import { off } from "./off.js";
 
-describe("Login page", () => {
-  test("Components renders properly", () => {
-    const { getAllByText } = render(<Login />, {
-      wrapper: Wrapper,
-    });
+/**
+ * ESLint TypeScript namespace.
+ */
+export const prettierNamespace = "prettier";
 
-    expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(
-      1,
-    );
-    expect(getAllByText("Username")).toHaveLength(1);
-    expect(getAllByText("Password")).toHaveLength(1);
+/**
+ * ESLint Prettier rules.
+ * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
+ */
+export const prettierRules =
+  /** @type {const} @satisfies {FlatConfig.Config} */ ({
+    plugins: { [prettierNamespace]: prettier },
+    rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
   });
-});

@@ -17,23 +17,33 @@
  * under the License.
  */
 
-import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
+declare module "eslint-plugin-local-patch" {
+  import type { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
 
-import { Login } from "src/login/Login";
-import { Wrapper } from "src/test-utils";
+  /**
+   * @deprecated This type was patched because it's currently broken.
+   */
+  const plugin: FlatConfig.Plugin;
 
-describe("Login page", () => {
-  test("Components renders properly", () => {
-    const { getAllByText } = render(<Login />, {
-      wrapper: Wrapper,
-    });
+  export default plugin;
+}
 
-    expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(
-      1,
-    );
-    expect(getAllByText("Username")).toHaveLength(1);
-    expect(getAllByText("Password")).toHaveLength(1);
-  });
-});
+declare module "@stylistic/eslint-plugin" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-jsx-a11y" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-hooks" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-refresh" {
+  export { default } from "eslint-plugin-local-patch";
+}
