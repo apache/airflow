@@ -3675,6 +3675,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
 
         assert task_before == task_after
 
+        _check_task_instance_note(session, task_after["id"], {"content": "placeholder-note", "user_id": None})
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
             f"{self.ENDPOINT_URL}/dry_run",
@@ -3712,6 +3714,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         task_after = test_client.get(f"{self.ENDPOINT_URL}/{map_index}").json()
 
         assert task_before == task_after
+        _check_task_instance_note(session, task_after["id"], None)
 
     @pytest.mark.parametrize(
         "error, code, payload",
