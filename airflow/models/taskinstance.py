@@ -830,6 +830,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.next_kwargs = source.next_kwargs
     if source.note and isinstance(source, TaskInstancePydantic):
         target.note = source.note
+        target.rendered_map_index = source.rendered_map_index
 
     if include_dag_run:
         target.execution_date = source.execution_date
