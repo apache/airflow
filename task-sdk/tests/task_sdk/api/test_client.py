@@ -31,6 +31,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
     DagRunState,
+    DagRunStateCountResponse,
     DagRunStateResponse,
     VariableResponse,
     XComResponse,
@@ -903,6 +904,23 @@ class TestDagRunOperations:
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
+
+    def test_get_dag_count_by_run_ids_and_states(self):
+        """Test that the client can get the count of dag runs by run ids and states"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_state/count-by-run-ids-and-states":
+                return httpx.Response(
+                    status_code=200,
+                    json={"count": 1},
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_dag_run_count_by_run_ids_and_states(
+            dag_id="test_state", run_ids=["test_run_id"], states=[DagRunState.RUNNING]
+        )
+        assert result == DagRunStateCountResponse(count=1)
 
 
 class TestTaskRescheduleOperations:

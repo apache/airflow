@@ -44,8 +44,10 @@ from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DagRunStateCountResult,
     ErrorResponse,
     GetConnection,
+    GetDagRunCountByRunIdsAndStates,
     GetVariable,
     GetXCom,
     VariableResult,
@@ -212,6 +214,7 @@ ToTriggerRunner = Annotated[
         ConnectionResult,
         VariableResult,
         XComResult,
+        DagRunStateCountResult,
         ErrorResponse,
     ],
     Field(discriminator="type"),
@@ -223,7 +226,7 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom],
+    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom, GetDagRunCountByRunIdsAndStates],
     Field(discriminator="type"),
 ]
 """
@@ -333,7 +336,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
-        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+        from airflow.sdk.api.datamodels._generated import (
+            ConnectionResponse,
+            DagRunStateCountResponse,
+            VariableResponse,
+            XComResponse,
+        )
 
         resp = None
 
@@ -371,6 +379,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = xcom_result.model_dump_json(exclude_unset=True).encode()
             else:
                 resp = xcom.model_dump_json().encode()
+
+        elif isinstance(msg, GetDagRunCountByRunIdsAndStates):
+            dr_resp = self.client.dag_runs.get_dag_run_count_by_run_ids_and_states(
+                msg.dag_id, msg.run_ids, msg.states
+            )
+
+            if isinstance(dr_resp, DagRunStateCountResponse):
+                dag_run_state_count_result = DagRunStateCountResult.from_api_response(dr_resp)
+                resp = dag_run_state_count_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = dr_resp.model_dump_json().encode()
+
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
