@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Collection, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
