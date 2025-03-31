@@ -24,8 +24,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
-    BedrockBatchInferenceCompleteSensor,
-    BedrockBatchInferenceScheduledSensor,
+    BedrockBatchInferenceSensor,
     BedrockCustomizeModelCompletedSensor,
     BedrockIngestionJobSensor,
     BedrockKnowledgeBaseActiveSensor,
@@ -249,29 +248,36 @@ class TestBedrockIngestionJobSensor:
 
 
 @pytest.mark.parametrize(
-    "sensor",
+    "success_state",
     [
-        pytest.param(BedrockBatchInferenceCompleteSensor, id="BedrockBatchInferenceCompleteSensor"),
-        pytest.param(BedrockBatchInferenceScheduledSensor, id="BedrockBatchInferenceScheduledSensor"),
+        pytest.param(BedrockBatchInferenceSensor.SuccessState.COMPLETED, id="Completed"),
+        pytest.param(BedrockBatchInferenceSensor.SuccessState.SCHEDULED, id="Scheduled"),
     ],
 )
 class TestBedrockBatchInferenceSensor:
-    HOOK = BedrockHook
+    SENSOR = BedrockBatchInferenceSensor
 
-    def setup_method(self):
+    def setup_method(self, success_state):
         self.default_op_kwargs = dict(
             task_id="test_bedrock_batch_inference_sensor",
             job_arn="job_arn",
         )
 
-    def test_base_aws_op_attributes(self, sensor):
-        op = sensor(**self.default_op_kwargs)
+    def test_base_aws_op_attributes(self, success_state):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
+
+        if success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
+            assert "Scheduled" in op.INTERMEDIATE_STATES
+            assert "Scheduled" not in op.SUCCESS_STATES
+        elif success_state == BedrockBatchInferenceSensor.SuccessState.SCHEDULED:
+            assert "Scheduled" in op.SUCCESS_STATES
+            assert "Scheduled" not in op.INTERMEDIATE_STATES
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
         assert op.hook._verify is None
         assert op.hook._config is None
 
-        op = sensor(
+        op = self.SENSOR(
             **self.default_op_kwargs,
             aws_conn_id="aws-test-custom-conn",
             region_name="eu-west-1",
@@ -284,25 +290,25 @@ class TestBedrockBatchInferenceSensor:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-    @mock.patch.object(HOOK, "conn")
-    def test_poke_success_states(self, mock_conn, sensor):
-        op = sensor(**self.default_op_kwargs)
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_success_states(self, mock_conn, success_state):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
 
         for state in op.SUCCESS_STATES:
             mock_conn.get_model_invocation_job.return_value = {"status": state}
             assert op.poke({}) is True
 
-    @mock.patch.object(HOOK, "conn")
-    def test_poke_intermediate_states(self, mock_conn, sensor):
-        op = sensor(**self.default_op_kwargs)
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_intermediate_states(self, mock_conn, success_state):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
 
         for state in op.INTERMEDIATE_STATES:
             mock_conn.get_model_invocation_job.return_value = {"status": state}
             assert op.poke({}) is False
 
-    @mock.patch.object(HOOK, "conn")
-    def test_poke_failure_states(self, mock_conn, sensor):
-        op = sensor(**self.default_op_kwargs)
+    @mock.patch.object(BedrockHook, "conn")
+    def test_poke_failure_states(self, mock_conn, success_state):
+        op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
 
         for state in op.FAILURE_STATES:
             mock_conn.get_model_invocation_job.return_value = {"status": state}

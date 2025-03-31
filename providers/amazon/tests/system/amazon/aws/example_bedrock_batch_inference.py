@@ -34,9 +34,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.bedrock import (
-    BedrockBatchInferenceScheduledSensor,
-)
+from airflow.providers.amazon.aws.sensors.bedrock import BedrockBatchInferenceSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -75,7 +73,6 @@ def generate_prompts(_env_id: str, _bucket: str, _key: str):
         # Generate the required number of prompts.
         prompts = [
             {
-                "recordId": f"{_env_id}-prompt{n:03d}",  # TODO: This may be optional???
                 "modelInput": {
                     "anthropic_version": ANTHROPIC_VERSION,
                     "max_tokens": 1000,
@@ -143,8 +140,10 @@ with DAG(
     batch_infer.wait_for_completion = False
 
     # [START howto_sensor_bedrock_batch_inference_scheduled]
-    await_job_scheduled = BedrockBatchInferenceScheduledSensor(
-        task_id="await_job_scheduled", job_arn=batch_infer.output
+    await_job_scheduled = BedrockBatchInferenceSensor(
+        task_id="await_job_scheduled",
+        job_arn=batch_infer.output,
+        success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
     )
     # [END howto_sensor_bedrock_batch_inference_scheduled]
 
@@ -168,7 +167,7 @@ with DAG(
         await_job_scheduled,
         stop_job,
         # TEST TEARDOWN
-        # delete_bucket,
+        delete_bucket,
     )
 
     from tests_common.test_utils.watcher import watcher
