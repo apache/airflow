@@ -1841,6 +1841,8 @@ class TaskInstance(Base, LoggingMixin):
     def to_runtime_ti(self, context_from_server) -> RuntimeTaskInstanceProtocol:
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
+        if TYPE_CHECKING:
+            assert self.task
         runtime_ti = RuntimeTaskInstance.model_construct(
             id=self.id,
             task_id=self.task_id,
@@ -1851,6 +1853,7 @@ class TaskInstance(Base, LoggingMixin):
             task=self.task,
             max_tries=self.max_tries,
             hostname=self.hostname,
+            is_mapped=self.task.is_mapped,
             _ti_context_from_server=context_from_server,
             start_date=self.start_date,
         )
