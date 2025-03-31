@@ -139,6 +139,12 @@ DAG_RUN = DagRun(
 DAG_RUN.id = 1
 
 
+# we add the tasks out of order, to ensure they are deserialized in the correct order
+DAG_WITH_TASKS = DAG(dag_id="test_dag", start_date=datetime.now())
+EmptyOperator(task_id="task2", dag=DAG_WITH_TASKS)
+EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
+
+
 def create_outlet_event_accessors(
     key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
 ) -> OutletEventAccessors:
@@ -302,6 +308,11 @@ class MockLazySelectSequence(LazySelectSequence):
             AirflowFailException("uuups, failed :-("),
             DAT.AIRFLOW_EXC_SER,
             equal_exception,
+        ),
+        (
+            DAG_WITH_TASKS,
+            DAT.DAG,
+            lambda _, b: list(b.task_group.children.keys()) == sorted(b.task_group.children.keys()),
         ),
     ],
 )

@@ -110,7 +110,7 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 
 .. note::
 
-    New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending the executor selected.
+    New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending on the executor selected.
 
 Using Multiple Executors Concurrently
 -------------------------------------

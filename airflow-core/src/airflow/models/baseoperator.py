@@ -35,10 +35,7 @@ import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
-from airflow.exceptions import (
-    AirflowException,
-)
-from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.exceptions import AirflowException
 
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
@@ -372,7 +369,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     extended/overridden by subclasses.
     """
 
-    @prepare_lineage
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""
         if self._pre_execute_hook is None:
@@ -386,7 +382,16 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
             logger=self.log,
         ).run(context)
 
-    @apply_lineage
+    def execute(self, context: Context) -> Any:
+        """
+        Derive when creating an operator.
+
+        Context is the same dictionary used as when rendering jinja templates.
+
+        Refer to get_template_context for more context.
+        """
+        raise NotImplementedError()
+
     def post_execute(self, context: Any, result: Any = None):
         """
         Execute right after self.execute() is called.

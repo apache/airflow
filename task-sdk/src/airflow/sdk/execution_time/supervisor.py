@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     VariableResponse,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -68,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
     DeleteXCom,
+    ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -511,7 +513,31 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            self._handle_request(msg, log)
+            try:
+                self._handle_request(msg, log)
+            except ServerResponseError as e:
+                error_details = e.response.json() if e.response else None
+                log.error(
+                    "API server error",
+                    status_code=e.response.status_code,
+                    detail=error_details,
+                    message=str(e),
+                )
+
+                # Send error response back to task so that the error appears in the task logs
+                error_resp = (
+                    ErrorResponse(
+                        error=ErrorType.API_SERVER_ERROR,
+                        detail={
+                            "status_code": e.response.status_code,
+                            "message": str(e),
+                            "detail": error_details,
+                        },
+                    )
+                    .model_dump_json()
+                    .encode()
+                )
+                self.stdin.write(error_resp + b"\n")
 
     def _handle_request(self, msg, log: FilteringBoundLogger) -> None:
         raise NotImplementedError()
