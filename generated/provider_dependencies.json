@@ -45,7 +45,7 @@
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
-      "moto[cloudformation,glue]>=5.0.0",
+      "moto[cloudformation,glue]>=5.1.2",
       "mypy-boto3-appflow>=1.37.0",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
@@ -495,6 +495,7 @@
   "dbt.cloud": {
     "deps": [
       "aiohttp>=3.9.2",
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0"
@@ -1096,6 +1097,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "ipykernel>=6.29.4",
+      "nbconvert>=7.16.1",
       "pandas>=2.1.2,<2.2",
       "papermill[all]>=2.6.0",
       "scrapbook[all]>=0.5.0"
@@ -1136,7 +1138,7 @@
   },
   "postgres": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "asyncpg>=0.30.0",
       "psycopg2-binary>=2.9.9"

@@ -94,7 +94,7 @@ class ExecuteTask(BaseWorkload):
     log_path: str | None
     """The rendered relative log filename template the task logs should be written to"""
 
-    kind: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+    type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
     @classmethod
     def make(
@@ -146,10 +146,10 @@ class RunTrigger(BaseModel):
 
     timeout_after: datetime | None = None
 
-    kind: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+    type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
 
 
 All = Annotated[
     Union[ExecuteTask, RunTrigger],
-    Field(discriminator="kind"),
+    Field(discriminator="type"),
 ]

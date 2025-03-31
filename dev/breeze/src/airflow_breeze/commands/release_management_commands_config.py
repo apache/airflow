@@ -59,6 +59,13 @@ RELEASE_AIRFLOW_TASK_SDK_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 
+RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Airflow CTL release commands",
+    "commands": [
+        "prepare-airflow-ctl-distributions",
+    ],
+}
+
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
     "commands": [
@@ -90,6 +97,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management prepare-task-sdk-distributions": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--distribution-format",
+                "--version-suffix-for-pypi",
+                "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-airflow-ctl-distributions": [
         {
             "name": "Package flags",
             "options": [
