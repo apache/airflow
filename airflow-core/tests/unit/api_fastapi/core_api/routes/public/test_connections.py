@@ -468,6 +468,30 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": "http_patch",
                 },
             ),
+            (
+                {  # Explicitly test that None is applied compared to if not provided
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "schema": None,
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "schema": None,
+                },
+            ),
         ],
     )
     @provide_session
