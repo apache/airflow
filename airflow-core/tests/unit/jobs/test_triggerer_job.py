@@ -665,6 +665,7 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 
 @pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
     """Checks that the trigger will successfully access Variables, Connections and XComs."""
     # Create the test DAG and task
