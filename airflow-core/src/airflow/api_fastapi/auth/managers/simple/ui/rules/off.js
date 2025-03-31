@@ -16,24 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { OFF } from "./levels.js";
 
-import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
-
-import { Login } from "src/login/Login";
-import { Wrapper } from "src/test-utils";
-
-describe("Login page", () => {
-  test("Components renders properly", () => {
-    const { getAllByText } = render(<Login />, {
-      wrapper: Wrapper,
-    });
-
-    expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(
-      1,
-    );
-    expect(getAllByText("Username")).toHaveLength(1);
-    expect(getAllByText("Password")).toHaveLength(1);
-  });
-});
+/**
+ * Generates an object with all the given rules set to {@link OFF}.
+ *
+ * @template {string} Rule
+ * @param {ReadonlyArray<Rule>} rules Array of rules to turn off.
+ * @returns Object with rules set to {@link OFF}.
+ */
+export const off = (...rules) =>
+  /** @type {Readonly<Record<Rule, typeof OFF>>} */ (
+    Object.fromEntries(rules.map((rule) => [rule, OFF]))
+  );
