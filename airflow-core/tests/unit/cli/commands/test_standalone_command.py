@@ -37,7 +37,7 @@ class TestStandaloneCommand:
         "conf_executor_name",
         [LOCAL_EXECUTOR, CELERY_EXECUTOR, KUBERNETES_EXECUTOR, DEBUG_EXECUTOR],
     )
-    def test_calculate_env(self, conf_executor_name, expected_standalone_executor):
+    def test_calculate_env(self, conf_executor_name):
         """Should always force a local executor compatible with the db."""
         with mock.patch.dict(
             "os.environ",
@@ -47,5 +47,5 @@ class TestStandaloneCommand:
         ):
             reload(executor_loader)
             env = StandaloneCommand().calculate_env()
-            # all non local executors will fall back to localexecutor
-            assert env["AIRFLOW__CORE__EXECUTOR"] == expected_standalone_executor
+            # all non local executors will fall back to localesecutor
+            assert env["AIRFLOW__CORE__EXECUTOR"] == LOCAL_EXECUTOR
