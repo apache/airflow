@@ -23,6 +23,7 @@ import contextvars
 import functools
 import os
 import sys
+import threading
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime, timezone
@@ -481,13 +482,22 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # "sort of wrong default"
     decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
+    lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
+
     def get_message(self) -> ReceiveMsgType:
         """
         Get a message from the parent.
 
         This will block until the message has been received.
         """
-        line = self.input.readline()
+        line = None
+
+        # TODO: Investigate why some empty lines are sent to the processes stdin.
+        #   That was highlighted when working on https://github.com/apache/airflow/issues/48183
+        #   and is maybe related to deferred/triggerer only context.
+        while not line:
+            line = self.input.readline()
+
         try:
             msg = self.decoder.validate_json(line)
         except Exception:
