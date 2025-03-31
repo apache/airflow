@@ -69,5 +69,6 @@ class TestTIUpdateState:
             },
         )
         assert response.status_code == expected_status_code
+        assert response.headers["airflow-api-version"] == "2025-03-19"
 
         session.expire_all()

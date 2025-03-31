@@ -132,6 +132,7 @@ def create_task_execution_api_app() -> FastAPI:
         description="The private Airflow Task Execution API.",
         lifespan=lifespan,
         api_version_parameter_name="Airflow-API-Version",
+        api_version_default_value=bundle.versions[0].value,
         versions=bundle,
     )
 

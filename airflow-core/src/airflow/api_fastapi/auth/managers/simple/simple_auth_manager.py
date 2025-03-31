@@ -146,7 +146,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         """Return the login page url."""
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
-            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
+            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
 
         return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
