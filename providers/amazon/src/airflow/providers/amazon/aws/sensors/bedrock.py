@@ -376,6 +376,10 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockAgentHook]):
     """
     Poll the batch inference job status until it reaches a terminal state; fails if creation fails.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BedrockBatchInferenceSensor`
+
     :param job_arn: The Amazon Resource Name (ARN) of the batch inference job. (templated)
     :param target_state: A BedrockBatchInferenceSensor.TargetState; defaults to 'SCHEDULED' (templated)
 

@@ -329,31 +329,23 @@ To wait on the state of an Amazon Bedrock data ingestion job until it reaches a 
     :start-after: [START howto_sensor_bedrock_ingest_data]
     :end-before: [END howto_sensor_bedrock_ingest_data]
 
-.. _howto/sensor:BedrockBatchInferenceScheduledSensor:
+.. _howto/sensor:BedrockBatchInferenceSensor:
 
-Wait for an Amazon Bedrock batch inference job to be Scheduled
-===============================================================
+Wait for an Amazon Bedrock batch inference job
+==============================================
 
-To wait on the state of an Amazon Bedrock batch inference job until it reaches the "Scheduled" state you can use
-:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceScheduledSensor`
+To wait on the state of an Amazon Bedrock batch inference job until it reaches the "Scheduled" or "Completed"
+state you can use :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceScheduledSensor`
+
+Bedrock adds batch inference jobs to a queue, and they may take some time to complete.  If you want to wait
+for the job to complete, use TargetState.COMPLETED for the success_state, but if you only want to wait until
+the service confirms that the job is in the queue, use TargetState.SCHEDULED.
 
 .. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
     :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
-
-.. _howto/sensor:BedrockBatchInferenceCompleteSensor:
-
-Wait for an Amazon Bedrock batch inference job to be finished
-===============================================================
-
-To wait on the state of an Amazon Bedrock batch inference job until it reaches the "Completed" state you can use
-:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceCompleteSensor`. Due to the unpredictable
-duration processing jobs, you may consider using ``BedrockBatchInferenceJobScheduledSensor`` (above) which waits
-for the API to validate the inputs and confirm, that the job gets scheduled.
-
-For more information on batch inference job queueing, see https://docs.aws.amazon.com/bedrock/latest/userguide/batch-inference.html
 
 Reference
 ---------
