@@ -48,7 +48,6 @@ def update_orm_from_pydantic(
     fields_to_update = fields_set - non_update_fields - setter_fields
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        print(fields_to_update)
     conn_data = pydantic_conn.model_dump(by_alias=True)
     for key, val in conn_data.items():
         if key in fields_to_update:
