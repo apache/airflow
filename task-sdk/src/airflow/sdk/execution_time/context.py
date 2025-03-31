@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.bases.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -166,8 +166,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 return var_val
         except Exception:
             log.exception(
-                "Unable to retrieve variable from secrets backend (%s). "
-                "Checking subsequent secrets backend.",
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 

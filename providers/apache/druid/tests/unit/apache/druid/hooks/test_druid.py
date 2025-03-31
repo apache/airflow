@@ -119,8 +119,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
@@ -151,8 +150,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
@@ -222,8 +220,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 

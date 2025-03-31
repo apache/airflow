@@ -83,7 +83,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         )
         operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
         if "error" in operation:
-            message = f'The operation finished in error with {operation["error"]}'
+            message = f"The operation finished in error with {operation['error']}"
             raise AirflowException(message)
         if operation and operation.get("done"):
             return True

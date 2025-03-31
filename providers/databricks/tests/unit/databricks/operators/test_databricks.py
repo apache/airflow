@@ -2013,9 +2013,9 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(TaskDeferred) as exec_info:
             operator.monitor_databricks_job()
-        assert isinstance(
-            exec_info.value.trigger, DatabricksExecutionTrigger
-        ), "Trigger is not a DatabricksExecutionTrigger"
+        assert isinstance(exec_info.value.trigger, DatabricksExecutionTrigger), (
+            "Trigger is not a DatabricksExecutionTrigger"
+        )
         assert exec_info.value.method_name == "execute_complete"
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

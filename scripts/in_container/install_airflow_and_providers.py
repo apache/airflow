@@ -128,8 +128,7 @@ def get_airflow_constraints_location(
         return airflow_constraints_location
     if airflow_constraints_reference:
         console.print(
-            f"[info]Building constraints location from "
-            f"constraints reference: {airflow_constraints_reference}"
+            f"[info]Building constraints location from constraints reference: {airflow_constraints_reference}"
         )
     elif airflow_package_version:
         if re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", airflow_package_version):
@@ -335,8 +334,7 @@ def find_installation_spec(
             python_version=python_version,
         )
         console.print(
-            "\nDo not install airflow task-sdk. It should be installed automatically if needed "
-            "by providers."
+            "\nDo not install airflow task-sdk. It should be installed automatically if needed by providers."
         )
         airflow_task_sdk_distribution = None
         airflow_task_sdk_constraints_location = None

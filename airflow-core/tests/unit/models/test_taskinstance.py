@@ -2210,9 +2210,9 @@ class TestTaskInstance:
 
         # check that the asset event has an earlier timestamp than the ADRQ's
         adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
-        assert all(
-            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
-        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        assert all(event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps), (
+            f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        )
 
     def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
@@ -3078,7 +3078,7 @@ class TestTaskInstance:
             ti.set_state(state=State.SUCCESS, session=dag_maker.session)
             return ti
 
-        date = cast(pendulum.DateTime, pendulum.parse("2019-01-01T00:00:00+00:00"))
+        date = cast("pendulum.DateTime", pendulum.parse("2019-01-01T00:00:00+00:00"))
 
         ret = []
 
@@ -4012,9 +4012,9 @@ class TestTaskInstance:
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
             if key not in hybrid_props:
-                assert (
-                    getattr(ti, key) == expected_value
-                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                assert getattr(ti, key) == expected_value, (
+                    f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                )
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()

@@ -687,12 +687,21 @@ components:
     Basic:
       type: http
       scheme: basic
+      description: To authenticate FAB auth manager API requests, clients have the option to use basic
+        authentication. To learn more about FAB auth manager API authentication, please read
+        https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/api-authentication.html#basic-authentication.
     GoogleOpenId:
       type: openIdConnect
       openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
+      description: To authenticate FAB auth manager API requests, clients have the option to use Google OpenID.
+        To learn more about Google OpenID authentication, please read
+        https://airflow.apache.org/docs/apache-airflow-providers-google/stable/api-auth-backend/google-openid.html.
     Kerberos:
       type: http
       scheme: negotiate
+      description: To authenticate FAB auth manager API requests, clients have the option to use Kerberos
+        authentication. To learn more about FAB auth manager API authentication, please read
+        https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/api-authentication.html#kerberos-authentication.
 
 tags:
   - name: Role

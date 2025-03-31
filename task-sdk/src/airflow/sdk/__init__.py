@@ -52,8 +52,8 @@ __all__ = [
 __version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
-    from airflow.sdk.bases.baseoperator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.notifier import BaseNotifier
+    from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
@@ -76,7 +76,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
     "BaseNotifier": ".definitions.notifier",
-    "BaseOperator": ".bases.baseoperator",
+    "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
     "Connection": ".definitions.connection",
@@ -90,9 +90,9 @@ __lazy_imports: dict[str, str] = {
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",
-    "chain": ".bases.baseoperator",
-    "chain_linear": ".bases.baseoperator",
-    "cross_downstream": ".bases.baseoperator",
+    "chain": ".bases.operator",
+    "chain_linear": ".bases.operator",
+    "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",

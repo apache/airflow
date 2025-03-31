@@ -396,7 +396,7 @@ def find_matching_long_package_names(
     processed_package_filters.extend(get_long_package_names(short_packages))
 
     removed_packages: list[str] = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
     all_packages_including_removed: list[str] = available_doc_packages + removed_packages
     invalid_filters = [
@@ -598,8 +598,8 @@ def convert_cross_package_dependencies_to_table(
     prefix = "apache-airflow-providers-"
     base_url = "https://airflow.apache.org/docs/"
     for dependency in cross_package_dependencies:
-        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
+        pip_package_name = f"{prefix}{dependency.replace('.', '-')}"
+        url_suffix = f"{dependency.replace('.', '-')}"
         if markdown:
             url = f"[{pip_package_name}]({base_url}{url_suffix})"
         else:
@@ -773,7 +773,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             f"[error]Error {e}[/]\n"
             f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
             f'[warning]Please refresh the tags manually via:[/]\n\n"'
-            f'{" ".join(fetch_command)}\n\n'
+            f"{' '.join(fetch_command)}\n\n"
         )
         sys.exit(1)
 

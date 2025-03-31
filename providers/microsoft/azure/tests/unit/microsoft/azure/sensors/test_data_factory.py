@@ -87,14 +87,13 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
         mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
         with pytest.raises(TaskDeferred) as exc:
             self.defered_sensor.execute(mock.MagicMock())
-        assert isinstance(
-            exc.value.trigger, ADFPipelineRunStatusSensorTrigger
-        ), "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+        assert isinstance(exc.value.trigger, ADFPipelineRunStatusSensorTrigger), (
+            "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+        )
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
     @mock.patch(
-        "airflow.providers.microsoft.azure.sensors.data_factory"
-        ".AzureDataFactoryPipelineRunStatusSensor.defer"
+        "airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor.defer"
     )
     def test_adf_pipeline_status_sensor_finish_before_deferred(self, mock_defer, mock_hook):
         mock_hook.return_value.get_pipeline_run_status.return_value = (
@@ -134,9 +133,9 @@ class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
         mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute({})
-        assert isinstance(
-            exc.value.trigger, ADFPipelineRunStatusSensorTrigger
-        ), "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+        assert isinstance(exc.value.trigger, ADFPipelineRunStatusSensorTrigger), (
+            "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+        )
 
     def test_adf_pipeline_status_sensor_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""

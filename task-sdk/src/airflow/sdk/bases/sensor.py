@@ -37,7 +37,7 @@ from airflow.exceptions import (
     TaskDeferralTimeout,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.sdk.bases.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

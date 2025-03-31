@@ -460,8 +460,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
-                f"Unsupported serializer {serializer!r}. "
-                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+                f"Unsupported serializer {serializer!r}. Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
 
@@ -1142,7 +1141,6 @@ def _get_current_context() -> Mapping[str, Any]:
 
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
-            "Current context was requested but no context was found! "
-            "Are you running within an Airflow task?"
+            "Current context was requested but no context was found! Are you running within an Airflow task?"
         )
     return _CURRENT_CONTEXT[-1]

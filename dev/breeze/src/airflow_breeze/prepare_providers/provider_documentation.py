@@ -758,8 +758,7 @@ def update_release_notes(
                 raise PrepareReleaseDocsUserQuitException()
         elif not list_of_list_of_changes:
             get_console().print(
-                f"\n[warning]Provider: {provider_id} - "
-                f"skipping documentation generation. No changes![/]\n"
+                f"\n[warning]Provider: {provider_id} - skipping documentation generation. No changes![/]\n"
             )
             raise PrepareReleaseDocsNoChangesException()
         else:

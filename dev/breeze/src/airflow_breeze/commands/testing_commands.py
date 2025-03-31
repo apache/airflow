@@ -1274,7 +1274,7 @@ def _run_test_command(
     if skip_providers:
         ignored_path_list = [
             *[
-                f"--ignore=providers/{provider_id.replace('.','/')}/tests"
+                f"--ignore=providers/{provider_id.replace('.', '/')}/tests"
                 for provider_id in skip_providers.split(" ")
             ],
         ]

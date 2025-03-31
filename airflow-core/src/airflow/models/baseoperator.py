@@ -47,7 +47,7 @@ from airflow.models.abstractoperator import (
     NotMapped,
 )
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.sdk.bases.baseoperator import (
+from airflow.sdk.bases.operator import (
     BaseOperator as TaskSDKBaseOperator,
     # Re-export for compat
     chain as chain,

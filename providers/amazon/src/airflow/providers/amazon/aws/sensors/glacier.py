@@ -95,5 +95,5 @@ class GlacierJobOperationSensor(AwsBaseSensor[GlacierHook]):
             return False
         else:
             raise AirflowException(
-                f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
+                f"Sensor failed. Job status: {response['Action']}, code status: {response['StatusCode']}"
             )

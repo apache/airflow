@@ -944,7 +944,6 @@ elif PACKAGE_NAME == "apache-airflow-providers-fab":
             "spec": fab_auth_manager_flask_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
-                "no-auto-auth": True,
             },
         },
         {
