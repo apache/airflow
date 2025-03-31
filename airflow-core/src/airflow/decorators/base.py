@@ -492,7 +492,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         partial_kwargs.setdefault("op_kwargs", {})
 
         # Mypy does not work well with a subclassed attrs class :(
-        _MappedOperator = cast(Any, DecoratedMappedOperator)
+        _MappedOperator = cast("Any", DecoratedMappedOperator)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -665,7 +665,7 @@ def task_decorator_factory(
     it's instantiated.
     """
     if multiple_outputs is None:
-        multiple_outputs = cast(bool, attr.NOTHING)
+        multiple_outputs = cast("bool", attr.NOTHING)
     if python_callable:
         decorator = _TaskDecorator(
             function=python_callable,
@@ -673,7 +673,7 @@ def task_decorator_factory(
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
-        return cast(TaskDecorator, decorator)
+        return cast("TaskDecorator", decorator)
     elif python_callable is not None:
         raise TypeError("No args allowed while using @task, use kwargs instead")
 
@@ -685,4 +685,4 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
 
-    return cast(TaskDecorator, decorator_factory)
+    return cast("TaskDecorator", decorator_factory)

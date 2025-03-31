@@ -473,9 +473,9 @@ class TestDockerOperator:
         operator = DockerOperator(
             private_environment={"PRIVATE": "MESSAGE"}, image=TEST_IMAGE, task_id="unittest"
         )
-        assert operator._private_environment == {
-            "PRIVATE": "MESSAGE"
-        }, "To keep this private, it must be an underscored attribute."
+        assert operator._private_environment == {"PRIVATE": "MESSAGE"}, (
+            "To keep this private, it must be an underscored attribute."
+        )
 
     @mock.patch("airflow.providers.docker.operators.docker.StringIO")
     def test_environment_overrides_env_file(self, stringio_mock):

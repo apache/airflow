@@ -47,7 +47,7 @@ def process_package_filters(available_packages: list[str], package_filters: list
         return available_packages
 
     suspended_packages = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
     all_packages_with_suspended = available_packages + suspended_packages
     invalid_filters = [

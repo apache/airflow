@@ -45,8 +45,7 @@ class TestBatchJobDefinitionLink(BaseAwsLinksTestCase):
             )
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/batch/home"
-                "?region=eu-west-1#job-definition/detail/arn:fake:jd"
+                "https://console.aws.amazon.com/batch/home?region=eu-west-1#job-definition/detail/arn:fake:jd"
             ),
             region_name="eu-west-1",
             aws_partition="aws",

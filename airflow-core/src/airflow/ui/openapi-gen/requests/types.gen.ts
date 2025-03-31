@@ -2603,6 +2603,12 @@ export type LogoutData = {
 
 export type LogoutResponse = unknown;
 
+export type NotFoundHandlerData = {
+  restOfPath: string;
+};
+
+export type NotFoundHandlerResponse = unknown;
+
 export type $OpenApiTs = {
   "/ui/auth/links": {
     get: {
@@ -5422,6 +5428,21 @@ export type $OpenApiTs = {
          * Temporary Redirect
          */
         307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/{rest_of_path}": {
+    get: {
+      req: NotFoundHandlerData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Validation Error
          */

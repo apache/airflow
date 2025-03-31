@@ -355,8 +355,7 @@ TEST_JOB_ID = "test-job"
 TEST_WORKFLOW_ID = "test-workflow"
 
 DATAPROC_JOB_LINK_EXPECTED = (
-    f"https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?"
-    f"region={GCP_REGION}&project={GCP_PROJECT}"
+    f"https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?region={GCP_REGION}&project={GCP_PROJECT}"
 )
 DATAPROC_CLUSTER_LINK_EXPECTED = (
     f"https://console.cloud.google.com/dataproc/clusters/{CLUSTER_NAME}/monitoring?"
@@ -1423,9 +1422,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         # Test whether xcom push occurs before polling for job
         assert self.extra_links_manager_mock.mock_calls.index(
             xcom_push_call
-        ) < self.extra_links_manager_mock.mock_calls.index(
-            wait_for_job_call
-        ), "Xcom push for Job Link has to be done before polling for job status"
+        ) < self.extra_links_manager_mock.mock_calls.index(wait_for_job_call), (
+            "Xcom push for Job Link has to be done before polling for job status"
+        )
 
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,

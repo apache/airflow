@@ -203,8 +203,7 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
         "started to backtrack dependency resolution.\n"
     )
     get_console().print(
-        "[warning]Please follow the instructions in "
-        "`dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
+        "[warning]Please follow the instructions in `dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
     )
     get_console().print(
         "[warning]in the `How to figure out backtracking dependencies` "

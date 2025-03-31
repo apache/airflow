@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 from datetime import datetime
+from unittest import mock
 
 import pytest
 
@@ -32,7 +33,6 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
-from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -113,53 +113,21 @@ class TestBaseOperator:
         except Exception as e:
             pytest.fail(f"Exception raised: {e}")
 
-    def test_lineage_composition(self):
-        """
-        Test composition with lineage
-        """
-        inlet = File(url="in")
-        outlet = File(url="out")
-        dag = DAG("test-dag", schedule=None, start_date=DEFAULT_DATE)
-        task1 = BaseOperator(task_id="op1", dag=dag)
-        task2 = BaseOperator(task_id="op2", dag=dag)
+    def test_pre_execute_hook(self):
+        hook = mock.MagicMock()
 
-        # mock
-        task1.supports_lineage = True
+        op = BaseOperator(task_id="test_task", pre_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.pre_execute({})
+        assert hook.called
 
-        # note: operator precedence still applies
-        inlet > task1 | (task2 > outlet)
+    def test_post_execute_hook(self):
+        hook = mock.MagicMock()
 
-        assert task1.get_inlet_defs() == [inlet]
-        assert task2.get_inlet_defs() == [task1.task_id]
-        assert task2.get_outlet_defs() == [outlet]
-
-        fail = ClassWithCustomAttributes()
-        with pytest.raises(TypeError):
-            fail > task1
-        with pytest.raises(TypeError):
-            task1 > fail
-        with pytest.raises(TypeError):
-            fail | task1
-        with pytest.raises(TypeError):
-            task1 | fail
-
-        task3 = BaseOperator(task_id="op3", dag=dag)
-        extra = File(url="extra")
-        [inlet, extra] > task3
-
-        assert task3.get_inlet_defs() == [inlet, extra]
-
-        task1.supports_lineage = False
-        with pytest.raises(ValueError):
-            task1 | task3
-
-        assert task2.supports_lineage is False
-        task2 | task3
-        assert len(task3.get_inlet_defs()) == 3
-
-        task4 = BaseOperator(task_id="op4", dag=dag)
-        task4 > [inlet, outlet, extra]
-        assert task4.get_outlet_defs() == [inlet, outlet, extra]
+        op = BaseOperator(task_id="test_task", post_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.post_execute({})
+        assert hook.called
 
     def test_task_naive_datetime(self):
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)

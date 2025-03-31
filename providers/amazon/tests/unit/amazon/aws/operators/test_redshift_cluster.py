@@ -224,9 +224,9 @@ class TestRedshiftCreateClusterSnapshotOperator:
         )
         with pytest.raises(TaskDeferred) as exc:
             create_snapshot.execute(None)
-        assert isinstance(
-            exc.value.trigger, RedshiftCreateClusterSnapshotTrigger
-        ), "Trigger is not a RedshiftCreateClusterSnapshotTrigger"
+        assert isinstance(exc.value.trigger, RedshiftCreateClusterSnapshotTrigger), (
+            "Trigger is not a RedshiftCreateClusterSnapshotTrigger"
+        )
 
     def test_template_fields(self):
         operator = RedshiftCreateClusterSnapshotOperator(
@@ -358,9 +358,9 @@ class TestResumeClusterOperator:
         with pytest.raises(TaskDeferred) as exc:
             redshift_operator.execute({})
 
-        assert isinstance(
-            exc.value.trigger, RedshiftResumeClusterTrigger
-        ), "Trigger is not a RedshiftResumeClusterTrigger"
+        assert isinstance(exc.value.trigger, RedshiftResumeClusterTrigger), (
+            "Trigger is not a RedshiftResumeClusterTrigger"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftResumeClusterOperator.defer")
     @mock.patch.object(RedshiftHook, "cluster_status")
@@ -510,9 +510,9 @@ class TestPauseClusterOperator:
         with pytest.raises(TaskDeferred) as exc:
             redshift_operator.execute(context=None)
 
-        assert isinstance(
-            exc.value.trigger, RedshiftPauseClusterTrigger
-        ), "Trigger is not a RedshiftPauseClusterTrigger"
+        assert isinstance(exc.value.trigger, RedshiftPauseClusterTrigger), (
+            "Trigger is not a RedshiftPauseClusterTrigger"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftPauseClusterOperator.defer")
     @mock.patch.object(RedshiftHook, "cluster_status")
@@ -646,9 +646,9 @@ class TestDeleteClusterOperator:
         with pytest.raises(TaskDeferred) as exc:
             delete_cluster.execute(context=None)
 
-        assert isinstance(
-            exc.value.trigger, RedshiftDeleteClusterTrigger
-        ), "Trigger is not a RedshiftDeleteClusterTrigger"
+        assert isinstance(exc.value.trigger, RedshiftDeleteClusterTrigger), (
+            "Trigger is not a RedshiftDeleteClusterTrigger"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftDeleteClusterOperator.defer")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status")

@@ -49,7 +49,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                 start_date = datetime(2021 + i, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
                 dag_run = DagRun(
                     dag_id=dag_id,
-                    run_id=f"run_id_{i+1}",
+                    run_id=f"run_id_{i + 1}",
                     run_type=DagRunType.MANUAL,
                     start_date=start_date,
                     logical_date=start_date,

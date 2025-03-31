@@ -43,8 +43,7 @@ class TestSparkJDBCHook:
         "partition_column": "columnMcColumnFace",
         "lower_bound": "10",
         "upper_bound": "20",
-        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
-        "comments VARCHAR(1024)",
+        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)",
     }
 
     # this config is invalid because if one of [partitionColumn, lowerBound, upperBound]
@@ -62,8 +61,7 @@ class TestSparkJDBCHook:
         "num_partitions": 10,
         "partition_column": "columnMcColumnFace",
         "upper_bound": "20",
-        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
-        "comments VARCHAR(1024)",
+        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)",
     }
 
     def setup_method(self):

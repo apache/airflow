@@ -403,8 +403,7 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
             )
         else:
             self.log.info(
-                "The database '%s' in project '%s' and instance '%s'"
-                " already exists. Nothing to do. Exiting.",
+                "The database '%s' in project '%s' and instance '%s' already exists. Nothing to do. Exiting.",
                 self.database_id,
                 self.project_id,
                 self.instance_id,
