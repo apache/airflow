@@ -37,18 +37,18 @@ For example, instead of ``from airflow.sensors import TimeDeltaSensor``, use ``f
       * [ ] ``airflow.operators.email_operator.EmailOperator`` → ``airflow.operators.email.EmailOperator``
       * [ ] ``airflow.sensors.base_sensor_operator.BaseSensorOperator`` → ``airflow.sdk.bases.sensor.BaseSensorOperator``
       * [x] ``airflow.sensors.date_time_sensor.DateTimeSensor`` → ``airflow.sensors.date_time.DateTimeSensor``
-      * [x] ``airflow.sensors.external_task_sensor.ExternalTaskMarker`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
-      * [x] ``airflow.sensors.external_task_sensor.ExternalTaskSensor`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``
-      * [x] ``airflow.sensors.external_task_sensor.ExternalTaskSensorLink`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink``
-      * [x] ``airflow.sensors.time_delta_sensor.TimeDeltaSensor`` → ``airflow.providers.standard.sensors.time_delta.TimeDeltaSensor``
+      * [ ] ``airflow.sensors.external_task_sensor.ExternalTaskMarker`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
+      * [ ] ``airflow.sensors.external_task_sensor.ExternalTaskSensor`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``
+      * [ ] ``airflow.sensors.external_task_sensor.ExternalTaskSensorLink`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink``
+      * [ ] ``airflow.sensors.time_delta_sensor.TimeDeltaSensor`` → ``airflow.providers.standard.sensors.time_delta.TimeDeltaSensor``
       * [x] ``airflow.hooks.base_hook.BaseHook`` → ``airflow.hooks.base.BaseHook``
-      * [x] ``airflow.operators.dagrun_operator.TriggerDagRunLink`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink``
-      * [x] ``airflow.operators.dagrun_operator.TriggerDagRunOperator`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator``
-      * [x] ``airflow.operators.python_operator.BranchPythonOperator`` → ``airflow.providers.standard.operators.python.BranchPythonOperator``
-      * [x] ``airflow.operators.python_operator.PythonOperator`` → ``airflow.providers.standard.operators.python.PythonOperator``
-      * [x] ``airflow.operators.python_operator.PythonVirtualenvOperator`` → ``airflow.providers.standard.operators.python.PythonVirtualenvOperator``
-      * [x] ``airflow.operators.python_operator.ShortCircuitOperator`` → ``airflow.providers.standard.operators.python.ShortCircuitOperator``
-      * [x] ``airflow.operators.latest_only_operator.LatestOnlyOperator`` → ``airflow.providers.standard.operators.latest_only.LatestOnlyOperator``
+      * [ ] ``airflow.operators.dagrun_operator.TriggerDagRunLink`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink``
+      * [ ] ``airflow.operators.dagrun_operator.TriggerDagRunOperator`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator``
+      * [ ] ``airflow.operators.python_operator.BranchPythonOperator`` → ``airflow.providers.standard.operators.python.BranchPythonOperator``
+      * [ ] ``airflow.operators.python_operator.PythonOperator`` → ``airflow.providers.standard.operators.python.PythonOperator``
+      * [ ] ``airflow.operators.python_operator.PythonVirtualenvOperator`` → ``airflow.providers.standard.operators.python.PythonVirtualenvOperator``
+      * [ ] ``airflow.operators.python_operator.ShortCircuitOperator`` → ``airflow.providers.standard.operators.python.ShortCircuitOperator``
+      * [ ] ``airflow.operators.latest_only_operator.LatestOnlyOperator`` → ``airflow.providers.standard.operators.latest_only.LatestOnlyOperator``
 
     * AIR303
 
