@@ -24,15 +24,17 @@ from unittest import mock
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import (
+from airflow.sdk import (
     Asset,
     AssetAlias,
     AssetAll,
     AssetAny,
-    AssetUniqueKey,
-    BaseAsset,
     Dataset,
     Model,
+)
+from airflow.sdk.definitions.asset import (
+    AssetUniqueKey,
+    BaseAsset,
     _get_normalized_scheme,
     _sanitize_uri,
 )

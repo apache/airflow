@@ -32,9 +32,11 @@ __all__ = [
     "Connection",
     "Context",
     "DAG",
+    "Dataset",
     "EdgeModifier",
     "Label",
     "Metadata",
+    "Model",
     "Param",
     "TaskGroup",
     "Variable",
@@ -44,9 +46,11 @@ __all__ = [
     "chain_linear",
     "cross_downstream",
     "dag",
+    "dataset",
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "model",
 ]
 
 __version__ = "1.0.0.alpha1"
@@ -56,7 +60,15 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAll,
+        AssetAny,
+        AssetWatcher,
+        Dataset,
+        Model,
+    )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.connection import Connection
@@ -82,9 +94,11 @@ __lazy_imports: dict[str, str] = {
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",
+    "Dataset": ".definitions.asset",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "Model": ".definitions.asset",
     "Param": ".definitions.param",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
@@ -94,8 +108,10 @@ __lazy_imports: dict[str, str] = {
     "chain_linear": ".bases.operator",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "dataset": ".definitions.asset",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "model": ".definitions.asset",
 }
 
 
