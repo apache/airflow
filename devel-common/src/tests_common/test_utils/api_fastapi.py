@@ -86,6 +86,7 @@ def _check_dag_run_note(session, dr_id, note_data):
 
 def _check_task_instance_note(session, ti_id, note_data):
     ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti_id).one_or_none()
+    session.refresh(ti_note)
     if note_data is None:
         assert ti_note is None
     else:
