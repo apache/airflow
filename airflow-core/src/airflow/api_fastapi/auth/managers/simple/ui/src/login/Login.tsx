@@ -22,23 +22,15 @@ import { Alert, CloseButton, Container, Heading, Text } from "@chakra-ui/react";
 
 import { useCreateToken } from "src/queries/useCreateToken";
 import { LoginForm } from "src/login/LoginForm";
-import type { ApiError } from "openapi-gen/requests/core/ApiError";
-import type {
-  LoginResponse,
-  HTTPExceptionResponse,
-  HTTPValidationError,
-} from "openapi-gen/requests/types.gen";
+import type { LoginResponse } from "openapi-gen/requests/types.gen";
 import { useSearchParams } from "react-router-dom";
 import { useCookies } from "react-cookie";
+import { ErrorAlert } from "src/alert/ErrorAlert";
 
 export type LoginBody = {
   password: string;
   username: string;
 };
-
-type ExpandedApiError = {
-  body: HTTPExceptionResponse | HTTPValidationError;
-} & ApiError;
 
 const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner";
 
@@ -60,14 +52,9 @@ export const Login = () => {
 
     globalThis.location.replace(next ?? "");
   };
-  const {
-    createToken,
-    error: err,
-    isPending,
-    setError,
-  } = useCreateToken({ onSuccess });
-  const error = err as ExpandedApiError;
-  const errorMessage = error.body.detail;
+  const { createToken, error, isPending, setError } = useCreateToken({
+    onSuccess,
+  });
 
   const onLogin = (data: LoginBody) => {
     setError(undefined);
@@ -76,7 +63,7 @@ export const Login = () => {
 
   return (
     <>
-      {isBannerDisabled === undefined && (
+      {isBannerDisabled === null && (
         <Alert.Root status="info">
           <Alert.Indicator />
           <Alert.Content>
@@ -120,11 +107,7 @@ export const Login = () => {
           Sign in
         </Heading>
 
-        {errorMessage!==undefined ? (
-          <Alert.Root mb="2" status="warning">
-            {errorMessage}
-          </Alert.Root>
-        ) : undefined}
+        {error === null && <ErrorAlert error={error} />}
 
         <Text mb={4}>Enter your login and password below:</Text>
         <LoginForm isPending={isPending} onLogin={onLogin} />

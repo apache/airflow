@@ -55,10 +55,13 @@ importers:
         version: 6.6.3
       "@testing-library/react":
         specifier: ^16.2.0
-        version: 16.2.0(@testing-library/dom@10.4.0)(@types/react@18.3.20)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        version: 16.2.0(@testing-library/dom@10.4.0)(@types/react-dom@19.0.0)(@types/react@18.3.20)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       "@types/react":
         specifier: ^18.3.19
         version: 18.3.20
+      "@types/react-dom":
+        specifier: ^19.0.0
+        version: 19.0.0
       "@vitejs/plugin-react-swc":
         specifier: ^3.8.1
         version: 3.8.1(@swc/helpers@0.5.15)(vite@6.2.3(jiti@1.21.7))
@@ -1169,6 +1172,12 @@ packages:
     resolution:
       {
         integrity: sha512-gNMvNH49DJ7OJYv+KAKn0Xp45p8PLl6zo2YnvDIbTd4J6MER2BmWN49TG7n9LvkyihINxeKW8+3bfS2yDC9dzQ==,
+      }
+
+  "@types/react-dom@19.0.0":
+    resolution:
+      {
+        integrity: sha512-1KfiQKsH1o00p9m5ag12axHQSb3FOU9H20UTrujVSkNhuCrRHiQWFqgEnTNK5ZNfnzZv8UWrnXVqCmCF9fgY3w==,
       }
 
   "@types/react@18.3.20":
@@ -5257,7 +5266,7 @@ snapshots:
       lodash: 4.17.21
       redent: 3.0.0
 
-  "@testing-library/react@16.2.0(@testing-library/dom@10.4.0)(@types/react@18.3.20)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)":
+  "@testing-library/react@16.2.0(@testing-library/dom@10.4.0)(@types/react-dom@19.0.0)(@types/react@18.3.20)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)":
     dependencies:
       "@babel/runtime": 7.26.10
       "@testing-library/dom": 10.4.0
@@ -5265,6 +5274,7 @@ snapshots:
       react-dom: 19.0.0(react@19.0.0)
     optionalDependencies:
       "@types/react": 18.3.20
+      "@types/react-dom": 19.0.0
 
   "@ts-morph/common@0.23.0":
     dependencies:
@@ -5293,6 +5303,10 @@ snapshots:
   "@types/parse-json@4.0.2": {}
 
   "@types/prop-types@15.7.14": {}
+
+  "@types/react-dom@19.0.0":
+    dependencies:
+      "@types/react": 18.3.20
 
   "@types/react@18.3.20":
     dependencies:

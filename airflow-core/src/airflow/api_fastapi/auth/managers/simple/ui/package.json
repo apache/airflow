@@ -34,6 +34,7 @@
         "@testing-library/jest-dom": "^6.6.3",
         "@testing-library/react": "^16.2.0",
         "@types/react": "^18.3.19",
+        "@types/react-dom": "^19.0.0",
         "@vitejs/plugin-react-swc": "^3.8.1",
         "eslint": "^9.23.0",
         "eslint-config-prettier": "^10.1.1",

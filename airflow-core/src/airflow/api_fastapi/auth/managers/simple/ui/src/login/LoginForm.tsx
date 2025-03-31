@@ -41,9 +41,9 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
 
   return (
     <form
-      onSubmit={async (event: React.SyntheticEvent) => {
+      onSubmit={(event: React.SyntheticEvent) => {
         event.preventDefault();
-        await handleSubmit(onLogin)();
+        void handleSubmit(onLogin)();
       }}
     >
       <Stack gap={4}>
