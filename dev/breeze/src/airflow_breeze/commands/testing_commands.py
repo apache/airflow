@@ -154,8 +154,10 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|.*=====.*"
-PERCENT_TEST_PROGRESS_REGEXP = r"^airflow-core/tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
+TEST_PROGRESS_REGEXP = (
+    r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|airflow-ctl/tests/.*|.*=====.*"
+)
+PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
 def _run_test(
@@ -520,13 +522,19 @@ option_test_type_helm = click.option(
 )
 option_test_type_task_sdk_group = click.option(
     "--test-type",
-    help="Type of test to run. With Providers, you can specify tests of which providers "
-    "should be run: `Providers[airbyte,http]` or "
-    "excluded from the full test suite: `Providers[-amazon,google]`",
+    help="Type of test to run for task SDK",
     default=ALL_TEST_TYPE,
     envvar="TEST_TYPE",
     show_default=True,
     type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.TASK_SDK]),
+)
+option_test_type_airflow_ctl_group = click.option(
+    "--test-type",
+    help="Type of CTL tests to run",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.CTL]),
 )
 option_use_xdist = click.option(
     "--use-xdist",
@@ -701,6 +709,65 @@ def providers_tests(**kwargs):
 def task_sdk_tests(**kwargs):
     _run_test_command(
         test_group=GroupOfTests.TASK_SDK,
+        airflow_constraints_reference="constraints-main",
+        backend="none",
+        clean_airflow_installation=False,
+        debug_resources=False,
+        downgrade_pendulum=False,
+        downgrade_sqlalchemy=False,
+        db_reset=False,
+        include_success_outputs=False,
+        integration=(),
+        install_airflow_with_constraints=False,
+        run_db_tests_only=False,
+        run_in_parallel=False,
+        skip_db_tests=True,
+        use_xdist=True,
+        excluded_parallel_test_types="",
+        excluded_providers="",
+        force_lowest_dependencies=False,
+        no_db_cleanup=True,
+        parallel_test_types="",
+        parallelism=0,
+        distribution_format="wheel",
+        providers_constraints_location="",
+        providers_skip_constraints=False,
+        remove_arm_packages=False,
+        skip_cleanup=False,
+        skip_providers="",
+        test_type=ALL_TEST_TYPE,
+        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
+        upgrade_boto=False,
+        use_airflow_version=None,
+        use_distributions_from_dist=False,
+        **kwargs,
+    )
+
+
+@group_for_testing.command(
+    name="airflow-ctl-tests",
+    help="Run airflow-ctl tests - all Airflow CTL tests are non-DB bound tests.",
+    context_settings=dict(
+        ignore_unknown_options=False,
+        allow_extra_args=False,
+    ),
+)
+@option_collect_only
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_keep_env_variables
+@option_mount_sources
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def airflow_ctl_tests(**kwargs):
+    _run_test_command(
+        test_group=GroupOfTests.CTL,
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
