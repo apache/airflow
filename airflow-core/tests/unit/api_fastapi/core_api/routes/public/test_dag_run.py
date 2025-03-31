@@ -29,7 +29,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.dagrun import DagRunNote
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -1010,17 +1009,7 @@ class TestPatchDagRun:
         assert response.status_code == expected_status_code
         for key, value in response_body.items():
             assert response_json.get(key) == value
-        dr_note = (
-            session.query(DagRunNote)
-            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
-            .filter(DagRun.run_id == DAG1_RUN1_ID)
-            .one_or_none()
-        )
-        if note_data is None:
-            assert dr_note is None
-        else:
-            assert dr_note.user_id == note_data.get("user_id")
-            assert dr_note.content == note_data.get("content")
+        _check_dag_run_note(session, DAG1_RUN1_ID, note_data)
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(
