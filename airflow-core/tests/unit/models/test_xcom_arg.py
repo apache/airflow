@@ -66,8 +66,7 @@ class TestXComArgBuild:
         # Asserting the overridden __eq__ method
         assert actual == XComArg(python_op, "test_key")
         expected_str = (
-            "{{ task_instance.xcom_pull(task_ids='test_xcom_op', "
-            "dag_id='test_xcom_dag', key='test_key') }}"
+            "{{ task_instance.xcom_pull(task_ids='test_xcom_op', dag_id='test_xcom_dag', key='test_key') }}"
         )
         assert str(actual) == expected_str
         assert (

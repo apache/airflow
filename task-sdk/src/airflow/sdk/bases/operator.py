@@ -499,7 +499,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
         apply_defaults.__param_names = set(non_variadic_params)  # type: ignore
 
-        return cast(T, apply_defaults)
+        return cast("T", apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
@@ -1406,7 +1406,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
+                send_email = EmailOperator(
+                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
+                )
                 generate_content >> send_email
 
         """

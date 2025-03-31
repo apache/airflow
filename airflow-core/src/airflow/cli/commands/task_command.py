@@ -299,7 +299,7 @@ def _guess_debugger() -> _SupportedDebugger:
     exc: Exception
     for mod_name in SUPPORTED_DEBUGGER_MODULES:
         try:
-            return cast(_SupportedDebugger, importlib.import_module(mod_name))
+            return cast("_SupportedDebugger", importlib.import_module(mod_name))
         except ImportError as e:
             exc = e
     raise exc

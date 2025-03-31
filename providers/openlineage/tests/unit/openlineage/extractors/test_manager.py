@@ -385,7 +385,9 @@ def mocked_parse(spy_agency):
 
             mocked_parse(
                 StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    ti=TaskInstance(
+                        id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
+                    ),
                     file="",
                     requests_fd=0,
                 ),

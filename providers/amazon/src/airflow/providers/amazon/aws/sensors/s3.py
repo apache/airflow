@@ -192,7 +192,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         self.defer(
             timeout=timedelta(seconds=self.timeout),
             trigger=S3KeyTrigger(
-                bucket_name=cast(str, self.bucket_name),
+                bucket_name=cast("str", self.bucket_name),
                 bucket_key=self.bucket_key,
                 wildcard_match=self.wildcard_match,
                 aws_conn_id=self.aws_conn_id,
