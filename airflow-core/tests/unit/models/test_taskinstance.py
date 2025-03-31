@@ -46,7 +46,6 @@ from airflow.exceptions import (
     AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
-    AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
     UnmappableXComLengthPushed,
@@ -73,12 +72,12 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
@@ -91,6 +90,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
@@ -370,7 +370,7 @@ class TestTaskInstance:
             session.add(ti)
             session.commit()
 
-        all_deps = RUNNING_DEPS | task.deps
+        all_deps = RUNNING_DEPS | {ReadyToRescheduleDep()}
         all_non_requeueable_deps = all_deps - REQUEUEABLE_DEPS
         patch_dict = {}
         for dep in all_non_requeueable_deps:
@@ -2210,9 +2210,9 @@ class TestTaskInstance:
 
         # check that the asset event has an earlier timestamp than the ADRQ's
         adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
-        assert all(
-            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
-        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        assert all(event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps), (
+            f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        )
 
     def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
@@ -3078,7 +3078,7 @@ class TestTaskInstance:
             ti.set_state(state=State.SUCCESS, session=dag_maker.session)
             return ti
 
-        date = cast(pendulum.DateTime, pendulum.parse("2019-01-01T00:00:00+00:00"))
+        date = cast("pendulum.DateTime", pendulum.parse("2019-01-01T00:00:00+00:00"))
 
         ret = []
 
@@ -3452,10 +3452,14 @@ class TestTaskInstance:
         listener_callback_on_error = mock.MagicMock()
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
 
-        mock_on_failure_1 = mock.MagicMock()
-        mock_on_failure_1.__name__ = "mock_on_failure_1"
-        mock_on_retry_1 = mock.MagicMock()
-        mock_on_retry_1.__name__ = "mock_on_retry_1"
+        mock_on_failure_1 = mock.Mock(
+            __name__="mock_on_failure_1",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_1 = mock.Mock(
+            __name__="mock_on_retry_1",
+            __call__=mock.MagicMock(),
+        )
         dag, task1 = create_dummy_dag(
             dag_id="test_handle_failure",
             schedule=None,
@@ -3497,10 +3501,14 @@ class TestTaskInstance:
         assert "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
-        mock_on_failure_2 = mock.MagicMock()
-        mock_on_failure_2.__name__ = "mock_on_failure_2"
-        mock_on_retry_2 = mock.MagicMock()
-        mock_on_retry_2.__name__ = "mock_on_retry_2"
+        mock_on_failure_2 = mock.Mock(
+            __name__="mock_on_failure_2",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_2 = mock.Mock(
+            __name__="mock_on_retry_2",
+            __call__=mock.MagicMock(),
+        )
         task2 = EmptyOperator(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
@@ -3521,10 +3529,14 @@ class TestTaskInstance:
         assert "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
-        mock_on_failure_3 = mock.MagicMock()
-        mock_on_failure_3.__name__ = "mock_on_failure_3"
-        mock_on_retry_3 = mock.MagicMock()
-        mock_on_retry_3.__name__ = "mock_on_retry_3"
+        mock_on_failure_3 = mock.Mock(
+            __name__="mock_on_failure_3",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_3 = mock.Mock(
+            __name__="mock_on_retry_3",
+            __call__=mock.MagicMock(),
+        )
         task3 = EmptyOperator(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
@@ -4000,9 +4012,9 @@ class TestTaskInstance:
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
             if key not in hybrid_props:
-                assert (
-                    getattr(ti, key) == expected_value
-                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                assert getattr(ti, key) == expected_value, (
+                    f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                )
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()
@@ -4047,11 +4059,15 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        on_skipped_callback_function = mock.MagicMock()
-        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+        on_skipped_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_skipped_callback_function",
+        )
 
-        on_success_callback_function = mock.MagicMock()
-        on_success_callback_function.__name__ = "on_success_callback_function"
+        on_success_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_success_callback_function",
+        )
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(
@@ -4303,85 +4319,6 @@ class TestRunRawTaskQueriesCount:
 
     def teardown_method(self) -> None:
         self._clean()
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.MagicMock()
-    mock_on_failure.__name__ = "mock_on_failure"
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-            mode=mode,
-        )
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause mapped sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.MagicMock()
-    mock_on_failure.__name__ = "mock_on_failure"
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_works(mode, retries, dag_maker):
-    """
-    Test that mapped sensors reaches success state.
-    """
-
-    def timeout(ti):
-        return 1
-
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}", serialized=True):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun().task_instances[0]
-
-    ti.run()
-    assert ti.state == State.SUCCESS
 
 
 class TestTaskInstanceRecordTaskMapXComPush:

@@ -26,12 +26,12 @@
   "amazon": {
     "deps": [
       "PyAthena>=3.0.10",
-      "apache-airflow-providers-common-compat>=1.3.0",
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0",
-      "boto3>=1.34.90",
+      "boto3>=1.37.0",
       "botocore>=1.34.90",
       "inflection>=0.5.1",
       "jmespath>=0.7.0",
@@ -45,7 +45,7 @@
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
-      "moto[cloudformation,glue]>=5.0.0",
+      "moto[cloudformation,glue]>=5.1.2",
       "mypy-boto3-appflow>=1.37.0",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
@@ -235,7 +235,7 @@
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "kylinpy>=2.7.0"
+      "kylinpy>2.7.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -284,6 +284,7 @@
   },
   "apache.spark": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.5.0",
       "apache-airflow>=2.9.0",
       "grpcio-status>=1.59.0",
       "pyspark>=3.1.3"
@@ -311,12 +312,15 @@
   },
   "apprise": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow>=2.9.0",
       "apprise>=1.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -344,12 +348,15 @@
   },
   "atlassian.jira": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow>=2.9.0",
       "atlassian-python-api>3.41.10"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -500,6 +507,7 @@
   "dbt.cloud": {
     "deps": [
       "aiohttp>=3.9.2",
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0"
@@ -529,12 +537,14 @@
   },
   "discord": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-http",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "http"
     ],
     "excluded-python-versions": [],
@@ -557,7 +567,7 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.10.2",
+      "pydantic>=2.11.0",
       "retryhttp>=1.2.0,!=1.3.0"
     ],
     "devel-deps": [],
@@ -606,11 +616,15 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=3.0.0.dev0",
+      "blinker>=1.6.2",
       "connexion[flask]>=2.14.2,<3.0",
       "flask-appbuilder==4.5.3",
       "flask-login>=0.6.2",
-      "flask>=2.2,<2.3",
-      "jmespath>=0.7.0"
+      "flask-session>=0.4.0,<0.6",
+      "flask-wtf>=1.1.0",
+      "flask>=2.2.1,<2.3",
+      "jmespath>=0.7.0",
+      "werkzeug>=2.2,<4"
     ],
     "devel-deps": [
       "kerberos>=1.3.0"
@@ -645,6 +659,17 @@
     ],
     "excluded-python-versions": [],
     "state": "ready"
+  },
+  "git": {
+    "deps": [
+      "GitPython>=3.1.44",
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
   },
   "github": {
     "deps": [
@@ -717,7 +742,6 @@
       "grpcio-gcp>=0.2.2",
       "httpx>=0.25.0",
       "immutabledict>=4.2.0",
-      "json-merge-patch>=0.2",
       "looker-sdk>=22.4.0,!=24.18.0",
       "pandas-gbq>=0.7.0",
       "pandas>=2.1.2,<2.2",
@@ -1041,12 +1065,15 @@
   },
   "opsgenie": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow>=2.9.0",
       "opsgenie-sdk>=2.1.5"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1066,12 +1093,15 @@
   },
   "pagerduty": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow>=2.9.0",
       "pdpyras>=4.2.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1079,6 +1109,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "ipykernel>=6.29.4",
+      "nbconvert>=7.16.1",
       "pandas>=2.1.2,<2.2",
       "papermill[all]>=2.6.0",
       "scrapbook[all]>=0.5.0"
@@ -1119,7 +1150,7 @@
   },
   "postgres": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "asyncpg>=0.30.0",
       "psycopg2-binary>=2.9.9"
@@ -1249,6 +1280,7 @@
   },
   "slack": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "slack_sdk>=3.19.0"
@@ -1256,6 +1288,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
@@ -1263,11 +1296,14 @@
   },
   "smtp": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },

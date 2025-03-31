@@ -27,7 +27,7 @@ import os
 import signal
 import traceback
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Mapping
+from collections.abc import Collection, Generator, Iterable, Mapping, Sequence
 from datetime import timedelta
 from enum import Enum
 from functools import cache
@@ -116,7 +116,6 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -363,10 +362,12 @@ def _run_raw_task(
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
-                )
-
+                try:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                    )
+                except Exception:
+                    log.exception("error calling listener")
         return None
 
 
@@ -604,7 +605,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
-    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
+    from airflow.sdk.bases.operator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -640,13 +641,14 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
             )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
-        from airflow.utils.context import context_get_outlet_events
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
 
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return ExecutionCallableRunner(
+            return create_executable_runner(
                 execute_callable,
                 context_get_outlet_events(context),
                 logger=log,
@@ -1263,7 +1265,7 @@ def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) 
 
 def _get_email_subject_content(
     *,
-    task_instance: TaskInstance,
+    task_instance: TaskInstance | RuntimeTaskInstanceProtocol,
     exception: BaseException,
     task: BaseOperator | None = None,
 ) -> tuple[str, str, str]:
@@ -1357,7 +1359,7 @@ def _get_email_subject_content(
 
 def _run_finished_callback(
     *,
-    callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
+    callbacks: None | TaskStateChangeCallback | Sequence[TaskStateChangeCallback],
     context: Context,
 ) -> None:
     """
@@ -1369,7 +1371,7 @@ def _run_finished_callback(
     :meta private:
     """
     if callbacks:
-        callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+        callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
 
         def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
             with contextlib.suppress(AttributeError):
@@ -2322,6 +2324,16 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
 
+        if not hasattr(self.task, "deps"):
+            # These deps are not on BaseOperator since they are only needed and evaluated
+            # in the scheduler and not needed at the Runtime.
+            from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+            serialized_op = SerializedBaseOperator.deserialize_operator(
+                SerializedBaseOperator.serialize_operator(self.task)
+            )
+            setattr(self.task, "deps", serialized_op.deps)  # type: ignore[union-attr]
+
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
@@ -2900,9 +2912,12 @@ class TaskInstance(Base, LoggingMixin):
             self._run_execute_callback(context, self.task)
 
             # Run on_task_instance_running event
-            get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self
-            )
+            try:
+                get_listener_manager().hook.on_task_instance_running(
+                    previous_state=TaskInstanceState.QUEUED, task_instance=self
+                )
+            except Exception:
+                log.exception("error calling listener")
 
             def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
                 """Render named map index if the DAG author defined map_index_template at the task level."""
@@ -3143,9 +3158,12 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-        )
+        try:
+            get_listener_manager().hook.on_task_instance_failed(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
 
         return {
             "ti": ti,
@@ -3687,6 +3705,30 @@ class TaskInstance(Base, LoggingMixin):
             )
         }
         return asset_unique_keys - active_asset_unique_keys
+
+    def get_first_reschedule_date(self, context: Context) -> datetime | None:
+        """Get the first reschedule date for the task instance."""
+        # TODO: AIP-72: Remove this after `ti.run` is migrated to use Task SDK
+        max_tries: int = self.max_tries or 0
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, BaseOperator)
+
+        retries: int = self.task.retries or 0
+        first_try_number = max_tries - retries + 1
+
+        with create_session() as session:
+            start_date = session.scalar(
+                select(TaskReschedule)
+                .where(
+                    TaskReschedule.ti_id == str(self.id),
+                    TaskReschedule.try_number >= first_try_number,
+                )
+                .order_by(TaskReschedule.id.asc())
+                .with_only_columns(TaskReschedule.start_date)
+                .limit(1)
+            )
+        return start_date
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

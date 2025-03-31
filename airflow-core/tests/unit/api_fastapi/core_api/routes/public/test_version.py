@@ -44,7 +44,7 @@ class TestGetVersion(TestVersionEndpoint):
         return_value="GIT_COMMIT",
     )
     def test_airflow_version_info(self, mock_get_airflow_get_commit, client):
-        response = client().get("/api/v2/version")
+        response = client().get("/version")
 
         assert response.status_code == 200
         assert response.json() == {"git_version": "GIT_COMMIT", "version": "MOCK_VERSION"}

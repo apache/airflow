@@ -80,6 +80,44 @@ def upgrade():
 
 
 def downgrade():
+    # Remove orphaned datasets if there is an active one that shares the same URI.
+    # We will to create a unique constraint on URI and can't fail with a duplicate.
+    # This drops history, which is unfortunate, but reasonable for downgrade.
+    if op.get_bind().dialect.name == "mysql":
+        # Crazy query for MySQL because...
+        # - It does not allow referencing d1 in an exists subquery -> Use WHERE id IN instead.
+        # - Join to find if each row has a non-orphaned row with the same URI. If there is, select its id.
+        # - Modifying the table currently used for selection is not allowed; the additional layer
+        #   SELECT id FROM (...) AS d3 makes MySQL think the selecting table is different.
+        op.execute(
+            "delete from dataset where id in ("
+            "    select id from ("
+            "        select d1.id from dataset d1"
+            "        inner join (select id as active_id, uri from dataset where is_orphaned = false) d2"
+            "        on d1.uri = d2.uri"
+            "        where d1.id != active_id"
+            "    ) as d3"
+            ")"
+        )
+    else:
+        op.execute(
+            "delete from dataset as d1 where d1.is_orphaned = true "
+            "and exists (select 1 from dataset as d2 where d1.uri = d2.uri and d2.is_orphaned = false)"
+        )
+
+    # Keep only the datasets with min id if multiple orphaned datasets with the same uri exist.
+    # This usually happens when all the dags are turned off.
+    op.execute(
+        """
+        with unique_dataset as (select min(id) as min_id, uri as uri from dataset group by id),
+        duplicate_dataset_id as (
+            select id from dataset join unique_dataset
+            on dataset.uri = unique_dataset.uri
+            where dataset.id > unique_dataset.min_id
+        )
+        delete from dataset where id in (select * from duplicate_dataset_id)
+        """
+    )
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.drop_index("idx_dataset_name_uri_unique")
         batch_op.create_index("idx_uri_unique", ["uri"], unique=True)

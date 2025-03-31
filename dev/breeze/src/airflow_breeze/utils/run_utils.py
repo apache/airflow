@@ -230,8 +230,8 @@ def assert_pre_commit_installed():
                     )
                 else:
                     get_console().print(
-                        f"\n[error]Package name pre_commit version is wrong. It should be"
-                        f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                        f"\n[error]Package name pre_commit version is wrong. It should be "
+                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                     )
                     sys.exit(1)
                 if "pre-commit-uv" not in command_result.stdout:
@@ -293,8 +293,7 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
     get_console().print(
-        f"\n[info]Please run at the earliest "
-        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
+        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 

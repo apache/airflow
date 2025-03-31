@@ -96,7 +96,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$
+        exclude: ^\.github/.*$|^.*/_vendor/.*$
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -167,7 +167,7 @@ repos:
         name: Check imports in providers
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
-        additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
+        additional_dependencies: ['rich>=12.4.4', "ruff==0.11.2"]
         files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
       - id: update-black-version
@@ -366,7 +366,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.8.1"]
+        additional_dependencies: ["ruff==0.11.2"]
         exclude: ^airflow-core/tests/unit/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -376,7 +376,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.8.1"]
+        additional_dependencies: ["ruff==0.11.2"]
         exclude: ^airflow-core/tests/unit/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -634,7 +634,7 @@ repos:
           ^providers/cncf/kubernetes/docs/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
-          ^newsfragments/41761.significant.rst$|
+          ^airflow-core/newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
           ^scripts/ci/docker-compose/integration-keycloak.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
@@ -648,7 +648,7 @@ repos:
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
-          ^newsfragments/43349\.significant\.rst$|
+          ^airflow-core/newsfragments/43349\.significant\.rst$|
           .*/dist/.*
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
@@ -1079,9 +1079,9 @@ repos:
         always_run: true
       - id: check-significant-newsfragments-are-valid
         name: Check significant newsfragments are valid
-        # Sigifniciant newsfragments follows a special format so that we can group information easily.
+        # Significant newsfragments follows a special format so that we can group information easily.
         language: python
-        files: newsfragments/.*\.rst
+        files: airflow-core/newsfragments/.*\.rst
         entry: ./scripts/ci/pre_commit/significant_newsfragments_checker.py
         pass_filenames: false
         additional_dependencies: ["docutils>=0.21.2", "Pygments>=2.19.1", "Jinja2>=3.1.5"]
@@ -1248,7 +1248,8 @@ repos:
             providers/|
             scripts|
             task-sdk/|
-            tests/dags/test_imports\.py
+            tests/dags/test_imports\.py|
+            setup_idea\.py
           )
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
@@ -1372,11 +1373,10 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
+        entry: uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
         language: python

@@ -103,22 +103,22 @@ class TestDeleteVariable(TestVariableEndpoint):
         self.create_variables()
         variables = session.query(Variable).all()
         assert len(variables) == 4
-        response = test_client.delete(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
         assert len(variables) == 3
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = unauthenticated_test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 401
 
     def test_delete_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = unauthorized_test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 403
 
     def test_delete_should_respond_404(self, test_client):
-        response = test_client.delete(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
@@ -169,20 +169,20 @@ class TestGetVariable(TestVariableEndpoint):
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
         self.create_variables()
-        response = test_client.get(f"/api/v2/variables/{key}")
+        response = test_client.get(f"/variables/{key}")
         assert response.status_code == 200
         assert response.json() == expected_response
 
     def test_get_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = unauthenticated_test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 401
 
     def test_get_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = unauthorized_test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 403
 
     def test_get_should_respond_404(self, test_client):
-        response = test_client.get(f"/api/v2/variables/{TEST_VARIABLE_KEY}")
+        response = test_client.get(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
@@ -231,7 +231,7 @@ class TestGetVariables(TestVariableEndpoint):
         self, session, test_client, query_params, expected_total_entries, expected_keys
     ):
         self.create_variables()
-        response = test_client.get("/api/v2/variables", params=query_params)
+        response = test_client.get("/variables", params=query_params)
 
         assert response.status_code == 200
         body = response.json()
@@ -239,11 +239,11 @@ class TestGetVariables(TestVariableEndpoint):
         assert [variable["key"] for variable in body["variables"]] == expected_keys
 
     def test_get_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/variables")
+        response = unauthenticated_test_client.get("/variables")
         assert response.status_code == 401
 
     def test_get_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/variables")
+        response = unauthorized_test_client.get("/variables")
         assert response.status_code == 403
 
 
@@ -316,14 +316,14 @@ class TestPatchVariable(TestVariableEndpoint):
     )
     def test_patch_should_respond_200(self, test_client, session, key, body, params, expected_response):
         self.create_variables()
-        response = test_client.patch(f"/api/v2/variables/{key}", json=body, params=params)
+        response = test_client.patch(f"/variables/{key}", json=body, params=params)
         assert response.status_code == 200
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
-            f"/api/v2/variables/{TEST_VARIABLE_KEY}",
+            f"/variables/{TEST_VARIABLE_KEY}",
             json={"key": "different_key", "value": "some_value", "description": None},
         )
         assert response.status_code == 400
@@ -332,21 +332,21 @@ class TestPatchVariable(TestVariableEndpoint):
 
     def test_patch_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
-            f"/api/v2/variables/{TEST_VARIABLE_KEY}",
+            f"/variables/{TEST_VARIABLE_KEY}",
             json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
         )
         assert response.status_code == 401
 
     def test_patch_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(
-            f"/api/v2/variables/{TEST_VARIABLE_KEY}",
+            f"/variables/{TEST_VARIABLE_KEY}",
             json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
         )
         assert response.status_code == 403
 
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(
-            f"/api/v2/variables/{TEST_VARIABLE_KEY}",
+            f"/variables/{TEST_VARIABLE_KEY}",
             json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
         )
         assert response.status_code == 404
@@ -415,14 +415,14 @@ class TestPostVariable(TestVariableEndpoint):
     )
     def test_post_should_respond_201(self, test_client, session, body, expected_response):
         self.create_variables()
-        response = test_client.post("/api/v2/variables", json=body)
+        response = test_client.post("/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
 
     def test_post_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            "/api/v2/variables",
+            "/variables",
             json={
                 "key": "new variable key",
                 "value": "new variable value",
@@ -433,7 +433,7 @@ class TestPostVariable(TestVariableEndpoint):
 
     def test_post_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(
-            "/api/v2/variables",
+            "/variables",
             json={
                 "key": "new variable key",
                 "value": "new variable value",
@@ -446,7 +446,7 @@ class TestPostVariable(TestVariableEndpoint):
         self.create_variables()
         # Attempting to post a variable with an existing key
         response = test_client.post(
-            "/api/v2/variables",
+            "/variables",
             json={
                 "key": TEST_VARIABLE_KEY,
                 "value": "duplicate value",
@@ -464,7 +464,7 @@ class TestPostVariable(TestVariableEndpoint):
             "value": "some_value",
             "description": "key too large",
         }
-        response = test_client.post("/api/v2/variables", json=body)
+        response = test_client.post("/variables", json=body)
         assert response.status_code == 422
         assert response.json() == {
             "detail": [
@@ -484,7 +484,7 @@ class TestPostVariable(TestVariableEndpoint):
             "value": None,
             "description": "key too large",
         }
-        response = test_client.post("/api/v2/variables", json=body)
+        response = test_client.post("/variables", json=body)
         assert response.status_code == 422
         assert response.json() == {
             "detail": [
@@ -510,7 +510,7 @@ class TestPostVariable(TestVariableEndpoint):
     @mock.patch("airflow.api_fastapi.logging.decorators._mask_variable_fields")
     def test_mask_variable_fields_called(self, mock_mask_variable_fields, test_client, body):
         mock_mask_variable_fields.return_value = {**body, "method": "POST"}
-        response = test_client.post("/api/v2/variables", json=body)
+        response = test_client.post("/variables", json=body)
         assert response.status_code == 201
 
         mock_mask_variable_fields.assert_called_once_with(body)
@@ -987,16 +987,16 @@ class TestBulkVariables(TestVariableEndpoint):
     )
     def test_bulk_variables(self, test_client, actions, expected_results, session):
         self.create_variables()
-        response = test_client.patch("/api/v2/variables", json=actions)
+        response = test_client.patch("/variables", json=actions)
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch("/api/v2/variables", json={})
+        response = unauthenticated_test_client.patch("/variables", json={})
         assert response.status_code == 401
 
     def test_bulk_variables_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/api/v2/variables", json={})
+        response = unauthorized_test_client.patch("/variables", json={})
         assert response.status_code == 403

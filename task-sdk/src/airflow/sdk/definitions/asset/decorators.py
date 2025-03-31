@@ -38,6 +38,16 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
+def _validate_asset_function_arguments(f: Callable) -> None:
+    for name, param in inspect.signature(f).parameters.items():
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            raise TypeError(f"wildcard '*{name}' is not supported in @asset")
+        if param.kind == inspect.Parameter.VAR_KEYWORD:
+            raise TypeError(f"wildcard '**{name}' is not supported in @asset")
+        if param.kind == inspect.Parameter.POSITIONAL_ONLY and param.default is inspect.Parameter.empty:
+            raise TypeError(f"positional-only argument '{name}' without a default is not supported in @asset")
+
+
 class _AssetMainOperator(PythonOperator):
     def __init__(self, *, definition_name: str, uri: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -45,6 +55,7 @@ class _AssetMainOperator(PythonOperator):
 
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
+        _validate_asset_function_arguments(definition._function)
         return cls(
             task_id=definition._function.__name__,
             inlets=[

@@ -96,6 +96,13 @@ def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
     return event_dict
 
 
+def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
+    from airflow.sdk.execution_time.secrets_masker import redact
+
+    event_dict = redact(event_dict)  # type: ignore[assignment]
+    return event_dict
+
+
 def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
     event_dict.pop("positional_args", None)
     return event_dict
@@ -126,9 +133,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(
-    enable_pretty_log: bool,
-):
+def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
     if enable_pretty_log:
         timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
     else:
@@ -143,6 +148,9 @@ def logging_processors(
         redact_jwt,
         structlog.processors.StackInfoRenderer(),
     ]
+
+    if mask_secrets:
+        processors.append(mask_logs)
 
     # Imports to suppress showing code from these modules. We need the import to get the filepath for
     # structlog to ignore.
@@ -247,7 +255,7 @@ def configure_logging(
         formatter = "colored"
     else:
         formatter = "plain"
-    processors, named = logging_processors(enable_pretty_log)
+    processors, named = logging_processors(enable_pretty_log, mask_secrets=not sending_to_supervisor)
     timestamper = named["timestamper"]
 
     pre_chain: list[structlog.typing.Processor] = [
@@ -458,7 +466,7 @@ def init_log_file(local_relative_path: str) -> Path:
     try:
         full_path.touch(new_file_permissions)
     except OSError as e:
-        log = structlog.get_logger()
+        log = structlog.get_logger(__name__)
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path

@@ -51,6 +51,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -63,7 +64,6 @@ from airflow.sdk.definitions.asset import (
     AssetWatcher,
     BaseAsset,
 )
-from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -338,7 +338,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     return {
         "key": BaseSerialization.serialize(key),
         "extra": var.extra,
-        "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
+        "asset_alias_events": [attrs.asdict(cast("attrs.AttrsInstance", e)) for e in var.asset_alias_events],
     }
 
 
@@ -642,7 +642,7 @@ class BaseSerialization:
     @classmethod
     def serialize_to_json(
         cls,
-        object_to_serialize: BaseOperator | MappedOperator | DAG,
+        object_to_serialize: TaskSDKBaseOperator | MappedOperator | DAG,
         decorated_fields: set,
     ) -> dict[str, Any]:
         """Serialize an object to JSON."""
@@ -726,7 +726,7 @@ class BaseSerialization:
             return var.to_dict()
         elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
-        elif isinstance(var, BaseOperator):
+        elif isinstance(var, TaskSDKBaseOperator):
             var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
@@ -1076,7 +1076,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), TriggerDagRunOperator)
             and "trigger_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1100,7 +1100,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), ExternalTaskSensor)
             and "external_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1275,11 +1275,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: TaskSDKBaseOperator | MappedOperator) -> dict[str, Any]:
         return cls._serialize_node(op)
 
     @classmethod
-    def _serialize_node(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
+    def _serialize_node(cls, op: TaskSDKBaseOperator | MappedOperator) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
@@ -1471,7 +1471,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
-            encoded_start_trigger_args = cast(dict, encoded_start_trigger_args)
+            encoded_start_trigger_args = cast("dict", encoded_start_trigger_args)
             start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
@@ -1865,7 +1865,7 @@ class TaskGroupSerialization(BaseSerialization):
                 if _type == DAT.OP
                 else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             )
-            for label, (_type, val) in encoded_group["children"].items()
+            for label, (_type, val) in sorted(encoded_group["children"].items())
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
         group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))

@@ -186,7 +186,7 @@ def grid_data(
     )
     # Create the Task Instance Summaries to be used in the Grid Response
     task_instance_summaries: dict[str, list] = {
-        run_id: [] for (_, run_id), _ in itertools.chain(parent_tis.items(), all_tis.items())
+        run_id: [] for _, run_id in itertools.chain(parent_tis, all_tis)
     }
 
     # Fill the Task Instance Summaries for the Parent and Grouped Task Instances.
@@ -220,9 +220,7 @@ def grid_data(
             data_interval_end=dag_run.data_interval_end,
             version_number=dag_run.version_number,
             note=dag_run.note,
-            task_instances=(
-                task_instance_summaries[dag_run.run_id] if dag_run.run_id in task_instance_summaries else []
-            ),
+            task_instances=task_instance_summaries.get(dag_run.run_id, []),
         )
         for dag_run in dag_runs
     ]

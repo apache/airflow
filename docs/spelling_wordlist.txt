@@ -729,6 +729,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore

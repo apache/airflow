@@ -103,7 +103,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # apache.pig, apache.pinot, apache.spark, apache.tinkerpop, apprise, arangodb, asana, atlassian.jira,
 # celery, cloudant, cncf.kubernetes, cohere, common.compat, common.io, common.messaging, common.sql,
 # databricks, datadog, dbt.cloud, dingding, discord, docker, edge, elasticsearch, exasol, fab,
-# facebook, ftp, github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins,
+# facebook, ftp, git, github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins,
 # microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mysql, neo4j, odbc,
 # openai, openfaas, openlineage, opensearch, opsgenie, oracle, pagerduty, papermill, pgvector,
 # pinecone, postgres, presto, qdrant, redis, salesforce, samba, segment, sendgrid, sftp, singularity,
@@ -369,7 +369,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
 
-
+"docs/exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -793,9 +793,11 @@ dev = [
     "apache-airflow-devel-common",
 ]
 
+
 [tool.uv]
 required-version = ">=0.6.3"
 no-build-isolation-package = ["sphinx-redoc"]
+
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -845,6 +847,7 @@ apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
+apache-airflow-providers-git = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
@@ -948,6 +951,7 @@ members = [
     "providers/fab",
     "providers/facebook",
     "providers/ftp",
+    "providers/git",
     "providers/github",
     "providers/google",
     "providers/grpc",

@@ -390,27 +390,52 @@ class TestDagFileProcessorManager:
                 > (freezed_base_time - manager._file_stats[dag_file].last_finish_time).total_seconds()
             )
 
-    @pytest.mark.skip("AIP-66: parsing requests are not bundle aware yet")
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
-        parsing_request = DagPriorityParsingRequest(fileloc="file_1.py")
+        parsing_request = DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder")
         with create_session() as session:
             session.add(parsing_request)
             session.commit()
 
-        """Test dag files are sorted by priority"""
-        dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
+        file1 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        file2 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER
+        )
 
-        manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
-
-        manager.handle_removed_files(dag_files)
-        manager._file_queue = deque(["file_2.py", "file_3.py", "file_4.py", "file_1.py"])
-        manager._refresh_requested_filelocs()
-        assert manager._file_queue == deque(["file_1.py", "file_2.py", "file_3.py", "file_4.py"])
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        manager._file_queue = deque([file2, file1])
+        manager._queue_requested_files_for_parsing()
+        assert manager._file_queue == deque([file1, file2])
+        assert manager._force_refresh_bundles == {"dags-folder"}
         with create_session() as session2:
             parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
         assert parsing_request_after is None
+
+    def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
+        """Ensure the manager only handles parsing requests for bundles being parsed in this manager"""
+        from airflow.models.dagbag import DagPriorityParsingRequest
+
+        with create_session() as session:
+            session.add(DagPriorityParsingRequest(relative_fileloc="file_1.py", bundle_name="dags-folder"))
+            session.add(DagPriorityParsingRequest(relative_fileloc="file_x.py", bundle_name="testing"))
+            session.commit()
+
+        file1 = DagFileInfo(
+            bundle_name="dags-folder", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        manager._queue_requested_files_for_parsing()
+        assert manager._file_queue == deque([file1])
+        with create_session() as session2:
+            parsing_request_after = session2.query(DagPriorityParsingRequest).all()
+        assert len(parsing_request_after) == 1
+        assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
     def test_scan_stale_dags(self, testing_dag_bundle):
         """
@@ -990,6 +1015,37 @@ class TestDagFileProcessorManager:
             assert bundleone.refresh.call_count == 1
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 1  # didn't fresh the second time
+
+    def test_bundle_force_refresh(self):
+        """Ensure the dag processor honors force refreshing a bundle."""
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.path = "/dev/null"
+        bundleone.refresh_interval = 0
+        bundleone.get_current_version.return_value = None
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(config),
+                ("dag_processor", "bundle_refresh_check_interval"): "10",
+            }
+        ):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=2)
+            manager._dag_bundles = [bundleone]
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 1
+            manager._force_refresh_bundles = {"bundleone"}
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 2  # forced refresh
 
     def test_bundles_versions_are_stored(self, session):
         config = [

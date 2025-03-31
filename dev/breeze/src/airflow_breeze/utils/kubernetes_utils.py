@@ -115,8 +115,7 @@ def _download_with_retries(num_tries, path, tool, url):
                 get_console().print(f"[error]Failing on max retries. Error while downloading {tool}: {e}")
                 sys.exit(1)
             get_console().print(
-                f"[warning]Retrying: {num_tries} retries  left on error "
-                f"while downloading {tool} tool: {e}"
+                f"[warning]Retrying: {num_tries} retries  left on error while downloading {tool} tool: {e}"
             )
 
 
@@ -171,8 +170,7 @@ def _download_tool_if_needed(
         )
     except OSError as e:
         get_console().print(
-            f"[info]Error when running `{tool}`: {e}. "
-            f"Removing and downloading {expected_version} version."
+            f"[info]Error when running `{tool}`: {e}. Removing and downloading {expected_version} version."
         )
         path.unlink(missing_ok=True)
     get_console().print(f"[info]Downloading from:[/] {url}")
@@ -295,8 +293,7 @@ def _requirements_changed() -> bool:
         return True
     if CACHED_K8S_DEPS_HASH_PATH.read_text() != _get_k8s_deps_hash():
         get_console().print(
-            f"\n[warning]Requirements changed for the K8S venv in {K8S_ENV_PATH}. "
-            f"Reinstalling the venv.\n"
+            f"\n[warning]Requirements changed for the K8S venv in {K8S_ENV_PATH}. Reinstalling the venv.\n"
         )
         return True
     return False
@@ -470,7 +467,7 @@ def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = Non
     new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     )
-    _, api_server_port = _get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     new_env["CLUSTER_FORWARDED_PORT"] = str(api_server_port)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     if executor:
@@ -501,13 +498,14 @@ def _get_free_port() -> int:
 
 
 def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> dict[str, Any] | None:
-    if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
+    config_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
+    if not config_path.exists():
+        get_console().print(f"[warning]The kind cluster config file {config_path} does not exist!")
         return None
+
     import yaml
 
-    return yaml.safe_load(
-        get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).read_text()
-    )
+    return yaml.safe_load(config_path.read_text())
 
 
 def set_random_cluster_ports(python: str, kubernetes_version: str, output: Output | None) -> None:
@@ -533,9 +531,9 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     get_console(output=output).print("\n")
 
 
-def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
+def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[int, int]:
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
-    if conf is None:
+    if not conf:
         return 0, 0
     k8s_api_server_port = conf["networking"]["apiServerPort"]
     api_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
@@ -582,8 +580,11 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
 def print_cluster_urls(
     python: str, kubernetes_version: str, output: Output | None, wait_time_in_seconds: int = 0
 ):
-    k8s_api_server_port, api_server_port = _get_kubernetes_port_numbers(
+    k8s_api_server_port, api_server_port = get_kubernetes_port_numbers(
         python=python, kubernetes_version=kubernetes_version
+    )
+    get_console(output=output).print(
+        f"\n[info]Kubeconfig file in: {get_kubeconfig_file(python, kubernetes_version)}\n"
     )
     get_console(output=output).print(
         f"\n[info]KinD Cluster API server URL: [/]http://localhost:{k8s_api_server_port}"

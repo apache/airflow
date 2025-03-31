@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.13.13",
+    "trove-classifiers==2025.3.19.19",
 ]
 build-backend = "hatchling.build"
 
@@ -69,12 +69,8 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
-    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
-    "blinker>=1.6.2",
     "cadwyn>=5.1.3",
     "colorlog>=6.8.2",
-    "configupdater>=3.1.1",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=41.0.0",
@@ -85,16 +81,7 @@ dependencies = [
     'eval-type-backport>=0.2.0;python_version<"3.10"',
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.112.4,!=0.115.10",
-    "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=1.1.0",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
+    "fastapi[standard]>=0.115.0,!=0.115.10",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
     "gunicorn>=20.1.0",
@@ -107,10 +94,7 @@ dependencies = [
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
-    "markdown-it-py>=2.1.0",
-    "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
-    "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-exporter-otlp>=1.24.0",
@@ -120,19 +104,16 @@ dependencies = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.10.2",
+    "pydantic>=2.11.0",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
     "pyjwt>=2.10.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
-    "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.27.0,<3",
-    "requests-toolbelt>=1.0.0",
-    "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=13.1.0",
     "setproctitle>=1.3.3",
@@ -140,7 +121,7 @@ dependencies = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.49,<3.0",
+    "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
@@ -151,9 +132,6 @@ dependencies = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<4",
 ]
 
 
@@ -163,7 +141,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.9.0",
+    "aiobotocore>=2.13.0",
 ]
 "async" = [
     "eventlet>=0.33.3",
@@ -220,7 +198,7 @@ dependencies = [
     # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
     # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
     # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=1.2.5,<2.2",
+    "pandas>=1.2.5,<2.3",
 ]
 "rabbitmq" = [
     "amqp>=5.2.0",
@@ -276,18 +254,18 @@ exclude = [
 path = "./hatch_build_airflow_core.py"
 
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version",
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version",
     "generated/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version"
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version"
 ]
 exclude = [
     "src/airflow/ui/node_modules/",

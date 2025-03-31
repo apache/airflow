@@ -32,7 +32,6 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -62,8 +61,8 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
-    RuntimeCheckOnTask,
     SkipDownstreamTasks,
+    TaskRescheduleStartDate,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -196,18 +195,10 @@ class TaskInstanceOperations:
         resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
-    def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
-        try:
-            self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
-            return OKResponse(ok=True)
-        except ServerResponseError as e:
-            if e.response.status_code == 400:
-                return OKResponse(ok=False)
-            elif e.response.status_code == 409:
-                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
-                return OKResponse(ok=True)
-            raise
+    def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
+        """Get the start date of a task reschedule via the API server."""
+        resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
+        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
 
 
 class ConnectionOperations:
@@ -283,7 +274,13 @@ class XComOperations:
         return int(content_range[len("map_indexes ") :])
 
     def get(
-        self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -291,6 +288,8 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
+        if include_prior_dates:
+            params.update({"include_prior_dates": include_prior_dates})
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
@@ -598,6 +597,10 @@ class ServerResponseError(httpx.HTTPStatusError):
         super().__init__(message, request=request, response=response)
 
     detail: list[RemoteValidationError] | str | dict[str, Any] | None
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
+        return Exception.__new__, (type(self),) + self.args, self.__dict__
 
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:

@@ -482,7 +482,9 @@ class OpenLineageListener:
                 process.wait(conf.execution_timeout())
             except psutil.TimeoutExpired:
                 self.log.warning(
-                    "OpenLineage process %s expired. This should not affect process execution.", pid
+                    "OpenLineage process with pid `%s` expired and will be terminated by listener. "
+                    "This has no impact on actual task execution status.",
+                    pid,
                 )
                 self._terminate_with_wait(process)
             except BaseException:

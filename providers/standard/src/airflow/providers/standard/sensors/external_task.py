@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -39,7 +40,6 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     try:
@@ -86,7 +86,9 @@ class ExternalDagLink(BaseOperatorLink):
             return build_airflow_url_with_query(query)
 
 
-class ExternalTaskSensor(BaseSensorOperator):
+# TODO: Remove BaseOperator from inheritance in https://github.com/apache/airflow/issues/47447
+#   It is only temporary until we refactor the code to not directly go to the DB.
+class ExternalTaskSensor(BaseSensorOperator, BaseOperator):
     """
     Waits for a different DAG, task group, or task to complete for a specific logical date.
 
@@ -398,8 +400,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
                     raise AirflowException(
-                        f"The external task {external_task_id} in "
-                        f"DAG {self.external_dag_id} does not exist."
+                        f"The external task {external_task_id} in DAG {self.external_dag_id} does not exist."
                     )
 
         if self.external_task_group_id:

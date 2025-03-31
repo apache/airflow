@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+12.2.2
+......
+
+Latest change: 2025-03-25
+
+==================================================================================================  ===========  ==================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`8e4cd194eb <https://github.com/apache/airflow/commit/8e4cd194ebb8c5fcf5814c50b41085f52a69b069>`__  2025-03-20   ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`9d714c83ca <https://github.com/apache/airflow/commit/9d714c83cab9ea9e930180a784ccb231cf6c748a>`__  2025-03-11   ``Remove default_view property from DAG class and model (#47616)``
+==================================================================================================  ===========  ==================================================================
+
 12.2.1
 ......
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ================================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
 `9f344f2730 <https://github.com/apache/airflow/commit/9f344f27309f85b23fd30b5a7e7b3de13639053c>`__  2025-03-06   ``Remove extra string interpolation from fstrings (#47436)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``

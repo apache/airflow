@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Request, status
+from starlette.responses import JSONResponse
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -57,6 +58,7 @@ authenticated_router = AirflowRouter(
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 
+
 authenticated_router.include_router(assets_router)
 authenticated_router.include_router(backfills_router)
 authenticated_router.include_router(connections_router)
@@ -91,3 +93,9 @@ public_router.include_router(authenticated_router)
 public_router.include_router(monitor_router)
 public_router.include_router(version_router)
 public_router.include_router(auth_router)
+
+
+@public_router.get("/{rest_of_path:path}", include_in_schema=False)
+def not_found_handler(request: Request, rest_of_path: str):
+    """Catch all route to handle invalid endpoints."""
+    return JSONResponse(status_code=404, content={"error": "invalid route"})

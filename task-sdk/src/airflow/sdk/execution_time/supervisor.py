@@ -75,13 +75,13 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -103,7 +103,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -123,8 +123,6 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
-
-SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -147,7 +145,7 @@ def mkpipe(
     io: BinaryIO | socket
     if remote_read:
         # If _we_ are writing, we don't want to buffer
-        io = cast(BinaryIO, local.makefile("wb", buffering=0))
+        io = cast("BinaryIO", local.makefile("wb", buffering=0))
     else:
         io = local
 
@@ -271,6 +269,7 @@ def block_orm_access():
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
+    os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
 
 
 def _fork_main(
@@ -873,9 +872,6 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-        elif isinstance(msg, RuntimeCheckOnTask):
-            runtime_check_resp = self.client.task_instances.runtime_checks(id=self.id, msg=msg)
-            resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -900,7 +896,9 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            xcom = self.client.xcoms.get(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+            )
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
         elif isinstance(msg, GetXComCount):
@@ -962,6 +960,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+        elif isinstance(msg, GetTaskRescheduleStartDate):
+            tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+            resp = tr_resp.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1069,14 +1070,12 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
-def initialize_secrets_backend_on_workers():
+def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """Initialize the secrets backend on workers."""
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    global SECRETS_BACKEND
-    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
+    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
 
 def supervise(
@@ -1106,6 +1105,8 @@ def supervise(
     :return: Exit code of the process.
     """
     # One or the other
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
@@ -1136,7 +1137,9 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    initialize_secrets_backend_on_workers()
+    ensure_secrets_backend_loaded()
+
+    reset_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,
