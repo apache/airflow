@@ -109,7 +109,6 @@ export const Asset = () => {
                 isLoading={isLoadingEvents}
                 setOrderBy={setOrderBy}
                 setTableUrlState={setTableURLState}
-                showAssetName={false}
                 showExtra
                 tableUrlState={tableURLState}
               />

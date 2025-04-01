@@ -29,12 +29,10 @@ import { TriggeredRuns } from "./TriggeredRuns";
 export const AssetEvent = ({
   assetId,
   event,
-  showAssetName = true,
   showExtra,
 }: {
   readonly assetId?: number;
   readonly event: AssetEventResponse;
-  readonly showAssetName?: boolean;
   readonly showExtra?: boolean;
 }) => {
   let source = "";
@@ -73,20 +71,18 @@ export const AssetEvent = ({
           </Tooltip>
         </HStack>
       )}
-      {Boolean(showAssetName) ? (
-        <HStack>
-          <Text>Source: </Text>
-          {source === "" ? (
-            <Link
-              to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
-            >
-              <Text color="fg.info"> {event.source_dag_id} </Text>
-            </Link>
-          ) : (
-            source
-          )}
-        </HStack>
-      ) : undefined}
+      <HStack>
+        <Text>Source: </Text>
+        {source === "" ? (
+          <Link
+            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
+          >
+            <Text color="fg.info"> {event.source_dag_id} </Text>
+          </Link>
+        ) : (
+          source
+        )}
+      </HStack>
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
