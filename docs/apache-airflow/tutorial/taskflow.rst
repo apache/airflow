@@ -274,6 +274,21 @@ Example (dynamically created virtualenv):
     :start-after: [START howto_operator_python_venv]
     :end-before: [END howto_operator_python_venv]
 
+.. note::
+
+   A very specific usecase is worth documenting here on the handling of ``"sqlalchemy>2.0.0"`` dependency. 
+   As of yet, this dependency (a notorious requirement for the latest versions of the ``pandas`` library, for instance)
+   is **not** compatible with Airflow itself.
+
+   In that case, you *can* set it to a virtualenv, but there **will** be side effects in Airflow.
+   Fortunately, most of the time there will be no impact on your code. Notorious side effects will be documented
+   here ; as this is kind of an off-road exploration, this cannot be an extensive documentation. If you encounter
+   other side effects, please consider adding to the present documentation.
+
+   * impact on ``airflow.models.Variables`` : you will not be able to retrieve variables set with the 
+     ``Variable.set("eggs", "spam")`` command. Instead, please commit your variables using ``os.environ["AIRFLOW_VAR_EGGS"] = "spam"``.
+
+
 Using Python environment with pre-installed dependencies
 ........................................................
 

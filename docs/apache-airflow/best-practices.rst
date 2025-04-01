@@ -1005,6 +1005,9 @@ The drawbacks:
   but even that library does not solve all the serialization limitations.
 * All dependencies that are not available in Airflow environment must be locally imported in the callable you
   use and the top-level Python code of your DAG should not import/use those libraries.
+* Calling a dependency which is not compatible with Airflow's own might (or not) end up with conflicts. For
+  instance, using ``"sqlalchemy>2.0.0"`` might cause havoc with Airflow's `Variable` retrieval (depending on
+  the way those were set).
 * The virtual environments are run in the same operating system, so they cannot have conflicting system-level
   dependencies (``apt`` or ``yum`` installable packages). Only Python dependencies can be independently
   installed in those environments
