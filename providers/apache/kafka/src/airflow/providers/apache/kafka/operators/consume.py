@@ -111,14 +111,6 @@ class ConsumeFromTopicOperator(BaseOperator):
                 f"commit_cadence must be one of {VALID_COMMIT_CADENCE}. Got {self.commit_cadence}"
             )
 
-        if self.max_messages and self.max_batch_size > self.max_messages:
-            self.log.warning(
-                "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
-                self.max_batch_size,
-                self.max_messages,
-                self.max_batch_size,
-            )
-
         if self.commit_cadence == "never":
             self.commit_cadence = None
 
