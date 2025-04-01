@@ -20,34 +20,36 @@
 import React from "react";
 import { Button, Field, Input, Stack } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
-import { LoginBody } from "./Login";
+import type { LoginBody } from "./Login";
 
 type LoginFormProps = {
-  readonly onLogin: (loginBody: LoginBody) => string;
   readonly isPending: boolean;
+  readonly onLogin: (loginBody: LoginBody) => void;
 };
 
-export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
+export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
   const {
     control,
-    handleSubmit,
     formState: { isValid },
+    handleSubmit,
   } = useForm<LoginBody>({
     defaultValues: {
-      username: "",
       password: "",
+      username: "",
     },
   });
 
   return (
-    <form onSubmit={(e: React.SyntheticEvent) => {
-      e.preventDefault();
-      handleSubmit(onLogin)();
-    }}>
+    <form
+      onSubmit={(event: React.SyntheticEvent) => {
+        event.preventDefault();
+        void handleSubmit(onLogin)();
+      }}
+    >
       <Stack gap={4}>
         <Controller
-          name="username"
           control={control}
+          name="username"
           render={({ field, fieldState }) => (
             <Field.Root invalid={Boolean(fieldState.error)} required>
               <Field.Label>Username</Field.Label>
@@ -58,8 +60,8 @@ export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
         />
 
         <Controller
-          name="password"
           control={control}
+          name="password"
           render={({ field, fieldState }) => (
             <Field.Root invalid={Boolean(fieldState.error)} required>
               <Field.Label>Password</Field.Label>
@@ -70,8 +72,8 @@ export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
         />
 
         <Button
-          disabled={!isValid || isPending}
           colorPalette="blue"
+          disabled={!isValid || isPending}
           type="submit"
         >
           Sign in

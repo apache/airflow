@@ -69,7 +69,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=5.1.3",
+    "cadwyn>=5.2.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
@@ -127,7 +127,7 @@ dependencies = [
     "svcs>=25.1.0",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
-    "termcolor>=2.5.0",
+    "termcolor>=3.0.0",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",

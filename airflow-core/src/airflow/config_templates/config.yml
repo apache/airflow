@@ -70,7 +70,7 @@ core:
     executor:
       description: |
         The executor class that airflow should use. Choices include
-        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
+        ``LocalExecutor``, ``CeleryExecutor``,
         ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
@@ -1290,17 +1290,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-debug:
-  description: ~
-  options:
-    fail_fast:
-      description: |
-        Used only with ``DebugExecutor``. If set to ``True`` DAG will fail with first
-        failed task. Helpful for debugging purposes.
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
 api:
   description: ~
   options:
@@ -1439,6 +1428,42 @@ workers:
       sensitive: true
       example: ~
       default: ""
+    min_heartbeat_interval:
+      description: |
+        The minimum interval (in seconds) at which the worker checks the task instance's
+        heartbeat status with the API server to confirm it is still alive.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "5"
+    max_failed_heartbeats:
+      description: |
+        The maximum number of consecutive failed heartbeats before terminating the task instance process.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "3"
+    execution_api_retries:
+      description: |
+        The maximum number of retry attempts to the execution API server.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "5"
+    execution_api_retry_wait_min:
+      description: |
+        The minimum amount of time (in seconds) to wait before retrying a failed API request.
+      version_added: 3.0.0
+      type: float
+      example: ~
+      default: "1.0"
+    execution_api_retry_wait_max:
+      description: |
+        The maximum amount of time (in seconds) to wait before retrying a failed API request.
+      version_added: 3.0.0
+      type: float
+      example: ~
+      default: "90.0"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:

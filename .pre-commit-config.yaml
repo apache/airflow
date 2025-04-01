@@ -615,6 +615,7 @@ repos:
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/redis/src/airflow/providers/redis/provider.yaml$|
           ^airflow-core/src/airflow/serialization/serialized_objects.py$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml|
           ^airflow-core/src/airflow/ui/pnpm-lock.yaml$|
           ^airflow-core/src/airflow/utils/db.py$|
           ^airflow-core/src/airflow/utils/trigger_rule.py$|
@@ -1307,16 +1308,16 @@ repos:
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflowctl
-        name: Run mypy for airflowctl
+      - id: mypy-airflow-ctl
+        name: Run mypy for airflow-ctl
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests//.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
-      - id: mypy-airflowctl
+      - id: mypy-airflow-ctl
         stages: ['manual']
-        name: Run mypy for airflowctl (manual)
+        name: Run mypy for airflow-ctl (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflowctl
         pass_filenames: false

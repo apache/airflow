@@ -353,7 +353,7 @@ class Connection(Base, LoggingMixin):
             self._validate_extra(extra_val, self.conn_id)
         return extra_val
 
-    def set_extra(self, value: str):
+    def set_extra(self, value: str | None):
         """Encrypt extra-data and save in object attribute to object."""
         if value:
             self._validate_extra(value, self.conn_id)

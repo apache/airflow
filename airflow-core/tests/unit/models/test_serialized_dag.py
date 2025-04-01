@@ -391,3 +391,23 @@ class TestSerializedDagModel:
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
+
+    @pytest.mark.parametrize("min_update_interval", [0, 10])
+    @mock.patch.object(DagVersion, "get_latest_version")
+    def test_min_update_interval_is_respected(
+        self, mock_dv_get_latest_version, min_update_interval, dag_maker
+    ):
+        mock_dv_get_latest_version.return_value = None
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+        # new task
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(dag, bundle_name="testing", min_update_interval=min_update_interval)
+        if min_update_interval:
+            # Because min_update_interval is 10, DagVersion.get_latest_version would
+            # be called only once:
+            mock_dv_get_latest_version.assert_called_once()
+        else:
+            assert mock_dv_get_latest_version.call_count == 2

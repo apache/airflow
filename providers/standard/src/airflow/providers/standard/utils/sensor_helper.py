@@ -71,7 +71,9 @@ def _get_count(
                         tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids)
                     )
                 )
-            ) / len(external_task_group_task_ids)
+                / len(external_task_group_task_ids)
+                * len(dttm_filter)
+            )
     else:
         count = session.scalar(_count_stmt(DR, states, dttm_filter, external_dag_id))
     return cast("int", count)
