@@ -93,7 +93,7 @@ def test_jwt_token_is_redacted(captured_logs):
             "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
             "task_id='test_task', dag_id='test_dag', run_id='test_run', "
             "try_number=1, map_index=-1, hostname=None)",
-            "timestamp": "2025-04-01T08:33:09.742071Z",
+            "timestamp": unittest.mock.ANY,
             "token": "eyJ***",
         }
 
