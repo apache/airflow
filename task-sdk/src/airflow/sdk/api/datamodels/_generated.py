@@ -96,6 +96,14 @@ class DagRunAssetReference(BaseModel):
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
 
 
+class DagRunCountResponse(BaseModel):
+    """
+    Schema for DAG Count response.
+    """
+
+    count: Annotated[int, Field(title="Count")]
+
+
 class DagRunState(str, Enum):
     """
     All possible states that a DagRun can be in.
@@ -109,14 +117,6 @@ class DagRunState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
-
-
-class DagRunStateCountResponse(BaseModel):
-    """
-    Schema for DAG Count response.
-    """
-
-    count: Annotated[int, Field(title="Count")]
 
 
 class DagRunStateResponse(BaseModel):

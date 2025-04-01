@@ -220,14 +220,14 @@ class TestDagRunState:
         assert response.status_code == 404
 
 
-class TestDagRunCountByRunIdsAndStates:
+class TestDagRunCount:
     def setup_method(self):
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_runs()
 
-    def test_dag_run_count_by_run_ids_and_states(self, client, session, dag_maker):
+    def test_dag_run_count(self, client, session, dag_maker):
         dag_id = "test_dag_run_count_by_run_ids_and_states"
         run_id1 = "test_run_id1"
         run_id2 = "test_run_id2"
@@ -245,7 +245,7 @@ class TestDagRunCountByRunIdsAndStates:
         session.commit()
 
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            f"/execution/dag-runs/{dag_id}/count",
             params={"run_ids": [run_id1, run_id2], "states": [DagRunState.SUCCESS]},
         )
 
@@ -270,7 +270,7 @@ class TestDagRunCountByRunIdsAndStates:
         session.commit()
 
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            f"/execution/dag-runs/{dag_id}/count",
             params={"run_ids": [run_id1, run_id2], "states": [DagRunState.SUCCESS, DagRunState.FAILED]},
         )
 
@@ -281,7 +281,7 @@ class TestDagRunCountByRunIdsAndStates:
         dag_id = "dag_not_found"
 
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            f"/execution/dag-runs/{dag_id}/count",
             params={"run_ids": ["test_run_id1"], "states": [DagRunState.SUCCESS]},
         )
 

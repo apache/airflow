@@ -57,7 +57,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
-    DagRunStateCountResult,
+    DagRunCountResult,
     DagRunStateResult,
     DeferTask,
     DeleteXCom,
@@ -67,7 +67,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
-    GetDagRunCountByRunIdsAndStates,
+    GetDagRunCount,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
@@ -1343,15 +1343,13 @@ class TestHandleRequest:
                 id="get_dag_run_state",
             ),
             pytest.param(
-                GetDagRunCountByRunIdsAndStates(
-                    dag_id="test_dag", run_ids=["test_run1", "test_run2"], states=["success"]
-                ),
-                b'{"count":2,"type":"DagRunStateCountResult"}\n',
-                "dag_runs.get_dag_run_count_by_run_ids_and_states",
+                GetDagRunCount(dag_id="test_dag", run_ids=["test_run1", "test_run2"], states=["success"]),
+                b'{"count":2,"type":"DagRunCountResult"}\n',
+                "dag_runs.get_dag_run_count",
                 ("test_dag", ["test_run1", "test_run2"], ["success"]),
                 {},
-                DagRunStateCountResult(count=2),
-                id="get_dag_run_count_by_run_ids_and_states",
+                DagRunCountResult(count=2),
+                id="get_dag_run_count",
             ),
             pytest.param(
                 GetTaskRescheduleStartDate(ti_id=TI_ID),

@@ -55,7 +55,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
-    DagRunStateCountResponse,
+    DagRunCountResponse,
     DagRunStateResponse,
     PrevSuccessfulDagRunResponse,
     TaskInstance,
@@ -202,11 +202,11 @@ class DagRunStateResult(DagRunStateResponse):
         return cls(**dr_state_response.model_dump(exclude_defaults=True), type="DagRunStateResult")
 
 
-class DagRunStateCountResult(DagRunStateCountResponse):
-    type: Literal["DagRunStateCountResult"] = "DagRunStateCountResult"
+class DagRunCountResult(DagRunCountResponse):
+    type: Literal["DagRunCountResult"] = "DagRunCountResult"
 
     @classmethod
-    def from_api_response(cls, dag_count_response: DagRunStateCountResponse) -> DagRunStateCountResult:
+    def from_api_response(cls, dag_run_count_response: DagRunCountResponse) -> DagRunCountResult:
         """
         Create result class from API Response.
 
@@ -214,7 +214,7 @@ class DagRunStateCountResult(DagRunStateCountResponse):
         for communication between the Supervisor and the task process since it needs a
         discriminator field.
         """
-        return cls(**dag_count_response.model_dump(exclude_defaults=True), type="DagRunStateCountResult")
+        return cls(**dag_run_count_response.model_dump(exclude_defaults=True), type="DagRunCountResult")
 
 
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
@@ -255,7 +255,7 @@ ToTask = Annotated[
         AssetEventsResult,
         ConnectionResult,
         DagRunStateResult,
-        DagRunStateCountResult,
+        DagRunCountResult,
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
@@ -430,11 +430,11 @@ class GetDagRunState(BaseModel):
     type: Literal["GetDagRunState"] = "GetDagRunState"
 
 
-class GetDagRunCountByRunIdsAndStates(BaseModel):
+class GetDagRunCount(BaseModel):
     dag_id: str
     run_ids: list[str]
     states: list[str]
-    type: Literal["GetDagRunCountByRunIdsAndStates"] = "GetDagRunCountByRunIdsAndStates"
+    type: Literal["GetDagRunCount"] = "GetDagRunCount"
 
 
 class GetAssetByName(BaseModel):
@@ -479,7 +479,7 @@ ToSupervisor = Annotated[
         GetAssetEventByAssetAlias,
         GetConnection,
         GetDagRunState,
-        GetDagRunCountByRunIdsAndStates,
+        GetDagRunCount,
         GetPrevSuccessfulDagRun,
         GetTaskRescheduleStartDate,
         GetVariable,

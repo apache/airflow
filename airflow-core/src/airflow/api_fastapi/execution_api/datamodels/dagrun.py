@@ -38,7 +38,7 @@ class DagRunStateResponse(BaseModel):
     state: DagRunState
 
 
-class DagRunStateCountResponse(BaseModel):
+class DagRunCountResponse(BaseModel):
     """Schema for DAG Count response."""
 
     count: int

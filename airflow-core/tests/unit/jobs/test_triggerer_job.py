@@ -753,10 +753,10 @@ class CustomTriggerDagRun(BaseTrigger):
         )
 
     async def run(self, **args) -> AsyncIterator[TriggerEvent]:
-        from airflow.sdk.execution_time.context import _get_dag_run_count_by_run_ids_and_states
+        from airflow.sdk.execution_time.context import _get_dag_run_count
 
         print(self.trigger_dag_id, self.run_ids, self.states)
-        dag_run_states_count = await sync_to_async(_get_dag_run_count_by_run_ids_and_states)(
+        dag_run_states_count = await sync_to_async(_get_dag_run_count)(
             dag_id=self.trigger_dag_id,
             run_ids=self.run_ids,
             states=self.states,

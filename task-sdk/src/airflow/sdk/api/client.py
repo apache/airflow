@@ -38,7 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
-    DagRunStateCountResponse,
+    DagRunCountResponse,
     DagRunStateResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
@@ -453,14 +453,10 @@ class DagRunOperations:
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
-    def get_dag_run_count_by_run_ids_and_states(
-        self, dag_id: str, run_ids: list[str], states: list[str]
-    ) -> DagRunStateCountResponse:
+    def get_dag_run_count(self, dag_id: str, run_ids: list[str], states: list[str]) -> DagRunCountResponse:
         """Get the count of dag runs by run ids and states via the API server."""
-        resp = self.client.get(
-            f"dag-runs/{dag_id}/count-by-run-ids-and-states", params={"run_ids": run_ids, "states": states}
-        )
-        return DagRunStateCountResponse.model_validate_json(resp.read())
+        resp = self.client.get(f"dag-runs/{dag_id}/count", params={"run_ids": run_ids, "states": states})
+        return DagRunCountResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):

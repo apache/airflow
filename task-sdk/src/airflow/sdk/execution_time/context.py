@@ -50,7 +50,7 @@ if TYPE_CHECKING:
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
-        DagRunStateCountResult,
+        DagRunCountResult,
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
@@ -586,16 +586,14 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     return outlet_events
 
 
-def _get_dag_run_count_by_run_ids_and_states(
-    dag_id: str, states: list[str], run_ids: list[str]
-) -> DagRunStateCountResult:
-    from airflow.sdk.execution_time.comms import GetDagRunCountByRunIdsAndStates
+def _get_dag_run_count(dag_id: str, states: list[str], run_ids: list[str]) -> DagRunCountResult:
+    from airflow.sdk.execution_time.comms import GetDagRunCount
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(
             log=log,
-            msg=GetDagRunCountByRunIdsAndStates(
+            msg=GetDagRunCount(
                 dag_id=dag_id,
                 states=states,
                 run_ids=run_ids,
@@ -604,6 +602,6 @@ def _get_dag_run_count_by_run_ids_and_states(
         msg = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
-            assert isinstance(msg, DagRunStateCountResult)
+            assert isinstance(msg, DagRunCountResult)
 
         return msg
