@@ -17,4 +17,4 @@ Move bash operators from airflow core to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.operators.bash.BashOperator`` → ``airflow.providers.standard.operators.bash.BashOperator``
+      * [x] ``airflow.operators.bash.BashOperator`` → ``airflow.providers.standard.operators.bash.BashOperator``
