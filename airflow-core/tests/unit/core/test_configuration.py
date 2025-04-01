@@ -1107,7 +1107,7 @@ class TestDeprecatedConf:
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1136,7 +1136,7 @@ sql_alchemy_conn=sqlite://test
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1172,7 +1172,7 @@ sql_alchemy_conn=sqlite://test
             test_conf = AirflowConfigParser(
                 default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """

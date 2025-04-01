@@ -148,7 +148,7 @@ the example below.
 .. code-block:: bash
 
     $ airflow config get-value core executor
-    SequentialExecutor
+    LocalExecutor
 
 .. note::
     For more information on configuration options, see :doc:`../configurations-ref`
