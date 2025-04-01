@@ -11567,10 +11567,10 @@ components:
           - warning
           - error
           title: Category
-          default: info
       type: object
       required:
       - text
+      - category
       title: UIAlert
       description: Optional alert to be shown at the top of the page.
     ValidationError:

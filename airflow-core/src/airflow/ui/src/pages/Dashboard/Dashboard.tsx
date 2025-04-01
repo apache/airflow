@@ -39,13 +39,13 @@ export const Dashboard = () => {
               {alerts.map((alert: UIAlert, index) =>
                 index === 0 ? (
                   <Accordion.ItemTrigger key={alert.text}>
-                    <Alert status={alert.category ?? "info"}>
+                    <Alert status={alert.category}>
                       <ReactMarkdown>{alert.text}</ReactMarkdown>
                     </Alert>
                   </Accordion.ItemTrigger>
                 ) : (
                   <Accordion.ItemContent key={alert.text} paddingRight="8">
-                    <Alert status={alert.category ?? "info"}>
+                    <Alert status={alert.category}>
                       <ReactMarkdown>{alert.text}</ReactMarkdown>
                     </Alert>
                   </Accordion.ItemContent>

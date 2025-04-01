@@ -1571,7 +1571,7 @@ export type TriggererInfoResponse = {
  */
 export type UIAlert = {
   text: string;
-  category?: "info" | "warning" | "error";
+  category: "info" | "warning" | "error";
 };
 
 export type category = "info" | "warning" | "error";

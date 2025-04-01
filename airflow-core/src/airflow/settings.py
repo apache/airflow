@@ -137,7 +137,7 @@ STATE_COLORS = {
 #   from airflow.api_fastapi.common.types import UIAlert
 #
 #   DASHBOARD_UIALERTS = [
-#       UIAlert(text="Welcome to Airflow"),
+#       UIAlert(text="Welcome to Airflow", category="info"),
 #       UIAlert(text="Upgrade tomorrow [help](https://www.example.com)", category="warning"), #With markdown support
 #   ]
 #

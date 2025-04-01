@@ -6446,11 +6446,10 @@ export const $UIAlert = {
       type: "string",
       enum: ["info", "warning", "error"],
       title: "Category",
-      default: "info",
     },
   },
   type: "object",
-  required: ["text"],
+  required: ["text", "category"],
   title: "UIAlert",
   description: "Optional alert to be shown at the top of the page.",
 } as const;
