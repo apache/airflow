@@ -104,6 +104,12 @@
                     "expected": "Expired",
                     "state": "failure"
                 },
+                                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Stopping",
+                    "state": "failure"
+                },
                 {
                     "matcher": "path",
                     "argument": "status",
@@ -114,12 +120,6 @@
                     "matcher": "path",
                     "argument": "status",
                     "expected": "InProgress",
-                    "state": "retry"
-                },
-                {
-                    "matcher": "path",
-                    "argument": "status",
-                    "expected": "Stopping",
                     "state": "retry"
                 },
                 {
@@ -162,6 +162,12 @@
                 {
                     "matcher": "path",
                     "argument": "status",
+                    "expected": "Stopping",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
                     "expected": "PartiallyCompleted",
                     "state": "failure"
                 },
@@ -181,12 +187,6 @@
                     "matcher": "path",
                     "argument": "status",
                     "expected": "InProgress",
-                    "state": "retry"
-                },
-                {
-                    "matcher": "path",
-                    "argument": "status",
-                    "expected": "Stopping",
                     "state": "retry"
                 },
                 {
