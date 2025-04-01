@@ -118,7 +118,7 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: datetime
     """Start date of the task instance."""
 
-    is_mapped: bool
+    is_mapped: bool | None = None
     """True if the original task was mapped."""
 
     def __rich_repr__(self):
@@ -254,6 +254,7 @@ class RuntimeTaskInstance(TaskInstance):
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         self.task.render_template_fields(context, jinja_env)
+        self.is_mapped = original_task.is_mapped
         return original_task
 
     def xcom_pull(
