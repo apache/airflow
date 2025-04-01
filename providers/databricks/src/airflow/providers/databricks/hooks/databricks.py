@@ -191,6 +191,7 @@ class ClusterState:
 
 class SQLStatementState:
     """Utility class for the SQL statement state concept of Databricks statements."""
+
     SQL_STATEMENT_LIFE_CYCLE_STATES = [
         "PENDING",
         "RUNNING",
@@ -200,7 +201,9 @@ class SQLStatementState:
         "CLOSED",
     ]
 
-    def __init__(self, state: str = "", error_code: str = "", error_message: str = "", *args, **kwargs) -> None:
+    def __init__(
+        self, state: str = "", error_code: str = "", error_message: str = "", *args, **kwargs
+    ) -> None:
         if state not in self.SQL_STATEMENT_LIFE_CYCLE_STATES:
             raise AirflowException(
                 f"Unexpected SQL statement life cycle state: {state}: If the state has "
@@ -228,7 +231,11 @@ class SQLStatementState:
         return self.state == "SUCCEEDED"
 
     def __eq__(self, other) -> bool:
-        return self.state == other.state and self.error_code == other.error_code and self.error_message == other.error_message
+        return (
+            self.state == other.state
+            and self.error_code == other.error_code
+            and self.error_message == other.error_message
+        )
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -768,32 +775,35 @@ class DatabricksHook(BaseDatabricksHook):
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """
         Retrieve run state of the SQL statement.
-        :param statement_id: ID of the SQL statement
-        :return: state of the SQL statement
+
+        :param statement_id: ID of the SQL statement.
+        :return: state of the SQL statement.
         """
         get_statement_endpoint = ("GET", f"api/2.0/sql/statements/{statement_id}")
         response = self._do_api_call(get_statement_endpoint)
         state = response["status"]["state"]
-        error_code = response.get("error", {}).get("error_code", "")
-        error_message = response.get("error", {}).get("error_message", "")
+        error_code = response["status"].get("error", {}).get("error_code", "")
+        error_message = response["status"].get("error", {}).get("message", "")
         return SQLStatementState(state, error_code, error_message)
 
     async def a_get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
         """
         Async version of `get_sql_statement_state`.
+
         :param statement_id: ID of the SQL statement
         :return: state of the SQL statement
         """
         get_sql_statement_endpoint = ("GET", f"api/2.0/sql/statements/{statement_id}")
         response = await self._a_do_api_call(get_sql_statement_endpoint)
         state = response["status"]["state"]
-        error_code = response.get("error", {}).get("error_code", "")
-        error_message = response.get("error", {}).get("error_message", "")
+        error_code = response["status"].get("error", {}).get("error_code", "")
+        error_message = response["status"].get("error", {}).get("message", "")
         return SQLStatementState(state, error_code, error_message)
 
     def cancel_sql_statement(self, statement_id: str) -> None:
         """
         Cancel the SQL statement.
+
         :param statement_id: ID of the SQL statement
         """
         cancel_sql_statement_endpoint = ("POST", f"api/2.0/sql/statements/{statement_id}/cancel")

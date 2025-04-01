@@ -981,6 +981,7 @@ class DatabricksRunNowOperator(BaseOperator):
 class DatabricksSQLStatementsOperator(BaseOperator):
     """
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
+
     See: https://docs.databricks.com/api/workspace/statementexecution
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1009,7 +1010,7 @@ class DatabricksSQLStatementsOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id", )
+    template_fields: Sequence[str] = ("databricks_conn_id",)
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -1085,21 +1086,21 @@ class DatabricksSQLStatementsOperator(BaseOperator):
 
     def _handle_deferrable_operator_execution(self) -> None:
         statement_state = self._hook.get_sql_statement_state(self.statement_id)
-        # if not statement_state.is_terminal:
-        self.defer(
-            trigger=DatabricksSQLStatementExecutionTrigger(
-                statement_id=self.statement_id,
-                databricks_conn_id=self.databricks_conn_id,
-                polling_period_seconds=self.polling_period_seconds,
-                retry_limit=self.databricks_retry_limit,
-                retry_delay=self.databricks_retry_delay,
-                retry_args=self.databricks_retry_args,
-            ),
-            method_name=DEFER_METHOD_NAME,
-        )
-        # else:
-        #     if statement_state.is_successful:
-        #         self.log.info("%s completed successfully.", self.task_id)
+        if not statement_state.is_terminal:
+            self.defer(
+                trigger=DatabricksSQLStatementExecutionTrigger(
+                    statement_id=self.statement_id,
+                    databricks_conn_id=self.databricks_conn_id,
+                    polling_period_seconds=self.polling_period_seconds,
+                    retry_limit=self.databricks_retry_limit,
+                    retry_delay=self.databricks_retry_delay,
+                    retry_args=self.databricks_retry_args,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        else:
+            if statement_state.is_successful:
+                self.log.info("%s completed successfully.", self.task_id)
 
     def execute(self, context: Context):
         json = {
@@ -1111,7 +1112,7 @@ class DatabricksSQLStatementsOperator(BaseOperator):
             # We set the wait timeout to 0s as that seems the appropriate way for our deferrable version
             # support of the operator. For synchronous version, we still poll on the statement
             # execution state.
-            "wait_timeout": "0s"
+            "wait_timeout": "0s",
         }
         self.statement_id = self._hook.post_sql_statement(json)
         if self.do_xcom_push and context is not None:
@@ -1129,10 +1130,14 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         if self.statement_id:
             self._hook.cancel_sql_statement(self.statement_id)
             self.log.info(
-                "Task: %s with statement ID: %s was requested to be cancelled.", self.task_id, self.statement_id
+                "Task: %s with statement ID: %s was requested to be cancelled.",
+                self.task_id,
+                self.statement_id,
             )
         else:
-            self.log.error("Error: Task: %s with invalid statement_id was requested to be cancelled.", self.task_id)
+            self.log.error(
+                "Error: Task: %s with invalid statement_id was requested to be cancelled.", self.task_id
+            )
 
     def execute_complete(self, context: dict | None, event: dict):
         statement_state = SQLStatementState.from_json(event["state"])

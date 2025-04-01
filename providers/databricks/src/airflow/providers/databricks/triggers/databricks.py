@@ -124,6 +124,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
 class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
     """
     The trigger handles the logic of async communication with DataBricks SQL Statements API.
+
     :param statement_id: ID of the SQL statement.
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     :param polling_period_seconds: Controls the rate of the poll for the result of this run.
@@ -189,7 +190,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 if statement_state.error_code:
                     error = {
                         "error_code": statement_state.error_code,
-                        "error_message": statement_state.error_message
+                        "error_message": statement_state.error_message,
                     }
                 yield TriggerEvent(
                     {
