@@ -109,7 +109,7 @@ Setting up debugging
     if __name__ == "__main__":
         dag.test()
 
-- Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
+- Add ``"AIRFLOW__CORE__EXECUTOR": "LocalExecutor"`` to the ``"env"`` field of Debug configuration.
 
   - Using the ``Run`` view click on ``Create a launch.json file``
 
@@ -133,7 +133,7 @@ Setting up debugging
              "program": "${workspaceFolder}/files/dags/example_bash_operator.py",
              "env": {
                  "PYTHONUNBUFFERED": "1",
-                 "AIRFLOW__CORE__EXECUTOR": "DebugExecutor"
+                 "AIRFLOW__CORE__EXECUTOR": "LocalExecutor"
               },
               "python": "${env:HOME}/.pyenv/versions/airflow/bin/python"
          ]

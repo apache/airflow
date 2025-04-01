@@ -43,7 +43,6 @@ from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSkipException,
@@ -2618,6 +2617,12 @@ class TestTaskInstance:
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
         asset_uri = "does_not_exist"
 
+        asset_model_chheck_stmt = select(AssetModel)
+        asset_event_check_stmt = select(AssetEvent)
+
+        assert session.scalar(asset_model_chheck_stmt) is None
+        assert session.scalar(asset_event_check_stmt) is None
+
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
 
             @task(outlets=AssetAlias(asset_alias_name))
@@ -2628,24 +2633,22 @@ class TestTaskInstance:
 
         (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
 
-        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as ctx:
-            ti.run(session=session)
-        assert str(ctx.value) == (
-            "The following assets accessed by an AssetAlias are inactive: "
-            "Asset(name='does_not_exist', uri='does_not_exist')"
-        )
+        ti.run(session=session)
 
-        assert session.scalar(select(AssetEvent)) is None
+        asset_model = session.scalars(asset_model_chheck_stmt).one()
+        assert asset_model.uri == asset_uri
+        assert asset_model.active is None, "dynamically created asset should be inactive"
+        assert session.scalars(asset_event_check_stmt).one().uri == asset_uri
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
-        asset_name = "did_not_exist"
-        asset = Asset(asset_name)
-        asset2 = Asset(asset_name, uri="test://asset")
-        asm = AssetModel.from_public(asset)
+        asset1 = Asset("asset1")
+        asset2 = Asset("asset2")
+        asm1 = AssetModel.from_public(asset1)
         asm2 = AssetModel.from_public(asset2)
-        session.add_all([asm, asm2, AssetActive.for_asset(asm)])
+        session.add_all([asm1, asm2, AssetActive.for_asset(asm1)])
+        session.flush()
 
         asset_alias_name = "alias_with_inactive_asset"
 
@@ -2653,41 +2656,54 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer_without_inactive(*, outlet_events):
-                outlet_events[AssetAlias(asset_alias_name)].add(asset, extra={"key": "value"})
+                outlet_events[AssetAlias(asset_alias_name)].add(asset1, extra={"key": "value1"})
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer_with_inactive(*, outlet_events):
-                outlet_events[AssetAlias(asset_alias_name)].add(asset2, extra={"key": "value"})
+                outlet_events[AssetAlias(asset_alias_name)].add(asset2, extra={"key": "value2"})
 
             producer_without_inactive() >> producer_with_inactive()
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
         tis["producer_without_inactive"].run(session=session)
-        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as exc:
-            tis["producer_with_inactive"].run(session=session)
+        tis["producer_with_inactive"].run(session=session)
 
-        assert "Asset(name='did_not_exist', uri='test://asset/')" in str(exc.value)
+        producer_events = {
+            e.source_task_id: e
+            for e in session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == "producer_dag"))
+        }
+        assert set(producer_events) == {"producer_without_inactive", "producer_with_inactive"}
 
-        producer_event = session.scalar(
-            select(AssetEvent).where(AssetEvent.source_task_id == "producer_without_inactive")
-        )
+        assert producer_events["producer_without_inactive"].source_task_id == "producer_without_inactive"
+        assert producer_events["producer_without_inactive"].source_dag_id == "producer_dag"
+        assert producer_events["producer_without_inactive"].source_run_id == "test"
+        assert producer_events["producer_without_inactive"].source_map_index == -1
+        assert producer_events["producer_without_inactive"].asset.uri == "asset1"
+        assert producer_events["producer_without_inactive"].extra == {"key": "value1"}
+        assert len(producer_events["producer_without_inactive"].source_aliases) == 1
+        assert producer_events["producer_without_inactive"].source_aliases[0].name == asset_alias_name
 
-        assert producer_event.source_task_id == "producer_without_inactive"
-        assert producer_event.source_dag_id == "producer_dag"
-        assert producer_event.source_run_id == "test"
-        assert producer_event.source_map_index == -1
-        assert producer_event.asset.uri == asset_name
-        assert producer_event.extra == {"key": "value"}
-        assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == asset_alias_name
+        assert producer_events["producer_with_inactive"].source_task_id == "producer_with_inactive"
+        assert producer_events["producer_with_inactive"].source_dag_id == "producer_dag"
+        assert producer_events["producer_with_inactive"].source_run_id == "test"
+        assert producer_events["producer_with_inactive"].source_map_index == -1
+        assert producer_events["producer_with_inactive"].asset.uri == "asset2"
+        assert producer_events["producer_with_inactive"].extra == {"key": "value2"}
+        assert len(producer_events["producer_with_inactive"].source_aliases) == 1
+        assert producer_events["producer_with_inactive"].source_aliases[0].name == asset_alias_name
 
-        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_name))
-        assert len(asset_obj.aliases) == 1
-        assert asset_obj.aliases[0].name == asset_alias_name
+        asset_obj_1 = session.scalar(select(AssetModel).where(AssetModel.name == "asset1"))
+        assert len(asset_obj_1.aliases) == 1
+        assert asset_obj_1.aliases[0].name == asset_alias_name
+        assert asset_obj_1.active is not None, "should stay active"
+
+        asset_obj_2 = session.scalar(select(AssetModel).where(AssetModel.name == "asset2"))
+        assert len(asset_obj_2.aliases) == 1
+        assert asset_obj_2.aliases[0].name == asset_alias_name
+        assert asset_obj_2.active is None, "should stay inactive"
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.assets) == 1
-        assert asset_alias_obj.assets[0].uri == asset_name
+        assert sorted(a.name for a in asset_alias_obj.assets) == ["asset1", "asset2"]
 
     @pytest.mark.want_activate_assets(True)
     @pytest.mark.need_serialized_dag
@@ -4110,6 +4126,9 @@ class TestTaskInstance:
         assert tih[0].try_id == try_id
         assert tih[0].try_id != ti.try_id
 
+    @pytest.mark.skip(
+        reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
+    )
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
@@ -4169,6 +4188,9 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
+    @pytest.mark.skip(
+        reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
+    )
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_in_different_dag(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
