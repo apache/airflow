@@ -26,8 +26,8 @@ from unittest.mock import Mock, patch
 import pytest
 from httpx import Response
 from httpx._utils import URLPattern
-from kiota_abstractions.request_information import RequestInformation
 from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
+from kiota_abstractions.request_information import RequestInformation
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
@@ -64,13 +64,13 @@ class TestKiotaRequestAdapterHook:
     def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
         assert isinstance(request_adapter, HttpxRequestAdapter)
         authentication_provider = cast(
-            request_adapter._authentication_provider, BaseBearerTokenAuthenticationProvider
+            "request_adapter._authentication_provider", BaseBearerTokenAuthenticationProvider
         )
         tenant_id = authentication_provider.access_token_provider._credentials._tenant_id
 
-        assert (
-            tenant_id == expected_tenant_id
-        ), f"Expected tenant ID '{expected_tenant_id}', but got '{tenant_id}'"
+        assert tenant_id == expected_tenant_id, (
+            f"Expected tenant ID '{expected_tenant_id}', but got '{tenant_id}'"
+        )
 
     def test_get_conn(self):
         with patch(
