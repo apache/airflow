@@ -28,7 +28,6 @@ from airflow.executors.executor_constants import (
     CORE_EXECUTOR_NAMES,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
     ConnectorSource,
 )
 from airflow.executors.executor_utils import ExecutorName
@@ -56,7 +55,6 @@ class ExecutorLoader:
 
     executors = {
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
-        SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",

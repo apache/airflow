@@ -172,12 +172,8 @@ class StandaloneCommand:
         # Make sure we're using a local executor flavour
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
         if not executor_class.is_local:
-            if "sqlite" in conf.get("database", "sql_alchemy_conn"):
-                self.print_output("standalone", "Forcing executor to SequentialExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR
-            else:
-                self.print_output("standalone", "Forcing executor to LocalExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
+            self.print_output("standalone", "Forcing executor to LocalExecutor")
+            env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
 
         # Make sure we're using SimpleAuthManager
         simple_auth_manager_classpath = (
