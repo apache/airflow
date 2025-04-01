@@ -65,6 +65,42 @@ def test_json_rendering(captured_logs):
 @pytest.mark.parametrize(
     "captured_logs", [(logging.INFO, "json")], indirect=True, ids=["log_level=info,formatter=json"]
 )
+def test_jwt_token_is_redacted(captured_logs):
+    """
+    Tests that jwt token is redacted.
+    """
+    logger = structlog.get_logger()
+
+    secrets_masker = SecretsMasker()
+
+    with mock.patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+        logger.info(
+            "Executing workload",
+            token="eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ1cm46YWlyZmxvdy5hcGFjaGUub3JnOnRhc2siLCJuYmYiOjE3NDM0OTQ1NjgsImV4cCI6MTc0MzQ5NTE2OCwiaWF0IjoxNzQzNDk0NTY4LCJzdWIiOiIwMTk1ZjA1Zi1kNjRhLTc2NjMtOWQ2Yy1lYzYwYTM0MmQ5NTYifQ.df0ZNUbXwnoed2O1bjXQkPV8Df1mmMUu1b_PJrQuHoft9fhPRQELVDp-s3PtL6QYSSrF_81FzsQ7YHAu7bk-1g",
+            pydantic_class=TaskInstance(
+                id=UUID("ffec3c8e-2898-46f8-b7d5-3cc571577368"),
+                dag_id="test_dag",
+                task_id="test_task",
+                run_id="test_run",
+                try_number=1,
+            ),
+        )
+        assert captured_logs
+        assert isinstance(captured_logs[0], bytes)
+        assert json.loads(captured_logs[0]) == {
+            "event": "Executing workload",
+            "level": "info",
+            "pydantic_class": "TaskInstance(id=UUID('ffec3c8e-2898-46f8-b7d5-3cc571577368'), "
+            "task_id='test_task', dag_id='test_dag', run_id='test_run', "
+            "try_number=1, map_index=-1, hostname=None)",
+            "timestamp": unittest.mock.ANY,
+            "token": "eyJ***",
+        }
+
+
+@pytest.mark.parametrize(
+    "captured_logs", [(logging.INFO, "json")], indirect=True, ids=["log_level=info,formatter=json"]
+)
 def test_logs_are_masked(captured_logs):
     """
     Test that JSON logs are masked.
