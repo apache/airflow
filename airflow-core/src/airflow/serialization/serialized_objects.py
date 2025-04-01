@@ -1334,10 +1334,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)
 
-        if getattr(op, "op_args", None) is not None:
-            if isinstance(op.op_args, tuple):  # type: ignore[union-attr]
-                serialize_op["op_args"] = cls.serialize(op.op_args)[Encoding.VAR]  # type: ignore[union-attr]
-
         return serialize_op
 
     @classmethod
