@@ -53,6 +53,7 @@ from airflow.exceptions import (
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
@@ -375,7 +376,7 @@ class DAG:
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
-    dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
+    dag_id: str = attrs.field(kw_only=False, validator=lambda i, a, v: validate_key(v))
     description: str | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(str)),
