@@ -21,7 +21,7 @@ As part of this change the following breaking changes have occurred:
 
   This is due FastAPI and pydantic v2 default behavior.
 
-- PATCH on ``DagRun`` and ``TaskInstance`` are more generic and allow in addition to update the resource state to update the note content.
+- PATCH on ``DagRun`` and ``TaskInstance`` are more generic and allow in addition to update the resource state and the note content.
 
   Therefore the two legacy dedicated endpoints to update a ``DagRun`` note and ``TaskInstance`` note have been removed.
 
