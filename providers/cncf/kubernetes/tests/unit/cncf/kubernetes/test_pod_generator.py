@@ -230,8 +230,8 @@ class TestPodGenerator:
         assert main_container["command"] == [
             "python",
             "-m",
-            "--json-path",
             "airflow.sdk.execution_time.execute_workload",
+            "--json-path",
         ]
         assert main_container["args"] == ["/tmp/execute/input.json"]
 
