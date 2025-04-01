@@ -21,6 +21,7 @@ import io
 import itertools
 import logging.config
 import os
+import re
 import sys
 import warnings
 from functools import cache
@@ -90,9 +91,10 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
 
 
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
+    jwt_pattern = r"eyJ[\.A-Za-z0-9-_]*"
     for k, v in event_dict.items():
-        if isinstance(v, str) and v.startswith("eyJ"):
-            event_dict[k] = "eyJ***"
+        if isinstance(v, str):
+            event_dict[k] = re.sub(jwt_pattern, "eyJ***", v)
     return event_dict
 
 
