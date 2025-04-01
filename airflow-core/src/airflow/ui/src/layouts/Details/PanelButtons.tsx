@@ -61,7 +61,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
-    "immediate",
+    "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
   const displayRunOptions = createListCollection({
