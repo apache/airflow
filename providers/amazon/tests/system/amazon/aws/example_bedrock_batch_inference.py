@@ -92,7 +92,7 @@ def generate_prompts(_env_id: str, _bucket: str, _key: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def stop_batch_inference(job_arn: str):
     log.info("Stopping Batch Inference Job.")
-    bedrock_client.stop_model_invocation_job(jobIdentifier=job_arn)
+    BedrockHook().conn.stop_model_invocation_job(jobIdentifier=job_arn)
 
 
 with DAG(
@@ -104,7 +104,6 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
-    bedrock_client = BedrockHook().conn
 
     bucket_name = f"{env_id}-bedrock"
     input_data_s3_key = f"{env_id}/prompt_list.jsonl"
