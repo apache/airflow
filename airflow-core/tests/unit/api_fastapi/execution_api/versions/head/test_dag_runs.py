@@ -218,3 +218,77 @@ class TestDagRunState:
         response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
 
         assert response.status_code == 404
+
+
+class TestDagRunCountByRunIdsAndStates:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_dag_run_count_by_run_ids_and_states(self, client, session, dag_maker):
+        dag_id = "test_dag_run_count_by_run_ids_and_states"
+        run_id1 = "test_run_id1"
+        run_id2 = "test_run_id2"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(
+            run_id=run_id1, state=DagRunState.SUCCESS, logical_date=timezone.datetime(2025, 2, 20)
+        )
+        dag_maker.create_dagrun(
+            run_id=run_id2, state=DagRunState.SUCCESS, logical_date=timezone.datetime(2025, 3, 20)
+        )
+
+        session.commit()
+
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            params={"run_ids": [run_id1, run_id2], "states": [DagRunState.SUCCESS]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"count": 2}
+
+    def test_dag_run_count_by_run_ids_and_success_failure_states(self, client, session, dag_maker):
+        dag_id = "test_dag_run_count_by_run_ids_and_states"
+        run_id1 = "test_run_id3"
+        run_id2 = "test_run_id4"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(
+            run_id=run_id1, state=DagRunState.SUCCESS, logical_date=timezone.datetime(2025, 4, 20)
+        )
+        dag_maker.create_dagrun(
+            run_id=run_id2, state=DagRunState.FAILED, logical_date=timezone.datetime(2025, 5, 20)
+        )
+
+        session.commit()
+
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            params={"run_ids": [run_id1, run_id2], "states": [DagRunState.SUCCESS, DagRunState.FAILED]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"count": 2}
+
+    def test_dag_run_count_by_run_ids_and_states_dag_not_found(self, client):
+        dag_id = "dag_not_found"
+
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/count-by-run-ids-and-states",
+            params={"run_ids": ["test_run_id1"], "states": [DagRunState.SUCCESS]},
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": {
+                "message": "DAG with dag_id: 'dag_not_found' not found",
+                "reason": "not_found",
+            }
+        }

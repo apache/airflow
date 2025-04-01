@@ -195,7 +195,7 @@ class DagStateTrigger(BaseTrigger):
                     run_ids=self.run_ids,
                     states=self.states,  # type: ignore[arg-type]
                 )
-                num_dags = int(dag_run_count_result.count)
+                num_dags = dag_run_count_result.count
             else:
                 num_dags = await self.count_dags()  # type: ignore[call-arg]
 

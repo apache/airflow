@@ -170,6 +170,13 @@ def get_dag_count_by_run_ids_and_states(
     session: SessionDep,
 ) -> DagRunStateCountResponse:
     """Get the count of DAGs by run_ids and states."""
+    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    if not dm:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"DAG with dag_id: '{dag_id}' not found"},
+        )
+
     result = session.scalar(
         select(func.count()).where(
             DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids), DagRun.state.in_(states)

@@ -2341,9 +2341,8 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms,
     ):
         """
-        Test that TriggerDagRunOperator (with wait_for_completion) sends the correct message to the Supervisor
+        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
 
-        It also polls the Supervisor for the DagRun state until it completes execution.
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 

@@ -255,6 +255,7 @@ ToTask = Annotated[
         AssetEventsResult,
         ConnectionResult,
         DagRunStateResult,
+        DagRunStateCountResult,
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
