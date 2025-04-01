@@ -117,8 +117,15 @@ def extract_spans_from_output(output_lines: list):
                 line = output_lines[index]
                 # The 'command' line uses single quotes, and it results in an error when parsing the json.
                 # It's not needed when checking for spans. So instead of formatting it properly, just skip it.
+                orig_line = str(line)
+                striped_line = line.lstrip()
                 if '"command":' not in line:
-                    json_lines.append(line)
+                    if orig_line == "{" or orig_line == "}":
+                        json_lines.append(line)
+                    # In certain cases, irrelevant logs might interrupt the json span printing.
+                    # This will result in an error while parsing the json. Ignore these lines.
+                    if striped_line != orig_line:
+                        json_lines.append(line)
                 if line.strip().startswith("}") and line == "}":  # Json end.
                     # Since, this is the end of the object, break the loop.
                     break

@@ -428,79 +428,170 @@ class TestUtilsUnit:
 {"timestamp":"2025-03-31T18:03:17.087763","level":"info","event":"From task sub_span3.","logger":"airflow.otel_test_dag"}
 {"timestamp":"2025-03-31T18:03:17.088075","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow.traces.otel_tracer"}
 {"timestamp":"2025-03-31T18:03:17.088105","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow.traces.otel_tracer"}
-{"timestamp":"2025-03-31T18:03:17.088168","level":"info","event":"From task sub_span4.","logger":"airflow.otel_test_dag"}
-{"timestamp":"2025-03-31T18:03:17.088257","level":"info","event":"Task_1 finished.","logger":"airflow.otel_test_dag"}
-{"timestamp":"2025-03-31T18:03:17.088302","level":"info","event":"Done. Returned value was: None","logger":"airflow.task.operators.airflow.decorators.python._PythonDecoratedOperator"}
-{"timestamp":"2025-03-31T18:03:17.098610Z","level":"info","event":"{","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098657Z","level":"info","event":"    \"name\": \"task1_sub_span3\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098728Z","level":"info","event":"    \"context\": {","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098820Z","level":"info","event":"        \"trace_id\": \"0x2ff18b33906025611803bd9bf19d9c2c\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098876Z","level":"info","event":"        \"span_id\": \"0x26475c0322517334\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098927Z","level":"info","event":"        \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.098965Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099038Z","level":"info","event":"    \"kind\": \"SpanKind.INTERNAL\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099072Z","level":"info","event":"    \"parent_id\": \"0xda642ff216bf8fb1\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099127Z","level":"info","event":"    \"start_time\": \"2025-03-31T18:03:17.087742Z\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099172Z","level":"info","event":"    \"end_time\": \"2025-03-31T18:03:17.087782Z\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099206Z","level":"info","event":"    \"status\": {","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099272Z","level":"info","event":"        \"status_code\": \"UNSET\"","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099317Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099360Z","level":"info","event":"    \"attributes\": {","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099396Z","level":"info","event":"        \"attr3\": \"val3\"","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099426Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099456Z","level":"info","event":"    \"events\": [],","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099497Z","level":"info","event":"    \"links\": [],","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099531Z","level":"info","event":"    \"resource\": {","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099586Z","level":"info","event":"        \"attributes\": {","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099630Z","level":"info","event":"            \"telemetry.sdk.language\": \"python\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099661Z","level":"info","event":"            \"telemetry.sdk.name\": \"opentelemetry\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099692Z","level":"info","event":"            \"telemetry.sdk.version\": \"1.27.0\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099725Z","level":"info","event":"            \"host.name\": \"2f6707197a8a\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099757Z","level":"info","event":"            \"service.name\": \"Airflow\"","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099787Z","level":"info","event":"        },","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099818Z","level":"info","event":"        \"schema_url\": \"\"","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099873Z","level":"info","event":"    }","chan":"stdout","logger":"task"}
-{"timestamp":"2025-03-31T18:03:17.099914Z","level":"info","event":"}","chan":"stdout","logger":"task"}"""
+{"timestamp":"2025-04-01T17:20:08.687523Z","level":"info","event":"{","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687579Z","level":"info","event":"    \"name\": \"task1_sub_span1\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687629Z","level":"info","event":"    \"context\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687726Z","level":"info","event":"        \"trace_id\": \"0x33db41db4160bad600c60099ced330ac\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687777Z","level":"info","event":"        \"span_id\": \"0xa45027b183fec805\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687825Z","level":"info","event":"        \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687873Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687920Z","level":"info","event":"    \"kind\": \"SpanKind.INTERNAL\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.687975Z","level":"info","event":"    \"parent_id\": \"0x02bbf17641191378\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688031Z","level":"info","event":"    \"start_time\": \"2025-04-01T17:20:08.678216Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688080Z","level":"info","event":"    \"end_time\": \"2025-04-01T17:20:08.678749Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688131Z","level":"info","event":"    \"status\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688184Z","level":"info","event":"        \"status_code\": \"UNSET\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688235Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688285Z","level":"info","event":"    \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688344Z","level":"info","event":"        \"attr1\": \"val1\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688393Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688445Z","level":"info","event":"    \"events\": [],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688492Z","level":"info","event":"    \"links\": [","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688545Z","level":"info","event":"        {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688593Z","level":"info","event":"            \"context\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688641Z","level":"info","event":"                \"trace_id\": \"0x33db41db4160bad600c60099ced330ac\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688689Z","level":"info","event":"                \"span_id\": \"0x02bbf17641191378\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688739Z","level":"info","event":"                \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688799Z","level":"info","event":"            },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688849Z","level":"info","event":"            \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688897Z","level":"info","event":"                \"meta.annotation_type\": \"link\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688937Z","level":"info","event":"                \"from\": \"parenttrace\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.688977Z","level":"info","event":"            }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689025Z","level":"info","event":"        }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689073Z","level":"info","event":"    ],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689115Z","level":"info","event":"    \"resource\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689167Z","level":"info","event":"        \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689216Z","level":"info","event":"            \"telemetry.sdk.language\": \"python\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689315Z","level":"info","event":"            \"telemetry.sdk.name\": \"opentelemetry\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689367Z","level":"info","event":"            \"telemetry.sdk.version\": \"1.27.0\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689418Z","level":"info","event":"            \"host.name\": \"f7b76e665a4a\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689465Z","level":"info","event":"            \"service.name\": \"Airflow\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689516Z","level":"info","event":"        },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689554Z","level":"info","event":"        \"schema_url\": \"\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689584Z","level":"info","event":"    }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689636Z","level":"info","event":"}","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689692Z","level":"info","event":"{","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689748Z","level":"info","event":"    \"name\": \"task1_sub_span4\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689798Z","level":"info","event":"    \"context\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689854Z","level":"info","event":"        \"trace_id\": \"0x33db41db4160bad600c60099ced330ac\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689901Z","level":"info","event":"        \"span_id\": \"0x440535c45477d610\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.689954Z","level":"info","event":"        \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690034Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690121Z","level":"info","event":"    \"kind\": \"SpanKind.INTERNAL\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690176Z","level":"info","event":"    \"parent_id\": \"0x02bbf17641191378\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690224Z","level":"info","event":"    \"start_time\": \"2025-04-01T17:20:08.678925Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690273Z","level":"info","event":"    \"end_time\": \"2025-04-01T17:20:08.678985Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690330Z","level":"info","event":"    \"status\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690382Z","level":"info","event":"        \"status_code\": \"UNSET\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690433Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690483Z","level":"info","event":"    \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690538Z","level":"info","event":"        \"attr4\": \"val4\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690594Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690654Z","level":"info","event":"    \"events\": [],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690708Z","level":"info","event":"    \"links\": [","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690757Z","level":"info","event":"        {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690807Z","level":"info","event":"            \"context\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690861Z","level":"info","event":"                \"trace_id\": \"0x33db41db4160bad600c60099ced330ac\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.690919Z","level":"info","event":"                \"span_id\": \"0x02bbf17641191378\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691023Z","level":"info","event":"                \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691077Z","level":"info","event":"            },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691129Z","level":"info","event":"            \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691185Z","level":"info","event":"                \"meta.annotation_type\": \"link\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691233Z","level":"info","event":"                \"from\": \"parenttrace\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691281Z","level":"info","event":"            }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691327Z","level":"info","event":"        }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691380Z","level":"info","event":"    ],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691429Z","level":"info","event":"    \"resource\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691483Z","level":"info","event":"        \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691538Z","level":"info","event":"            \"telemetry.sdk.language\": \"python\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.691591Z","level":"info","event":"            \"telemetry.sdk.name\": \"opentelemetry\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-04-01T17:20:08.678865","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow.traces.otel_tracer"}"""
 
-    example_task_output_after_processing = """
+    example_task_output_after_processing = r"""
 [SimpleSpanProcessor] is being used
 From task sub_span2.
 From task sub_span3.
 [ConsoleSpanExporter] is being used
 [SimpleSpanProcessor] is being used
-From task sub_span4.
-Task_1 finished.
-Done. Returned value was: None
 {
-    \"name\": \"task1_sub_span3\",
-    \"context\": {
-        \"trace_id\": \"0x2ff18b33906025611803bd9bf19d9c2c\",
-        \"span_id\": \"0x26475c0322517334\",
-        \"trace_state\": \"[]\"
+    "name": "task1_sub_span1",
+    "context": {
+        "trace_id": "0x33db41db4160bad600c60099ced330ac",
+        "span_id": "0xa45027b183fec805",
+        "trace_state": "[]"
     },
-    \"kind\": \"SpanKind.INTERNAL\",
-    \"parent_id\": \"0xda642ff216bf8fb1\",
-    \"start_time\": \"2025-03-31T18:03:17.087742Z\",
-    \"end_time\": \"2025-03-31T18:03:17.087782Z\",
-    \"status\": {
-        \"status_code\": \"UNSET\"
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x02bbf17641191378",
+    "start_time": "2025-04-01T17:20:08.678216Z",
+    "end_time": "2025-04-01T17:20:08.678749Z",
+    "status": {
+        "status_code": "UNSET"
     },
-    \"attributes\": {
-        \"attr3\": \"val3\"
+    "attributes": {
+        "attr1": "val1"
     },
-    \"events\": [],
-    \"links\": [],
-    \"resource\": {
-        \"attributes\": {
-            \"telemetry.sdk.language\": \"python\",
-            \"telemetry.sdk.name\": \"opentelemetry\",
-            \"telemetry.sdk.version\": \"1.27.0\",
-            \"host.name\": \"2f6707197a8a\",
-            \"service.name\": \"Airflow\"
+    "events": [],
+    "links": [
+        {
+            "context": {
+                "trace_id": "0x33db41db4160bad600c60099ced330ac",
+                "span_id": "0x02bbf17641191378",
+                "trace_state": "[]"
+            },
+            "attributes": {
+                "meta.annotation_type": "link",
+                "from": "parenttrace"
+            }
+        }
+    ],
+    "resource": {
+        "attributes": {
+            "telemetry.sdk.language": "python",
+            "telemetry.sdk.name": "opentelemetry",
+            "telemetry.sdk.version": "1.27.0",
+            "host.name": "f7b76e665a4a",
+            "service.name": "Airflow"
         },
-        \"schema_url\": \"\"
+        "schema_url": ""
     }
-}"""
+}
+{
+    "name": "task1_sub_span4",
+    "context": {
+        "trace_id": "0x33db41db4160bad600c60099ced330ac",
+        "span_id": "0x440535c45477d610",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x02bbf17641191378",
+    "start_time": "2025-04-01T17:20:08.678925Z",
+    "end_time": "2025-04-01T17:20:08.678985Z",
+    "status": {
+        "status_code": "UNSET"
+    },
+    "attributes": {
+        "attr4": "val4"
+    },
+    "events": [],
+    "links": [
+        {
+            "context": {
+                "trace_id": "0x33db41db4160bad600c60099ced330ac",
+                "span_id": "0x02bbf17641191378",
+                "trace_state": "[]"
+            },
+            "attributes": {
+                "meta.annotation_type": "link",
+                "from": "parenttrace"
+            }
+        }
+    ],
+    "resource": {
+        "attributes": {
+            "telemetry.sdk.language": "python",
+            "telemetry.sdk.name": "opentelemetry",
+[ConsoleSpanExporter] is being used
+"""
 
     # In the example output, there are two parent child relationships.
     #

@@ -418,7 +418,7 @@ def check_spans_for_paused_dag(
     parent_child_dict = get_parent_child_dict(root_span_dict, span_dict)
 
     # Any spans generated under a task, are children of the task span.
-    # The span hierarchy for dag 'otel_test_dag_with_pause' is
+    # The span hierarchy for dag 'otel_test_dag_with_pause_between_tasks' is
     # dag span
     #   |_ task1 span
     #       |_ sub_span_1
@@ -1268,7 +1268,7 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1, apiserver_process = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag_with_pause"
+            dag_id = "otel_test_dag_with_pause_between_tasks"
             dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
