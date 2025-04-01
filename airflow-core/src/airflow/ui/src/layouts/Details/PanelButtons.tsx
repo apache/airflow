@@ -61,7 +61,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
-    "immediate",
+    "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
   const displayRunOptions = createListCollection({
@@ -81,7 +81,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   };
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "immediate" || !deps.includes(event.value[0])) {
+    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
       removeDependencies();
     } else {
       setDependencies(event.value[0]);

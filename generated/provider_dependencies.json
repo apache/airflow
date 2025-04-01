@@ -353,7 +353,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "celery[redis]>=5.4.0,<6",
+      "celery[redis]>=5.5.0,<6",
       "flower>=1.0.0"
     ],
     "devel-deps": [],
@@ -1299,7 +1299,7 @@
   },
   "snowflake": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.6.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "pandas>=2.1.2,<2.2",
