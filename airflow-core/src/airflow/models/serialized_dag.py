@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
@@ -379,12 +380,21 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.scalar(
-                select(literal(True)).where(
-                    cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+            try:
+                do_nothing = session.scalar(
+                    select(literal(True))
+                    .where(
+                        cls.dag_id == dag.dag_id,
+                        (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                    )
+                    .with_for_update(nowait=True)
                 )
-            ):
+                if do_nothing:
+                    return False
+            except OperationalError:
+                log.warning(
+                    "Another Scheduler is already reparsing dag %s. Skipping reparse request.", dag.dag_id
+                )
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
