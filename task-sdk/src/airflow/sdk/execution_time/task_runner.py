@@ -121,6 +121,9 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: AwareDatetime
     """Start date of the task instance."""
 
+    is_mapped: bool | None = None
+    """True if the original task was mapped."""
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -255,7 +258,7 @@ class RuntimeTaskInstance(TaskInstance):
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         self.task.render_template_fields(context, jinja_env)
-
+        self.is_mapped = original_task.is_mapped
         return original_task
 
     def xcom_pull(
@@ -942,10 +945,9 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     else:
         xcom_value = None
 
-    is_mapped = next(ti.task.iter_mapped_dependants(), None) is not None or ti.task.is_mapped
-
+    has_mapped_dep = next(ti.task.iter_mapped_dependants(), None) is not None
     if xcom_value is None:
-        if is_mapped:
+        if not ti.is_mapped and has_mapped_dep:
             # Uhoh, a downstream mapped task depends on us to push something to map over
             from airflow.sdk.exceptions import XComForMappingNotPushed
 
@@ -953,7 +955,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
         return
 
     mapped_length: int | None = None
-    if is_mapped:
+    if not ti.is_mapped and has_mapped_dep:
         from airflow.sdk.definitions.mappedoperator import is_mappable_value
         from airflow.sdk.exceptions import UnmappableXComTypePushed
 
