@@ -983,14 +983,17 @@ class DatabricksSQLStatementsOperator(BaseOperator):
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
 
     See: https://docs.databricks.com/api/workspace/statementexecution
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksSQLStatementsOperator`
+
     :param statement: The SQL statement to execute. The statement can optionally be parameterized, see parameters.
     :param warehouse_id: Warehouse upon which to execute a statement.
     :param catalog: Sets default catalog for statement execution, similar to USE CATALOG in SQL.
     :param schema: Sets default schema for statement execution, similar to USE SCHEMA in SQL.
     :param parameters: A list of parameters to pass into a SQL statement containing parameter markers.
+
         .. seealso::
             https://docs.databricks.com/api/workspace/statementexecution/executestatement#parameters
     :param wait_for_termination: if we should wait for termination of the statement execution. ``True`` by default.
