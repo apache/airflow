@@ -816,7 +816,7 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     asset_event_resp = AssetEventResponse(
         id=1,
         created_dagruns=[],
-        timestamp=datetime.now(),
+        timestamp=timezone.utcnow(),
         asset=AssetResponse(name="test", uri="test", group="asset"),
     )
     events_result = AssetEventsResult(asset_events=[asset_event_resp])
