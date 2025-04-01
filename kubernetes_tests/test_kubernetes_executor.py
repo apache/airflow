@@ -61,7 +61,7 @@ class TestKubernetesExecutor(BaseK8STest):
             host=self.host,
             dag_run_id=dag_run_id,
             dag_id=dag_id,
-            task_id="start_task",
+            task_id="get_nums",
             expected_final_state="success",
             timeout=300,
         )
