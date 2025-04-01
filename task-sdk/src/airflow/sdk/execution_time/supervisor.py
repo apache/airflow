@@ -115,9 +115,6 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "task_instance_min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "task_instance_max_failed_heartbeats")
 
-
-print("Picked up values", HEARTBEAT_TIMEOUT, MIN_HEARTBEAT_INTERVAL, MAX_FAILED_HEARTBEATS)
-
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().

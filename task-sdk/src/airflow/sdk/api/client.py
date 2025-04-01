@@ -495,9 +495,6 @@ API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 
 
-print("The values picked up are", API_RETRIES, API_RETRY_WAIT_MIN, API_RETRY_WAIT_MAX)
-
-
 class Client(httpx.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
