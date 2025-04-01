@@ -518,11 +518,16 @@ class Client(httpx.Client):
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
-            event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
+            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
 
     _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    def _update_auth(self, response: httpx.Response):
+        if new_token := response.headers.get("Refreshed-API-Token"):
+            log.debug("Execution API issued us a refreshed Task token")
+            self.auth = BearerAuth(new_token)
 
     @retry(
         reraise=True,
