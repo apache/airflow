@@ -44,7 +44,6 @@ from airflow.providers.google.cloud.hooks.dataproc import (
 )
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
-    DATAPROC_CLUSTER_LINK_DEPRECATED,
     DATAPROC_JOB_LINK_DEPRECATED,
     DataprocBatchesListLink,
     DataprocBatchLink,
@@ -63,7 +62,6 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import timezone
 
@@ -919,145 +917,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return event["cluster"]
 
 
-# TODO: Remove one day
-@deprecated(
-    planned_removal_date="March 01, 2025",
-    use_instead="DataprocUpdateClusterOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
-    """
-    Scale, up or down, a cluster on Google Cloud Dataproc.
-
-    The operator will wait until the cluster is re-scaled.
-
-    Example usage:
-
-    .. code-block:: python
-
-        t1 = DataprocClusterScaleOperator(
-            task_id="dataproc_scale",
-            project_id="my-project",
-            cluster_name="cluster-1",
-            num_workers=10,
-            num_preemptible_workers=10,
-            graceful_decommission_timeout="1h",
-        )
-
-    .. seealso::
-        For more detail on about scaling clusters have a look at the reference:
-        https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
-
-    :param cluster_name: The name of the cluster to scale. (templated)
-    :param project_id: The ID of the google cloud project in which
-        the cluster runs. (templated)
-    :param region: The region for the dataproc cluster. (templated)
-    :param num_workers: The new number of workers
-    :param num_preemptible_workers: The new number of preemptible workers
-    :param graceful_decommission_timeout: Timeout for graceful YARN decommissioning.
-        Maximum value is 1d
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = ("cluster_name", "project_id", "region", "impersonation_chain")
-
-    operator_extra_links = (DataprocLink(),)
-
-    def __init__(
-        self,
-        *,
-        cluster_name: str,
-        project_id: str = PROVIDE_PROJECT_ID,
-        region: str = "global",
-        num_workers: int = 2,
-        num_preemptible_workers: int = 0,
-        graceful_decommission_timeout: str | None = None,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.project_id = project_id
-        self.region = region
-        self.cluster_name = cluster_name
-        self.num_workers = num_workers
-        self.num_preemptible_workers = num_preemptible_workers
-        self.graceful_decommission_timeout = graceful_decommission_timeout
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def _build_scale_cluster_data(self) -> dict:
-        scale_data = {
-            "config": {
-                "worker_config": {"num_instances": self.num_workers},
-                "secondary_worker_config": {"num_instances": self.num_preemptible_workers},
-            }
-        }
-        return scale_data
-
-    @property
-    def _graceful_decommission_timeout_object(self) -> dict[str, int] | None:
-        if not self.graceful_decommission_timeout:
-            return None
-
-        timeout = None
-        match = re.fullmatch(r"(\d+)([smdh])", self.graceful_decommission_timeout)
-        if match:
-            val = int(match.group(1))
-            unit = match.group(2)
-            if unit == "s":
-                timeout = val
-            elif unit == "m":
-                timeout = int(timedelta(minutes=val).total_seconds())
-            elif unit == "h":
-                timeout = int(timedelta(hours=val).total_seconds())
-            elif unit == "d":
-                timeout = int(timedelta(days=val).total_seconds())
-
-        if not timeout:
-            raise AirflowException(
-                "DataprocClusterScaleOperator "
-                " should be expressed in day, hours, minutes or seconds. "
-                " i.e. 1d, 4h, 10m, 30s"
-            )
-
-        return {"seconds": timeout}
-
-    def execute(self, context: Context) -> None:
-        """Scale, up or down, a cluster on Google Cloud Dataproc."""
-        self.log.info("Scaling cluster: %s", self.cluster_name)
-
-        scaling_cluster_data = self._build_scale_cluster_data()
-        update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
-
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        # Save data required to display extra link no matter what the cluster status will be
-        DataprocLink.persist(
-            context=context,
-            task_instance=self,
-            url=DATAPROC_CLUSTER_LINK_DEPRECATED,
-            resource=self.cluster_name,
-        )
-        operation = hook.update_cluster(
-            project_id=self.project_id,
-            region=self.region,
-            cluster_name=self.cluster_name,
-            cluster=scaling_cluster_data,
-            graceful_decommission_timeout=self._graceful_decommission_timeout_object,
-            update_mask={"paths": update_mask},
-        )
-        operation.result()
-        self.log.info("Cluster scaling finished")
-
-
 class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     """
     Delete a cluster in a project.
@@ -1463,8 +1322,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         """Initialize `self.job_template` with default values."""
         if self.project_id is None:
             raise AirflowException(
-                "project id should either be set via project_id "
-                "parameter or retrieved from the connection,"
+                "project id should either be set via project_id parameter or retrieved from the connection,"
             )
         job_template = DataProcJobBuilder(
             project_id=self.project_id,

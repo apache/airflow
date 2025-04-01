@@ -81,8 +81,7 @@ def setup():
 )
 @setup.command(
     name="self-upgrade",
-    help="Self upgrade Breeze. By default it re-installs Breeze "
-    f"from {get_installation_airflow_sources()}."
+    help=f"Self upgrade Breeze. By default it re-installs Breeze from {get_installation_airflow_sources()}."
     if not generating_command_images()
     else "Self upgrade Breeze.",
 )
@@ -176,8 +175,7 @@ def version():
     get_console().print(f"[info]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
     if get_verbose():
         get_console().print(
-            f"[info]Installation sources config hash : "
-            f"{get_installation_sources_config_metadata_hash()}[/]"
+            f"[info]Installation sources config hash : {get_installation_sources_config_metadata_hash()}[/]"
         )
         get_console().print(
             f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"

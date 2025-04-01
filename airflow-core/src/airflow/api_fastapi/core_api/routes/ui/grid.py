@@ -49,6 +49,8 @@ from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
     fill_task_instance_summaries,
     get_child_task_map,
+    get_combined_structure,
+    get_structure_from_dag,
     get_task_group_map,
 )
 from airflow.models import DagRun, TaskInstance
@@ -116,11 +118,12 @@ def grid_data(
         limit=limit,
     )
 
-    dag_runs = session.scalars(dag_runs_select_filter).unique()
+    dag_runs = list(session.scalars(dag_runs_select_filter).unique())
 
     # Check if there are any DAG Runs with given criteria to eliminate unnecessary queries/errors
     if not dag_runs:
-        return GridResponse(dag_runs=[])
+        structure = get_structure_from_dag(dag=dag)
+        return GridResponse(dag_runs=[], structure=structure)
 
     # Retrieve, sort and encode the Task Instances
     tis_of_dag_runs, _ = paginated_select(
@@ -135,6 +138,10 @@ def grid_data(
 
     task_instances = session.scalars(tis_of_dag_runs)
 
+    tis_by_run_id: dict[str, list[TaskInstance]] = collections.defaultdict(list)
+    for ti in task_instances:
+        tis_by_run_id[ti.run_id].append(ti)
+
     # Generate Grouped Task Instances
     task_node_map_exclude = None
     if root:
@@ -146,33 +153,36 @@ def grid_data(
             )
         )
 
-    task_node_map = get_task_group_map(dag=dag)
     # Group the Task Instances by Parent Task (TaskGroup or Mapped) and All Task Instances
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
-    for ti in task_instances:
-        # Skip the Task Instances if upstream/downstream filtering is applied or if task is deleted
-        if (
-            task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys()
-        ) or ti.task_id not in task_node_map.keys():
-            continue
 
-        # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
-        if ti.task_id in get_child_task_map(
-            parent_task_id=task_node_map[ti.task_id]["parent_id"], task_node_map=task_node_map
-        ):
-            all_tis[(ti.task_id, ti.run_id)].append(ti)
-        # Populate the Parent Task Instances
-        parent_id = task_node_map[ti.task_id]["parent_id"]
-        if not parent_id and task_node_map[ti.task_id]["is_group"]:
-            parent_tis[(ti.task_id, ti.run_id)].append(ti)
-        elif parent_id and task_node_map[parent_id]["is_group"]:
-            parent_tis[(parent_id, ti.run_id)].append(ti)
+    for tis in tis_by_run_id.values():
+        # this is a simplification - we account for structure based on the first task
+        run_dag = tis[0].dag_version.serialized_dag.dag
+        task_node_map = get_task_group_map(dag=run_dag)
+        for ti in tis:
+            # Skip the Task Instances if upstream/downstream filtering is applied
+            if task_node_map_exclude and ti.task_id not in task_node_map_exclude:
+                continue
+
+            # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
+            if ti.task_id in get_child_task_map(
+                parent_task_id=task_node_map[ti.task_id]["parent_id"], task_node_map=task_node_map
+            ):
+                all_tis[(ti.task_id, ti.run_id)].append(ti)
+            # Populate the Parent Task Instances
+            parent_id = task_node_map[ti.task_id]["parent_id"]
+            if not parent_id and task_node_map[ti.task_id]["is_group"]:
+                parent_tis[(ti.task_id, ti.run_id)].append(ti)
+            elif parent_id and task_node_map[parent_id]["is_group"]:
+                parent_tis[(parent_id, ti.run_id)].append(ti)
 
     # Clear task_node_map_exclude to free up memory
     if task_node_map_exclude:
         task_node_map_exclude.clear()
 
+    task_node_map = get_task_group_map(dag=dag)
     # Extend subgroup task instances to parent task instances to calculate the aggregates states
     task_group_map = {k: v for k, v in task_node_map.items() if v["is_group"]}
     parent_tis.update(
@@ -194,14 +204,12 @@ def grid_data(
     fill_task_instance_summaries(
         grouped_task_instances=parent_tis,
         task_instance_summaries_to_fill=task_instance_summaries,
-        task_node_map=task_node_map,
         session=session,
     )
     # Fill the Task Instance Summaries for the Grouped Task Instances
     fill_task_instance_summaries(
         grouped_task_instances=all_tis,
         task_instance_summaries_to_fill=task_instance_summaries,
-        task_node_map=task_node_map,
         session=session,
     )
 
@@ -218,11 +226,13 @@ def grid_data(
             run_type=dag_run.run_type,
             data_interval_start=dag_run.data_interval_start,
             data_interval_end=dag_run.data_interval_end,
-            version_number=dag_run.version_number,
             note=dag_run.note,
             task_instances=task_instance_summaries.get(dag_run.run_id, []),
         )
         for dag_run in dag_runs
     ]
 
-    return GridResponse(dag_runs=grid_dag_runs)
+    flat_tis = itertools.chain.from_iterable(tis_by_run_id.values())
+    structure = get_combined_structure(task_instances=flat_tis)
+
+    return GridResponse(dag_runs=grid_dag_runs, structure=structure)

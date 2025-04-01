@@ -170,7 +170,7 @@ class _TeradataComputeClusterOperator(BaseOperator):
         self.defer(
             timeout=timedelta(minutes=self.timeout),
             trigger=TeradataComputeClusterSyncTrigger(
-                teradata_conn_id=cast(str, self.teradata_conn_id),
+                teradata_conn_id=cast("str", self.teradata_conn_id),
                 compute_profile_name=self.compute_profile_name,
                 compute_group_name=self.compute_group_name,
                 operation_type=operation_type,

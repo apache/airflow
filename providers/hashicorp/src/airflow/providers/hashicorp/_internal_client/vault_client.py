@@ -126,8 +126,7 @@ class _VaultClient(LoggingMixin):
         super().__init__()
         if kv_engine_version and kv_engine_version not in VALID_KV_VERSIONS:
             raise VaultError(
-                f"The version is not supported: {kv_engine_version}. "
-                f"It should be one of {VALID_KV_VERSIONS}"
+                f"The version is not supported: {kv_engine_version}. It should be one of {VALID_KV_VERSIONS}"
             )
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(

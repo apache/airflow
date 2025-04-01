@@ -36,7 +36,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -73,6 +73,11 @@ def _default_dag(instance: TaskGroup):
     return DagContext.get_current()
 
 
+# Mypy does not like a lambda for some reason. An explicit annotated function makes it happy.
+def _validate_group_id(instance, attribute, value: str) -> None:
+    validate_group_key(value)
+
+
 @attrs.define(repr=False)
 class TaskGroup(DAGNode):
     """
@@ -106,7 +111,7 @@ class TaskGroup(DAGNode):
     """
 
     _group_id: str | None = attrs.field(
-        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+        validator=attrs.validators.optional(_validate_group_id),
         # This is the default behaviour for attrs, but by specifying this it makes IDEs happier
         alias="group_id",
     )

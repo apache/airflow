@@ -552,9 +552,9 @@ class DAG(TaskSDKDag, LoggingMixin):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
-            end = cast(CronDataIntervalTimetable, self.timetable)._get_next(start)
+            end = cast("CronDataIntervalTimetable", self.timetable)._get_next(start)
         elif issubclass(timetable_type, DeltaDataIntervalTimetable):
-            end = cast(DeltaDataIntervalTimetable, self.timetable)._get_next(start)
+            end = cast("DeltaDataIntervalTimetable", self.timetable)._get_next(start)
         # Contributors: When the exception below is raised, you might want to
         # add an 'elif' block here to handle custom timetables. Stop! The bug
         # you're looking for is instead at when the DAG run (represented by
@@ -966,7 +966,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             exclude_run_ids=None,
             session=session,
         )
-        return session.scalars(cast(Select, query).order_by(DagRun.logical_date)).all()
+        return session.scalars(cast("Select", query).order_by(DagRun.logical_date)).all()
 
     @overload
     def _get_task_instances(
@@ -1096,7 +1096,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
                 visited_external_tis.add(ti_key)
 
-                task: ExternalTaskMarker = cast(ExternalTaskMarker, copy.copy(self.get_task(ti.task_id)))
+                task: ExternalTaskMarker = cast("ExternalTaskMarker", copy.copy(self.get_task(ti.task_id)))
                 ti.task = task
 
                 if max_recursion_depth is None:

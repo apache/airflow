@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import selectors
@@ -41,6 +42,15 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    GetXCom,
+    VariableResult,
+    XComResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -57,7 +67,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
+    from airflow.sdk.api.client import Client
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -169,18 +181,18 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         requests_fd: int
-        kind: Literal["StartTriggerer"] = "StartTriggerer"
+        type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class CancelTriggers(BaseModel):
         """Request to cancel running triggers."""
 
         ids: Iterable[int]
-        kind: Literal["CancelTriggersMessage"] = "CancelTriggersMessage"
+        type: Literal["CancelTriggersMessage"] = "CancelTriggersMessage"
 
     class TriggerStateChanges(BaseModel):
         """Report state change about triggers back to the TriggerRunnerSupervisor."""
 
-        kind: Literal["TriggerStateChanges"] = "TriggerStateChanges"
+        type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
             list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
@@ -193,8 +205,16 @@ class messages:
 
 
 ToTriggerRunner = Annotated[
-    Union[workloads.RunTrigger, messages.CancelTriggers, messages.StartTriggerer],
-    Field(discriminator="kind"),
+    Union[
+        workloads.RunTrigger,
+        messages.CancelTriggers,
+        messages.StartTriggerer,
+        ConnectionResult,
+        VariableResult,
+        XComResult,
+        ErrorResponse,
+    ],
+    Field(discriminator="type"),
 ]
 """
 The types of messages we can send in to the Trigger Runner process (the process that runs the actual async
@@ -203,8 +223,8 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges],
-    Field(discriminator="kind"),
+    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom],
+    Field(discriminator="type"),
 ]
 """
 The types of messages that the async Trigger Runner can send back up to the supervisor process.
@@ -242,6 +262,13 @@ class TriggerLoggingFactory:
             return
 
         upload_to_remote(self.bound_logger)
+
+
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
 
 
 @attrs.define(kw_only=True)
@@ -296,7 +323,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc._send(msg)
         return proc
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+
+        resp = None
+
         if isinstance(msg, messages.TriggerStateChanges):
             log.debug("State change from async process", state=msg)
             if msg.events:
@@ -310,9 +350,32 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
-            return
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
+        elif isinstance(msg, GetXCom):
+            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            if isinstance(xcom, XComResponse):
+                xcom_result = XComResult.from_xcom_response(xcom)
+                resp = xcom_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = xcom.model_dump_json().encode()
+        else:
+            raise ValueError(f"Unknown message type {type(msg)}")
 
-        raise ValueError(f"Unknown message type {type(msg)}")
+        if resp:
+            self.stdin.write(resp + b"\n")
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
@@ -598,8 +661,27 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
 
+    def init_comms(self):
+        """Init supervisor comms."""
+        from airflow.sdk.execution_time import task_runner
+
+        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            input=sys.stdin,
+            decoder=TypeAdapter[ToTriggerRunner](ToTriggerRunner),
+        )
+
+        msg = comms_decoder.get_message()
+        if not isinstance(msg, messages.StartTriggerer):
+            raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
+        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+
+        task_runner.SUPERVISOR_COMMS = comms_decoder
+
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
+        # Make sure comms are initialized before allowing any Triggers to run
+        self.init_comms()
+
         asyncio.run(self.arun())
 
     async def arun(self):
@@ -650,6 +732,8 @@ class TriggerRunner:
 
         This reads-and-decodes the JSON lines send by the TriggerRunnerSupervisor to us on our stdint
         """
+        from airflow.sdk.execution_time import task_runner
+
         loop = asyncio.get_event_loop()
 
         task = asyncio.current_task(loop=loop)
@@ -666,17 +750,11 @@ class TriggerRunner:
 
         stdin = await connect_stdin()
 
-        # The first message must be this type, else we can't operate
-        line = await stdin.readline()
-
         decoder = TypeAdapter[ToTriggerRunner](ToTriggerRunner)
-        msg = decoder.validate_json(line)
-        if not isinstance(msg, messages.StartTriggerer) or msg.requests_fd <= 0:
-            raise RuntimeError(f"First message to triggerer must be {messages.StartTriggerer.__name__}")
 
         writer_transport, writer_protocol = await loop.connect_write_pipe(
             lambda: asyncio.streams.FlowControlMixin(loop=loop),
-            os.fdopen(msg.requests_fd, "wb"),
+            task_runner.SUPERVISOR_COMMS.request_socket,
         )
         self.requests_sock = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
 
@@ -690,8 +768,6 @@ class TriggerRunner:
                 self.to_create.append(msg)
             elif isinstance(msg, messages.CancelTriggers):
                 self.to_cancel.extend(msg.ids)
-            else:
-                raise ValueError(f"Unknown workload type {type(msg)}")
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""

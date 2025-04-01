@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -2965,5 +2966,31 @@ export const useLoginServiceLogoutSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
     queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDefaultServiceNotFoundHandlerSuspense = <
+  TData = Common.DefaultServiceNotFoundHandlerDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }, queryKey),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }) as TData,
     ...options,
   });

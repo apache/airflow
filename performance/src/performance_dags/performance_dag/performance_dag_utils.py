@@ -598,8 +598,7 @@ def get_performance_dag_environment_variable(performance_dag_conf: dict[str, str
     if env_name in MANDATORY_performance_DAG_VARIABLES:
         if env_name not in performance_dag_conf:
             raise ValueError(
-                f"Mandatory environment variable '{env_name}' "
-                f"is missing from performance dag configuration."
+                f"Mandatory environment variable '{env_name}' is missing from performance dag configuration."
             )
         return performance_dag_conf[env_name]
 

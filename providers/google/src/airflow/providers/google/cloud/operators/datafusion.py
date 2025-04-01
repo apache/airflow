@@ -26,7 +26,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -37,31 +37,10 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-class DataFusionPipelineLinkHelper:
-    """
-    Helper class for Pipeline links.
-
-    .. warning::
-        This class is deprecated. Consider using ``resource_path_to_dict()`` instead.
-    """
-
-    @staticmethod
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.google.cloud.utils.helpers.resource_path_to_dict",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_project_id(instance):
-        instance = instance["name"]
-        project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
-        return project_id
 
 
 class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
