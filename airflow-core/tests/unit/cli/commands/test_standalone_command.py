@@ -26,7 +26,6 @@ from airflow.cli.commands.standalone_command import StandaloneCommand
 from airflow.executors import executor_loader
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
 )
@@ -35,7 +34,7 @@ from airflow.executors.executor_constants import (
 class TestStandaloneCommand:
     @pytest.mark.parametrize(
         "conf_executor_name",
-        [LOCAL_EXECUTOR, CELERY_EXECUTOR, KUBERNETES_EXECUTOR, DEBUG_EXECUTOR],
+        [LOCAL_EXECUTOR, CELERY_EXECUTOR, KUBERNETES_EXECUTOR],
     )
     def test_calculate_env(self, conf_executor_name):
         """Should always force a local executor compatible with the db."""

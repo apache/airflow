@@ -670,7 +670,7 @@ class PodManager(LoggingMixin):
         if not sep:
             return None, line
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            last_log_time = cast("DateTime", pendulum.parse(timestamp))
         except ParserError:
             return None, line
         return last_log_time, message

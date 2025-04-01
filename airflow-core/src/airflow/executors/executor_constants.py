@@ -30,12 +30,10 @@ class ConnectorSource(Enum):
 LOCAL_EXECUTOR = "LocalExecutor"
 CELERY_EXECUTOR = "CeleryExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
-DEBUG_EXECUTOR = "DebugExecutor"
 MOCK_EXECUTOR = "MockExecutor"
 CORE_EXECUTOR_NAMES = {
     LOCAL_EXECUTOR,
     CELERY_EXECUTOR,
     KUBERNETES_EXECUTOR,
-    DEBUG_EXECUTOR,
     MOCK_EXECUTOR,
 }

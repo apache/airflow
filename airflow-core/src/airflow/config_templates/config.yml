@@ -1290,17 +1290,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-debug:
-  description: ~
-  options:
-    fail_fast:
-      description: |
-        Used only with ``DebugExecutor``. If set to ``True`` DAG will fail with first
-        failed task. Helpful for debugging purposes.
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
 api:
   description: ~
   options:

@@ -169,9 +169,9 @@ class TestBaseChartTest:
             if chart_name and "postgresql" in chart_name:
                 continue
             k8s_name = k8s_object["kind"] + ":" + k8s_object["metadata"]["name"]
-            assert (
-                labels.get("test-label") == "TEST-VALUE"
-            ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
+            assert labels.get("test-label") == "TEST-VALUE", (
+                f"Missing label test-label on {k8s_name}. Current labels: {labels}"
+            )
 
     def test_basic_deployments_with_standard_naming(self):
         k8s_objects = render_chart(
@@ -254,9 +254,9 @@ class TestBaseChartTest:
             if chart_name and "postgresql" in chart_name:
                 continue
             k8s_name = k8s_object["kind"] + ":" + k8s_object["metadata"]["name"]
-            assert (
-                labels.get("test-label") == "TEST-VALUE"
-            ), f"Missing label test-label on {k8s_name}. Current labels: {labels}"
+            assert labels.get("test-label") == "TEST-VALUE", (
+                f"Missing label test-label on {k8s_name}. Current labels: {labels}"
+            )
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_default_users(self, version):

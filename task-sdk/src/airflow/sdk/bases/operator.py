@@ -499,7 +499,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
         apply_defaults.__param_names = set(non_variadic_params)  # type: ignore
 
-        return cast(T, apply_defaults)
+        return cast("T", apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
@@ -891,9 +891,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "executor",
     }
 
-    # Defines if the operator supports lineage without manual definitions
-    supports_lineage: bool = False
-
     # If True, the Rendered Template fields will be overwritten in DB after execution
     # This is useful for Taskflow decorators that modify the template fields during execution like
     # @task.bash decorator.
@@ -1200,24 +1197,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
 
-    # including lineage information
-    def __or__(self, other):
-        """
-        Return [This Operator] | [Operator].
-
-        The inlets of other will be set to pick up the outlets from this operator.
-        Other will be set as a downstream task of this operator.
-        """
-        if isinstance(other, BaseOperator):
-            if not self.outlets and not self.supports_lineage:
-                raise ValueError("No outlets defined for this operator")
-            other.add_inlets([self.task_id])
-            self.set_downstream(other)
-        else:
-            raise TypeError(f"Right hand side ({other}) is not an Operator")
-
-        return self
-
     # /Composing Operators ---------------------------------------------
 
     def __gt__(self, other):
@@ -1406,7 +1385,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
+                send_email = EmailOperator(
+                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
+                )
                 generate_content >> send_email
 
         """

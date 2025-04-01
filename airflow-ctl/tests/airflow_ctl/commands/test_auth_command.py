@@ -21,15 +21,12 @@ import os
 from unittest import mock
 from unittest.mock import patch
 
-import pytest
 from platformdirs import user_config_path
 
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
 
 
-# TODO: Remove this flag when all CLI integrated with API.
-@pytest.mark.db_test
 class TestCliAuthCommands:
     parser = cli_parser.get_parser()
 

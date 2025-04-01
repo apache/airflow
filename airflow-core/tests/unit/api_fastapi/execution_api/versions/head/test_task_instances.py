@@ -1132,6 +1132,39 @@ class TestPreviousDagRun:
             "end_date": None,
         }
 
+    def test_ti_with_none_as_logical_date(self, client, session, create_task_instance, dag_maker):
+        ti = create_task_instance(
+            task_id="test_ti_with_none_as_logical_date",
+            dag_id="test_dag",
+            logical_date=None,
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 17),
+            session=session,
+        )
+        session.commit()
+
+        assert ti.logical_date is None
+
+        dr1 = dag_maker.create_dagrun(
+            run_id="test_ti_with_none_as_logical_date",
+            logical_date=timezone.datetime(2025, 1, 17),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+        dr1.end_date = timezone.datetime(2025, 1, 17, 1, 0, 0)
+
+        session.commit()
+
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
+
 
 class TestGetRescheduleStartDate:
     def test_get_start_date(self, client, session, create_task_instance):

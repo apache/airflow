@@ -177,8 +177,7 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         get_console().print(
-            "[error]Docker is not running.[/]\n"
-            "[warning]Please make sure Docker is installed and running.[/]"
+            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 

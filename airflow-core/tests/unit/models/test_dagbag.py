@@ -514,11 +514,11 @@ class TestDagBag:
         dag_id = expected_dag.dag_id
         actual_dagbag.log.info("validating %s", dag_id)
         assert (dag_id in actual_found_dag_ids) == should_be_found, (
-            f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+            f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'have been found after processing dag "{expected_dag.dag_id}"'
         )
         assert (dag_id in actual_dagbag.dags) == should_be_found, (
-            f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+            f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'be in dagbag.dags after processing dag "{expected_dag.dag_id}"'
         )
 

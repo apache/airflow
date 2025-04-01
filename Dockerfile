@@ -704,8 +704,8 @@ function install_airflow_and_providers_from_docker_context_files(){
         install_airflow_core_distribution=("apache-airflow-core==${AIRFLOW_VERSION}")
     fi
 
-    # Find Provider/TaskSDK distributions in docker-context files
-    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk}*.{whl,tar.gz} 2>/dev/null || true)
+    # Find Provider/TaskSDK/CTL distributions in docker-context files
+    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk,airflowctl}*.{whl,tar.gz} 2>/dev/null || true)
     echo
     echo "${COLOR_BLUE}Found provider distributions in docker-context-files folder: ${airflow_distributions[*]}${COLOR_RESET}"
     echo
@@ -834,7 +834,7 @@ function install_airflow() {
         # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
         # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
         # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
-        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl --editable ./devel-common"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"

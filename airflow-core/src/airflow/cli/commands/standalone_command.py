@@ -39,8 +39,6 @@ from airflow.utils import db
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
-    from termcolor.termcolor import Color
-
     from airflow.jobs.base_job_runner import BaseJobRunner
 
 
@@ -144,7 +142,7 @@ class StandaloneCommand:
 
         You can pass multiple lines to output if you wish; it will be split for you.
         """
-        color: dict[str, Color] = {
+        color: dict[str, str] = {
             "api-server": "magenta",
             "scheduler": "blue",
             "dag-processor": "yellow",

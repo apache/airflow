@@ -115,6 +115,7 @@ jobs:
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
@@ -587,7 +588,7 @@ jobs:
 
   tests-task-sdk:
     name: "Task SDK tests"
-    uses: ./.github/workflows/task-sdk-tests.yml
+    uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
@@ -596,11 +597,34 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "task-sdk"
+      distribution-cmd-format: "prepare-task-sdk-distributions"
+      test-type: "task-sdk-tests"
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
+
+  tests-airflow-ctl:
+    name: "Airflow CTL tests"
+    uses: ./.github/workflows/airflow-distributions-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "airflow-ctl"
+      distribution-cmd-format: "prepare-airflow-ctl-distributions"
+      test-type: "airflow-ctl-tests"
+    if: >
+      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
       needs.build-info.outputs.only-new-ui-files != 'true')
 
@@ -648,6 +672,7 @@ jobs:
       - additional-prod-image-tests
       - tests-kubernetes
       - tests-task-sdk
+      - tests-airflow-ctl
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
