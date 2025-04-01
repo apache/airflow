@@ -36,13 +36,11 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferralTimeout,
 )
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-    from airflow.typing_compat import Self
 
 
 class PokeReturnValue:
