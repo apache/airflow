@@ -730,7 +730,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used

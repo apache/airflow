@@ -46,14 +46,17 @@ If you want to check which executor is currently set, you can use the ``airflow 
 .. code-block:: bash
 
     $ airflow config get-value core executor
-    SequentialExecutor
+    LocalExecutor
 
 
 
 Executor Types
 --------------
 
-There are two types of executors - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the simplest option for execution. However, the ``SequentialExecutor`` is not suitable for production since it does not allow for parallel task running and due to that, some Airflow features (e.g. running sensors) will not work properly. You should instead use the ``LocalExecutor`` for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
+There is only one type of executor that runs tasks *locally* (inside the ``scheduler`` process) in the repo tree, but custom ones
+can be written to achieve similar results, and there are those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``LocalExecutor`` by default, which is a local executor, and the simplest option for execution.
+However, as the ``LocalExecutor`` runs processes in the scheduler process that can have an impact on the performance of the scheduler. You can use the ``LocalExecutor``
+for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
 
 
 .. _executor-types-comparison:
@@ -73,7 +76,6 @@ Airflow tasks are run locally within the scheduler process.
     :maxdepth: 1
 
     local
-    sequential
 
 Remote Executors
 ^^^^^^^^^^^^^^^^

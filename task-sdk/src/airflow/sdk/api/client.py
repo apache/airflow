@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 import uuid
 from http import HTTPStatus
@@ -32,6 +31,7 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
+from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -489,13 +489,10 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
-# Config options for SDK how retries on HTTP requests should be handled
 # Note: Given defaults make attempts after 1, 3, 7, 15 and fails after 31seconds
-# So far there is no other config facility in SDK we use ENV for the moment
-# TODO: Consider these env variables while handling airflow confs in task sdk
-API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 5))
-API_RETRY_WAIT_MIN = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
-API_RETRY_WAIT_MAX = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
+API_RETRIES = conf.getint("workers", "execution_api_retries")
+API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
+API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 
 
 class Client(httpx.Client):
@@ -518,11 +515,16 @@ class Client(httpx.Client):
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
-            event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
+            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
 
     _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    def _update_auth(self, response: httpx.Response):
+        if new_token := response.headers.get("Refreshed-API-Token"):
+            log.debug("Execution API issued us a refreshed Task token")
+            self.auth = BearerAuth(new_token)
 
     @retry(
         reraise=True,

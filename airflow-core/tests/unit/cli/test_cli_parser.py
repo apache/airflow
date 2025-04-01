@@ -352,7 +352,6 @@ class TestCli:
     )
     def test_executor_specific_commands_not_accessible(self, command):
         with (
-            conf_vars({("core", "executor"): "SequentialExecutor"}),
             contextlib.redirect_stderr(StringIO()) as stderr,
         ):
             reload(executor_loader)
@@ -369,7 +368,6 @@ class TestCli:
             ("CeleryExecutor", ["celery"]),
             ("KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
-            ("SequentialExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
             ("custom_executor.CustomCeleryExecutor", ["celery"]),

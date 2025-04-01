@@ -17,85 +17,110 @@
  * under the License.
  */
 
-import React, {useState} from "react";
-import {Alert, CloseButton, Container, Heading, Span, Text} from "@chakra-ui/react";
+import { useState } from "react";
+import {
+  Alert,
+  CloseButton,
+  Container,
+  Heading,
+  Span,
+  Text,
+} from "@chakra-ui/react";
 
-import {useCreateToken} from "src/queries/useCreateToken";
-import {LoginForm} from "src/login/LoginForm";
-import type {ApiError} from "openapi-gen/requests/core/ApiError";
-import type {LoginResponse, HTTPExceptionResponse, HTTPValidationError} from "openapi-gen/requests/types.gen";
+import { useCreateToken } from "src/queries/useCreateToken";
+import { LoginForm } from "src/login/LoginForm";
+import type { LoginResponse } from "openapi-gen/requests/types.gen";
 import { useSearchParams } from "react-router-dom";
-import { useCookies } from 'react-cookie';
+import { useCookies } from "react-cookie";
+import { ErrorAlert } from "src/alert/ErrorAlert";
 
 export type LoginBody = {
-  username: string; password: string;
+  password: string;
+  username: string;
 };
 
-type ExpandedApiError = {
-  body: HTTPExceptionResponse | HTTPValidationError;
-} & ApiError;
-
-const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner"
+const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner";
 
 export const Login = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [cookies, setCookie] = useCookies(['_token']);
-  const [isBannerDisabled, setIsBannerDisabled] = useState(localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY))
+  const [searchParams] = useSearchParams();
+  const [, setCookie] = useCookies(["_token"]);
+  const [isBannerDisabled, setIsBannerDisabled] = useState(
+    localStorage.getItem(LOCAL_STORAGE_DISABLE_BANNER_KEY),
+  );
 
   const onSuccess = (data: LoginResponse) => {
     // Redirect to appropriate page with the token
-    const next = searchParams.get("next")
+    const next = searchParams.get("next");
 
-    setCookie('_token', data.access_token, {path: "/", secure: globalThis.location.protocol !== "http:"})
+    setCookie("_token", data.access_token, {
+      path: "/",
+      secure: globalThis.location.protocol !== "http:",
+    });
 
-    globalThis.location.replace(`${next ?? ""}`);
-  }
-  const {createToken, error: err, isPending, setError} = useCreateToken({onSuccess});
-  const error = err as ExpandedApiError;
-  const error_message = error?.body?.detail;
+    globalThis.location.replace(next ?? "");
+  };
+  const { createToken, error, isPending, setError } = useCreateToken({
+    onSuccess,
+  });
 
   const onLogin = (data: LoginBody) => {
-    setError(undefined)
-    createToken(data)
-  }
+    setError(undefined);
+    createToken(data);
+  };
 
   return (
     <>
-      {!isBannerDisabled &&
+      {isBannerDisabled === null && (
         <Alert.Root status="info">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Simple auth manager enabled</Alert.Title>
             <Alert.Description>
-              The Simple auth manager is intended for development and testing. If you're using it in production,
-              ensure that access is controlled through other means.
-              Please read <Span textDecoration={"underline"}><a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html" target="_blank">the documentation</a></Span> to learn more about simple auth manager.
+              The Simple auth manager is intended for development and testing.
+              If you&apos;re using it in production, ensure that access is
+              controlled through other means. Please read{" "}
+              <Span textDecoration="underline">
+                <a
+                  href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  the documentation
+                </a>
+              </Span>{" "}
+              to learn more about simple auth manager.
             </Alert.Description>
           </Alert.Content>
           <CloseButton
-            pos="relative"
-            top="-2"
             insetEnd="-2"
             onClick={() => {
-              localStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1")
-              setIsBannerDisabled(1)
+              localStorage.setItem(LOCAL_STORAGE_DISABLE_BANNER_KEY, "1");
+              setIsBannerDisabled("1");
             }}
+            pos="relative"
+            top="-2"
           />
         </Alert.Root>
+      )}
 
-      }
-
-      <Container mt={2} maxW="2xl" p="4" border="1px" borderColor="gray.500" borderWidth="1px" borderStyle="solid">
-        <Heading mb={6} fontWeight="normal" size="lg" colorPalette="blue">
+      <Container
+        border="1px"
+        borderColor="gray.500"
+        borderStyle="solid"
+        borderWidth="1px"
+        maxW="2xl"
+        mt={2}
+        p="4"
+      >
+        <Heading colorPalette="blue" fontWeight="normal" mb={6} size="lg">
           Sign in
         </Heading>
 
-        {error_message && (
-          <Alert.Root status="warning" mb="2">{error_message}</Alert.Root>)
-        }
+        {error === null && <ErrorAlert error={error} />}
 
         <Text mb={4}>Enter your login and password below:</Text>
-        <LoginForm onLogin={onLogin} isPending={isPending} />
+        <LoginForm isPending={isPending} onLogin={onLogin} />
       </Container>
-    </>);
+    </>
+  );
 };

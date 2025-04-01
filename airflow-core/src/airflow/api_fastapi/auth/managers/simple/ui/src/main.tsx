@@ -23,7 +23,7 @@ import { RouterProvider } from "react-router-dom";
 import { router } from "src/router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
-import {CookiesProvider} from "react-cookie";
+import { CookiesProvider } from "react-cookie";
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <ChakraProvider value={defaultSystem}>
@@ -34,5 +34,5 @@ createRoot(document.querySelector("#root") as HTMLDivElement).render(
         </CookiesProvider>
       </QueryClientProvider>
     </ThemeProvider>
-  </ChakraProvider>
+  </ChakraProvider>,
 );
