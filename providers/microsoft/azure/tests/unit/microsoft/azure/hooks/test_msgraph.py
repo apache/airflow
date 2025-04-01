@@ -20,13 +20,14 @@ import asyncio
 import inspect
 from json import JSONDecodeError
 from os.path import dirname
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Response
 from httpx._utils import URLPattern
 from kiota_abstractions.request_information import RequestInformation
+from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
@@ -62,22 +63,10 @@ class TestKiotaRequestAdapterHook:
     @staticmethod
     def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
         assert isinstance(request_adapter, HttpxRequestAdapter)
-
-        auth_provider = getattr(request_adapter, "_authentication_provider", None)
-        if not auth_provider:
-            raise ValueError("Authentication provider is missing in the request adapter")
-
-        access_token_provider = getattr(auth_provider, "access_token_provider", None)
-        if not access_token_provider:
-            raise ValueError("Access token provider is missing in the authentication provider")
-
-        credentials = getattr(access_token_provider, "_credentials", None)
-        if not credentials:
-            raise ValueError("Credentials object is missing in the access token provider")
-
-        tenant_id = getattr(credentials, "_tenant_id", None)
-        if not tenant_id:
-            raise ValueError("Tenant ID is missing in credentials")
+        authentication_provider = cast(
+            request_adapter._authentication_provider, BaseBearerTokenAuthenticationProvider
+        )
+        tenant_id = authentication_provider.access_token_provider._credentials._tenant_id
 
         assert (
             tenant_id == expected_tenant_id
