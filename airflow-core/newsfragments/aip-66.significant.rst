@@ -31,6 +31,10 @@ The ``--subdir`` option has been removed from the following commands:
 * ``airflow dags trigger``
 * ``airflow dags unpause``
 
+Dag bundles are not initialized in the triggerer. In practice, this means that triggers cannot come from a dag bundle.
+This is because the triggerer does not deal with changes in trigger code over time, as everything happens in the main process.
+Triggers can come from anywhere else on ``sys.path`` instead.
+
 .. Provide additional contextual information
 
 .. Check the type of change that applies to this change
