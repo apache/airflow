@@ -112,8 +112,8 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
 # Don't heartbeat more often than this
-MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "task_instance_min_heartbeat_interval")
-MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "task_instance_max_failed_heartbeats")
+MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
+MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are

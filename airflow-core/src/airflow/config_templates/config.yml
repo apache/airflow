@@ -1428,7 +1428,7 @@ workers:
       sensitive: true
       example: ~
       default: ""
-    task_instance_min_heartbeat_interval:
+    min_heartbeat_interval:
       description: |
         The minimum interval (in seconds) at which the worker checks the task instance's
         heartbeat status with the API server to confirm it is still alive.
@@ -1436,7 +1436,7 @@ workers:
       type: integer
       example: ~
       default: "5"
-    task_instance_max_failed_heartbeats:
+    max_failed_heartbeats:
       description: |
         The maximum number of consecutive failed heartbeats before terminating the task instance process.
       version_added: 3.0.0
