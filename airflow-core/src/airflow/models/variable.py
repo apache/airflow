@@ -236,8 +236,7 @@ class Variable(Base, LoggingMixin):
             existing_variable = session.query(Variable).filter(Variable.key == key).first()
             if existing_variable:
                 existing_variable.val = stored_value
-                if description is not None:
-                    existing_variable.description = description
+                existing_variable.description = description
             else:
                 session.add(Variable(key=key, val=stored_value, description=description))
 
