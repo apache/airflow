@@ -326,18 +326,6 @@ class BaseSensorOperator(BaseOperator):
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
-    def prepare_for_execution(self) -> Self:
-        task = super().prepare_for_execution()
-
-        # Sensors in `poke` mode can block execution of DAGs when running
-        # with single process executor, thus we change the mode to`reschedule`
-        # to allow parallel task being scheduled and executed
-        executor, _ = ExecutorLoader.import_default_executor_cls()
-        if executor.change_sensor_mode_to_reschedule:
-            self.log.warning("%s changes sensor mode to 'reschedule'.", executor.__name__)
-            task.mode = "reschedule"
-        return task
-
     @property
     def reschedule(self):
         """Define mode rescheduled sensors."""
