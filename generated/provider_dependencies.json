@@ -903,7 +903,7 @@
       "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "methodtools>=0.4.7",
-      "pymssql>=2.3.0"
+      "pymssql>=2.3.0,!=2.3.3"
     ],
     "devel-deps": [],
     "plugins": [],
