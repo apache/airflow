@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from tests_common.test_utils.otel_utils import (
+    clean_task_lines,
     extract_spans_from_output,
     get_child_list_for_non_root,
     get_id_for_a_given_name,
@@ -421,6 +422,86 @@ class TestUtilsUnit:
 }
     """
 
+    example_task_output = r"""
+{"timestamp":"2025-03-31T18:03:17.087597","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.087693","level":"info","event":"From task sub_span2.","logger":"airflow.otel_test_dag"}
+{"timestamp":"2025-03-31T18:03:17.087763","level":"info","event":"From task sub_span3.","logger":"airflow.otel_test_dag"}
+{"timestamp":"2025-03-31T18:03:17.088075","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.088105","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.088168","level":"info","event":"From task sub_span4.","logger":"airflow.otel_test_dag"}
+{"timestamp":"2025-03-31T18:03:17.088257","level":"info","event":"Task_1 finished.","logger":"airflow.otel_test_dag"}
+{"timestamp":"2025-03-31T18:03:17.088302","level":"info","event":"Done. Returned value was: None","logger":"airflow.task.operators.airflow.decorators.python._PythonDecoratedOperator"}
+{"timestamp":"2025-03-31T18:03:17.098610Z","level":"info","event":"{","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098657Z","level":"info","event":"    \"name\": \"task1_sub_span3\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098728Z","level":"info","event":"    \"context\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098820Z","level":"info","event":"        \"trace_id\": \"0x2ff18b33906025611803bd9bf19d9c2c\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098876Z","level":"info","event":"        \"span_id\": \"0x26475c0322517334\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098927Z","level":"info","event":"        \"trace_state\": \"[]\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.098965Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099038Z","level":"info","event":"    \"kind\": \"SpanKind.INTERNAL\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099072Z","level":"info","event":"    \"parent_id\": \"0xda642ff216bf8fb1\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099127Z","level":"info","event":"    \"start_time\": \"2025-03-31T18:03:17.087742Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099172Z","level":"info","event":"    \"end_time\": \"2025-03-31T18:03:17.087782Z\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099206Z","level":"info","event":"    \"status\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099272Z","level":"info","event":"        \"status_code\": \"UNSET\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099317Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099360Z","level":"info","event":"    \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099396Z","level":"info","event":"        \"attr3\": \"val3\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099426Z","level":"info","event":"    },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099456Z","level":"info","event":"    \"events\": [],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099497Z","level":"info","event":"    \"links\": [],","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099531Z","level":"info","event":"    \"resource\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099586Z","level":"info","event":"        \"attributes\": {","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099630Z","level":"info","event":"            \"telemetry.sdk.language\": \"python\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099661Z","level":"info","event":"            \"telemetry.sdk.name\": \"opentelemetry\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099692Z","level":"info","event":"            \"telemetry.sdk.version\": \"1.27.0\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099725Z","level":"info","event":"            \"host.name\": \"2f6707197a8a\",","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099757Z","level":"info","event":"            \"service.name\": \"Airflow\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099787Z","level":"info","event":"        },","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099818Z","level":"info","event":"        \"schema_url\": \"\"","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099873Z","level":"info","event":"    }","chan":"stdout","logger":"task"}
+{"timestamp":"2025-03-31T18:03:17.099914Z","level":"info","event":"}","chan":"stdout","logger":"task"}"""
+
+    example_task_output_after_processing = """
+[SimpleSpanProcessor] is being used
+From task sub_span2.
+From task sub_span3.
+[ConsoleSpanExporter] is being used
+[SimpleSpanProcessor] is being used
+From task sub_span4.
+Task_1 finished.
+Done. Returned value was: None
+{
+    \"name\": \"task1_sub_span3\",
+    \"context\": {
+        \"trace_id\": \"0x2ff18b33906025611803bd9bf19d9c2c\",
+        \"span_id\": \"0x26475c0322517334\",
+        \"trace_state\": \"[]\"
+    },
+    \"kind\": \"SpanKind.INTERNAL\",
+    \"parent_id\": \"0xda642ff216bf8fb1\",
+    \"start_time\": \"2025-03-31T18:03:17.087742Z\",
+    \"end_time\": \"2025-03-31T18:03:17.087782Z\",
+    \"status\": {
+        \"status_code\": \"UNSET\"
+    },
+    \"attributes\": {
+        \"attr3\": \"val3\"
+    },
+    \"events\": [],
+    \"links\": [],
+    \"resource\": {
+        \"attributes\": {
+            \"telemetry.sdk.language\": \"python\",
+            \"telemetry.sdk.name\": \"opentelemetry\",
+            \"telemetry.sdk.version\": \"1.27.0\",
+            \"host.name\": \"2f6707197a8a\",
+            \"service.name\": \"Airflow\"
+        },
+        \"schema_url\": \"\"
+    }
+}"""
+
     # In the example output, there are two parent child relationships.
     #
     # test_dag
@@ -539,3 +620,11 @@ class TestUtilsUnit:
             actual_child_span_names.append(span["name"])
 
         assert sorted(actual_child_span_names) == sorted(expected_child_span_names)
+
+    def test_clean_task_lines(self):
+        output_lines = self.example_task_output.splitlines()
+        cleaned_lines = clean_task_lines(output_lines)
+
+        assert (
+            cleaned_lines == self.example_task_output_after_processing.splitlines()
+        ), "Cleaned task lines do not match the expected output after processing."

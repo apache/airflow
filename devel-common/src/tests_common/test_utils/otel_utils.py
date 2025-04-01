@@ -56,6 +56,44 @@ def dump_airflow_metadata_db(session):
     log.debug("\n-----END_airflow_db_dump-----\n")
 
 
+def extract_task_event_value(line: str) -> str:
+    # Parse the JSON line, which starts with '{"timestamp":'.
+    data = json.loads(line)
+    # Extract the event value.
+    raw_event = data.get("event", "")
+
+    # Replace backslash-escaped sequences with simple sequences, e.g. '\"' -> '"', where needed.
+    event_decoded = raw_event.encode("utf-8").decode("unicode_escape")
+
+    # Don't perform any other transformations so that indentation is kept intact.
+    # The next processing depends on it, otherwise it won't handle the span data correctly.
+
+    return event_decoded
+
+
+def clean_task_lines(lines: list) -> list:
+    r"""
+    Clean up the task lines.
+
+    Each task line follows this format
+    '{"timestamp":"2025-03-31T18:03:17.098657Z","level":"info","event":"    \"name\": \"task1_sub_span3\",","chan":"stdout","logger":"task"}'.
+    The actual output is on the value of the 'event' fragment.
+
+    For each log line that starts with '{"timestamp":', parse and
+    extract the 'event' JSON fragment up until the enclosing quote. Indentation should be preserved.
+    """
+    cleaned_lines = []
+    # Iterate over all lines to identify the ones belonging to tasks.
+    for line in lines:
+        if line.startswith('{"timestamp":'):
+            event_frag = extract_task_event_value(line)
+            cleaned_lines.append(event_frag)
+        else:
+            # The rest of the lines will be processed later.
+            cleaned_lines.append(line)
+    return cleaned_lines
+
+
 def extract_spans_from_output(output_lines: list):
     """
     For a given list of ConsoleSpanExporter output lines, it extracts the json spans and creates two dictionaries.
@@ -66,7 +104,7 @@ def extract_spans_from_output(output_lines: list):
     root_span_dict = {}
     total_lines = len(output_lines)
     index = 0
-
+    output_lines = clean_task_lines(output_lines)
     while index < total_lines:
         line = output_lines[index].strip()
         # The start and the end of the json object, don't have any indentation.
