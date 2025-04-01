@@ -849,7 +849,7 @@ class TestDag:
             # Verify it's not using the old DEFAULT_DATE from 2016
             assert model.next_dagrun.year == current_time.year
 
-            # Ideally should be 24 hrs but can be a little more, so keeping an hours window
+            # Ideally should be 24 hrs but can be a little more, so keeping some window
             assert (current_time - model.next_dagrun) <= timedelta(hours=30)
 
             # Verify the date is within a reasonable range of the current date
@@ -2005,7 +2005,7 @@ my_postgres_conn:
         # Verify it's not using the old start_date
         assert next_info.logical_date.year == current_time.year
 
-        # Ideally should be 24 hrs but can be a little more, so keeping an hours window
+        # Ideally should be 24 hrs but can be a little more, so keeping some window
         assert (current_time - next_info.logical_date) <= timedelta(hours=30)
 
         # Verify it's following the cron schedule pattern (4 5 * * *)
