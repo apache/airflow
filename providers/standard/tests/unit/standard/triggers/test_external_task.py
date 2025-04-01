@@ -239,11 +239,15 @@ class TestDagStateTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_dag_state_trigger(self, session):
+    @mock.patch("airflow.sdk.execution_time.context._get_dag_run_count_by_run_ids_and_states")
+    async def test_dag_state_trigger(self, mock_get_dag_run_count, session):
         """
         Assert that the DagStateTrigger only goes off on or after a DagRun
         reaches an allowed state (i.e. SUCCESS).
         """
+
+        # Mock the get_dag_run_count_by_run_ids_and_states function to return 0 first time
+        mock_get_dag_run_count.return_value = mock.Mock(count=0)
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
         run_id_or_execution_date = (
             {"run_id": "external_task_run_id"}
@@ -270,6 +274,9 @@ class TestDagStateTrigger:
         # Progress the dag to a "success" state so that yields a TriggerEvent
         dag_run.state = DagRunState.SUCCESS
         session.commit()
+
+        # Mock the get_dag_run_count_by_run_ids_and_states function to return 1 second time
+        mock_get_dag_run_count.return_value = mock.Mock(count=1)
         await asyncio.sleep(0.5)
         assert task.done() is True
 

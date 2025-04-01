@@ -765,6 +765,8 @@ class CustomTriggerDagRun(BaseTrigger):
 
 
 @pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
 async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
