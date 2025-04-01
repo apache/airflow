@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -1154,9 +1154,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         result = {
             "task_key": self.databricks_task_key,
             "depends_on": [
-                {"task_key": self._generate_databricks_task_key(task_id)}
-                for task_id in self.upstream_task_ids
-                if task_id in relevant_upstreams
+                {"task_key": upstream_task.databricks_task_key}
+                for upstream_task in relevant_upstreams
+                if isinstance(upstream_task, DatabricksTaskBaseOperator) and upstream_task.task_id in self.upstream_task_ids
             ],
             **base_task_json,
         }
