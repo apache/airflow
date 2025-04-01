@@ -121,10 +121,10 @@ class TestProvisionedModelThroughputCompleteWaiter(TestBedrockCustomWaitersBase)
 class TestBatchInferenceCompleteWaiter(TestBedrockCustomWaitersBase):
     WAITER_NAME = "batch_inference_complete"
     SENSOR = BedrockBatchInferenceSensor(
-            task_id="task_id",
-            job_arn="job_arn",
-            success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED,
-        )
+        task_id="task_id",
+        job_arn="job_arn",
+        success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+    )
 
     @pytest.fixture
     def mock_get_job(self):
