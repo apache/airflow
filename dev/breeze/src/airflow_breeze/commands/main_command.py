@@ -303,7 +303,9 @@ def cleanup(all: bool):
             run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print("Removing build file and untracked files")
+    get_console().print(
+        "Removing build file and untracked files. This also removes files ignored in .gitignore"
+    )
     given_answer = user_confirm("Are you sure with the removal of build files?")
     if given_answer == Answer.YES:
         system_prune_command_to_execute = [
