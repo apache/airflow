@@ -24,16 +24,19 @@ import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
+import { TriggeredRuns } from "./TriggeredRuns";
+
 export const AssetEvent = ({
   assetId,
   event,
+  showAssetName = true,
   showExtra,
 }: {
   readonly assetId?: number;
   readonly event: AssetEventResponse;
+  readonly showAssetName?: boolean;
   readonly showExtra?: boolean;
 }) => {
-  const hasDagRuns = event.created_dagruns.length > 0;
   let source = "";
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -44,6 +47,8 @@ export const AssetEvent = ({
   } else if (from_trigger === true) {
     source = "Trigger";
   }
+
+  const extraString = JSON.stringify(extra);
 
   return (
     <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
@@ -68,29 +73,24 @@ export const AssetEvent = ({
           </Tooltip>
         </HStack>
       )}
+      {Boolean(showAssetName) ? (
+        <HStack>
+          <Text>Source: </Text>
+          {source === "" ? (
+            <Link
+              to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
+            >
+              <Text color="fg.info"> {event.source_dag_id} </Text>
+            </Link>
+          ) : (
+            source
+          )}
+        </HStack>
+      ) : undefined}
       <HStack>
-        <Text>Source: </Text>
-        {source === "" ? (
-          <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
-          >
-            <Text color="fg.info"> {event.source_dag_id} </Text>
-          </Link>
-        ) : (
-          source
-        )}
+        <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      <HStack>
-        <Text>Triggered Dag Runs: </Text>
-        {hasDagRuns ? (
-          <Link to={`/dags/${event.created_dagruns[0]?.dag_id}/runs/${event.created_dagruns[0]?.run_id}`}>
-            <Text color="fg.info"> {event.created_dagruns[0]?.dag_id} </Text>
-          </Link>
-        ) : (
-          "~"
-        )}
-      </HStack>
-      {showExtra ? <Code>{JSON.stringify(extra)}</Code> : undefined}
+      {showExtra && extraString !== "{}" ? <Code>{extraString}</Code> : undefined}
     </Box>
   );
 };
