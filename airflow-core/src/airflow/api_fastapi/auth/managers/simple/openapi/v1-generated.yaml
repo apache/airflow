@@ -15,11 +15,12 @@ paths:
         is True.
       operationId: create_token_all_admins
       responses:
-        '307':
+        '201':
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
         '403':
           description: Forbidden
           content:
@@ -63,6 +64,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/token/login:
+    get:
+      tags:
+      - SimpleAuthManagerLogin
+      summary: Login All Admins
+      description: Login the user with no credentials.
+      operationId: login_all_admins
+      responses:
+        '307':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /auth/token/cli:
     post:
       tags:
@@ -108,7 +128,8 @@ components:
         detail:
           anyOf:
           - type: string
-          - type: object
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:
@@ -141,12 +162,12 @@ components:
       description: Login serializer for post bodies.
     LoginResponse:
       properties:
-        jwt_token:
+        access_token:
           type: string
-          title: Jwt Token
+          title: Access Token
       type: object
       required:
-      - jwt_token
+      - access_token
       title: LoginResponse
       description: Login serializer for responses.
     ValidationError:

@@ -24,7 +24,6 @@ import pytest
 from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
 from airflow.sdk.execution_time.comms import VariableResult
-from airflow.sdk.execution_time.supervisor import initialize_secrets_backend_on_workers
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -72,7 +71,6 @@ class TestVariableFromSecrets:
                 ("workers", "secrets_backend_kwargs"): f'{{"variables_file_path": "{path}"}}',
             }
         ):
-            initialize_secrets_backend_on_workers()
             retrieved_var = Variable.get(key="VAR_A")
             assert retrieved_var is not None
             assert retrieved_var == "some_value"
@@ -80,7 +78,6 @@ class TestVariableFromSecrets:
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
     def test_get_variable_env_var(self, mock_env_get, mock_supervisor_comms):
         """Tests getting a variable from environment variable."""
-        initialize_secrets_backend_on_workers()
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
@@ -97,7 +94,6 @@ class TestVariableFromSecrets:
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
     def test_backend_fallback_to_env_var(self, mock_get_variable, mock_env_get, mock_supervisor_comms):
         """Tests if variable retrieval falls back to environment variable backend if not found in secrets backend."""
-        initialize_secrets_backend_on_workers()
         mock_get_variable.return_value = None
         mock_env_get.return_value = "fake_value"
 

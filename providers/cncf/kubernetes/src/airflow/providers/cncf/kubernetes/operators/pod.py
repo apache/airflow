@@ -234,7 +234,7 @@ class KubernetesPodOperator(BaseOperator):
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
-    #  - airflow/decorators/__init__.pyi  (by a separate PR)
+    #  - airflow-core/src/airflow/decorators/__init__.pyi  (by a separate PR)
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"

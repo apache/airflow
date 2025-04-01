@@ -69,8 +69,8 @@ if TYPE_CHECKING:
         OperatorExpandKwargsArgument,
     )
     from airflow.models.xcom_arg import XComArg
-    from airflow.sdk.definitions.baseoperator import BaseOperator
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.types import Operator
@@ -321,8 +321,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    supports_lineage: bool = False
-
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
@@ -365,7 +363,6 @@ class MappedOperator(AbstractOperator):
             "expand_input",  # This is needed to be able to accept XComArg.
             "task_group",
             "upstream_task_ids",
-            "supports_lineage",
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",

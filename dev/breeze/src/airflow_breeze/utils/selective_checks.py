@@ -51,6 +51,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
+    SelectiveAirflowCtlTestType,
     SelectiveCoreTestType,
     SelectiveProvidersTestType,
     SelectiveTaskSdkTestType,
@@ -107,6 +108,7 @@ class FileGroupForCi(Enum):
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
+    AIRFLOW_CTL_FILES = "airflow_ctl_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -186,6 +188,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
             r"^task-sdk/src/",
+            r"^airflow-ctl/src/",
             r"^airflow-core/tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
@@ -229,6 +232,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task-sdk/tests/",
             r"^devel-common",
             r"^kubernetes_tests",
+            r"^airflow-ctl/src/",
+            r"^airflow-ctl/tests/",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^airflow-core/tests/system/",
@@ -258,6 +263,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task-sdk/tests/",
             r"^providers/.*/tests/unit/",
             r"^dev/breeze/tests/",
+            r"^airflow-ctl/tests/",
+        ],
+        FileGroupForCi.AIRFLOW_CTL_FILES: [
+            r"^airflow-ctl/src/airflowctl/.*\.py$",
+            r"^airflow-ctl/tests/.*\.py$",
         ],
     }
 )
@@ -274,6 +284,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^airflow-core/tests/unit/dags/test_imports.py",
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
+            r"^airflow-ctl/src/airflowctl/.*\.py$",
+            r"^airflow-ctl/tests/.*\.py$",
         ]
     }
 )
@@ -305,6 +317,10 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.SERIALIZATION: [
             r"^airflow-core/src/airflow/serialization/",
             r"^airflow-core/tests/unit/serialization/",
+        ],
+        SelectiveAirflowCtlTestType.AIRFLOW_CTL: [
+            r"^airflow-ctl/src/",
+            r"^airflow-ctl/tests/",
         ],
     }
 )
@@ -677,6 +693,13 @@ class SelectiveChecks:
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-task-sdk")
+        if (
+            self._matching_files(
+                FileGroupForCi.AIRFLOW_CTL_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self.full_tests_needed
+        ):
+            checks_to_run.append("mypy-airflow-ctl")
         return checks_to_run
 
     @cached_property
@@ -719,6 +742,10 @@ class SelectiveChecks:
     @cached_property
     def run_task_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
+
+    @cached_property
+    def run_airflow_ctl_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:

@@ -37,7 +37,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
@@ -106,7 +106,7 @@ def setup(request, dag_maker, session=None):
         logical_date=LOGICAL_DATE1,
     )
 
-    dag_run1.note = (DAG1_RUN1_NOTE, 1)
+    dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     for task in [task1, task2]:
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -228,7 +228,7 @@ class TestGetDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
-        response = test_client.get(f"/api/v2/dags/{dag_id}/dagRuns/{run_id}")
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
@@ -239,17 +239,17 @@ class TestGetDagRun:
         assert body["note"] == dag_run_note
 
     def test_get_dag_run_not_found(self, test_client):
-        response = test_client.get(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 403
 
 
@@ -257,7 +257,7 @@ class TestGetDagRuns:
     @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
-        response = test_client.get(f"/api/v2/dags/{dag_id}/dagRuns")
+        response = test_client.get(f"/dags/{dag_id}/dagRuns")
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == total_entries
@@ -271,13 +271,13 @@ class TestGetDagRuns:
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs_not_found(self, test_client):
-        response = test_client.get("/api/v2/dags/invalid/dagRuns")
+        response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
 
     def test_invalid_order_by_raises_400(self, test_client):
-        response = test_client.get("/api/v2/dags/test_dag1/dagRuns?order_by=invalid")
+        response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 400
         body = response.json()
         assert (
@@ -286,11 +286,11 @@ class TestGetDagRuns:
         )
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dags/test_dag1/dagRuns?order_by=invalid")
+        response = unauthenticated_test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/dags/test_dag1/dagRuns?order_by=invalid")
+        response = unauthorized_test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -310,14 +310,14 @@ class TestGetDagRuns:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
-        response = test_client.get("/api/v2/dags/test_dag1/dagRuns", params={"order_by": order_by})
+        response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order
 
         # Test descending order
-        response = test_client.get("/api/v2/dags/test_dag1/dagRuns", params={"order_by": f"-{order_by}"})
+        response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": f"-{order_by}"})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
@@ -337,7 +337,7 @@ class TestGetDagRuns:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_limit_and_offset(self, test_client, query_params, expected_dag_id_order):
-        response = test_client.get("/api/v2/dags/test_dag1/dagRuns", params=query_params)
+        response = test_client.get("/dags/test_dag1/dagRuns", params=query_params)
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
@@ -392,7 +392,7 @@ class TestGetDagRuns:
         ],
     )
     def test_bad_limit_and_offset(self, test_client, query_params, expected_detail):
-        response = test_client.get("/api/v2/dags/test_dag1/dagRuns", params=query_params)
+        response = test_client.get("/dags/test_dag1/dagRuns", params=query_params)
         assert response.status_code == 422
         assert response.json()["detail"] == expected_detail
 
@@ -467,7 +467,7 @@ class TestGetDagRuns:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
-        response = test_client.get(f"/api/v2/dags/{dag_id}/dagRuns", params=query_params)
+        response = test_client.get(f"/dags/{dag_id}/dagRuns", params=query_params)
         assert response.status_code == 200
         body = response.json()
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
@@ -541,13 +541,13 @@ class TestGetDagRuns:
                 "ctx": {"error": "input is too short"},
             },
         ]
-        response = test_client.get(f"/api/v2/dags/{DAG1_ID}/dagRuns", params=query_params)
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params=query_params)
         assert response.status_code == 422
         body = response.json()
         assert body["detail"] == expected_detail
 
     def test_invalid_state(self, test_client):
-        response = test_client.get(f"/api/v2/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
         assert response.status_code == 422
         assert (
             response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
@@ -557,7 +557,7 @@ class TestGetDagRuns:
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json={})
+        response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
@@ -567,15 +567,15 @@ class TestListDagRunsBatch:
             assert each == expected
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/api/v2/dags/~/dagRuns/list", json={})
+        response = unauthenticated_test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/api/v2/dags/~/dagRuns/list", json={})
+        response = unauthorized_test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 403
 
     def test_list_dag_runs_with_invalid_dag_id(self, test_client):
-        response = test_client.post("/api/v2/dags/invalid/dagRuns/list", json={})
+        response = test_client.post("/dags/invalid/dagRuns/list", json={})
         assert response.status_code == 422
         body = response.json()
         assert body["detail"] == [
@@ -598,12 +598,12 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
+        response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
     def test_invalid_order_by_raises_400(self, test_client):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json={"order_by": "invalid"})
+        response = test_client.post("/dags/~/dagRuns/list", json={"order_by": "invalid"})
         assert response.status_code == 400
         body = response.json()
         assert (
@@ -631,14 +631,14 @@ class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_runs_ordering(self, test_client, order_by, expected_order):
         # Test ascending order
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json={"order_by": order_by})
+        response = test_client.post("/dags/~/dagRuns/list", json={"order_by": order_by})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
         assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order
 
         # Test descending order
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json={"order_by": f"-{order_by}"})
+        response = test_client.post("/dags/~/dagRuns/list", json={"order_by": f"-{order_by}"})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
@@ -658,7 +658,7 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_limit_and_offset(self, test_client, post_body, expected_dag_id_order):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json=post_body)
+        response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
@@ -713,7 +713,7 @@ class TestListDagRunsBatch:
         ],
     )
     def test_bad_limit_and_offset(self, test_client, post_body, expected_detail):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json=post_body)
+        response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 422
         assert response.json()["detail"] == expected_detail
 
@@ -776,7 +776,7 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_filters(self, test_client, post_body, expected_dag_id_list):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json=post_body)
+        response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
         body = response.json()
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
@@ -841,7 +841,7 @@ class TestListDagRunsBatch:
                 "ctx": {"error": "input is too short"},
             },
         ]
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json=post_body)
+        response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 422
         body = response.json()
         assert body["detail"] == expected_detail
@@ -875,109 +875,133 @@ class TestListDagRunsBatch:
         ],
     )
     def test_invalid_state(self, test_client, post_body, expected_response):
-        response = test_client.post("/api/v2/dags/~/dagRuns/list", json=post_body)
+        response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 422
         assert response.json()["detail"] == expected_response
 
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, patch_body, response_body",
+        "dag_id, run_id, patch_body, response_body, note_data",
         [
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
                 {"state": DagRunState.FAILED, "note": "new_note2"},
                 {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"user_id": "test", "content": "new_note2"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"state": DagRunState.SUCCESS},
                 {"state": DagRunState.SUCCESS, "note": None},
+                None,
             ),
             (
                 DAG2_ID,
                 DAG2_RUN1_ID,
                 {"state": DagRunState.QUEUED},
                 {"state": DagRunState.QUEUED, "note": None},
+                None,
             ),
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
                 {"note": "updated note"},
                 {"state": DagRunState.SUCCESS, "note": "updated note"},
+                {"user_id": "test", "content": "updated note"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": "new note", "state": DagRunState.FAILED},
                 {"state": DagRunState.FAILED, "note": "new note"},
+                {"user_id": "test", "content": "new note"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": None},
                 {"state": DagRunState.FAILED, "note": None},
+                {"user_id": "test", "content": None},
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, session):
-        response = test_client.patch(f"/api/v2/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
+    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, note_data, session):
+        response = test_client.patch(f"/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
+
+        _check_dag_run_note(session, run_id, note_data)
         _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch("/api/v2/dags/dag_1/dagRuns/run_1", json={})
+        response = unauthenticated_test_client.patch("/dags/dag_1/dagRuns/run_1", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/api/v2/dags/dag_1/dagRuns/run_1", json={})
+        response = unauthorized_test_client.patch("/dags/dag_1/dagRuns/run_1", json={})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, response_body, expected_status_code",
+        "query_params, patch_body, response_body, expected_status_code, note_data",
         [
             (
                 {"update_mask": ["state"]},
                 {"state": DagRunState.SUCCESS},
                 {"state": "success"},
                 200,
+                {"user_id": "not_test", "content": "test_note"},
             ),
             (
                 {"update_mask": ["note"]},
                 {"state": DagRunState.FAILED, "note": "new_note1"},
                 {"note": "new_note1", "state": "success"},
                 200,
+                {"user_id": "test", "content": "new_note1"},
             ),
             (
                 {},
                 {"state": DagRunState.FAILED, "note": "new_note2"},
                 {"note": "new_note2", "state": "failed"},
                 200,
+                {"user_id": "test", "content": "new_note2"},
             ),
-            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
-            ({"update_mask": ["note"]}, {"note": None}, {"state": "success", "note": None}, 200),
+            (
+                {"update_mask": ["note"]},
+                {},
+                {"state": "success", "note": "test_note"},
+                200,
+                {"user_id": "not_test", "content": "test_note"},
+            ),
+            (
+                {"update_mask": ["note"]},
+                {"note": None},
+                {"state": "success", "note": None},
+                200,
+                {"user_id": "test", "content": None},
+            ),
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},
                 {"state": "success", "note": "test_note"},
                 200,
+                {"user_id": "not_test", "content": "test_note"},
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_with_update_mask(
-        self, test_client, query_params, patch_body, response_body, expected_status_code
+        self, test_client, query_params, patch_body, response_body, expected_status_code, note_data, session
     ):
         response = test_client.patch(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
             params=query_params,
             json=patch_body,
         )
@@ -985,10 +1009,11 @@ class TestPatchDagRun:
         assert response.status_code == expected_status_code
         for key, value in response_body.items():
             assert response_json.get(key) == value
+        _check_dag_run_note(session, DAG1_RUN1_ID, note_data)
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid",
+            f"/dags/{DAG1_ID}/dagRuns/invalid",
             json={"state": DagRunState.SUCCESS},
         )
         assert response.status_code == 404
@@ -996,9 +1021,7 @@ class TestPatchDagRun:
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     def test_patch_dag_run_bad_request(self, test_client):
-        response = test_client.patch(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"}
-        )
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"})
         assert response.status_code == 422
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
@@ -1023,29 +1046,29 @@ class TestPatchDagRun:
 
         listener = ClassBasedListener()
         get_listener_manager().add_listener(listener)
-        response = test_client.patch(f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
 
 
 class TestDeleteDagRun:
     def test_delete_dag_run(self, test_client, session):
-        response = test_client.delete(f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        response = test_client.delete(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
         assert response.status_code == 204
         _check_last_log(session, dag_id=DAG1_ID, event="delete_dag_run", logical_date=None)
 
     def test_delete_dag_run_not_found(self, test_client):
-        response = test_client.delete(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = unauthenticated_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid")
+        response = unauthorized_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 403
 
 
@@ -1078,7 +1101,7 @@ class TestGetDagRunAssetTriggerEvents:
         assert event.timestamp
 
         response = test_client.get(
-            "/api/v2/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
         )
         assert response.status_code == 200
         expected_response = {
@@ -1115,19 +1138,19 @@ class TestGetDagRunAssetTriggerEvents:
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
-            "/api/v2/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(
-            "/api/v2/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents"
+            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents"
         )
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         response = test_client.get(
-            "api/v2/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",
+            "/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",
         )
         assert response.status_code == 404
         assert (
@@ -1140,7 +1163,7 @@ class TestClearDagRun:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run(self, test_client, session):
         response = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
             json={"dry_run": False},
         )
         assert response.status_code == 200
@@ -1157,14 +1180,14 @@ class TestClearDagRun:
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
             json={"dry_run": False},
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
             json={"dry_run": False},
         )
         assert response.status_code == 403
@@ -1180,7 +1203,7 @@ class TestClearDagRun:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run(self, test_client, session, body, dag_run_id, expected_state):
-        response = test_client.post(f"/api/v2/dags/{DAG1_ID}/dagRuns/{dag_run_id}/clear", json=body)
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{dag_run_id}/clear", json=body)
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == len(expected_state)
@@ -1190,13 +1213,13 @@ class TestClearDagRun:
         assert dag_run.state == DAG1_RUN1_STATE
 
     def test_clear_dag_run_not_found(self, test_client):
-        response = test_client.post(f"/api/v2/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     def test_clear_dag_run_unprocessable_entity(self, test_client):
-        response = test_client.post(f"/api/v2/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear")
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear")
         assert response.status_code == 422
         body = response.json()
         assert body["detail"][0]["msg"] == "Field required"
@@ -1231,21 +1254,22 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, note, data_interval_start, data_interval_end",
+        "dag_run_id, note, data_interval_start, data_interval_end, note_data",
         [
-            ("dag_run_5", "test-note", None, None),
-            ("dag_run_6", "test-note", "2024-01-03T00:00:00+00:00", "2024-01-04T05:00:00+00:00"),
+            ("dag_run_5", "test-note", None, None, {"user_id": "test", "content": "test-note"}),
             (
-                None,
-                None,
-                None,
-                None,
+                "dag_run_6",
+                "test-note",
+                "2024-01-03T00:00:00+00:00",
+                "2024-01-04T05:00:00+00:00",
+                {"user_id": "test", "content": "test-note"},
             ),
+            (None, None, None, None, None),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(
-        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
+        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, note_data, session
     ):
         fixed_now = timezone.utcnow().isoformat()
 
@@ -1258,7 +1282,7 @@ class TestTriggerDagRun:
             request_json["data_interval_end"] = data_interval_end
         request_json["logical_date"] = fixed_now
         response = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json=request_json,
         )
         assert response.status_code == 200
@@ -1298,18 +1322,21 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
+
+        _check_dag_run_note(session, expected_dag_run_id, note_data)
+
         _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={},
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={},
         )
         assert response.status_code == 403
@@ -1400,7 +1427,7 @@ class TestTriggerDagRun:
     def test_invalid_data(self, test_client, post_body, expected_detail):
         now = timezone.utcnow().isoformat()
         post_body["logical_date"] = now
-        response = test_client.post(f"/api/v2/dags/{DAG1_ID}/dagRuns", json=post_body)
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
 
@@ -1411,21 +1438,21 @@ class TestTriggerDagRun:
 
         mock_create_dagrun.side_effect = ValueError(error_message)
 
-        response = test_client.post(f"/api/v2/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
 
     def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
-        response = test_client.post("/api/v2/dags/inactive/dagRuns", json={"logical_date": now})
+        response = test_client.post("/dags/inactive/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
         now = timezone.utcnow().isoformat()
         self._dags_for_trigger_tests(session)
-        response = test_client.post("/api/v2/dags/import_errors/dagRuns", json={"logical_date": now})
+        response = test_client.post("/dags/import_errors/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -1440,11 +1467,11 @@ class TestTriggerDagRun:
         now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         note = "duplicate logical date test"
         response_1 = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={"dag_run_id": RUN_ID_1, "note": note, "logical_date": now},
         )
         response_2 = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={"dag_run_id": RUN_ID_2, "note": note, "logical_date": now},
         )
 
@@ -1488,7 +1515,7 @@ class TestTriggerDagRun:
     ):
         now = timezone.utcnow().isoformat()
         response = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={
                 "data_interval_start": data_interval_start,
                 "data_interval_end": data_interval_end,
@@ -1504,7 +1531,7 @@ class TestTriggerDagRun:
     def test_raises_validation_error_for_invalid_params(self, test_client):
         now = timezone.utcnow().isoformat()
         response = test_client.post(
-            f"/api/v2/dags/{DAG2_ID}/dagRuns",
+            f"/dags/{DAG2_ID}/dagRuns",
             json={"conf": {"validated_number": 5000}, "logical_date": now},
         )
         assert response.status_code == 400
@@ -1512,14 +1539,14 @@ class TestTriggerDagRun:
 
     def test_response_404(self, test_client):
         now = timezone.utcnow().isoformat()
-        response = test_client.post("/api/v2/dags/randoms/dagRuns", json={"logical_date": now})
+        response = test_client.post("/dags/randoms/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'randoms' not found"
 
     def test_response_409(self, test_client):
         now = timezone.utcnow().isoformat()
         response = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID, "logical_date": now}
+            f"/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID, "logical_date": now}
         )
         assert response.status_code == 409
         response_json = response.json()
@@ -1529,7 +1556,7 @@ class TestTriggerDagRun:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_null_logical_date(self, test_client):
         response = test_client.post(
-            f"/api/v2/dags/{DAG1_ID}/dagRuns",
+            f"/dags/{DAG1_ID}/dagRuns",
             json={"logical_date": None},
         )
         assert response.status_code == 200

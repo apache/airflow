@@ -40,7 +40,7 @@ from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
-from airflow.cli.commands.local_commands.info_command import Architecture
+from airflow.cli.commands.info_command import Architecture
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
@@ -295,7 +295,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     expected_modules = {
         _filepath_to_module(f)
         for f in py_files
-        if f.name != "__init__.py" and f"{module.replace('.','/')}/tests/" not in f.as_posix()
+        if f.name != "__init__.py" and f"{module.replace('.', '/')}/tests/" not in f.as_posix()
     }
     resource_data = provider_data.get(resource_type, [])
     return expected_modules, _filepath_to_module(provider_dir), resource_data

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-slack``
 
-Release: ``9.0.2``
+Release: ``9.0.3``
 
 
 `Slack <https://slack.com/>`__ services integration including:
@@ -39,7 +39,7 @@ This is a provider package for ``slack`` provider. All classes for this provider
 are in ``airflow.providers.slack`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.3/>`_.
 
 Installation
 ------------
@@ -53,13 +53,14 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``slack_sdk``                            ``>=3.19.0``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``slack_sdk``                               ``>=3.19.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -71,14 +72,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-slack[common.sql]
+    pip install apache-airflow-providers-slack[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.3/changelog.html>`_.

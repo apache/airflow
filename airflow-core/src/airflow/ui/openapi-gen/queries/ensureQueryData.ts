@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -2510,4 +2511,24 @@ export const ensureUseLoginServiceLogoutData = (
   queryClient.ensureQueryData({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDefaultServiceNotFoundHandlerData = (
+  queryClient: QueryClient,
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

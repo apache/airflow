@@ -176,11 +176,11 @@ const config = {
       patterns: [
         {
           from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
-          flatten: true,
+          to: "jquery-ui.min.js",
         },
         {
           from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
-          flatten: true,
+          to: "jquery-ui.min.css",
         },
       ],
     }),

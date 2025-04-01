@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
+import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -61,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -72,6 +74,8 @@ from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+log = structlog.get_logger(__name__)
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -141,6 +145,7 @@ def patch_dag_run(
     patch_body: DAGRunPatchBody,
     session: SessionDep,
     request: Request,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
@@ -173,22 +178,26 @@ def patch_dag_run(
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-                get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+                try:
+                    get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+                except Exception:
+                    log.exception("error calling listener")
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
             elif attr_value == DAGRunPatchStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-                get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+                try:
+                    get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+                except Exception:
+                    log.exception("error calling listener")
         elif attr_name == "note":
-            # Once Authentication is implemented in this FastAPI app,
-            # user id will be added when updating dag run note
-            # Refer to https://github.com/apache/airflow/issues/43534
             dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
-                dag_run.note = (attr_value, None)
+                dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
+                dag_run.dag_run_note.user_id = user.get_id()
 
     dag_run = session.get(DagRun, dag_run.id)
 
@@ -263,7 +272,7 @@ def clear_dag_run(
         )
 
         return TaskInstanceCollectionResponse(
-            task_instances=cast(list[TaskInstanceResponse], task_instances),
+            task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
     else:
@@ -373,6 +382,7 @@ def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
     request: Request,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
@@ -404,7 +414,7 @@ def trigger_dag_run(
         )
         dag_run_note = body.note
         if dag_run_note:
-            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except ValueError as e:

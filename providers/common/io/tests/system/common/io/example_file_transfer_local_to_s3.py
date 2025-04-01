@@ -68,7 +68,7 @@ with DAG(
     catchup=False,
 ) as dag:
     temp_file = create_temp_file()
-    temp_file_path = cast(ObjectStoragePath, temp_file)
+    temp_file_path = cast("ObjectStoragePath", temp_file)
 
     # [START howto_transfer_local_to_s3]
     transfer = FileTransferOperator(src=temp_file_path, dst=AWS_BUCKET, task_id="transfer")

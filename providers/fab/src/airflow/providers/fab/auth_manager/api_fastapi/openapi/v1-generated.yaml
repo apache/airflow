@@ -89,7 +89,8 @@ components:
         detail:
           anyOf:
           - type: string
-          - type: object
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:
@@ -121,12 +122,12 @@ components:
       description: API Token serializer for requests.
     LoginResponse:
       properties:
-        jwt_token:
+        access_token:
           type: string
-          title: Jwt Token
+          title: Access Token
       type: object
       required:
-      - jwt_token
+      - access_token
       title: LoginResponse
       description: API Token serializer for responses.
     ValidationError:

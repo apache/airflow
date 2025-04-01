@@ -129,7 +129,6 @@ global_substitutions = {
 if PACKAGE_NAME != "apache-airflow":
     global_substitutions["experimental"] = "This is an :external:ref:`experimental feature <experimental>`."
 
-
 # == Sphinx configuration ======================================================
 
 # -- Project information -------------------------------------------------------
@@ -168,6 +167,21 @@ extensions = [
     "substitution_extensions",
     "sphinx_design",
 ]
+
+
+packages_with_redoc = ["apache-airflow", "apache-airflow-providers-fab"]
+if PACKAGE_NAME in packages_with_redoc:
+    extensions.extend(
+        [
+            "autoapi.extension",
+            # First, generate redoc
+            "sphinxcontrib.redoc",
+            # Second, update redoc script
+            "sphinx_script_update",
+        ]
+    )
+
+
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
         [
@@ -176,14 +190,9 @@ if PACKAGE_NAME == "apache-airflow":
             "sphinxcontrib.httpdomain",
             "sphinxcontrib.httpdomain",
             "extra_files_with_substitutions",
-            # First, generate redoc
-            "sphinxcontrib.redoc",
-            # Second, update redoc script
-            "sphinx_script_update",
         ]
     )
-
-if PACKAGE_NAME == "apache-airflow-providers":
+elif PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
             "sphinx_jinja",
@@ -203,8 +212,9 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "providers_extensions",
         ]
     )
-else:
+elif PACKAGE_NAME not in packages_with_redoc:
     extensions.append("autoapi.extension")
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns: list[str]
@@ -888,48 +898,64 @@ graphviz_output_format = "svg"
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+if PACKAGE_NAME in packages_with_redoc:
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
 if PACKAGE_NAME == "apache-airflow":
-    OPENAPI_FILE = (
-        Path(__file__).parents[1]
-        / "airflow-core"
-        / "src"
-        / "airflow"
-        / "api_fastapi"
-        / "core_api"
-        / "openapi"
-        / "v1-generated.yaml"
-    )
+    from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
+    from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
+
+    main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-generated.yaml")
+    sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-generated.yaml")
     redoc = [
         {
             "name": "Airflow REST API",
             "page": "stable-rest-api-ref",
-            "spec": OPENAPI_FILE.as_posix(),
+            "spec": main_openapi_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,
             },
         },
+        {
+            "name": "Simple auth manager token API",
+            "page": "core-concepts/auth-manager/simple/sam-token-api-ref",
+            "spec": sam_openapi_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+            },
+        },
     ]
-
-    # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
-
 elif PACKAGE_NAME == "apache-airflow-providers-fab":
-    OPENAPI_FILE = Path(__file__).parents[1] / "providers" / "fab" / "auth_manager" / "openapi" / "v1.yaml"
+    from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
+        __file__ as fab_auth_manager_fastapi_api_file,
+    )
+    from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
+
+    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath("v1.yaml")
+    fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
+        "v1-generated.yaml"
+    )
     redoc = [
         {
-            "name": "Fab provider REST API",
-            "page": "stable-rest-api-ref",
-            "spec": OPENAPI_FILE.as_posix(),
+            "name": "Fab auth manager API",
+            "page": "api-ref/fab-public-api-ref",
+            "spec": fab_auth_manager_flask_api_path.as_posix(),
+            "opts": {
+                "hide-hostname": True,
+            },
+        },
+        {
+            "name": "Fab auth manager token API",
+            "page": "api-ref/fab-token-api-ref",
+            "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,
                 "no-auto-auth": True,
             },
         },
     ]
-
-    # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
 
 
 def skip_util_classes(app, what, name, obj, skip, options):

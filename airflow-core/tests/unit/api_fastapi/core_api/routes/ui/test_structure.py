@@ -298,7 +298,7 @@ class TestStructureDataEndpoint:
     )
     @pytest.mark.usefixtures("make_dag")
     def test_should_return_200(self, test_client, params, expected):
-        response = test_client.get("/ui/structure/structure_data", params=params)
+        response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -488,7 +488,7 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        response = test_client.get("/ui/structure/structure_data", params=params)
+        response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -519,26 +519,26 @@ class TestStructureDataEndpoint:
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     def test_should_return_200_with_multiple_versions(self, test_client, params, expected):
-        response = test_client.get("/ui/structure/structure_data", params=params)
+        response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
     def test_delete_dag_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        response = unauthenticated_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
         assert response.status_code == 401
 
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        response = unauthorized_test_client.get("/structure/structure_data", params={"dag_id": DAG_ID})
         assert response.status_code == 403
 
     def test_should_return_404(self, test_client):
-        response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
+        response = test_client.get("/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
 
     def test_should_return_404_when_dag_version_not_found(self, test_client):
         response = test_client.get(
-            "/ui/structure/structure_data", params={"dag_id": DAG_ID, "version_number": 999}
+            "/structure/structure_data", params={"dag_id": DAG_ID, "version_number": 999}
         )
         assert response.status_code == 404
         assert (

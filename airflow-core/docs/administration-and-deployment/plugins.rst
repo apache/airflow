@@ -79,7 +79,7 @@ code you will need to restart those processes. However, it will not be reflected
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
 and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
 This does mean that if you use plugins in your tasks, and want them to update you will either
-need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
+need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The other
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 

@@ -38,6 +38,8 @@ Features
 * ``Common Message Queue (#46694)``
 * ``add startTime to paginator.paginate when fetching logs in GlueJobHook (#46950)``
 * ``Add MwaaDagRunSensor to Amazon Provider Package (#46945)``
+* ``Add wait/defer support - MwaaTriggerDagRunOperator (#47528)``
+* ``Add deferrable support for MwaaDagRunSensor (#47527)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -46,6 +48,9 @@ Bug Fixes
 * ``fix: don't use blocking property access for async purposes (#47326)``
 * ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
 * ``Log state for EMR Containers sensor on failure (#47125)``
+* ``Don't expect default conns in S3ToRedshiftOperator (#48363)``
+* ``Don't expect default connections to be present in RedshiftToS3Operator (#47968)``
+* ``fix PosixPath not working with file create_asset in download_file of S3Hook (#47880)``
 
 Misc
 ~~~~
@@ -63,7 +68,11 @@ Misc
 * ``Move 'fastapi-api' command to 'api-server' (#47076)``
 * ``Remove '/webapp' prefix from new UI (#47041)``
 * ``Restricting moto 5.1.0 to fix ci (#47005)``
-* ``Upgrade flit to 3.11.0 (#46938)``
+* ``Bump minimum boto3 version to 1.37.0 (#48238)``
+* ``Move BaseNotifier to Task SDK (#48008)``
+* ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
+* ``Bump mypy-boto3-appflow>=1.37.0 (#47912)``
+* ``Lower bind xmlsec dependency version (#47696)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -76,6 +85,30 @@ Misc
    * ``Remove extra whitespace in provider readme template (#46975)``
    * ``Fix TestRdsCopyDbSnapshotOperator tests (#47006)``
    * ``Fix new UI when running outside of breeze (#46991)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``(Re)move old dependencies from the old FAB UI (#48007)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Update example_s3 system test (#47974)``
+   * ``Set 'wait_for_completion' to True in example_mwaa system test (#47877)``
+   * ``Fix AWS auth manager system test (#47876)``
+   * ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Test 'MwaaHook''s IAM fallback in system test (#47759)``
+   * ``Update Dockerfile in aws execs docs (#47799)``
+   * ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
+   * ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+   * ``Set JWT token to localStorage from cookies (#47432)``
+   * ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+   * ``AIP-84 Add Auth for DAG Versioning (#47553)``
+   * ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+   * ``AIP-84 Add Auth for backfill (#47482)``
+   * ``test(aws): Fix aws trigger tests, use get_async_conn for mock object (#47667)``
+   * ``Adding xmlsec pin in amazon provider (#47656)``
+   * ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+   * ``Use a single http tag to report the server's location to front end, not two (#47572)``
+   * ``AIP 84 - Add auth for asset alias (#47241)``
+   * ``Prepare docs for Mar 1st wave of providers (#47545)``
 
 9.4.0
 .....

@@ -255,9 +255,9 @@ class TestGCSObjectUpdateAsyncSensor:
         mock_hook.return_value.is_updated_after.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.OPERATOR.execute(mock.MagicMock())
-        assert isinstance(
-            exc.value.trigger, GCSCheckBlobUpdateTimeTrigger
-        ), "Trigger is not a GCSCheckBlobUpdateTimeTrigger"
+        assert isinstance(exc.value.trigger, GCSCheckBlobUpdateTimeTrigger), (
+            "Trigger is not a GCSCheckBlobUpdateTimeTrigger"
+        )
 
     def test_gcs_object_update_async_sensor_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -532,9 +532,9 @@ class TestGCSUploadSessionCompleteAsyncSensor:
         mock_hook.return_value.is_bucket_updated.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.OPERATOR.execute(mock.MagicMock())
-        assert isinstance(
-            exc.value.trigger, GCSUploadSessionTrigger
-        ), "Trigger is not a GCSUploadSessionTrigger"
+        assert isinstance(exc.value.trigger, GCSUploadSessionTrigger), (
+            "Trigger is not a GCSUploadSessionTrigger"
+        )
 
     def test_gcs_upload_session_complete_sensor_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""

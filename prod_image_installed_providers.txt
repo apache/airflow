@@ -9,6 +9,7 @@ docker
 elasticsearch
 fab
 ftp
+git
 google
 grpc
 hashicorp

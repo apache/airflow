@@ -172,8 +172,7 @@ def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
     except RuntimeError as e:
         if f"needs Apache Airflow {minimum_version}" in str(e):
             pytest.skip(
-                reason=f"Skip module {module_name} as "
-                f"minimum Airflow version is required {minimum_version}.",
+                reason=f"Skip module {module_name} as minimum Airflow version is required {minimum_version}.",
                 allow_module_level=True,
             )
         else:

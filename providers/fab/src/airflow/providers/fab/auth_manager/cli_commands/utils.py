@@ -59,7 +59,7 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
         url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
         if url.drivername == "sqlite" and url.database and not isabs(url.database):
             raise AirflowConfigException(
-                f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+                f"Cannot use relative path: `{conf.get('database', 'SQL_ALCHEMY_CONN')}` to connect to sqlite. "
                 "Please use absolute path such as `sqlite:////tmp/airflow.db`."
             )
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

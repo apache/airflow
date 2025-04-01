@@ -29,6 +29,20 @@
 Changelog
 ---------
 
+3.8.2
+.....
+
+Misc
+~~~~
+
+* ``Disallowing kylinpy 2.7.0 as it contains invalid pypi metadata (#48226)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.8.1
 .....
 

@@ -92,7 +92,7 @@ def init_plugins(app: FastAPI) -> None:
     plugins_manager.initialize_fastapi_plugins()
 
     # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
-    for subapp_dict in cast(list, plugins_manager.fastapi_apps):
+    for subapp_dict in cast("list", plugins_manager.fastapi_apps):
         name = subapp_dict.get("name")
         subapp = subapp_dict.get("app")
         if subapp is None:

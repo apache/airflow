@@ -33,7 +33,7 @@ export const TaskNode = ({
   data: {
     childCount,
     depth,
-    height,
+    height = 0,
     isGroup,
     isMapped,
     isOpen,
@@ -42,7 +42,7 @@ export const TaskNode = ({
     operator,
     setupTeardownType,
     taskInstance,
-    width,
+    width = 0,
   },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
@@ -71,14 +71,15 @@ export const TaskNode = ({
             }
             borderRadius={5}
             borderWidth={isSelected ? 6 : 2}
-            height={`${height}px`}
+            height={`${height + (isSelected ? 4 : 0)}px`}
             justifyContent="space-between"
-            px={3}
+            px={isSelected ? 1 : 2}
             py={isSelected ? 0 : 1}
-            width={`${width}px`}
+            width={`${width + (isSelected ? 4 : 0)}px`}
           >
             <Box>
               <TaskLink
+                childCount={taskInstance?.task_count}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
@@ -127,7 +128,7 @@ export const TaskNode = ({
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
-              width={`${(width ?? 0) - 10}px`}
+              width={`${width - 10}px`}
             />
             <Box
               bg="bg.subtle"
@@ -138,7 +139,7 @@ export const TaskNode = ({
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
-              width={`${(width ?? 0) - 20}px`}
+              width={`${width - 20}px`}
             />
           </>
         ) : undefined}

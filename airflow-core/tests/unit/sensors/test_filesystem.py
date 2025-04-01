@@ -57,7 +57,7 @@ class TestFileSensor:
                 timeout=0,
             )
             task._hook = self.hook
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
 
     def test_file_in_nonexistent_dir(self):
         temp_dir = tempfile.mkdtemp()
@@ -72,7 +72,7 @@ class TestFileSensor:
         task._hook = self.hook
         try:
             with pytest.raises(AirflowSensorTimeout):
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.execute({})
         finally:
             shutil.rmtree(temp_dir)
 
@@ -89,7 +89,7 @@ class TestFileSensor:
         task._hook = self.hook
         try:
             with pytest.raises(AirflowSensorTimeout):
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.execute({})
         finally:
             shutil.rmtree(temp_dir)
 
@@ -106,7 +106,7 @@ class TestFileSensor:
         try:
             # `touch` the dir
             open(temp_dir + "/file", "a").close()
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
         finally:
             shutil.rmtree(temp_dir)
 
@@ -119,7 +119,7 @@ class TestFileSensor:
                 timeout=0,
             )
             task._hook = self.hook
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
 
     def test_wildcard_file(self):
         suffix = ".txt"
@@ -133,7 +133,7 @@ class TestFileSensor:
                 timeout=0,
             )
             task._hook = self.hook
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
 
     def test_wildcard_empty_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -149,7 +149,7 @@ class TestFileSensor:
 
                 # No files in dir
                 with pytest.raises(AirflowSensorTimeout):
-                    task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                    task.execute({})
 
     def test_wildcard_directory_with_files(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -165,7 +165,7 @@ class TestFileSensor:
 
                 # `touch` the file in subdir
                 open(os.path.join(subdir, "file"), "a").close()
-                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                task.execute({})
 
     def test_wildcared_directory(self):
         temp_dir = tempfile.mkdtemp()
@@ -184,7 +184,7 @@ class TestFileSensor:
         try:
             # `touch` the file in subdir
             open(subdir + "/file", "a").close()
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
         finally:
             shutil.rmtree(temp_dir)
 
@@ -202,7 +202,7 @@ class TestFileSensor:
                 timeout=0,
             )
             task._hook = self.hook
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
         shutil.rmtree(temp_dir)
 
     def test_subdirectory_empty(self, tmp_path):
@@ -219,7 +219,7 @@ class TestFileSensor:
         task._hook = self.hook
 
         with pytest.raises(AirflowSensorTimeout):
-            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            task.execute({})
 
     def test_task_defer(self):
         task = FileSensor(
@@ -231,6 +231,6 @@ class TestFileSensor:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(None)
+            task.execute({})
 
         assert isinstance(exc.value.trigger, FileTrigger), "Trigger is not a FileTrigger"

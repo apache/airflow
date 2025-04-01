@@ -80,10 +80,18 @@ export const TaskInstancesFilter = ({
   };
 
   return (
-    <HStack>
+    <HStack paddingY="4px">
+      <SearchBar
+        buttonProps={{ disabled: true }}
+        defaultValue={taskDisplayNamePattern ?? ""}
+        hideAdvanced
+        hotkeyDisabled={Boolean(runId)}
+        onChange={handleSearchChange}
+        placeHolder="Search Tasks"
+      />
       <Select.Root
         collection={stateOptions}
-        maxW="250px"
+        maxW="450px"
         multiple
         onValueChange={handleStateChange}
         value={hasFilteredState ? filteredState : ["all"]}
@@ -96,7 +104,7 @@ export const TaskInstancesFilter = ({
           <Select.ValueText>
             {() =>
               hasFilteredState ? (
-                <HStack gap="10px">
+                <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
                   {filteredState.map((state) => (
                     <StateBadge key={state} state={state as TaskInstanceState}>
                       {state === "none" ? "No Status" : capitalize(state)}
@@ -121,14 +129,6 @@ export const TaskInstancesFilter = ({
           ))}
         </Select.Content>
       </Select.Root>
-      <SearchBar
-        buttonProps={{ disabled: true }}
-        defaultValue={taskDisplayNamePattern ?? ""}
-        hideAdvanced
-        hotkeyDisabled={Boolean(runId)}
-        onChange={handleSearchChange}
-        placeHolder="Search Tasks"
-      />
     </HStack>
   );
 };

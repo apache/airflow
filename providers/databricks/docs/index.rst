@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 7.2.1
+Release: 7.2.2
 
 Provider package
 ----------------
@@ -115,7 +115,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -137,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 7.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 7.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 7.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 7.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.2.2-py3-none-any.whl.sha512>`__)

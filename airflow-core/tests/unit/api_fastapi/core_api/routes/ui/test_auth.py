@@ -32,7 +32,7 @@ class TestGetAuthLinks:
             ExtraMenuItem(text="name1", href="path1"),
             ExtraMenuItem(text="name2", href="path2"),
         ]
-        response = test_client.get("/ui/auth/links")
+        response = test_client.get("/auth/links")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -44,11 +44,11 @@ class TestGetAuthLinks:
         }
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/auth/links")
+        response = unauthenticated_test_client.get("/auth/links")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
 
     def test_with_unauthorized_user(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/auth/links")
+        response = unauthorized_test_client.get("/auth/links")
         assert response.status_code == 200
         assert response.json() == {"menu_items": [], "total_entries": 0}

@@ -177,8 +177,7 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         get_console().print(
-            "[error]Docker is not running.[/]\n"
-            "[warning]Please make sure Docker is installed and running.[/]"
+            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 
@@ -731,7 +730,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used

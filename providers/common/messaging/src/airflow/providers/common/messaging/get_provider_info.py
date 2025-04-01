@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "``Common Messaging Provider``\n",
         "state": "not-ready",
         "source-date-epoch": 1741121853,
-        "versions": ["1.0.0b1"],
+        "versions": ["1.0.0"],
         "triggers": [
             {
                 "integration-name": "Message queue",

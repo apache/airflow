@@ -192,9 +192,9 @@ class GoogleDriveHook(GoogleBaseHook):
             # current_file_id can be file or directory id, Google API treats them the same way.
             file_info = self._get_file_info(current_file_id)
             if current_file_id == file_id:
-                path = f'{file_info["name"]}'
+                path = f"{file_info['name']}"
             else:
-                path = f'{file_info["name"]}/{path}'
+                path = f"{file_info['name']}/{path}"
 
             # Google API returns parents array if there is at least one object inside
             if "parents" in file_info and len(file_info["parents"]) == 1:

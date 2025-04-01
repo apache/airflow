@@ -26,23 +26,30 @@
 Changelog
 ---------
 
-2.1.2b1
-.......
+2.1.2
+.....
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
 * ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+* ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
 
 Misc
 ~~~~
-
+* ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
 * ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
 * ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+* ``serialize http transports contained in composite transport (#47444)``
+* ``Implement task-level "on" callbacks in sdk (#48002)``
+* ``Calculate retry eligibility before task runs (#47996)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
    * ``Remove links to x/twitter.com (#47801)``
 
 2.1.1

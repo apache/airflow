@@ -76,7 +76,7 @@ apache-airflow-providers-microsoft-winrm package
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 
-Release: 3.9.1
+Release: 3.9.2
 
 Provider package
 ----------------
@@ -100,5 +100,5 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``pywinrm``         ``>=0.4``
+``pywinrm``         ``>=0.5.0``
 ==================  ==================

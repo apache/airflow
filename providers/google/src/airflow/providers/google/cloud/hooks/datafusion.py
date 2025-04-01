@@ -137,8 +137,7 @@ class DataFusionHook(GoogleBaseHook):
 
         # Time is up!
         raise AirflowException(
-            f"Pipeline {pipeline_name} state {current_state} is not "
-            f"one of {success_states} after {timeout}s"
+            f"Pipeline {pipeline_name} state {current_state} is not one of {success_states} after {timeout}s"
         )
 
     @staticmethod

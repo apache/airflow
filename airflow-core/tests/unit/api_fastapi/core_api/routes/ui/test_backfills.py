@@ -144,7 +144,7 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        response = test_client.get("/ui/backfills", params=test_params)
+        response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
             "backfills": expected_response,
@@ -152,9 +152,9 @@ class TestListBackfills(TestBackfillEndpoint):
         }
 
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/backfills", params={})
+        response = unauthenticated_test_client.get("/backfills", params={})
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/backfills", params={})
+        response = unauthorized_test_client.get("/backfills", params={})
         assert response.status_code == 403

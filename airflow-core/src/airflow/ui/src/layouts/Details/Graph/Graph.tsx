@@ -36,7 +36,7 @@ import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
-import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -95,6 +95,7 @@ export const Graph = () => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
+  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
@@ -121,7 +122,7 @@ export const Graph = () => {
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    direction: "RIGHT",
+    direction,
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
       ? dagDepNodes.map((node) =>

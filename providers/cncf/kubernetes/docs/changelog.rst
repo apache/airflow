@@ -28,28 +28,32 @@ Changelog
 ---------
 
 
-10.4.0b1
-........
+10.4.0
+......
 
 Features
 ~~~~~~~~
 
-* ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
+* ``KubernetesPodOperator: add base_container_name to the templated fields (#47864)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
 * ``Switch to non-interactive mode where stdin is disabled (#47568)``
 * ``Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
 
 Misc
 ~~~~
 
-* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
 * ``Remove extra method for async hook getting (#47313)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
    * ``Remove links to x/twitter.com (#47801)``
 
 10.3.1

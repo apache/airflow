@@ -49,20 +49,17 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
 from airflow import version
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
-    from google.api_core.gapic_v1.client_info import ClientInfo
     from google.auth.credentials import Credentials
 
 log = logging.getLogger(__name__)
@@ -153,7 +150,7 @@ class retry_if_temporary_refresh_credentials(tenacity.retry_if_exception):
 # This allows the 'project_id' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-PROVIDE_PROJECT_ID: str = cast(str, None)
+PROVIDE_PROJECT_ID: str = cast("str", None)
 
 T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
@@ -443,24 +440,6 @@ class GoogleBaseHook(BaseHook):
             )
 
     @property
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.google.common.consts.CLIENT_INFO",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def client_info(self) -> ClientInfo:
-        """
-        Return client information used to generate a user-agent for API calls.
-
-        It allows for better errors tracking.
-
-        This object is only used by the google-cloud-* libraries that are built specifically for
-        the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
-        based APIs.
-        """
-        return CLIENT_INFO
-
-    @property
     def scopes(self) -> Sequence[str]:
         """
         Return OAuth 2.0 scopes.
@@ -499,7 +478,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+            return cast("T", tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 
@@ -517,7 +496,7 @@ class GoogleBaseHook(BaseHook):
                 "after": tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
-            return cast(T, tenacity.retry(*args, **default_kwargs)(func))
+            return cast("T", tenacity.retry(*args, **default_kwargs)(func))
 
         return decorator
 
@@ -569,7 +548,7 @@ class GoogleBaseHook(BaseHook):
             with self.provide_gcp_credential_file_as_context():
                 return func(self, *args, **kwargs)
 
-        return cast(T, wrapper)
+        return cast("T", wrapper)
 
     @contextmanager
     def provide_gcp_credential_file_as_context(self) -> Generator[str | None, None, None]:
@@ -718,7 +697,7 @@ class _CredentialsToken(Token):
         scopes: Sequence[str] | None = None,
     ) -> None:
         _scopes: list[str] | None = list(scopes) if scopes else None
-        super().__init__(session=cast(Session, session), scopes=_scopes)
+        super().__init__(session=cast("Session", session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
 
@@ -743,7 +722,7 @@ class _CredentialsToken(Token):
     async def refresh(self, *, timeout: int) -> TokenResponse:
         await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
 
-        self.access_token = cast(str, self.credentials.token)
+        self.access_token = cast("str", self.credentials.token)
         self.access_token_duration = 3600
         self.access_token_acquired_at = self._now()
         return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)

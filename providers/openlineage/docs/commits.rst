@@ -34,14 +34,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.1.2b1
-.......
+2.1.2
+.....
 
-Latest change: 2025-03-18
+Latest change: 2025-03-25
 
 ==================================================================================================  ===========  ==========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==========================================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`6d0e00c73c <https://github.com/apache/airflow/commit/6d0e00c73c03ace0d0b94174272a3443cd83244a>`__  2025-03-25   ``Implement task-level "on" callbacks in sdk (#48002)``
+`27a3944da6 <https://github.com/apache/airflow/commit/27a3944da6781d8564c5f1d9da7c97ae7173b633>`__  2025-03-24   ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
+`b96547dedc <https://github.com/apache/airflow/commit/b96547dedc497bc3001fb3a3f30682b046dc7735>`__  2025-03-22   ``serialize http transports contained in composite transport (#47444)``
+`5eca6c6aa7 <https://github.com/apache/airflow/commit/5eca6c6aa7879cc20c1e284cd9773abcee7fc312>`__  2025-03-22   ``Calculate retry eligibility before task runs (#47996)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`2b082e670a <https://github.com/apache/airflow/commit/2b082e670a9689edfd734cd8b3296d62170c62ed>`__  2025-03-21   ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
+`cf74518131 <https://github.com/apache/airflow/commit/cf745181315ec2c4185a0ba465660885f37ee11f>`__  2025-03-20   ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
 `7b20f331a8 <https://github.com/apache/airflow/commit/7b20f331a86dfbc5930ca22c755c7998d867bed1>`__  2025-03-18   ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
 `807bdca29c <https://github.com/apache/airflow/commit/807bdca29c634a04be85637902db680f567f8e73>`__  2025-03-17   ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
 `5e1f39c488 <https://github.com/apache/airflow/commit/5e1f39c488164a2bb77661ad9c7afb3f2241a0bf>`__  2025-03-16   ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``

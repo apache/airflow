@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.0.1
 .....
 

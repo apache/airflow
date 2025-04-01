@@ -186,8 +186,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
             )
             raise exception_cls(
-                f"Statement {resp['Id']} terminated with status {status}. "
-                f"Response details: {pformat(resp)}"
+                f"Statement {resp['Id']} terminated with status {status}. Response details: {pformat(resp)}"
             )
 
         self.log.info("Query status: %s", status)

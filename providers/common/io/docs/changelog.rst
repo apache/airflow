@@ -25,8 +25,8 @@
 Changelog
 ---------
 
-1.5.2b1
-.......
+1.5.2
+.....
 
 Bug Fixes
 ~~~~~~~~~
@@ -41,6 +41,9 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
    * ``Remove links to x/twitter.com (#47801)``
 
 1.5.1

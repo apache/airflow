@@ -52,7 +52,7 @@ class TestGetHealth(TestMonitorEndpoint):
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()
@@ -71,7 +71,7 @@ class TestGetHealth(TestMonitorEndpoint):
         SchedulerJobRunner(job=job)
         session.add(job)
         session.commit()
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()
@@ -84,7 +84,7 @@ class TestGetHealth(TestMonitorEndpoint):
         )
 
     def test_unhealthy_scheduler_no_job(self, test_client):
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()
@@ -96,7 +96,7 @@ class TestGetHealth(TestMonitorEndpoint):
     @mock.patch.object(SchedulerJobRunner, "most_recent_job")
     def test_unhealthy_metadatabase_status(self, most_recent_job_mock, test_client):
         most_recent_job_mock.side_effect = Exception
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()
@@ -122,7 +122,7 @@ class TestGetHealth(TestMonitorEndpoint):
             },
         }
 
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()
@@ -146,7 +146,7 @@ class TestGetHealth(TestMonitorEndpoint):
             },
         }
 
-        response = test_client.get("/api/v2/monitor/health")
+        response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
         body = response.json()

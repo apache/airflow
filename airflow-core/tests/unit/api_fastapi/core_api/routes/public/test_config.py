@@ -267,9 +267,9 @@ class TestGetConfig(TestConfigEndpoint):
         query_params = {"section": section} if section else None
         if expected_status_code == 403:
             with conf_vars(AIRFLOW_CONFIG_DISABLE_EXPOSE_CONFIG):
-                response = test_client.get("/api/v2/config", headers=headers, params=query_params)
+                response = test_client.get("/config", headers=headers, params=query_params)
         else:
-            response = test_client.get("/api/v2/config", headers=headers, params=query_params)
+            response = test_client.get("/config", headers=headers, params=query_params)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
@@ -302,15 +302,15 @@ class TestGetConfig(TestConfigEndpoint):
         self, test_client, headers, expected_status_code, expected_response
     ):
         with conf_vars(AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG):
-            response = test_client.get("/api/v2/config", headers=headers)
+            response = test_client.get("/config", headers=headers)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/config")
+        response = unauthenticated_test_client.get("/config")
         assert response.status_code == 401
 
     def test_get_config_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/config")
+        response = unauthorized_test_client.get("/config")
         assert response.status_code == 403
 
 
@@ -424,11 +424,9 @@ class TestGetConfigValue(TestConfigEndpoint):
     ):
         if expected_status_code == 403:
             with conf_vars(AIRFLOW_CONFIG_DISABLE_EXPOSE_CONFIG):
-                response = test_client.get(
-                    f"/api/v2/config/section/{section}/option/{option}", headers=headers
-                )
+                response = test_client.get(f"/config/section/{section}/option/{option}", headers=headers)
         else:
-            response = test_client.get(f"/api/v2/config/section/{section}/option/{option}", headers=headers)
+            response = test_client.get(f"/config/section/{section}/option/{option}", headers=headers)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
@@ -480,17 +478,17 @@ class TestGetConfigValue(TestConfigEndpoint):
         self, test_client, section, option, headers, expected_status_code, expected_response
     ):
         with conf_vars(AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG):
-            response = test_client.get(f"/api/v2/config/section/{section}/option/{option}", headers=headers)
+            response = test_client.get(f"/config/section/{section}/option/{option}", headers=headers)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     def test_get_config_value_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
-            f"/api/v2/config/section/{SECTION_DATABASE}/option/{OPTION_KEY_SQL_ALCHEMY_CONN}"
+            f"/config/section/{SECTION_DATABASE}/option/{OPTION_KEY_SQL_ALCHEMY_CONN}"
         )
         assert response.status_code == 401
 
     def test_get_config_value_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(
-            f"/api/v2/config/section/{SECTION_DATABASE}/option/{OPTION_KEY_SQL_ALCHEMY_CONN}"
+            f"/config/section/{SECTION_DATABASE}/option/{OPTION_KEY_SQL_ALCHEMY_CONN}"
         )
         assert response.status_code == 403

@@ -292,7 +292,9 @@ class DmsHook(AwsBaseHook):
             return arn
 
         except ClientError as err:
-            err_str = f"Error: {err.get('Error','').get('Code','')}: {err.get('Error','').get('Message','')}"
+            err_str = (
+                f"Error: {err.get('Error', '').get('Code', '')}: {err.get('Error', '').get('Message', '')}"
+            )
             self.log.error("Error while creating replication config: %s", err_str)
             raise err
 

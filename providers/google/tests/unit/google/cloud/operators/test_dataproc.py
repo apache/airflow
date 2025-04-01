@@ -54,7 +54,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
     DataprocListBatchesOperator,
-    DataprocScaleClusterOperator,
     DataprocStartClusterOperator,
     DataprocStopClusterOperator,
     DataprocSubmitJobOperator,
@@ -355,8 +354,7 @@ TEST_JOB_ID = "test-job"
 TEST_WORKFLOW_ID = "test-workflow"
 
 DATAPROC_JOB_LINK_EXPECTED = (
-    f"https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?"
-    f"region={GCP_REGION}&project={GCP_PROJECT}"
+    f"https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?region={GCP_REGION}&project={GCP_PROJECT}"
 )
 DATAPROC_CLUSTER_LINK_EXPECTED = (
     f"https://console.cloud.google.com/dataproc/clusters/{CLUSTER_NAME}/monitoring?"
@@ -1155,126 +1153,6 @@ def test_create_cluster_operator_extra_links(
     )
 
 
-class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
-    @classmethod
-    def setup_class(cls):
-        super().setup_class()
-        if AIRFLOW_V_3_0_PLUS:
-            cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
-            ]
-        else:
-            cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None)
-            ]
-
-    def test_deprecation_warning(self):
-        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
-            DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
-        assert_warning("DataprocUpdateClusterOperator", warnings)
-
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook):
-        self.extra_links_manager_mock.attach_mock(mock_hook, "hook")
-        mock_hook.return_value.update_cluster.result.return_value = None
-        cluster_update = {
-            "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
-        }
-        update_cluster_args = {
-            "project_id": GCP_PROJECT,
-            "region": GCP_REGION,
-            "cluster_name": CLUSTER_NAME,
-            "cluster": cluster_update,
-            "graceful_decommission_timeout": {"seconds": 600},
-            "update_mask": UPDATE_MASK,
-        }
-        expected_calls = [
-            *self.extra_links_expected_calls_base,
-            call.hook().update_cluster(**update_cluster_args),
-        ]
-
-        op = DataprocScaleClusterOperator(
-            task_id=TASK_ID,
-            cluster_name=CLUSTER_NAME,
-            project_id=GCP_PROJECT,
-            region=GCP_REGION,
-            num_workers=3,
-            num_preemptible_workers=4,
-            graceful_decommission_timeout="10m",
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
-
-        # Test whether xcom push occurs before cluster is updated
-        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
-
-        if AIRFLOW_V_3_0_PLUS:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf",
-                value=DATAPROC_CLUSTER_CONF_EXPECTED,
-            )
-        else:
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf",
-                value=DATAPROC_CLUSTER_CONF_EXPECTED,
-                execution_date=None,
-            )
-
-
-@pytest.mark.db_test
-@pytest.mark.need_serialized_dag
-def test_scale_cluster_operator_extra_links(
-    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
-):
-    ti = create_task_instance_of_operator(
-        DataprocScaleClusterOperator,
-        dag_id=TEST_DAG_ID,
-        task_id=TASK_ID,
-        cluster_name=CLUSTER_NAME,
-        project_id=GCP_PROJECT,
-        region=GCP_REGION,
-        num_workers=3,
-        num_preemptible_workers=2,
-        graceful_decommission_timeout="2m",
-        gcp_conn_id=GCP_CONN_ID,
-    )
-
-    serialized_dag = dag_maker.get_serialized_data()
-
-    # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
-    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
-    assert operator_extra_link.name == "Dataproc resource"
-
-    if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value="",
-        )
-    # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
-
-    ti.xcom_push(
-        key="conf",
-        value=DATAPROC_CLUSTER_CONF_EXPECTED,
-    )
-
-    if AIRFLOW_V_3_0_PLUS:
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value=DATAPROC_CLUSTER_CONF_EXPECTED,
-        )
-
-    # Assert operator links after execution
-    assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_CLUSTER_LINK_EXPECTED
-    )
-
-
 class TestDataprocClusterDeleteOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
@@ -1423,9 +1301,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         # Test whether xcom push occurs before polling for job
         assert self.extra_links_manager_mock.mock_calls.index(
             xcom_push_call
-        ) < self.extra_links_manager_mock.mock_calls.index(
-            wait_for_job_call
-        ), "Xcom push for Job Link has to be done before polling for job status"
+        ) < self.extra_links_manager_mock.mock_calls.index(wait_for_job_call), (
+            "Xcom push for Job Link has to be done before polling for job status"
+        )
 
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,

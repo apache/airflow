@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-spark``
 
-Release: ``5.0.1``
+Release: ``5.1.1``
 
 
 `Apache Spark <https://spark.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.spark`` provider. All classes for this p
 are in ``airflow.providers.apache.spark`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.1.1/>`_.
 
 Installation
 ------------
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.9.0``
-``pyspark``         ``>=3.1.3``
-``grpcio-status``   ``>=1.59.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``pyspark``                                 ``>=3.1.3``
+``grpcio-status``                           ``>=1.59.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -79,4 +80,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.1.1/changelog.html>`_.

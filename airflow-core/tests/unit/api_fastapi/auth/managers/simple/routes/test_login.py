@@ -22,8 +22,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginResponse
-
 from tests_common.test_utils.config import conf_vars
 
 TEST_USER_1 = "test1"
@@ -40,14 +38,14 @@ class TestLogin:
     )
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
     def test_create_token(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
-        mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
+        mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
 
         response = test_client.post(
             "/auth/token",
             json={"username": test_user, "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
-        assert response.json()["jwt_token"]
+        assert response.json()["access_token"]
 
     def test_create_token_invalid_user_password(self, test_client):
         response = test_client.post(
@@ -59,13 +57,22 @@ class TestLogin:
 
     def test_create_token_all_admins(self, test_client):
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
-            response = test_client.get("/auth/token", follow_redirects=False)
+            response = test_client.get("/auth/token")
+            assert response.status_code == 201
+
+    def test_create_token_all_admins_config_disabled(self, test_client):
+        response = test_client.get("/auth/token")
+        assert response.status_code == 403
+
+    def test_login_all_admins(self, test_client):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true", ("api", "ssl_cert"): "false"}):
+            response = test_client.get("/auth/token/login", follow_redirects=False)
             assert response.status_code == 307
             assert "location" in response.headers
             assert response.cookies.get("_token") is not None
 
-    def test_create_token_all_admins_config_disabled(self, test_client):
-        response = test_client.get("/auth/token")
+    def test_login_all_admins_config_disabled(self, test_client):
+        response = test_client.get("/auth/token/login", follow_redirects=False)
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -77,14 +84,14 @@ class TestLogin:
     )
     @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
     def test_create_token_cli(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
-        mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
+        mock_simple_auth_manager_login.create_token.return_value = "DUMMY_TOKEN"
 
         response = test_client.post(
             "/auth/token/cli",
             json={"username": test_user, "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
-        assert response.json()["jwt_token"]
+        assert response.json()["access_token"]
 
     def test_create_token_invalid_user_password_cli(self, test_client):
         response = test_client.post(

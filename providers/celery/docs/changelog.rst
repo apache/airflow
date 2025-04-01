@@ -27,16 +27,24 @@
 Changelog
 ---------
 
-3.10.4b1
-........
+3.10.4
+......
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
 
+Misc
+~~~~
+
+ * ``AIP-81: Flatten core CLI commands (#48224)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
    * ``Remove links to x/twitter.com (#47801)``
 
 3.10.3

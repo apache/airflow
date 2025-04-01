@@ -65,6 +65,7 @@ from airflow_breeze.utils.kubernetes_utils import (
     get_kind_cluster_name,
     get_kubeconfig_file,
     get_kubectl_cluster_name,
+    get_kubernetes_port_numbers,
     get_kubernetes_python_combos,
     make_sure_kubernetes_tools_are_installed,
     print_cluster_urls,
@@ -993,6 +994,7 @@ def _deploy_helm_chart(
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
     get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
@@ -1034,6 +1036,8 @@ def _deploy_helm_chart(
             "config.api_auth.jwt_secret=foo",
             "--set",
             "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            "--set",
+            f"config.api.base_url=http://localhost:{api_server_port}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])

@@ -117,7 +117,7 @@ export const Code = () => {
           }
         </HStack>
         <HStack>
-          <DagVersionSelect />
+          <DagVersionSelect showLabel={false} />
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>

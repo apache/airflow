@@ -16,22 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Code } from "@chakra-ui/react";
+import { chakra } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
-import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
-import type {
-  StructuredLogMessage,
-  TaskInstanceResponse,
-  TaskInstancesLogResponse,
-} from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
-import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
   dagId: string;
@@ -47,112 +41,6 @@ type ParseLogsProps = {
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber: number;
-};
-
-type RenderStructuredLogProps = {
-  index: number;
-  logLevelFilters?: Array<string>;
-  logLink: string;
-  logMessage: string | StructuredLogMessage;
-  sourceFilters?: Array<string>;
-};
-
-const renderStructuredLog = ({
-  index,
-  logLevelFilters,
-  logLink,
-  logMessage,
-  sourceFilters,
-}: RenderStructuredLogProps) => {
-  if (typeof logMessage === "string") {
-    return (
-      <chakra.span key={index} lineHeight={1.5}>
-        {logMessage}
-      </chakra.span>
-    );
-  }
-
-  const { event, level = undefined, timestamp, ...structured } = logMessage;
-
-  const elements = [];
-
-  if (
-    logLevelFilters !== undefined &&
-    Boolean(logLevelFilters.length) &&
-    ((typeof level === "string" && !logLevelFilters.includes(level)) || !Boolean(level))
-  ) {
-    return "";
-  }
-
-  if (
-    sourceFilters !== undefined &&
-    Boolean(sourceFilters.length) &&
-    (("logger" in structured && !sourceFilters.includes(structured.logger as string)) ||
-      !("logger" in structured))
-  ) {
-    return "";
-  }
-
-  elements.push(
-    <Link
-      id={index.toString()}
-      key={`line_${index}`}
-      style={{
-        display: "inline-block",
-        marginRight: "10px",
-        paddingRight: "5px",
-        textAlign: "right",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        width: "3em",
-      }}
-      to={`${logLink}#${index}`}
-    >
-      {index}
-    </Link>,
-  );
-
-  if (Boolean(timestamp)) {
-    elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
-  }
-
-  if (typeof level === "string") {
-    elements.push(
-      <Code
-        colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
-        key={1}
-        lineHeight={1.5}
-        minH={0}
-        px={0}
-      >
-        {level.toUpperCase()}
-      </Code>,
-      " - ",
-    );
-  }
-
-  elements.push(
-    <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
-      {event}
-    </chakra.span>,
-  );
-
-  for (const key in structured) {
-    if (Object.hasOwn(structured, key)) {
-      elements.push(
-        " ",
-        <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
-          {key === "logger" ? "source" : key}={JSON.stringify(structured[key])}
-        </chakra.span>,
-      );
-    }
-  }
-
-  return (
-    <chakra.p key={index} lineHeight={1.5}>
-      {elements}
-    </chakra.p>
-  );
 };
 
 const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) => {

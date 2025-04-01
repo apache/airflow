@@ -34,8 +34,8 @@ Often you can hear two different terms about people who have write access to the
   people who have write access to the repository. They can merge PRs, push to the repository, etc.
 * "Committers" is a term used in Apache Software Foundation (ASF) and is a term referring to people who have
   write access to the code repository and has a signed
-  [Contributor License Agreement (CLA)](https://www.apache.org/licenses/#clas) on file.  They have an
-  apache.org mail address. This is an official [role](https://www.apache.org/foundation/how-it-works/#roles)
+  `Contributor License Agreement (CLA) <https://www.apache.org/licenses/#clas>`_ on file.  They have an
+  apache.org mail address. This is an official `role <https://www.apache.org/foundation/how-it-works/#roles>`_
   defined and governed by the Apache Software Foundation.
 
 For all practical purposes, both terms are interchangeable because the Apache Software Foundation rule is

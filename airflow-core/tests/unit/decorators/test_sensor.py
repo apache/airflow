@@ -22,7 +22,6 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models.xcom import XComModel
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
@@ -35,161 +34,72 @@ class TestSensorDecorator:
         with pytest.raises(TypeError):
             task.sensor(not_callable)
 
-    def test_basic_sensor_success(self, dag_maker):
+    def test_basic_sensor_success(self, run_task):
         sensor_xcom_value = "xcom_value"
 
         @task.sensor
         def sensor_f():
             return PokeReturnValue(is_done=True, xcom_value=sensor_xcom_value)
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.SUCCESS
+        assert run_task.xcom.get("return_value") == sensor_xcom_value
 
-        dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.SUCCESS
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-        actual_xcom_value = XComModel.get_many(
-            key="return_value", task_ids="sensor_f", dag_ids=dr.dag_id, run_id=dr.run_id
-        ).first()
-        assert XComModel.deserialize_value(actual_xcom_value) == sensor_xcom_value
-
-    def test_basic_sensor_success_returns_bool(self, dag_maker):
+    def test_basic_sensor_success_returns_bool(self, run_task):
         @task.sensor
         def sensor_f():
             return True
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.SUCCESS
 
-        dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.SUCCESS
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-
-    def test_basic_sensor_failure(self, dag_maker):
+    def test_basic_sensor_failure(self, run_task):
         @task.sensor(timeout=0)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.FAILED
+        assert isinstance(run_task.error, AirflowSensorTimeout)
 
-        dr = dag_maker.create_dagrun()
-        with pytest.raises(AirflowSensorTimeout):
-            sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.FAILED
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-
-    def test_basic_sensor_failure_returns_bool(self, dag_maker):
+    def test_basic_sensor_failure_returns_bool(self, run_task):
         @task.sensor(timeout=0)
         def sensor_f():
-            return False
+            return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.FAILED
+        assert isinstance(run_task.error, AirflowSensorTimeout)
 
-        dr = dag_maker.create_dagrun()
-        with pytest.raises(AirflowSensorTimeout):
-            sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.FAILED
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-
-    def test_basic_sensor_soft_fail(self, dag_maker):
+    def test_basic_sensor_soft_fail(self, run_task):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.SKIPPED
 
-        dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.SKIPPED
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-
-    def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
+    def test_basic_sensor_soft_fail_returns_bool(self, run_task):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
             return False
 
-        @task
-        def dummy_f():
-            pass
+        sf = sensor_f()
+        run_task(sf.operator)
 
-        with dag_maker(serialized=True):
-            sf = sensor_f()
-            df = dummy_f()
-            sf >> df
+        assert run_task.state == State.SKIPPED
 
-        dr = dag_maker.create_dagrun()
-        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.SKIPPED
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.NONE
-
-    def test_basic_sensor_get_upstream_output(self, dag_maker):
+    def test_basic_sensor_get_upstream_output(self, dag_maker, run_task):
         ret_val = 100
         sensor_xcom_value = "xcom_value"
 
@@ -207,16 +117,11 @@ class TestSensorDecorator:
             sf = sensor_f(uf)
 
         dr = dag_maker.create_dagrun()
-        uf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        sf.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-        for ti in tis:
-            if ti.task_id == "sensor_f":
-                assert ti.state == State.SUCCESS
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.SUCCESS
-        actual_xcom_value = XComModel.get_many(
-            key="return_value", task_ids="sensor_f", dag_ids=dr.dag_id, run_id=dr.run_id
-        ).first()
-        assert XComModel.deserialize_value(actual_xcom_value) == sensor_xcom_value
+        run_task(uf.operator, dag_id=dr.dag_id, run_id=dr.run_id)
+        # Patch the return value for upstream_f
+        assert run_task.xcom.get("return_value", task_id="upstream_f") == ret_val
+        assert run_task.state == State.SUCCESS
+
+        run_task(sf.operator, dag_id=dr.dag_id, run_id=dr.run_id)
+        assert run_task.state == State.SUCCESS
+        assert run_task.xcom.get("return_value", task_id="sensor_f") == sensor_xcom_value

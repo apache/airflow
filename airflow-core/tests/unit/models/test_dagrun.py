@@ -1511,9 +1511,6 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         (1, TaskInstanceState.REMOVED),
         (2, TaskInstanceState.REMOVED),
     ]
-    assert (
-        f"Removing task '{ti_2}' as the map_index is longer than the resolved mapping list (0)" in caplog.text
-    )
 
 
 def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):

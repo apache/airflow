@@ -47,7 +47,7 @@ from airflow.exceptions import (
     AirflowException,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -470,9 +470,10 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.sdk import DAG as SDKDAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 
@@ -644,12 +645,21 @@ class DagBag(LoggingMixin):
     @provide_session
     def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
+        import airflow.models.dag
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+
+        dags = [
+            dag
+            if isinstance(dag, airflow.models.dag.DAG)
+            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+            for dag in self.dags.values()
+        ]
 
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
-            self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
+            dags,
             self.import_errors,
             self.dag_warnings,
             session=session,
@@ -657,8 +667,9 @@ class DagBag(LoggingMixin):
 
 
 def generate_md5_hash(context):
-    fileloc = context.get_current_parameters()["fileloc"]
-    return hashlib.md5(fileloc.encode()).hexdigest()
+    bundle_name = context.get_current_parameters()["bundle_name"]
+    relative_fileloc = context.get_current_parameters()["relative_fileloc"]
+    return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
 
 
 class DagPriorityParsingRequest(Base):
@@ -671,15 +682,17 @@ class DagPriorityParsingRequest(Base):
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
     id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
 
+    bundle_name = Column(StringID(), nullable=False)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc = Column(String(2000), nullable=False)
+    relative_fileloc = Column(String(2000), nullable=False)
 
-    def __init__(self, fileloc: str) -> None:
+    def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()
-        self.fileloc = fileloc
+        self.bundle_name = bundle_name
+        self.relative_fileloc = relative_fileloc
 
     def __repr__(self) -> str:
-        return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"
+        return f"<DagPriorityParsingRequest: bundle_name={self.bundle_name} relative_fileloc={self.relative_fileloc}>"

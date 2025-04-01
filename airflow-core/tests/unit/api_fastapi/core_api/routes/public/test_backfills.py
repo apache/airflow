@@ -114,7 +114,7 @@ class TestListBackfills(TestBackfillEndpoint):
         b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(b)
         session.commit()
-        response = test_client.get(f"/api/v2/backfills?dag_id={dag.dag_id}")
+        response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
         assert response.status_code == 200
         assert response.json() == {
             "backfills": [
@@ -144,7 +144,7 @@ class TestGetBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
-        response = test_client.get(f"/api/v2/backfills/{backfill.id}")
+        response = test_client.get(f"/backfills/{backfill.id}")
         assert response.status_code == 200
         assert response.json() == {
             "completed_at": mock.ANY,
@@ -161,7 +161,7 @@ class TestGetBackfill(TestBackfillEndpoint):
         }
 
     def test_no_exist(self, session, test_client):
-        response = test_client.get(f"/api/v2/backfills/{231984098}")
+        response = test_client.get(f"/backfills/{231984098}")
         assert response.status_code == 404
         assert response.json().get("detail") == "Backfill not found"
 
@@ -197,7 +197,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         if repro_act is not None:
             data["reprocess_behavior"] = repro_act
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == 200
@@ -234,7 +234,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "reprocess_behavior": ReprocessBehavior.NONE,
         }
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == 404
@@ -260,7 +260,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "reprocess_behavior": ReprocessBehavior.NONE,
         }
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == 422
@@ -296,7 +296,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "reprocess_behavior": repro_act,
         }
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == status_code
@@ -338,7 +338,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
 
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == 422
@@ -369,7 +369,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
 
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
         assert response.status_code == 200
@@ -468,7 +468,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
 
         response = test_client.post(
-            url="/api/v2/backfills",
+            url="/backfills",
             json=data,
         )
 
@@ -531,7 +531,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "run_backwards": False,
             "dag_run_conf": {"param1": "val1", "param2": True},
         }
-        response = unauthenticated_test_client.post("/api/v2/backfills", json=data)
+        response = unauthenticated_test_client.post("/backfills", json=data)
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client, dag_maker, session):
@@ -552,7 +552,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "run_backwards": False,
             "dag_run_conf": {"param1": "val1", "param2": True},
         }
-        response = unauthorized_test_client.post("/api/v2/backfills", json=data)
+        response = unauthorized_test_client.post("/backfills", json=data)
         assert response.status_code == 403
 
 
@@ -634,7 +634,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         }
 
         response = test_client.post(
-            url="/api/v2/backfills/dry_run",
+            url="/backfills/dry_run",
             json=data,
         )
 
@@ -672,7 +672,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             "reprocess_behavior": repro_act,
         }
         response = test_client.post(
-            url="/api/v2/backfills/dry_run",
+            url="/backfills/dry_run",
             json=data,
         )
         assert response.status_code == status_code
@@ -699,7 +699,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         session.add(backfill)
         session.commit()
         response = test_client.put(
-            f"/api/v2/backfills/{backfill.id}/cancel",
+            f"/backfills/{backfill.id}/cancel",
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -720,7 +720,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         assert pendulum.parse(response.json()["completed_at"])
 
         # get conflict when canceling already-canceled backfill
-        response = test_client.put(f"/api/v2/backfills/{backfill.id}/cancel")
+        response = test_client.put(f"/backfills/{backfill.id}/cancel")
         assert response.status_code == 409
         check_last_log(session, dag_id=None, event="cancel_backfill", logical_date=None)
 
@@ -752,7 +752,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         assert all(x.state == DagRunState.QUEUED for x in dag_runs)
         dag_runs[0].state = "running"
         session.commit()
-        response = test_client.put(f"/api/v2/backfills/{b.id}/cancel")
+        response = test_client.put(f"/backfills/{b.id}/cancel")
         assert response.status_code == 200
         session.expunge_all()
         dag_runs = session.scalars(query).all()
@@ -768,7 +768,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
-        response = test_client.put(f"/api/v2/backfills/{backfill.id}/pause")
+        response = test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 200
         assert response.json() == {
             "completed_at": mock.ANY,
@@ -792,7 +792,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
-        response = unauthenticated_test_client.put(f"/api/v2/backfills/{backfill.id}/pause")
+        response = unauthenticated_test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 401
 
     def test_pause_backfill_403(self, session, unauthorized_test_client):
@@ -802,7 +802,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
-        response = unauthorized_test_client.put(f"/api/v2/backfills/{backfill.id}/pause")
+        response = unauthorized_test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 403
 
 
@@ -815,8 +815,8 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         session.add(backfill)
         session.commit()
 
-        test_client.put(f"/api/v2/backfills/{backfill.id}/pause")
-        response = test_client.put(f"/api/v2/backfills/{backfill.id}/unpause")
+        test_client.put(f"/backfills/{backfill.id}/pause")
+        response = test_client.put(f"/backfills/{backfill.id}/unpause")
         assert response.status_code == 200
         assert response.json() == {
             "completed_at": mock.ANY,

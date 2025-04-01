@@ -260,4 +260,4 @@ def provide_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
     return wrapper
 
 
-NEW_CLI_API_CLIENT: Client = cast(Client, None)
+NEW_CLI_API_CLIENT: Client = cast("Client", None)

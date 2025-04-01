@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.13.13",
+    "trove-classifiers==2025.3.19.19",
 ]
 build-backend = "hatchling.build"
 
@@ -69,7 +69,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=5.1.3",
+    "cadwyn>=5.2.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
@@ -81,7 +81,7 @@ dependencies = [
     'eval-type-backport>=0.2.0;python_version<"3.10"',
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.112.4,!=0.115.10",
+    "fastapi[standard]>=0.115.0,!=0.115.10",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
     "gunicorn>=20.1.0",
@@ -104,7 +104,7 @@ dependencies = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.10.2",
+    "pydantic>=2.11.0",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
@@ -127,7 +127,7 @@ dependencies = [
     "svcs>=25.1.0",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
-    "termcolor>=2.5.0",
+    "termcolor>=3.0.0",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
@@ -141,7 +141,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.9.0",
+    "aiobotocore>=2.13.0",
 ]
 "async" = [
     "eventlet>=0.33.3",
@@ -198,7 +198,7 @@ dependencies = [
     # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
     # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
     # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=1.2.5,<2.2",
+    "pandas>=1.2.5,<2.3",
 ]
 "rabbitmq" = [
     "amqp>=5.2.0",
@@ -254,18 +254,18 @@ exclude = [
 path = "./hatch_build_airflow_core.py"
 
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version",
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version",
     "generated/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version"
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version"
 ]
 exclude = [
     "src/airflow/ui/node_modules/",

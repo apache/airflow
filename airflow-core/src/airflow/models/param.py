@@ -19,6 +19,4 @@
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.param import Param, ParamsDict
-
-__all__ = ["Param", "ParamsDict"]
+from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict

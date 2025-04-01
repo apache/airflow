@@ -398,9 +398,9 @@ class TestCliUsers:
             user_command.users_manage_role(args, remove=False)
         assert 'User "test4" added to role "Op"' in stdout.getvalue()
 
-        assert _does_user_belong_to_role(
-            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"
-        ), "User should have been added to role 'Op'"
+        assert _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"), (
+            "User should have been added to role 'Op'"
+        )
 
     def test_cli_remove_user_role(self, create_user_test4):
         assert _does_user_belong_to_role(

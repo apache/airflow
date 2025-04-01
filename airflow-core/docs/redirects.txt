@@ -31,7 +31,7 @@ administration-and-deployment/security/access-control/index.rst ../apache-airflo
 administration-and-deployment/security/api.rst security/api.rst
 administration-and-deployment/security/audit_logs.rst security/audit_logs.rst
 administration-and-deployment/security/flower.rst security/flower.rst
-administration-and-deployment/security/webserver.rst security/webserver.rst
+administration-and-deployment/security/webserver.rst ../apache-airflow-providers-fab/stable/auth-manager/security.rst
 administration-and-deployment/security/workload.rst security/workload.rst
 administration-and-deployment/security/secrets/secrets-backends/index.rst security/secrets/secrets-backends/index.rst
 administration-and-deployment/security/secrets/secrets-backends/local-filesystem-secrets-backend.rst security/secrets/secrets-backends/local-filesystem-secrets-backend.rst
@@ -146,7 +146,6 @@ executor/dask.rst core-concepts/executor/dask.rst
 executor/debug.rst core-concepts/executor/debug.rst
 executor/celery.rst core-concepts/executor/celery.rst
 executor/local.rst core-concepts/executor/local.rst
-executor/sequential.rst core-concepts/executor/sequential.rst
 upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst
 core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 core-concepts/executor/debug.rst core-concepts/debug.rst

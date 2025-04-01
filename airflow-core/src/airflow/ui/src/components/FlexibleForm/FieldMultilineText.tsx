@@ -42,8 +42,7 @@ export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
       onChange={(event) => handleChange(event.target.value)}
       rows={6}
       size="sm"
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      value={String(param.value ?? "")}
+      value={JSON.stringify(param.value ?? "")}
     />
   );
 };

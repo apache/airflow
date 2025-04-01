@@ -123,7 +123,7 @@ with DAG(
     )
     # [END howto_operator_create_build_trigger]
 
-    build_trigger_id = cast(str, XComArg(create_build_trigger, key="id"))
+    build_trigger_id = cast("str", XComArg(create_build_trigger, key="id"))
 
     # [START howto_operator_run_build_trigger]
     run_build_trigger = CloudBuildRunBuildTriggerOperator(

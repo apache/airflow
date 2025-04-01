@@ -17,12 +17,34 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import httpx
 import pytest
 
 from airflowctl.api.client import Client, Credentials
+
+pytest_plugins = "tests_common.pytest_plugin"
+
+# Task SDK does not need access to the Airflow database
+os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
+
+
+@pytest.hookimpl()
+def pytest_addhooks(pluginmanager: pytest.PytestPluginManager):
+    # Python 3.12 starts warning about mixing os.fork + Threads, and the pytest-rerunfailures plugin uses
+    # threads internally. Since this is new code, and it should be flake free, we disable the re-run failures
+    # plugin early (so that it doesn't run it's pytest_configure which is where the thread starts up if xdist
+    # is discovered).
+    pluginmanager.set_blocked("rerunfailures")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    if next(item.iter_markers(name="db_test"), None):
+        pytest.fail("Airflow CTL tests must not use database")
 
 
 @pytest.fixture(scope="session")

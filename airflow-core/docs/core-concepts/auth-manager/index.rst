@@ -37,6 +37,11 @@ If you want to check which auth manager is currently set, you can use the
     $ airflow config get-value core auth_manager
     airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+.. toctree::
+    :hidden:
+
+    simple/index
+
 Available auth managers to use
 ------------------------------
 
@@ -44,10 +49,7 @@ Here is the list of auth managers available today that you can use in your Airfl
 
 Provided by Airflow:
 
-.. toctree::
-    :maxdepth: 1
-
-    simple
+* :doc:`simple/index`
 
 Provided by providers:
 
@@ -98,24 +100,6 @@ Authentication related BaseAuthManager methods
 * ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 
-JWT token management by auth managers
--------------------------------------
-The auth manager is responsible of creating the JWT token and pass it to Airflow UI. The protocol to exchange the JWT
-token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
-cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it and
-delete the cookie.
-
-.. code-block:: python
-
-    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-
-    response = RedirectResponse(url="/")
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
-    return response
-
-.. note::
-    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
-
 Authorization related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -146,6 +130,31 @@ These authorization methods are:
 * ``is_authorized_variable``: Return whether the user is authorized to access Airflow variables. Some details about the variable can be provided (e.g. the variable key).
 * ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``).
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
+
+JWT token management by auth managers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The auth manager is responsible for creating the JWT token needed to interact with Airflow public API.
+To achieve this, the auth manager **must** provide an endpoint to create this JWT token. This endpoint must be
+available at ``POST /auth/token``
+
+The auth manager is also responsible of passing the JWT token to Airflow UI. The protocol to exchange the JWT
+token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
+cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it and
+delete the cookie.
+
+.. code-block:: python
+
+    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+
+    response = RedirectResponse(url="/")
+
+    secure = conf.has_option("api", "ssl_cert")
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    return response
+
+.. note::
+    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
+
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -199,7 +208,7 @@ Such additional endpoints can be used to manage resources such as users, groups,
 Endpoints defined by ``get_fastapi_app`` are mounted in ``/auth``.
 
 Next Steps
-^^^^^^^^^^
+----------
 
 Once you have created a new auth manager class implementing the :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
 

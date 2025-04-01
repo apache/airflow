@@ -26,6 +26,7 @@ __all__ = [
     "Base",
     "BaseOperator",
     "BaseOperatorLink",
+    "BaseXCom",
     "Connection",
     "DagBag",
     "DagWarning",
@@ -44,7 +45,7 @@ __all__ = [
     "TaskReschedule",
     "Trigger",
     "Variable",
-    "XComModel",
+    "XCom",
     "clear_task_instances",
 ]
 
@@ -65,6 +66,7 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.models.xcom
 
 
 def __getattr__(name):
@@ -88,7 +90,8 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.sdk.definitions.baseoperatorlink",
+    "BaseOperatorLink": "airflow.sdk.bases.operatorlink",
+    "BaseXCom": "airflow.sdk.bases.xcom",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
@@ -114,7 +117,6 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
-    from airflow.jobs.job import Job
     from airflow.models.base import ID_LEN, Base
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.connection import Connection
@@ -135,6 +137,7 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.execution_time.xcom import XCom

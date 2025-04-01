@@ -47,13 +47,12 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
-    AssetProfile,
     AssetResponse,
     DagRunState,
     TaskInstance,
     TerminalTIState,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -69,16 +68,17 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
+    TaskRescheduleStartDate,
     TaskState,
     TriggerDagRun,
     VariableResult,
@@ -1016,7 +1016,7 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
@@ -1027,7 +1027,7 @@ class TestHandleRequest:
                 ),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", 2),
+                ("test_dag", "test_run", "test_task", "test_key", 2, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom_map_index",
@@ -1036,10 +1036,25 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":null,"type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value=None, type="XComResult"),
                 id="get_xcom_not_found",
+            ),
+            pytest.param(
+                GetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    include_prior_dates=True,
+                ),
+                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", None, True),
+                {},
+                XComResult(key="test_key", value=None, type="XComResult"),
+                id="get_xcom_include_prior_dates",
             ),
             pytest.param(
                 SetXCom(
@@ -1293,25 +1308,6 @@ class TestHandleRequest:
                 id="get_prev_successful_dagrun",
             ),
             pytest.param(
-                RuntimeCheckOnTask(
-                    inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                    outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                ),
-                b'{"ok":true,"type":"OKResponse"}\n',
-                "task_instances.runtime_checks",
-                (),
-                {
-                    "id": TI_ID,
-                    "msg": RuntimeCheckOnTask(
-                        inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
-                        type="RuntimeCheckOnTask",
-                    ),
-                },
-                OKResponse(ok=True),
-                id="runtime_check_on_task",
-            ),
-            pytest.param(
                 TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run",
@@ -1343,6 +1339,15 @@ class TestHandleRequest:
                 {},
                 DagRunStateResult(state=DagRunState.RUNNING),
                 id="get_dag_run_state",
+            ),
+            pytest.param(
+                GetTaskRescheduleStartDate(ti_id=TI_ID),
+                b'{"start_date":"2024-10-31T12:00:00Z","type":"TaskRescheduleStartDate"}\n',
+                "task_instances.get_reschedule_start_date",
+                (TI_ID, 1),
+                {},
+                TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
+                id="get_task_reschedule_start_date",
             ),
         ],
     )
@@ -1399,3 +1404,42 @@ class TestHandleRequest:
             input_stream = BytesIO(val)
             decoder = CommsDecoder(input=input_stream)
             assert decoder.get_message() == mock_response
+
+    def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
+        """Test that API server errors are properly handled and sent back to the task."""
+        error = ServerResponseError(
+            message="API Server Error",
+            request=httpx.Request("GET", "http://test"),
+            response=httpx.Response(500, json={"detail": "Internal Server Error"}),
+        )
+
+        mock_client_method = mocker.Mock(side_effect=error)
+        watched_subprocess.client.task_instances.succeed = mock_client_method
+
+        # Simulate the generator
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+
+        next(generator)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump_json().encode() + b"\n"
+        generator.send(msg)
+
+        # Verify the error was sent back to the task
+        val = watched_subprocess.stdin.getvalue()
+
+        assert val == (
+            b'{"error":"API_SERVER_ERROR","detail":{"status_code":500,"message":"API Server Error",'
+            b'"detail":{"detail":"Internal Server Error"}},"type":"ErrorResponse"}\n'
+        )
+
+        # Verify the error can be decoded correctly
+        input_stream = BytesIO(val)
+        decoder = CommsDecoder(input=input_stream)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            decoder.get_message()
+
+        assert exc_info.value.error.error == ErrorType.API_SERVER_ERROR
+        assert exc_info.value.error.detail == {
+            "status_code": error.response.status_code,
+            "message": str(error),
+            "detail": error.response.json(),
+        }

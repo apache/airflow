@@ -155,8 +155,7 @@ class CloudBatchHook(GoogleBaseHook):
                     raise AirflowException(message)
                 elif status == JobStatus.State.DELETION_IN_PROGRESS:
                     message = (
-                        "Unexpected error in the operation: "
-                        "Batch job with name {job_name} is being deleted."
+                        "Unexpected error in the operation: Batch job with name {job_name} is being deleted."
                     )
                     raise AirflowException(message)
                 else:

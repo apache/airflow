@@ -187,11 +187,10 @@ Set proper permissions for the pypirc file:
 chmod 600 ~/.pypirc
 ```
 
-- Install [twine](https://pypi.org/project/twine/) if you do not have it already (it can be done
-  in a separate virtual environment).
+- Install [twine](https://pypi.org/project/twine/) if you do not have it already
 
 ```shell script
-pip install twine
+uv tool install twine
 ```
 
 

@@ -193,17 +193,17 @@ Step 4: Prepare PR
      * `misc`
 
      To add a newsfragment, create an ``rst`` file named ``{pr_number}.{type}.rst`` (e.g. ``1234.bugfix.rst``)
-     and place in either `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__ for core newsfragments,
-     or `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__ for helm chart newsfragments.
+     and place in either `airflow-core/newsfragments </airflow-core/newsfragments>`__ for core newsfragments,
+     or `chart/newsfragments </chart/newsfragments>`__ for helm chart newsfragments.
 
      In general newsfragments must be one line.  For newsfragment type ``significant``,
-     you should follow the template in ``newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
+     you should follow the template in ``airflow-core/newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
      One thing to note here is that a ``significant`` newsfragment always doesn't have to be a breaking change, i.e. it can not have a change type and migration rules.
      This can also be done by the following command.
 
      .. code-block:: bash
 
-        uv tool run towncrier create --dir . --config newsfragments/config.toml --content "`cat newsfragments/template.significant.rst`"
+        uv tool run towncrier create --dir airflow-core --config newsfragments/config.toml --content "`cat airflow-core/newsfragments/template.significant.rst`"
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

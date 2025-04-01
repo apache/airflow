@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.context import Context
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 @attrs.define(

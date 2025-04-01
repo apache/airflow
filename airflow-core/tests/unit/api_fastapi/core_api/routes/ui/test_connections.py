@@ -23,7 +23,7 @@ pytestmark = pytest.mark.db_test
 
 class TestHookMetaData:
     def test_hook_meta_data(self, test_client):
-        response = test_client.get("/ui/connections/hook_meta")
+        response = test_client.get("/connections/hook_meta")
         response_data = response.json()
         assert any(hook_data["connection_type"] == "generic" for hook_data in response_data)
         assert any(hook_data["connection_type"] == "fs" for hook_data in response_data)
@@ -33,9 +33,9 @@ class TestHookMetaData:
                 assert hook_data["hook_name"] == "File (path)"
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/connections/hook_meta")
+        response = unauthenticated_test_client.get("/connections/hook_meta")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/connections/hook_meta")
+        response = unauthorized_test_client.get("/connections/hook_meta")
         assert response.status_code == 403

@@ -257,8 +257,7 @@ with DAG(
         sql=SQL_SELECT,
         sql_conn_id=CONNECTION_ID,
         database=DB_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', "
-        "key='spreadsheet_id') }}",
+        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=SHEETS_CONNECTION_ID,
     )
     # [END upload_sql_to_sheets]

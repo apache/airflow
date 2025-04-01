@@ -225,8 +225,7 @@ def download_artifact_from_run_id(run_id: str, output_file: Path, github_reposit
 
     if response.status_code != 200:
         get_console().print(
-            "[error]Downloading artifacts failed with status code "
-            f"{response.status_code}: {response.text}",
+            f"[error]Downloading artifacts failed with status code {response.status_code}: {response.text}",
         )
         sys.exit(1)
 
@@ -263,8 +262,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
 
     if pull_response.status_code != 200:
         get_console().print(
-            "[error]Fetching PR failed with status codee "
-            f"{pull_response.status_code}: {pull_response.text}",
+            f"[error]Fetching PR failed with status codee {pull_response.status_code}: {pull_response.text}",
         )
         sys.exit(1)
 

@@ -168,6 +168,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "airflow-core/tests/unit/serialization",
     ],
     "TaskSDK": ["task-sdk/tests"],
+    "CTL": ["airflow-ctl/tests"],
     "OpenAPI": ["clients/python"],
 }
 
@@ -194,6 +195,7 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["airflow-core/tests/unit/"],
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
+    GroupOfTests.CTL: ["airflow-ctl/tests"],
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
@@ -216,6 +218,7 @@ def find_all_other_tests() -> list[str]:
     all_named_test_folders = list(chain.from_iterable(TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.values()))
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.TASK_SDK])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.CTL])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS])

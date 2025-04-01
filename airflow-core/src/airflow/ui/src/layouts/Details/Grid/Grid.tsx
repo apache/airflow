@@ -23,7 +23,6 @@ import { useMemo } from "react";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGrid } from "src/queries/useGrid";
 
@@ -35,14 +34,15 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
-export const Grid = () => {
+type Props = {
+  readonly limit: number;
+};
+
+export const Grid = ({ limit }: Props) => {
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
-  const { data: structure } = useStructureServiceStructureData({
-    dagId,
-  });
 
-  const { data: gridData, isLoading, runAfter } = useGrid();
+  const { data: gridData, isLoading, runAfter } = useGrid(limit);
 
   const runs: Array<RunWithDuration> = useMemo(
     () =>
@@ -66,8 +66,8 @@ export const Grid = () => {
   );
 
   const { flatNodes } = useMemo(
-    () => flattenNodes(structure?.nodes ?? [], openGroupIds),
-    [structure?.nodes, openGroupIds],
+    () => flattenNodes(gridData === undefined ? [] : gridData.structure.nodes, openGroupIds),
+    [gridData, openGroupIds],
   );
 
   return (

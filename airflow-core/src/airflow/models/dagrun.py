@@ -1146,12 +1146,15 @@ class DagRun(Base, LoggingMixin):
         )
 
     def notify_dagrun_state_changed(self, msg: str = ""):
-        if self.state == DagRunState.RUNNING:
-            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
-        elif self.state == DagRunState.SUCCESS:
-            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
-        elif self.state == DagRunState.FAILED:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        try:
+            if self.state == DagRunState.RUNNING:
+                get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+            elif self.state == DagRunState.SUCCESS:
+                get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+            elif self.state == DagRunState.FAILED:
+                get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        except Exception:
+            self.log.exception("Error while calling listener")
         # deliberately not notifying on QUEUED
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that

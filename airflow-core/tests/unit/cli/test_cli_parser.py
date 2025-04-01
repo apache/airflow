@@ -103,9 +103,9 @@ class TestCli:
         for group, command in subcommand.items():
             for com in command:
                 conflict_arg = [arg for arg, count in Counter(com.args).items() if count > 1]
-                assert (
-                    conflict_arg == []
-                ), f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
+                assert conflict_arg == [], (
+                    f"Command group {group} function {com.name} have conflict args name {conflict_arg}"
+                )
 
     def test_subcommand_arg_flag_conflict(self):
         """
@@ -352,7 +352,6 @@ class TestCli:
     )
     def test_executor_specific_commands_not_accessible(self, command):
         with (
-            conf_vars({("core", "executor"): "SequentialExecutor"}),
             contextlib.redirect_stderr(StringIO()) as stderr,
         ):
             reload(executor_loader)
@@ -369,7 +368,6 @@ class TestCli:
             ("CeleryExecutor", ["celery"]),
             ("KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
-            ("SequentialExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
             ("custom_executor.CustomCeleryExecutor", ["celery"]),

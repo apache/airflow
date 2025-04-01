@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -24,24 +25,23 @@ import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
 
 type Props = {
-  depth?: number;
-  nodes: Array<GridTask>;
-  runId: string;
-  taskInstances: Array<GridTaskInstanceSummary>;
+  readonly depth?: number;
+  readonly nodes: Array<GridTask>;
+  readonly runId: string;
+  readonly taskInstances: Array<GridTaskInstanceSummary>;
 };
 
 export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const search = searchParams.toString();
 
   return nodes.map((node) => {
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
     if (!taskInstance) {
-      return undefined;
+      return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
-
-    const search = searchParams.toString();
 
     return (
       <GridTI

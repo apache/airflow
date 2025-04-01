@@ -38,8 +38,7 @@ export const RenderedTemplates = () => {
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
             if (value !== null && value !== undefined) {
-              // eslint-disable-next-line @typescript-eslint/no-base-to-string
-              const renderedValue: string = typeof value === "object" ? JSON.stringify(value) : String(value);
+              const renderedValue = JSON.stringify(value);
 
               return (
                 <Table.Row key={key}>

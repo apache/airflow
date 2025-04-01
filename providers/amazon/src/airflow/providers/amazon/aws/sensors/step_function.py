@@ -81,5 +81,6 @@ class StepFunctionExecutionSensor(AwsBaseSensor[StepFunctionHook]):
             return False
 
         self.log.info("Doing xcom_push of output")
-        self.xcom_push(context, "output", output)
+
+        context["ti"].xcom_push(key="output", value=output)
         return True

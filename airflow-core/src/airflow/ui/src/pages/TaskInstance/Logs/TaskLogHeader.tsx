@@ -125,7 +125,7 @@ export const TaskLogHeader = ({
             <Select.ValueText>
               {() =>
                 hasLogLevels ? (
-                  <HStack gap="10px">
+                  <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
                     {logLevels.map((level) => (
                       <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
                         {level.toUpperCase()}

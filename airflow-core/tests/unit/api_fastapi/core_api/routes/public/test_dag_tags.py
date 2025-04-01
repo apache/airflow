@@ -43,11 +43,11 @@ DAG5_ID = "test_dag5"
 DAG5_DISPLAY_NAME = "display5"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
-API_PREFIX = "/api/v2/dags"
+API_PREFIX = "/dags"
 
 
 class TestDagEndpoint:
-    """Common class for /api/v2/dags related unit tests."""
+    """Common class for /dags related unit tests."""
 
     @staticmethod
     def _clear_db():
@@ -238,7 +238,7 @@ class TestDagTags(TestDagEndpoint):
     def test_get_dag_tags(
         self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
     ):
-        response = test_client.get("/api/v2/dagTags", params=query_params)
+        response = test_client.get("/dagTags", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -251,9 +251,9 @@ class TestDagTags(TestDagEndpoint):
         assert res_json == expected
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dagTags")
+        response = unauthenticated_test_client.get("/dagTags")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/dagTags")
+        response = unauthorized_test_client.get("/dagTags")
         assert response.status_code == 403

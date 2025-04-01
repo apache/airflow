@@ -23,6 +23,110 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.16.0 (2025-04-01)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default git-sync image is updated to ``4.3.0`` (#41411)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default git-sync image that is used with the Chart is now ``4.3.0``, previously it was ``4.1.0``.
+
+
+Default Airflow image is updated to ``2.10.5`` (#46624)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.10.5``, previously it was ``2.9.3``.
+
+Default PgBouncer image is updated to ``1.23.1`` (#47416)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default PgBouncer image that is used with the chart is now ``airflow-pgbouncer-2025.03.05-1.23.1``, previously it was ``airflow-pgbouncer-2024.01.19-1.21.0``.
+
+Default PgBouncer Exporter image is updated to ``v0.18.0`` (#47416)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default PgBouncer Exporter image that is used with the chart is now ``airflow-pgbouncer-exporter-2025.03.05-0.18.0``, previously it was ``airflow-pgbouncer-exporter-2024.06.18-0.17.0``.
+
+Default StatsD exporter image is updated to ``v0.28.0`` (#43393)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default StatsD exporter image that is used with the chart is now ``v0.28.0``, previously it was ``v0.26.1``.
+
+New Features
+^^^^^^^^^^^^
+- Allow passing custom env to log groomer sidecar containers (#46003)
+- Allow using existing persistence claim in Redis StatefulSet (#41619)
+- Add ``hostAliases`` support in Triggerer (#41725)
+- Enable HPA for Airflow Webserver (#41955)
+- Add env support for database migration job (#42345)
+- Support NodePort on Redis Service (#41811)
+- Add heartbeat metric for DAG processor  (#42398)
+- Option to enable ipv6 ipaddress resolve support for StatsD host (#42625)
+- Allow customizing ``podManagementPolicy`` in worker (#42673)
+- Support multiple executors in chart (#43606, #44424)
+- Swap internal RPC server for API server in the helm chart (#44463)
+- Add OpenSearch remote logging options (#45082)
+- Add ``startupProbe`` to flower deployment (#45012)
+- Add PgBouncer and StatsD ingress (#41759)
+- Add environment variable controlling the log grooming frequency (#46237)
+
+Improvements
+^^^^^^^^^^^^
+- Update metrics names to allow multiple executors to report metrics (#40778)
+- Add a specific internal IP address for the ClusterIP service (#40912)
+- Remove scheduler automate ServiceAccount token (#44173)
+- More controls for PgBouncer secrets configuration (#45248)
+- Add ``ti.running`` metric export (#47773)
+- Add optional configuration for ``startupProbe`` ``initialDelaySeconds`` (#47094)
+- Introduce ``worker.extraPorts`` to expose additional ports to worker container (#46679)
+
+Bug Fixes
+^^^^^^^^^
+- Enable ``AIRFLOW__CELERY__BROKER_URL_CMD`` when ``passwordSecretName`` is true (#40270)
+- Properly implement termination grace period seconds (#41374)
+- Add kerberos env to base container env, add webserver-config volume (#41645)
+- Fix ``volumeClaimTemplates`` missing ``apiVersion`` and ``kind`` (#41771)
+- Render global volumes and volume mounts into cleanup job (#40191) (#42268)
+- Fix flower ingress service reference (#41179)
+- Fix ``volumeClaimTemplate`` for scheduler in local and persistent mode (#42946)
+- Fix role binding for multiple executors (#44424)
+- Set container name to ``envSourceContainerName`` in KEDA ScaledObject (#44963)
+- Update scheduler-deployment to cope with multiple executors (#46039)
+- Replace disallowed characters in metadata label (#46811)
+- Grant Airflow API Server Permission to Read Pod Logs (#47212)
+- Fix scheduler ServiceAccount auto-mount for multi-executor (#46486)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+- Reflect in docs that ``extraInitContainers`` is supported for jobs (#41674)
+- Add guide how to PgBouncer with Kubernetes Secret (#42460)
+- Update descriptions private registry params (#43721)
+- Change description for kerberos ``reinitFrequency`` (#45343)
+- Update Helm eviction configuration guide to reflect ``workers.safeToEvict`` default value (#44852)
+- Add info that ``storageClassName`` can be templated (#45176)
+- Fix broker-url secret name in production guide (#45863)
+- Replace DAGs with dags in docs (#47959)
+- Enhance ``airflowLocalSettings`` value description (#47855)
+- Be consistent with denoting templated params (#46481)
+
+Misc
+^^^^
+- Support templated hostname in NOTES (#41423)
+- Default airflow version to 2.10.5 (#46624)
+- Changing triggerer config option ``default_capacity`` to ``capacity`` (#48032)
+- AIP-84 Move public api under /api/v2 (#47760)
+- Default to the FabAuthManager in the chart (#47976)
+- Update PgBouncer to ``1.23.1`` and PgBouncer exporter to ``0.18.0`` (#47416)
+- Move api-server to port 8080 (#47310)
+- Start the api-server in Airflow 3, webserver in Airflow 2 (#47085)
+- Move ``fastapi-api`` command to ``api-server`` (#47076)
+- Move execution_api_server_url config to the core section (#46969)
+- Use standalone dag processor for Airflow 3 (#45659)
+- Update ``quay.io/prometheus/statsd-exporter`` from ``v0.26.1`` to ``v0.28.0`` (#43393)
+
 Airflow Helm Chart 1.15.0 (2024-07-24)
 --------------------------------------
 

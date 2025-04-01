@@ -123,8 +123,7 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
     if not auth_manager_cls:
         raise AirflowConfigException(
-            "No auth manager defined in the config. "
-            "Please specify one using section/key [core/auth_manager]."
+            "No auth manager defined in the config. Please specify one using section/key [core/auth_manager]."
         )
 
     return auth_manager_cls

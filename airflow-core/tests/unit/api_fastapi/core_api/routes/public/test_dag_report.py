@@ -85,7 +85,7 @@ class TestDagReportEndpoint:
     def test_should_response_200(self, test_client, subdir, include_example, expected_total_entries):
         with conf_vars({("core", "load_examples"): str(include_example)}):
             parse_and_sync_to_db(subdir, include_examples=include_example)
-            response = test_client.get("/api/v2/dagReports", params={"subdir": subdir})
+            response = test_client.get("/dagReports", params={"subdir": subdir})
             assert response.status_code == 200
             response_json = response.json()
             assert response_json["total_entries"] == expected_total_entries
@@ -96,7 +96,7 @@ class TestDagReportEndpoint:
             self.dagbag_stats = []
 
         with patch("airflow.models.dagbag.DagBag.collect_dags", _mock_collect_dags):
-            response = test_client.get("/api/v2/dagReports", params={"subdir": TEST_DAG_FOLDER})
+            response = test_client.get("/dagReports", params={"subdir": TEST_DAG_FOLDER})
             assert response.status_code == 200
             assert response.json() == {"dag_reports": [], "total_entries": 0}
 
@@ -108,12 +108,12 @@ class TestDagReportEndpoint:
         ],
     )
     def test_should_response_400(self, test_client, subdir):
-        response = test_client.get("/api/v2/dagReports", params={"subdir": subdir})
+        response = test_client.get("/dagReports", params={"subdir": subdir})
         assert response.status_code == 400
         assert response.json() == {"detail": "subdir should be subpath of DAGS_FOLDER settings"}
 
     def test_should_response_422(self, test_client):
-        response = test_client.get("/api/v2/dagReports")
+        response = test_client.get("/dagReports")
         assert response.status_code == 422
         assert response.json() == {
             "detail": [
@@ -127,9 +127,9 @@ class TestDagReportEndpoint:
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dagReports")
+        response = unauthenticated_test_client.get("/dagReports")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/dagReports")
+        response = unauthorized_test_client.get("/dagReports")
         assert response.status_code == 403

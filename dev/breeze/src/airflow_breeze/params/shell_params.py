@@ -426,8 +426,7 @@ class ShellParams:
         broker_url = CELERY_BROKER_URLS_MAP.get(self.celery_broker)
         if not broker_url:
             get_console().print(
-                f"[warning]The broker {self.celery_broker} should "
-                f"be one of {CELERY_BROKER_URLS_MAP.keys()}"
+                f"[warning]The broker {self.celery_broker} should be one of {CELERY_BROKER_URLS_MAP.keys()}"
             )
             return ""
         # Map from short form (rabbitmq/redis) to actual urls

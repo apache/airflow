@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix inconsistence between the get_conn and run in 'WinRMHook' (#47229)``
+
+Misc
+~~~~
+
+* ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.9.1
 .....
 

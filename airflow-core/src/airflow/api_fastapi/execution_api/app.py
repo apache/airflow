@@ -26,14 +26,16 @@ import attrs
 import svcs
 from cadwyn import (
     Cadwyn,
-    HeadVersion,
-    Version,
-    VersionBundle,
 )
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from airflow.api_fastapi.auth.tokens import JWTValidator, get_sig_validation_args
+from airflow.api_fastapi.auth.tokens import (
+    JWTGenerator,
+    JWTValidator,
+    get_sig_validation_args,
+    get_signing_args,
+)
 
 if TYPE_CHECKING:
     import httpx
@@ -64,6 +66,20 @@ def _jwt_validator():
     return validator
 
 
+def _jwt_generator():
+    from airflow.configuration import conf
+
+    generator = JWTGenerator(
+        valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+        audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
+        issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
+        # Since this one is used across components/server, there is no point trying to generate one, error
+        # instead
+        **get_signing_args(make_secret_key_if_needed=False),
+    )
+    return generator
+
+
 @svcs.fastapi.lifespan
 async def lifespan(app: FastAPI, registry: svcs.Registry):
     app.state.lifespan_called = True
@@ -72,8 +88,10 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     # record this here
     app.state.svcs_registry = registry
 
+    registry.register_factory(JWTGenerator, _jwt_generator)
     # Create an app scoped validator, so that we don't have to fetch it every time
     registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
+
     yield
 
 
@@ -127,6 +145,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
 def create_task_execution_api_app() -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
+    from airflow.api_fastapi.execution_api.versions import bundle
 
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
     app = CadwynWithOpenAPICustomization(
@@ -134,7 +153,8 @@ def create_task_execution_api_app() -> FastAPI:
         description="The private Airflow Task Execution API.",
         lifespan=lifespan,
         api_version_parameter_name="Airflow-API-Version",
-        versions=VersionBundle(HeadVersion(), Version("2025-03-19")),
+        api_version_default_value=bundle.versions[0].value,
+        versions=bundle,
     )
 
     app.generate_and_include_versioned_routers(execution_api_router)
@@ -182,7 +202,7 @@ class InProcessExecutionAPI:
     def app(self):
         if not self._app:
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+            from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTRefresherDep
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -192,6 +212,7 @@ class InProcessExecutionAPI:
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

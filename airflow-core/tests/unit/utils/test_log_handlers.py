@@ -549,7 +549,7 @@ class TestFilenameRendering:
         # With catchup=False:
         # - If logical_date is None, it will use current date as the logical date
         # - If logical_date is explicitly provided, it will use that date regardless of catchup setting
-        expected_date = logical_date if logical_date is not None else filename_rendering_ti.logical_date
+        expected_date = logical_date if logical_date is not None else filename_rendering_ti.run_after
 
         expected_filename = (
             f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
@@ -557,7 +557,7 @@ class TestFilenameRendering:
         )
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
-        assert expected_filename == rendered_filename
+        assert rendered_filename == expected_filename
 
     def test_jinja_rendering(self, create_log_template, create_task_instance, logical_date):
         create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
@@ -592,7 +592,7 @@ class TestFilenameRendering:
         # With catchup=False:
         # - If logical_date is None, it will use current date as the logical date
         # - If logical_date is explicitly provided, it will use that date regardless of catchup setting
-        expected_date = logical_date if logical_date is not None else filename_rendering_ti.logical_date
+        expected_date = logical_date if logical_date is not None else filename_rendering_ti.run_after
 
         expected_filename = (
             f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"

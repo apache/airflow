@@ -80,6 +80,7 @@ services:
       - ../../../providers/fab/tests:/opt/airflow/providers/fab/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
+      - ../../../providers/git/tests:/opt/airflow/providers/git/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
       - ../../../providers/google/tests:/opt/airflow/providers/google/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests

@@ -20,12 +20,13 @@ import contextlib
 from collections.abc import Generator
 from functools import wraps
 from inspect import signature
-from typing import Callable, TypeVar, cast
-
-from sqlalchemy.orm import Session as SASession
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
 from airflow.typing_compat import ParamSpec
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as SASession
 
 
 @contextlib.contextmanager
@@ -107,4 +108,4 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
 # the 'session' argument to be of type Session instead of Session | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-NEW_SESSION: SASession = cast(SASession, None)
+NEW_SESSION: SASession = cast("SASession", None)

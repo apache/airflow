@@ -46,13 +46,13 @@ DAG5_ID = "test_dag5"
 DAG5_DISPLAY_NAME = "display5"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
-API_PREFIX = "/api/v2/dags"
+API_PREFIX = "/dags"
 DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 class TestDagEndpoint:
-    """Common class for /api/v2/dags related unit tests."""
+    """Common class for /dags related unit tests."""
 
     @staticmethod
     def _clear_db():
@@ -63,6 +63,8 @@ class TestDagEndpoint:
     def _create_deactivated_paused_dag(self, session=None):
         dag_model = DagModel(
             dag_id=DAG3_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_active=False,
@@ -234,7 +236,7 @@ class TestGetDags(TestDagEndpoint):
         ],
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
-        response = test_client.get("/api/v2/dags", params=query_params)
+        response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
 
@@ -244,7 +246,7 @@ class TestGetDags(TestDagEndpoint):
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
-        response = test_client.get("/api/v2/dags")
+        response = test_client.get("/dags")
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
         assert response.status_code == 200
         body = response.json()
@@ -253,11 +255,11 @@ class TestGetDags(TestDagEndpoint):
         assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
 
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dags")
+        response = unauthenticated_test_client.get("/dags")
         assert response.status_code == 401
 
     def test_get_dags_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/dags")
+        response = unauthorized_test_client.get("/dags")
         assert response.status_code == 403
 
 
@@ -278,7 +280,7 @@ class TestPatchDag(TestDagEndpoint):
     def test_patch_dag(
         self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
     ):
-        response = test_client.patch(f"/api/v2/dags/{dag_id}", json=body, params=query_params)
+        response = test_client.patch(f"/dags/{dag_id}", json=body, params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
@@ -287,11 +289,11 @@ class TestPatchDag(TestDagEndpoint):
             check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
 
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch(f"/api/v2/dags/{DAG1_ID}", json={"is_paused": True})
+        response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 401
 
     def test_patch_dag_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch(f"/api/v2/dags/{DAG1_ID}", json={"is_paused": True})
+        response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 403
 
 
@@ -349,7 +351,7 @@ class TestPatchDags(TestDagEndpoint):
         expected_paused_ids,
         session,
     ):
-        response = test_client.patch("/api/v2/dags", json=body, params=query_params)
+        response = test_client.patch("/dags", json=body, params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
@@ -363,7 +365,7 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.patch(
-            "/api/v2/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
+            "/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
         )
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
         assert response.status_code == 200
@@ -372,11 +374,11 @@ class TestPatchDags(TestDagEndpoint):
         assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
 
     def test_patch_dags_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch("/api/v2/dags", json={"is_paused": True})
+        response = unauthenticated_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 401
 
     def test_patch_dags_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/api/v2/dags", json={"is_paused": True})
+        response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
 
 
@@ -394,7 +396,7 @@ class TestDagDetails(TestDagEndpoint):
     def test_dag_details(
         self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
     ):
-        response = test_client.get(f"/api/v2/dags/{dag_id}/details", params=query_params)
+        response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -405,6 +407,7 @@ class TestDagDetails(TestDagEndpoint):
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
         expected = {
+            "bundle_name": "dag_maker",
             "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
@@ -449,6 +452,7 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
+            "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,
             "start_date": start_date,
@@ -460,11 +464,11 @@ class TestDagDetails(TestDagEndpoint):
         assert res_json == expected
 
     def test_dag_details_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/api/v2/dags/{DAG1_ID}/details")
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 401
 
     def test_dag_details_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/api/v2/dags/{DAG1_ID}/details")
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 403
 
 
@@ -479,7 +483,7 @@ class TestGetDag(TestDagEndpoint):
         ],
     )
     def test_get_dag(self, test_client, query_params, dag_id, expected_status_code, dag_display_name):
-        response = test_client.get(f"/api/v2/dags/{dag_id}", params=query_params)
+        response = test_client.get(f"/dags/{dag_id}", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -511,15 +515,17 @@ class TestGetDag(TestDagEndpoint):
             "last_parsed_time": last_parsed_time,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
+            "bundle_name": "dag_maker",
+            "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/api/v2/dags/{DAG1_ID}")
+        response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 401
 
     def test_get_dag_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/api/v2/dags/{DAG1_ID}")
+        response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
 
 

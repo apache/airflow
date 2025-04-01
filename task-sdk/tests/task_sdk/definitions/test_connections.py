@@ -25,7 +25,6 @@ from airflow.configuration import initialize_secrets_backends
 from airflow.exceptions import AirflowException
 from airflow.sdk import Connection
 from airflow.sdk.execution_time.comms import ConnectionResult
-from airflow.sdk.execution_time.supervisor import initialize_secrets_backend_on_workers
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -112,7 +111,6 @@ class TestConnectionsFromSecrets:
                 ("workers", "secrets_backend_kwargs"): f'{{"connections_file_path": "{path}"}}',
             }
         ):
-            initialize_secrets_backend_on_workers()
             retrieved_conn = Connection.get(conn_id="CONN_A")
             assert retrieved_conn is not None
             assert retrieved_conn.conn_id == "CONN_A"
@@ -120,7 +118,6 @@ class TestConnectionsFromSecrets:
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_get_connection_env_var(self, mock_env_get, mock_supervisor_comms):
         """Tests getting a connection from environment variable."""
-        initialize_secrets_backend_on_workers()
         mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")  # return None
         Connection.get("something")
         mock_env_get.assert_called_once_with(conn_id="something")
@@ -135,7 +132,6 @@ class TestConnectionsFromSecrets:
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_backend_fallback_to_env_var(self, mock_get_connection, mock_env_get, mock_supervisor_comms):
         """Tests if connection retrieval falls back to environment variable backend if not found in secrets backend."""
-        initialize_secrets_backend_on_workers()
         mock_get_connection.return_value = None
         mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")
 

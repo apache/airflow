@@ -146,4 +146,4 @@ def requires_authentication(function: T):
 
         return function(*args, **kwargs)
 
-    return cast(T, decorated)
+    return cast("T", decorated)

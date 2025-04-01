@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from in_container_utils import AIRFLOW_ROOT_PATH, click, run_command
+from in_container_utils import AIRFLOW_ROOT_PATH, click, console, run_command
 from packaging.requirements import Requirement
 
 
@@ -76,9 +76,16 @@ def install_development_dependencies(constraint: str, github_actions: bool):
     )
     for provider_id in providers_dependencies:
         development_dependencies.extend(providers_dependencies[provider_id]["devel-deps"])
-
     command = ["uv", "pip", "install", *development_dependencies, "--constraints", constraint]
-    run_command(command, check=True, github_actions=github_actions)
+    result = run_command(command, check=False, github_actions=github_actions)
+    if result.returncode != 0:
+        console.print("[yellow]Failed to install development dependencies with constraints[/]\n")
+        console.print("Trying without constraints\n")
+        command = ["uv", "pip", "install", *development_dependencies]
+        result = run_command(command, check=False, github_actions=github_actions)
+        if result.returncode != 0:
+            console.print("[red]Failed to install development dependencies even without constraints[/]")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

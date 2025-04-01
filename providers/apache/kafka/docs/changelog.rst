@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+1.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create operators for working with Consumer Groups for GCP Apache Kafka (#47056)``
+
+Misc
+~~~~
+
+* ``Remove google provider dependencies from apache-kafka provider (#47563)``
+* ``Remove exclusions of confluent-kafka (#47240)``
+* ``Limit confluent-kafka temporarily to exclude 2.8.1 (#47204)``
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Deprecating email, email_on_retry, email_on_failure in BaseOperator (#47146)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Fix kafka connection refuse issue in kafka provider tests (#47213)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Fix Kafka provider tests after move (#46214)``
+   * ``Move Apache Kafka to new provider structure (#46110)``
+
 1.7.0
 .....
 

@@ -35,6 +35,7 @@ from airflow.sdk.execution_time.secrets_masker import (
     SecretsMasker,
     mask_secret,
     redact,
+    reset_secrets_masker,
     should_hide_value_for_key,
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
@@ -214,7 +215,7 @@ class TestSecretsMasker:
             The above exception was the direct cause of the following exception:
 
             Traceback (most recent call last):
-              File ".../test_secrets_masker.py", line {line+4}, in test_masking_in_explicit_context_exceptions
+              File ".../test_secrets_masker.py", line {line + 4}, in test_masking_in_explicit_context_exceptions
                 raise RuntimeError(f"Exception: {{exception}}") from exception
             RuntimeError: Exception: Cannot connect to user:***
             """
@@ -356,6 +357,25 @@ class TestSecretsMasker:
             conn = Connection(**test_conn_attributes)
             logger.info(conn.get_uri())
             assert "should_be_hidden" not in caplog.text
+
+    def test_reset_secrets_masker(
+        self,
+    ):
+        secrets_masker = SecretsMasker()
+        secrets_masker.add_mask("mask_this")
+        secrets_masker.add_mask("and_this")
+        secrets_masker.add_mask("maybe_this_too")
+
+        val = ["mask_this", "and_this", "maybe_this_too"]
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            got = redact(val)
+            assert got == ["***"] * 3
+
+            reset_secrets_masker()
+
+            got = redact(val)
+            assert got == val
 
 
 class TestShouldHideValueForKey:

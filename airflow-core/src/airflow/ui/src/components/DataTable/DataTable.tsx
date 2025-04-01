@@ -22,21 +22,23 @@ import {
   getExpandedRowModel,
   getPaginationRowModel,
   useReactTable,
+  type VisibilityState,
   type OnChangeFn,
   type TableState as ReactTableState,
   type Row,
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useCallback, useRef } from "react";
+import React, { type ReactNode, useCallback, useRef, useState } from "react";
 
-import { ProgressBar, Pagination, Toaster } from "../ui";
-import { CardList } from "./CardList";
-import { TableList } from "./TableList";
-import { createSkeletonMock } from "./skeleton";
-import type { CardDef, MetaColumn, TableState } from "./types";
+import { CardList } from "src/components/DataTable/CardList";
+import { TableList } from "src/components/DataTable/TableList";
+import { createSkeletonMock } from "src/components/DataTable/skeleton";
+import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
+import { ProgressBar, Pagination, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
+  readonly allowFiltering?: boolean;
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
@@ -57,6 +59,7 @@ type DataTableProps<TData> = {
 const defaultGetRowCanExpand = () => false;
 
 export const DataTable = <TData,>({
+  allowFiltering,
   cardDef,
   columns,
   data,
@@ -83,6 +86,7 @@ export const DataTable = <TData,>({
 
         // Only use the controlled state
         const nextState = {
+          columnVisibility: next.columnVisibility,
           pagination: next.pagination,
           sorting: next.sorting,
         };
@@ -92,21 +96,24 @@ export const DataTable = <TData,>({
     },
     [onStateChange],
   );
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
   const table = useReactTable({
     columns,
     data,
+    enableHiding: true,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getRowCanExpand,
     manualPagination: true,
     manualSorting: true,
+    onColumnVisibilityChange: setColumnVisibility,
     onStateChange: handleStateChange,
     rowCount: total,
-    state: initialState,
+    state: { ...initialState, columnVisibility },
     ...rest,
   });
 
@@ -121,12 +128,17 @@ export const DataTable = <TData,>({
     (table.getState().pagination.pageIndex !== 0 ||
       (table.getState().pagination.pageIndex === 0 && rows.length !== total));
 
+  // Default to show columns filter only if there are actually many columns displayed
+  const showColumnsFilter = allowFiltering ?? columns.length > 5;
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
-      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
+      {hasRows && display === "table" ? (
+        <TableList allowFiltering={showColumnsFilter} table={table} />
+      ) : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}

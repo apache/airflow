@@ -23,6 +23,7 @@ import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import type { NodeResponse } from "openapi/requests/types.gen";
 
 export type TaskNameProps = {
+  readonly childCount?: number;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean;
   readonly isOpen?: boolean;
@@ -38,6 +39,7 @@ const iconStyle: CSSProperties = {
 };
 
 export const TaskName = ({
+  childCount,
   isGroup = false,
   isMapped = false,
   isOpen = false,
@@ -59,7 +61,7 @@ export const TaskName = ({
   return (
     <Text fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
       {label}
-      {isMapped ? " [ ]" : undefined}
+      {isMapped ? ` [${childCount ?? " "}]` : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />

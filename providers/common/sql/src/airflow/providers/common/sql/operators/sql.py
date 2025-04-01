@@ -1015,12 +1015,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                     test_results[metric] = self.ignore_zero
 
             self.log.info(
-                (
-                    "Current metric for %s: %s\n"
-                    "Past metric for %s: %s\n"
-                    "Ratio for %s: %s\n"
-                    "Threshold: %s\n"
-                ),
+                ("Current metric for %s: %s\nPast metric for %s: %s\nRatio for %s: %s\nThreshold: %s\n"),
                 metric,
                 cur,
                 metric,
@@ -1134,11 +1129,11 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
             )
             error_msg = (
                 f'Threshold Check: "{meta_data.get("task_id")}" failed.\n'
-                f'DAG: {self.dag_id}\nTask_id: {meta_data.get("task_id")}\n'
-                f'Check description: {meta_data.get("description")}\n'
+                f"DAG: {self.dag_id}\nTask_id: {meta_data.get('task_id')}\n"
+                f"Check description: {meta_data.get('description')}\n"
                 f"SQL: {self.sql}\n"
                 f"Result: {result} is not within thresholds "
-                f'{meta_data.get("min_threshold")} and {meta_data.get("max_threshold")}'
+                f"{meta_data.get('min_threshold')} and {meta_data.get('max_threshold')}"
             )
             self._raise_exception(error_msg)
 

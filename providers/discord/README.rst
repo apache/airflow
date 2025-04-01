@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-discord``
 
-Release: ``3.9.3``
+Release: ``3.9.4``
 
 
 `Discord <https://discord.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``discord`` provider. All classes for this provid
 are in ``airflow.providers.discord`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.4/>`_.
 
 Installation
 ------------
@@ -50,12 +50,13 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.9.0``
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-http``
-=================================  ==================
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -67,14 +68,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-discord[http]
+    pip install apache-airflow-providers-discord[common.compat]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.4/changelog.html>`_.

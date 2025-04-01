@@ -159,7 +159,7 @@ class TestTaskInstancesLog:
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             params={"token": token},
             headers={"Accept": "application/json"},
         )
@@ -176,26 +176,26 @@ class TestTaskInstancesLog:
         "request_url, expected_filename, extra_query_string, try_number",
         [
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
                 {},
                 1,
             ),
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
                 {"map_index": 0},
                 1,
             ),
             # try_number 2
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=2.log",
                 {},
                 2,
             ),
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=2.log",
                 {"map_index": 0},
                 2,
@@ -228,25 +228,25 @@ class TestTaskInstancesLog:
         "request_url, expected_filename, extra_query_string, try_number",
         [
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
                 {},
                 1,
             ),
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
                 {"map_index": 0},
                 1,
             ),
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=2.log",
                 {},
                 2,
             ),
             (
-                f"api/v2/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
+                f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=2.log",
                 {"map_index": 0},
                 2,
@@ -286,7 +286,7 @@ class TestTaskInstancesLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/{try_number}",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/{try_number}",
             params={"token": token},
         )
         assert response.status_code == 404
@@ -302,7 +302,7 @@ class TestTaskInstancesLog:
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
-                f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+                f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
                 headers={"Accept": "text/plain"},
             )
@@ -323,7 +323,7 @@ class TestTaskInstancesLog:
 
         # check guessing
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             params={"token": token},
             headers={"Content-Type": "application/jso"},
         )
@@ -334,7 +334,7 @@ class TestTaskInstancesLog:
         token = {"download_logs": False}
 
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token},
             headers={"Accept": "application/json"},
         )
@@ -343,21 +343,21 @@ class TestTaskInstancesLog:
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             headers={"Accept": "application/json"},
         )
         assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self, unauthorized_test_client):
         response = unauthorized_test_client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             headers={"Accept": "application/json"},
         )
         assert response.status_code == 403
 
     def test_raises_404_for_invalid_dag_run_id(self):
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
+            f"/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
             headers={"Accept": "application/json"},
         )
@@ -370,7 +370,7 @@ class TestTaskInstancesLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
             params={"token": token},
             headers={"Accept": "text/plain"},
         )
@@ -383,7 +383,7 @@ class TestTaskInstancesLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v2/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token, "map_index": 0},
             headers={"Accept": "text/plain"},
         )

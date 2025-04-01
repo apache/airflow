@@ -185,8 +185,8 @@ export const DagRuns = () => {
           onValueChange={handleStateChange}
           value={[filteredState ?? "all"]}
         >
-          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)}>
-            <Select.ValueText width={20}>
+          <Select.Trigger colorPalette="blue" isActive={Boolean(filteredState)} minW="max-content">
+            <Select.ValueText width="auto">
               {() =>
                 filteredState === null ? (
                   "All States"

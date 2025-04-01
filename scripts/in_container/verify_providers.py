@@ -471,7 +471,7 @@ def get_package_class_summary(
 
     # Remove this conditional check after providers are 2.6+ compatible
     try:
-        from airflow.notifications.basenotifier import BaseNotifier
+        from airflow.providers.common.compat.notifier import BaseNotifier
 
         has_notifier = True
     except ImportError:

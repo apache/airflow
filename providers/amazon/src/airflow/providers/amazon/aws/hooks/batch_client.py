@@ -416,8 +416,7 @@ class BatchClientHook(AwsBaseHook):
                 )
         else:
             raise AirflowException(
-                f"AWS Batch job ({job_id}) description error: exceeded status_retries "
-                f"({self.status_retries})"
+                f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
             )
 
     @staticmethod

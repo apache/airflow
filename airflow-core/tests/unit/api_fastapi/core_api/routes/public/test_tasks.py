@@ -45,7 +45,7 @@ class TestTaskEndpoint:
     unscheduled_task_id2 = "unscheduled_task_2"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
-    api_prefix = "/api/v2/dags"
+    api_prefix = "/dags"
 
     def create_dags(self, test_client):
         with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:

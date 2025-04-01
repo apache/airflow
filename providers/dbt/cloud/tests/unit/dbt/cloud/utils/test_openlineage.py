@@ -89,23 +89,24 @@ def get_dbt_artifact(*args, **kwargs):
 
 
 def test_previous_version_openlineage_provider():
-    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 1.7"""
-    original_import = __import__
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.0"""
 
-    def custom_import(name, *args, **kwargs):
-        if name == "airflow.providers.openlineage.conf":
-            raise ModuleNotFoundError("No module named 'airflow.providers.openlineage.conf")
-        else:
-            return original_import(name, *args, **kwargs)
+    def _mock_version(package):
+        if package == "apache-airflow-providers-openlineage":
+            return "1.99.0"
+        raise Exception("Unexpected package")
 
     mock_operator = MagicMock()
     mock_task_instance = MagicMock()
 
-    with patch("builtins.__import__", side_effect=custom_import):
-        with pytest.raises(AirflowOptionalProviderFeatureException) as exc:
+    expected_err = (
+        "OpenLineage provider version `1.99.0` is lower than required `2.0.0`, "
+        "skipping function `generate_openlineage_events_from_dbt_cloud_run` execution"
+    )
+
+    with patch("importlib.metadata.version", side_effect=_mock_version):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
             generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
-    assert str(exc.value.args[0]) == "No module named 'airflow.providers.openlineage.conf"
-    assert str(exc.value.args[1]) == "Please install `apache-airflow-providers-openlineage>=1.7.0`"
 
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:

@@ -27,7 +27,7 @@ In addition to scheduling dags based on time, you can also schedule dags to run 
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk import DAG, Asset
 
     with DAG(...):
         MyOperator(
@@ -47,104 +47,12 @@ In addition to scheduling dags based on time, you can also schedule dags to run 
 
 .. image:: /img/asset-scheduled-dags.png
 
+.. seealso::
 
-What is an "Asset"?
---------------------
+    :ref:`asset_definitions` for how to declare assets.
 
-An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer dags.
-
-`Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset import Asset
-
-    example_asset = Asset("s3://asset-bucket/example.csv")
-
-Airflow makes no assumptions about the content or location of the data represented by the URI, and treats the URI like a string. This means that Airflow treats any regular expressions, like ``input_\d+.csv``, or file glob patterns, such as ``input_2022*.csv``, as an attempt to create multiple assets from one declaration, and they will not work.
-
-You must create assets with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins might also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed. You can use the optional name argument to provide a more human-readable identifier to the asset.
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset import Asset
-
-    example_asset = Asset(uri="s3://asset-bucket/example.csv", name="bucket-1")
-
-What is valid URI?
-------------------
-
-Technically, the URI must conform to the valid character set in RFC 3986, which is basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
-
-The URI is also case sensitive, so ``s3://example/asset`` and ``s3://Example/asset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
-
-For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must provide a meaning URI. If you can't provide one, use another scheme altogether that don't have the semantic restrictions. Airflow will never require a semantic for user-defined URI schemes  (with a prefix x-), so that can be a good alternative. If you have a URI that can only be obtained later (e.g., during task execution), consider using ``AssetAlias`` instead and update the URI later.
-
-.. code-block:: python
-
-    # invalid asset:
-    must_contain_bucket_name = Asset("s3://")
-
-Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
-
-Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
-
-.. code-block:: python
-
-    # invalid assets:
-    reserved = Asset("airflow://example_asset")
-    not_ascii = Asset("èxample_datašet")
-
-If you want to define assets with a scheme that doesn't include additional semantic constraints, use a scheme with the prefix ``x-``. Airflow skips any semantic validation on URIs with these schemes.
-
-.. code-block:: python
-
-    # valid asset, treated as a plain string
-    my_ds = Asset("x-my-thing://foobarbaz")
-
-The identifier does not have to be absolute; it can be a scheme-less, relative URI, or even just a simple path or string:
-
-.. code-block:: python
-
-    # valid assets:
-    schemeless = Asset("//example/asset")
-    csv_file = Asset("example_asset")
-
-Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
-
-Extra information on asset
-----------------------------
-
-If needed, you can include an extra dictionary in an asset:
-
-.. code-block:: python
-
-    example_asset = Asset(
-        "s3://asset/example.csv",
-        extra={"team": "trainees"},
-    )
-
-This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity. This means a DAG will be triggered by an asset with an identical URI, even if the extra dict is different:
-
-.. code-block:: python
-
-    with DAG(
-        dag_id="consumer",
-        schedule=[Asset("s3://asset/example.csv", extra={"different": "extras"})],
-    ):
-        ...
-
-    with DAG(dag_id="producer", ...):
-        MyOperator(
-            # triggers "consumer" with the given extra!
-            outlets=[Asset("s3://asset/example.csv", extra={"team": "trainees"})],
-            ...,
-        )
-
-.. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
-
-How to use assets in your dags
---------------------------------
+Schedule dags with assets
+-------------------------
 
 You can use assets to specify data dependencies in your dags. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks an asset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
 
@@ -235,65 +143,6 @@ If one asset is updated multiple times before all consumed assets update, the do
       example_asset_3                                     -- e7       -- e9        -- e11               -- end_ds3
 
     }
-
-Attaching extra information to an emitting asset event
---------------------------------------------------------
-
-.. versionadded:: 2.10.0
-
-A task with an asset outlet can optionally attach extra information before it emits an asset event. This is different
-from `Extra information on asset`_. Extra information on an asset statically describes the entity pointed to by the asset URI; extra information on the *asset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
-
-The easiest way to attach extra information to the asset event is by ``yield``-ing a ``Metadata`` object from a task:
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset import Asset
-    from airflow.sdk.definitions.asset.metadata import Metadata
-
-    example_s3_asset = Asset(uri="s3://asset/example.csv", name="example_s3")
-
-
-    @task(outlets=[example_s3_asset])
-    def write_to_s3():
-        df = ...  # Get a Pandas DataFrame to write.
-        # Write df to asset...
-        yield Metadata(example_s3_asset, {"row_count": len(df)})
-
-Airflow automatically collects all yielded metadata, and populates asset events with extra information for corresponding metadata objects.
-
-This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
-
-Another way to achieve the same is by accessing ``outlet_events`` in a task's execution context directly:
-
-.. code-block:: python
-
-    @task(outlets=[example_s3_asset])
-    def write_to_s3(*, outlet_events):
-        outlet_events[example_s3_asset].extra = {"row_count": len(df)}
-
-There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
-
-.. _fetching_information_from_previously_emitted_asset_events:
-
-Fetching information from previously emitted asset events
------------------------------------------------------------
-
-.. versionadded:: 2.10.0
-
-Events of an asset defined in a task's ``outlets``, as described in the previous section, can be read by a task that declares the same asset in its ``inlets``. A asset event entry contains ``extra`` (see previous section for details), ``timestamp`` indicating when the event was emitted from a task, and ``source_task_instance`` linking the event back to its source.
-
-Inlet asset events can be read with the ``inlet_events`` accessor in the execution context. Continuing from the ``write_to_s3`` task in the previous section:
-
-.. code-block:: python
-
-    @task(inlets=[example_s3_asset])
-    def post_process_s3_file(*, inlet_events):
-        events = inlet_events[example_s3_asset]
-        last_row_count = events[-1].extra["row_count"]
-
-Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
-
 
 Fetching information from a triggering asset event
 ----------------------------------------------------
@@ -425,62 +274,6 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
         ...
 
 
-Dynamic data events emitting and asset creation through AssetAlias
------------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for DAG executions based on asset updates.
-
-How to use AssetAlias
-~~~~~~~~~~~~~~~~~~~~~~~
-
-``AssetAlias`` has one single argument ``name`` that uniquely identifies the asset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
-
-The following example creates an asset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the asset does not exist, Airflow will dynamically create it and log a warning message.
-
-**Emit an asset event during task execution through outlet_events**
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset import AssetAlias
-
-
-    @task(outlets=[AssetAlias("my-task-outputs")])
-    def my_task_with_outlet_events(*, outlet_events):
-        outlet_events[AssetAlias("my-task-outputs")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
-
-
-**Emit an asset event during task execution through yielding Metadata**
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset.metadata import Metadata
-
-
-    @task(outlets=[AssetAlias("my-task-outputs")])
-    def my_task_with_metadata():
-        s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
-        yield Metadata(s3_asset, extra={"k": "v"}, alias="my-task-outputs")
-
-Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
-
-.. code-block:: python
-
-    from airflow.sdk.definitions.asset import AssetAlias
-
-
-    @task(
-        outlets=[
-            AssetAlias("my-task-outputs-1"),
-            AssetAlias("my-task-outputs-2"),
-            AssetAlias("my-task-outputs-3"),
-        ]
-    )
-    def my_task_with_outlet_events(*, outlet_events):
-        outlet_events[AssetAlias("my-task-outputs-1")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
-        # This line won't emit an additional asset event as the asset and extra are the same as the previous line.
-        outlet_events[AssetAlias("my-task-outputs-2")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
-        # This line will emit an additional asset event as the extra is different.
-        outlet_events[AssetAlias("my-task-outputs-3")].add(Asset("s3://bucket/my-task"), extra={"k2": "v2"})
-
 Scheduling based on asset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Since asset events added to an alias are just simple asset events, a downstream DAG depending on the actual asset can read asset events of it normally, without considering the associated aliases. A downstream DAG can also depend on an asset alias. The authoring syntax is referencing the ``AssetAlias`` by name, and the associated asset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=AssetAlias("xxx")`` if and only if the alias is resolved into ``Asset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``AssetAlias("out")`` gets associated with at least one asset at runtime, regardless of the asset's identity. The downstream DAG is not triggered if no assets are associated to the alias for a particular given task run. This also means we can do conditional asset-triggering.
@@ -511,28 +304,6 @@ The asset alias is resolved to the assets during DAG parsing. Thus, if the "min_
 
 
 In the example provided, once the DAG ``asset-alias-producer`` is executed, the asset alias ``AssetAlias("example-alias")`` will be resolved to ``Asset("s3://bucket/my-task")``. However, the DAG ``asset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the dags relying on the asset alias ``AssetAlias("example-alias")`` when it's resolved into assets that these dags did not previously depend on. As a result, both the "asset-consumer" and "asset-alias-consumer" dags will be triggered after the execution of DAG ``asset-alias-producer``.
-
-
-Fetching information from previously emitted asset events through resolved asset aliases
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-As mentioned in :ref:`Fetching information from previously emitted asset events<fetching_information_from_previously_emitted_asset_events>`, inlet asset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use asset aliases to access the asset events triggered by them.
-
-.. code-block:: python
-
-    with DAG(dag_id="asset-alias-producer"):
-
-        @task(outlets=[AssetAlias("example-alias")])
-        def produce_asset_events(*, outlet_events):
-            outlet_events[AssetAlias("example-alias")].add(Asset("s3://bucket/my-task"), extra={"row_count": 1})
-
-
-    with DAG(dag_id="asset-alias-consumer", schedule=None):
-
-        @task(inlets=[AssetAlias("example-alias")])
-        def consume_asset_alias_events(*, inlet_events):
-            events = inlet_events[AssetAlias("example-alias")]
-            last_row_count = events[-1].extra["row_count"]
 
 
 Combining asset and time-based schedules

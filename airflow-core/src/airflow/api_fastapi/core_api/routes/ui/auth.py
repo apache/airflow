@@ -34,6 +34,6 @@ def get_auth_links(
     menu_items = get_auth_manager().get_extra_menu_items(user=user)
 
     return MenuItemCollectionResponse(
-        menu_items=cast(list[MenuItem], menu_items),
+        menu_items=cast("list[MenuItem]", menu_items),
         total_entries=len(menu_items),
     )

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from datetime import timedelta
 from unittest import mock
 
@@ -30,7 +29,6 @@ from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
@@ -49,14 +47,9 @@ def test_is_production_default_value():
     assert BaseExecutor.is_production
 
 
-def test_infinite_slotspool():
-    executor = BaseExecutor(0)
-    assert executor.slots_available == sys.maxsize
-
-
-def test_new_exec_no_slots_occupied():
-    executor = BaseExecutor(0)
-    assert executor.slots_occupied == 0
+def test_invalid_slotspool():
+    with pytest.raises(ValueError):
+        BaseExecutor(0)
 
 
 def test_get_task_log():
@@ -128,10 +121,9 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 
 @pytest.mark.parametrize(
     "executor_class, executor_name",
-    [(LocalExecutor, "LocalExecutor"), (SequentialExecutor, "SequentialExecutor")],
+    [(LocalExecutor, "LocalExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
-@mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
 @mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
@@ -139,7 +131,6 @@ def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
     mock_stats_gauge,
     mock_trigger_tasks,
-    mock_sequential_sync,
     mock_local_sync,
     executor_class,
     executor_name,
@@ -165,22 +156,6 @@ def test_gauge_executor_metrics_with_multiple_executors(
             f"executor.running_tasks.{executor_name}",
             value=mock.ANY,
             tags={"status": "running", "name": executor_name},
-        ),
-    ]
-    mock_stats_gauge.assert_has_calls(calls)
-
-
-@mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
-@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-@mock.patch("airflow.executors.base_executor.Stats.gauge")
-def test_gauge_executor_with_infinite_pool_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
-    executor = BaseExecutor(0)
-    executor.heartbeat()
-    calls = [
-        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
-        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
-        mock.call(
-            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -367,7 +342,7 @@ def test_base_executor_cannot_send_callback():
 
 
 def test_parser_and_formatter_class():
-    executor = BaseExecutor()
+    executor = BaseExecutor(42)
     parser = executor._get_parser()
     assert isinstance(parser, DefaultHelpParser)
     assert parser.formatter_class is AirflowHelpFormatter

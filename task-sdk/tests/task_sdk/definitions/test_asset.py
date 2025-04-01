@@ -220,12 +220,12 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
     # Verify serialization and deserialization integrity
-    assert isinstance(
-        deserialized_dag.timetable.asset_condition, AssetAny
-    ), "Deserialized assets should maintain type AssetAny"
-    assert (
-        deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
-    ), "Deserialized assets should match original"
+    assert isinstance(deserialized_dag.timetable.asset_condition, AssetAny), (
+        "Deserialized assets should maintain type AssetAny"
+    )
+    assert deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects, (
+        "Deserialized assets should match original"
+    )
 
 
 def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:

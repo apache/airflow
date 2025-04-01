@@ -486,8 +486,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if self.max_id_key:
             self.log.info("Selecting the MAX value from BigQuery column %r...", self.max_id_key)
             select_command = (
-                f"SELECT MAX({self.max_id_key}) AS max_value "
-                f"FROM {self.destination_project_dataset_table}"
+                f"SELECT MAX({self.max_id_key}) AS max_value FROM {self.destination_project_dataset_table}"
             )
             self.configuration = {
                 "query": {

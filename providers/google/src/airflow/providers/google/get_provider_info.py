@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1741121879,
+        "source-date-epoch": 1742980830,
         "versions": [
+            "14.1.0",
             "14.0.0",
             "12.0.0",
             "11.0.0",
@@ -1640,7 +1641,6 @@ def get_provider_info():
             "google-cloud-batch>=0.13.0",
             "grpcio-gcp>=0.2.2",
             "httpx>=0.25.0",
-            "json-merge-patch>=0.2",
             "looker-sdk>=22.4.0,!=24.18.0",
             "pandas-gbq>=0.7.0",
             "pandas>=2.1.2,<2.2",

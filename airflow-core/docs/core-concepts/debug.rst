@@ -69,15 +69,6 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
       run = dag.test(mark_success_pattern="wait_for_.*|cleanup")
       print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_id='collect_stats')}")
 
-Comparison with DebugExecutor
------------------------------
-
-The ``dag.test`` command has the following benefits over the :class:`~airflow.executors.debug_executor.DebugExecutor`
-class, which is now deprecated:
-
-1. It does not require running an executor at all. Tasks are run one at a time with no executor or scheduler logs.
-2. It is faster than running code with a DebugExecutor as it does not need to go through a scheduler loop.
-
 
 Debugging Airflow dags on the command line
 ******************************************
@@ -97,25 +88,6 @@ Run ``python -m pdb <path to dag file>.py`` for an interactive debugging experie
   -> bash_command='echo 1',
   (Pdb) run_this_last
   <Task(EmptyOperator): run_this_last>
-
-.. _executor:DebugExecutor:
-
-Debug Executor (deprecated)
-***************************
-
-The :class:`~airflow.executors.debug_executor.DebugExecutor` is meant as
-a debug tool and can be used from IDE. It is a single process executor that
-queues :class:`~airflow.models.taskinstance.TaskInstance` and executes them by running
-``_run_raw_task`` method.
-
-Due to its nature the executor can be used with SQLite database. When used
-with sensors the executor will change sensor mode to ``reschedule`` to avoid
-blocking the execution of DAG.
-
-Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
-all other running or scheduled tasks fail immediately. To enable this option set
-``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
-For more information on setting the configuration, see :doc:`../../howto/set-config`.
 
 **IDE setup steps:**
 

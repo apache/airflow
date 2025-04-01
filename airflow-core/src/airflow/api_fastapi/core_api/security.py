@@ -50,7 +50,17 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+auth_description = (
+    "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
+    "the Authorization header of each request. This token is used to verify the identity of "
+    "the client and ensure that they have the appropriate permissions to access the "
+    "requested resources. "
+    "You can use the endpoint ``POST /auth/token`` in order to generate a JWT token. "
+    "Upon successful authentication, the server will issue a JWT token that contains the necessary "
+    "information (such as user identity and scope) to authenticate subsequent requests. "
+    "To learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html."
+)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description)
 
 
 async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:

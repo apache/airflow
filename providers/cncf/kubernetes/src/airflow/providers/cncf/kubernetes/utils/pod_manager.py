@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import enum
-import itertools
 import json
 import math
 import time
@@ -119,9 +118,12 @@ class PodOperatorHookProtocol(Protocol):
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieve container status."""
     if pod and pod.status:
-        container_statuses = itertools.chain(
-            pod.status.container_statuses, pod.status.init_container_statuses
-        )
+        container_statuses = []
+        if pod.status.container_statuses:
+            container_statuses.extend(pod.status.container_statuses)
+        if pod.status.init_container_statuses:
+            container_statuses.extend(pod.status.init_container_statuses)
+
     else:
         container_statuses = None
 
@@ -668,7 +670,7 @@ class PodManager(LoggingMixin):
         if not sep:
             return None, line
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            last_log_time = cast("DateTime", pendulum.parse(timestamp))
         except ParserError:
             return None, line
         return last_log_time, message

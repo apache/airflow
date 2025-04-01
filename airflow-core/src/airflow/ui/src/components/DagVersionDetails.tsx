@@ -30,8 +30,8 @@ export const DagVersionDetails = ({ dagVersion }: { readonly dagVersion?: DagVer
     <Table.Root striped>
       <Table.Body>
         <Table.Row>
-          <Table.Cell>Version Number</Table.Cell>
-          <Table.Cell>{dagVersion.version_number ? `v${dagVersion.version_number}` : "unknown"}</Table.Cell>
+          <Table.Cell>Version ID</Table.Cell>
+          <Table.Cell>{dagVersion.id}</Table.Cell>
         </Table.Row>
         <Table.Row>
           <Table.Cell>Bundle Name</Table.Cell>

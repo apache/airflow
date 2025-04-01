@@ -177,7 +177,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     # introduce runs for a dag different from the test dag
     # so that we can verify that queries won't pick up runs from
     # other dags with same date
-    with dag_maker(schedule="@daily", dag_id="noise dag"):
+    with dag_maker(schedule="@daily", dag_id="noise-dag"):
         PythonOperator(task_id="hi", python_callable=print)
     date = "2021-01-06"
     dr = dag_maker.create_dagrun(

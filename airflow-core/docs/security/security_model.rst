@@ -62,9 +62,9 @@ DAG Authors
 ...........
 
 They can create, modify, and delete DAG files. The
-code in DAG files is executed on workers and in the DAG File Processor.
+code in DAG files is executed on workers and in the DAG Processor.
 Therefore, DAG authors can create and change code executed on workers
-and the DAG File Processor and potentially access the credentials that the DAG
+and the DAG Processor and potentially access the credentials that the DAG
 code uses to access external systems. DAG Authors have full access
 to the metadata database.
 
@@ -100,7 +100,7 @@ to abuse these privileges. They have access to sensitive credentials
 and can modify them. By default, they don't have access to
 system-level configuration. They should be trusted not to misuse
 sensitive information accessible through connection configuration.
-They also have the ability to create a Webserver Denial of Service
+They also have the ability to create a API Server Denial of Service
 situation and should be trusted not to misuse this capability.
 
 Only admin users have access to audit logs.
@@ -119,7 +119,7 @@ required to prevent misuse of these privileges. They have full access
 to sensitive credentials stored in connections and can modify them.
 Access to sensitive information through connection configuration
 should be trusted not to be abused. They also have the ability to configure connections wrongly
-that might create a Webserver Denial of Service situations and specify insecure connection options
+that might create a API Server Denial of Service situations and specify insecure connection options
 which might create situations where executing dags will lead to arbitrary Remote Code Execution
 for some providers - either community released or custom ones.
 
@@ -149,11 +149,11 @@ For more information on the capabilities of authenticated UI users, see :doc:`ap
 Capabilities of DAG Authors
 ---------------------------
 
-DAG authors are able to submit code - via Python files placed in the DAGS_FOLDER - that will be executed
+DAG authors are able to create or edit code - via Python files placed in a dag bundle - that will be executed
 in a number of circumstances. The code to execute is neither verified, checked nor sand-boxed by Airflow
 (that would be very difficult if not impossible to do), so effectively DAG authors can execute arbitrary
 code on the workers (part of Celery Workers for Celery Executor, local processes run by scheduler in case
-of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the DAG File Processor
+of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the DAG Processor
 and in the Triggerer.
 
 There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of:
@@ -190,28 +190,30 @@ enforcement mechanisms that would allow to isolate tasks that are using deferrab
 each other and arbitrary code from various tasks can be executed in the same process/machine. Deployment
 Manager must trust that DAG authors will not abuse this capability.
 
-DAG files not needed for Scheduler and Webserver
-................................................
+DAG files not needed for Scheduler and API Server
+.................................................
 
 The Deployment Manager might isolate the code execution provided by DAG authors - particularly in
-Scheduler and Webserver by making sure that the Scheduler and Webserver don't even
+Scheduler and API Server by making sure that the Scheduler and API Server don't even
 have access to the DAG Files. Generally speaking - no DAG author provided code should ever be
-executed in the Scheduler or Webserver process.
+executed in the Scheduler or API Server process. This means the deployment manager can exclude credentials
+needed for dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
+components.
 
-Allowing DAG authors to execute selected code in Scheduler and Webserver
-........................................................................
+Allowing DAG authors to execute selected code in Scheduler and API Server
+.........................................................................
 
 There are a number of functionalities that allow the DAG author to use pre-registered custom code to be
-executed in scheduler or webserver process - for example they can choose custom Timetables, UI plugins,
+executed in the Scheduler or API Server process - for example they can choose custom Timetables, UI plugins,
 Connection UI Fields, Operator extra links, macros, listeners - all of those functionalities allow the
-DAG author to choose the code that will be executed in the scheduler or webserver process. However this
-should not be arbitrary code that DAG author can add in DAG folder. All those functionalities are
+DAG author to choose the code that will be executed in the Scheduler or API Server process. However this
+should not be arbitrary code that DAG author can add dag bundles. All those functionalities are
 only available via ``plugins`` and ``providers`` mechanisms where the code that is executed can only be
 provided by installed packages (or in case of plugins it can also be added to PLUGINS folder where DAG
 authors should not have write access to). PLUGINS_FOLDER is a legacy mechanism coming from Airflow 1.10
 - but we recommend using entrypoint mechanism that allows the Deployment Manager to - effectively -
 choose and register the code that will be executed in those contexts. DAG Author has no access to
-install or modify packages installed in Webserver and Scheduler, and this is the way to prevent
+install or modify packages installed in Scheduler and API Server, and this is the way to prevent
 the DAG Author to execute arbitrary code in those processes.
 
 Additionally, if you decide to utilize and configure the PLUGINS_FOLDER, it is essential for the Deployment
@@ -224,7 +226,7 @@ following chapter.
 Access to all dags
 ........................................................................
 
-All dag authors have access to all dags in the airflow deployment. This means that they can view, modify,
+All dag authors have access to all dags in the Airflow deployment. This means that they can view, modify,
 and update any dag without restrictions at any time.
 
 Responsibilities of Deployment Managers
@@ -233,7 +235,7 @@ Responsibilities of Deployment Managers
 As a Deployment Manager, you should be aware of the capabilities of DAG authors and make sure that
 you trust them not to abuse the capabilities they have. You should also make sure that you have
 properly configured the Airflow installation to prevent DAG authors from executing arbitrary code
-in the Scheduler and Webserver processes.
+in the Scheduler and API Server processes.
 
 Deploying and protecting Airflow installation
 .............................................
@@ -256,9 +258,9 @@ Limiting DAG Author capabilities
 The Deployment Manager might also use additional mechanisms to prevent DAG authors from executing
 arbitrary code - for example they might introduce tooling around DAG submission that would allow
 to review the code before it is deployed, statically-check it and add other ways to prevent malicious
-code to be submitted. The way how submitting code to DAG folder is done and protected is completely
+code to be submitted. The way submitting code to a DAG bundle is done and protected is completely
 up to the Deployment Manager - Airflow does not provide any tooling or mechanisms around it and it
-expects that the Deployment Manager will provide the tooling to protect access to the DAG folder and
+expects that the Deployment Manager will provide the tooling to protect access to DAG bundles and
 make sure that only trusted code is submitted there.
 
 Airflow does not implement any of those feature natively, and delegates it to the deployment managers
