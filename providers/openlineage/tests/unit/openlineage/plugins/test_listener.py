@@ -900,6 +900,7 @@ class TestOpenLineageListenerAirflow3:
                     run_type=DagRunType.MANUAL,
                     run_after=timezone.datetime(2023, 1, 3, 13, 1, 1),
                     conf=None,
+                    consumed_asset_events=[],
                 ),
                 task_reschedule_count=0,
                 max_tries=1,

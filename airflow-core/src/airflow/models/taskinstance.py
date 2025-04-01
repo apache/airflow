@@ -883,10 +883,28 @@ def _get_template_context(
         assert task_instance.task
         assert task
         assert task.dag
+        assert session
 
-    dag_run = task_instance.get_dagrun(session)
+    def _get_dagrun(session: Session) -> DagRun:
+        dag_run = task_instance.get_dagrun(session)
+        if dag_run in session:
+            return dag_run
+        # The dag_run may not be attached to the session anymore since the
+        # code base is over-zealous with use of session.expunge_all().
+        # Re-attach it if the relation is not loaded so we can load it when needed.
+        info = inspect(dag_run)
+        if info.attrs.consumed_asset_events.loaded_value is not NO_VALUE:
+            return dag_run
+        # If dag_run is not flushed to db at all (e.g. CLI commands using
+        # in-memory objects for ad-hoc operations), just set the value manually.
+        if not info.has_identity:
+            dag_run.consumed_asset_events = []
+            return dag_run
+        return session.merge(dag_run, load=False)
+
+    dag_run = _get_dagrun(session)
+
     validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
-
     ti_context_from_server = TIRunContext(
         dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
         max_tries=task_instance.max_tries,
@@ -916,15 +934,6 @@ def _get_template_context(
         return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
 
     def get_triggering_events() -> dict[str, list[AssetEvent]]:
-        if TYPE_CHECKING:
-            assert session is not None
-
-        # The dag_run may not be attached to the session anymore since the
-        # code base is over-zealous with use of session.expunge_all().
-        # Re-attach it if we get called.
-        nonlocal dag_run
-        if dag_run not in session:
-            dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
