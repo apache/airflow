@@ -38,7 +38,9 @@ with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=dateti
     added_values = add_one.expand(x=[1, 2, 3])
     sum_it(added_values)
 
-with DAG(dag_id="example_task_mapping_second_order", schedule=None, start_date=datetime(2022, 3, 4)):
+with DAG(
+    dag_id="example_task_mapping_second_order", schedule=None, catchup=False, start_date=datetime(2022, 3, 4)
+) as dag2:
 
     @task
     def get_nums():
