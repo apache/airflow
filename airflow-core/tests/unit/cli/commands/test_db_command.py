@@ -193,8 +193,7 @@ class TestCliDb:
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["mysql", "--defaults-extra-file=/tmp/name"])
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306"
-            b"\ndatabase = airflow"
+            b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306\ndatabase = airflow"
         )
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
@@ -208,8 +207,7 @@ class TestCliDb:
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["mysql", "--defaults-extra-file=/tmp/name"])
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306"
-            b"\ndatabase = airflow"
+            b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306\ndatabase = airflow"
         )
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")

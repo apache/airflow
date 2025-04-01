@@ -56,7 +56,7 @@ Response
 .. code-block:: json
 
   {
-    "jwt_token": "<JWT-TOKEN>"
+    "access_token": "<JWT-TOKEN>"
   }
 
 Use the JWT token to call Airflow public API

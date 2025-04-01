@@ -74,7 +74,7 @@ def _get_count(
             ) / len(external_task_group_task_ids)
     else:
         count = session.scalar(_count_stmt(DR, states, dttm_filter, external_dag_id))
-    return cast(int, count)
+    return cast("int", count)
 
 
 def _count_stmt(model, states, dttm_filter, external_dag_id) -> Executable:

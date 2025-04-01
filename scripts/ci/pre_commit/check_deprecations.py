@@ -199,8 +199,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                 if not any(cv.endswith(category_value) for cv in warns_types):
                     errors += 1
                     print(
-                        f"{file}:{category_keyword.lineno}: "
-                        f"category={category_value}, but {expected_types}"
+                        f"{file}:{category_keyword.lineno}: category={category_value}, but {expected_types}"
                     )
                 errors += validate_end_of_life_deprecation_warnings(
                     file_path=file, decorator=decorator, warning_class=category_value

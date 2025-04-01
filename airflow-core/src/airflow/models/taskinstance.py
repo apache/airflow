@@ -80,7 +80,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
@@ -2819,23 +2818,26 @@ class TaskInstance(Base, LoggingMixin):
 
         outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
         if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
-            bad_alias_asset_keys = TaskInstance._get_inactive_asset_unique_keys(
-                {key for key, _ in event_extras_from_aliases},
-                session=session,
-            )
             for (asset_key, extra_key), event_aliase_names in event_extras_from_aliases.items():
-                if asset_key in bad_alias_asset_keys:
-                    continue
                 ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
-                asset_manager.register_asset_change(
+                event = asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=asset_key,
                     source_alias_names=event_aliase_names,
                     extra=dict(extra_key),
                     session=session,
                 )
-            if bad_alias_asset_keys:
-                raise AirflowInactiveAssetAddedToAssetAliasException(bad_alias_asset_keys)
+                if event is None:
+                    ti.log.info("Dynamically creating AssetModel %s", asset_key)
+                    session.add(AssetModel(name=asset_key.name, uri=asset_key.uri))
+                    session.flush()  # So event can set up its asset fk.
+                    asset_manager.register_asset_change(
+                        task_instance=ti,
+                        asset=asset_key,
+                        source_alias_names=event_aliase_names,
+                        extra=dict(extra_key),
+                        session=session,
+                    )
 
         if bad_asset_keys:
             raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)

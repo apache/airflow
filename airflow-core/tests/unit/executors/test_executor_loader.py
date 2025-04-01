@@ -45,7 +45,6 @@ class TestExecutorLoader:
         "executor_name",
         [
             "CeleryExecutor",
-            "DebugExecutor",
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -266,8 +265,8 @@ class TestExecutorLoader:
         "executor_config",
         [
             "Celery::Executor, LocalExecutor",
-            "LocalExecutor, Ce:ler:yExecutor, DebugExecutor",
-            "LocalExecutor, CeleryExecutor:, DebugExecutor",
+            "LocalExecutor, Ce:ler:yExecutor",
+            "LocalExecutor, CeleryExecutor:",
             "LocalExecutor, my_cool_alias:",
             "LocalExecutor, my_cool_alias:CeleryExecutor",
             "LocalExecutor, module.path.first:alias_second",
@@ -282,11 +281,10 @@ class TestExecutorLoader:
         ("executor_config", "expected_value"),
         [
             ("CeleryExecutor", "CeleryExecutor"),
-            ("DebugExecutor", "DebugExecutor"),
             ("KubernetesExecutor", "KubernetesExecutor"),
             ("LocalExecutor", "LocalExecutor"),
             ("CeleryExecutor, LocalExecutor", "CeleryExecutor"),
-            ("LocalExecutor, CeleryExecutor, DebugExecutor", "LocalExecutor"),
+            ("LocalExecutor, CeleryExecutor", "LocalExecutor"),
         ],
     )
     def test_should_support_import_executor_from_core(self, executor_config, expected_value):

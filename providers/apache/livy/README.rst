@@ -50,14 +50,15 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.9.0``
-``apache-airflow-providers-http``  ``>=5.1.0``
-``aiohttp``                        ``>=3.9.2``
-``asgiref``                        ``>=2.3.0``
-=================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-http``           ``>=5.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``aiohttp``                                 ``>=3.9.2``
+``asgiref``                                 ``>=2.3.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -69,14 +70,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-livy[http]
+    pip install apache-airflow-providers-apache-livy[common.compat]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.2.1/changelog.html>`_.

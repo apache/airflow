@@ -34,6 +34,35 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
 
 
+def update_orm_from_pydantic(
+    orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
+) -> None:
+    """Update ORM object from Pydantic object."""
+    # Not all fields match and some need setters, therefore copy partly manually via setters
+    non_update_fields = {"connection_id", "conn_id"}
+    setter_fields = {"password", "extra"}
+    fields_set = pydantic_conn.model_fields_set
+    if "schema_" in fields_set:  # Alias is not resolved correctly, need to patch
+        fields_set.remove("schema_")
+        fields_set.add("schema")
+    fields_to_update = fields_set - non_update_fields - setter_fields
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    conn_data = pydantic_conn.model_dump(by_alias=True)
+    for key, val in conn_data.items():
+        if key in fields_to_update:
+            setattr(orm_conn, key, val)
+
+    if (not update_mask and "password" in pydantic_conn.model_fields_set) or (
+        update_mask and "password" in update_mask
+    ):
+        orm_conn.set_password(pydantic_conn.password)
+    if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
+        update_mask and "extra" in update_mask
+    ):
+        orm_conn.set_extra(pydantic_conn.extra)
+
+
 class BulkConnectionService(BulkService[ConnectionBody]):
     """Service for handling bulk operations on connections."""
 
@@ -108,12 +137,16 @@ class BulkConnectionService(BulkService[ConnectionBody]):
 
             for connection in action.entities:
                 if connection.connection_id in update_connection_ids:
-                    old_connection = self.session.scalar(
+                    old_connection: Connection = self.session.scalar(
                         select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
                     )
+                    if old_connection is None:
+                        raise ValidationError(
+                            f"The Connection with connection_id: `{connection.connection_id}` was not found"
+                        )
                     ConnectionBody(**connection.model_dump())
-                    for key, val in connection.model_dump(by_alias=True).items():
-                        setattr(old_connection, key, val)
+
+                    update_orm_from_pydantic(old_connection, connection)
                     results.success.append(connection.connection_id)
 
         except HTTPException as e:

@@ -36,6 +36,7 @@
 !licenses
 !providers/
 !task-sdk/
+!airflow-ctl/
 
 # Add those folders to the context so that they are available in the CI container
 !scripts

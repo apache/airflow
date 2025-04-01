@@ -26,7 +26,6 @@ from airflow.cli.commands.standalone_command import StandaloneCommand
 from airflow.executors import executor_loader
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
@@ -41,12 +40,10 @@ class TestStandaloneCommand:
             (SEQUENTIAL_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (CELERY_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (KUBERNETES_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
-            (DEBUG_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (LOCAL_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
             (SEQUENTIAL_EXECUTOR, "other_db_conn_string", SEQUENTIAL_EXECUTOR),
             (CELERY_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
             (KUBERNETES_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
-            (DEBUG_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
         ],
     )
     def test_calculate_env(self, conf_executor_name, conf_sql_alchemy_conn, expected_standalone_executor):

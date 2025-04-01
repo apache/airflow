@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CORE_EXECUTOR_NAMES,
-    DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
@@ -61,7 +60,6 @@ class ExecutorLoader:
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",
-        DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
 
     @classmethod

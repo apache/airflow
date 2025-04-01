@@ -121,7 +121,7 @@ def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callab
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -189,7 +189,7 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -240,7 +240,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -269,7 +269,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -303,7 +303,7 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -336,7 +336,7 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 

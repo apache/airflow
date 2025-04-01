@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 import os
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
 import pytest
 import responses
 from botocore.awsrequest import AWSRequest
+
+if TYPE_CHECKING:
+    import s3fs
 
 pytest.importorskip("s3fs")
 
@@ -44,12 +47,10 @@ def _setup_connections():
 
 class TestFilesystem:
     def test_get_s3fs(self):
-        import s3fs
-
         from airflow.providers.amazon.aws.fs.s3 import get_fs
 
         fs = get_fs(conn_id=TEST_CONN, storage_options={"key": "value"})
-        fs = cast(s3fs.S3FileSystem, fs)
+        fs = cast("s3fs.S3FileSystem", fs)
 
         assert "s3" in fs.protocol
         assert fs.config_kwargs["key"] == "value"

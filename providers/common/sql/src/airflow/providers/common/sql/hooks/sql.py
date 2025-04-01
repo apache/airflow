@@ -615,8 +615,8 @@ class DbApiHook(BaseHook):
         is already a common data structure, this method should be ignored.
         """
         if isinstance(result, Sequence):
-            return cast(list[tuple], result)
-        return cast(tuple, result)
+            return cast("list[tuple]", result)
+        return cast("tuple", result)
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
