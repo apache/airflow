@@ -28,7 +28,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
-    BedrockBatchInferenceCompleteSensor,
+    BedrockBatchInferenceSensor,
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
@@ -120,19 +120,24 @@ class TestProvisionedModelThroughputCompleteWaiter(TestBedrockCustomWaitersBase)
 
 class TestBatchInferenceCompleteWaiter(TestBedrockCustomWaitersBase):
     WAITER_NAME = "batch_inference_complete"
+    SENSOR = BedrockBatchInferenceSensor(
+            task_id="task_id",
+            job_arn="job_arn",
+            success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+        )
 
     @pytest.fixture
     def mock_get_job(self):
         with mock.patch.object(self.client, "get_model_invocation_job") as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", BedrockBatchInferenceCompleteSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
     def test_batch_inference_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
         BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
 
-    @pytest.mark.parametrize("state", BedrockBatchInferenceCompleteSensor.FAILURE_STATES)
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     def test_batch_inference_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
@@ -151,19 +156,24 @@ class TestBatchInferenceCompleteWaiter(TestBedrockCustomWaitersBase):
 
 class TestBatchInferenceScheduledWaiter(TestBedrockCustomWaitersBase):
     WAITER_NAME = "batch_inference_scheduled"
+    SENSOR = BedrockBatchInferenceSensor(
+        task_id="task_id",
+        job_arn="job_arn",
+        success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
+    )
 
     @pytest.fixture
     def mock_get_job(self):
         with mock.patch.object(self.client, "get_model_invocation_job") as mock_getter:
             yield mock_getter
 
-    @pytest.mark.parametrize("state", BedrockBatchInferenceCompleteSensor.SUCCESS_STATES)
+    @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
     def test_batch_inference_complete(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
         BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
 
-    @pytest.mark.parametrize("state", BedrockBatchInferenceCompleteSensor.FAILURE_STATES)
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     def test_batch_inference_failed(self, state, mock_get_job):
         mock_get_job.return_value = {"status": state}
 
