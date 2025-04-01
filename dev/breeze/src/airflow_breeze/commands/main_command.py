@@ -306,7 +306,17 @@ def cleanup(all: bool):
     get_console().print("Removing build file and untracked files")
     given_answer = user_confirm("Are you sure with the removal of build files?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = ["git", "clean", "-fdx", "-e", ".idea/", "-e", ".venv/"]
+        system_prune_command_to_execute = [
+            "git",
+            "clean",
+            "-fdx",
+            "-e",
+            ".idea/",
+            "-e",
+            ".vscode/",
+            "-e",
+            ".venv/",
+        ]
         run_command(
             system_prune_command_to_execute,
             check=False,
