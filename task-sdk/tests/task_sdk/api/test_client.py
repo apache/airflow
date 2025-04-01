@@ -226,6 +226,19 @@ class TestClient:
         assert response.status_code == 200
         assert response.request.headers["Authorization"] == "Bearer abc"
 
+    @pytest.mark.parametrize(
+        ["status_code", "description"],
+        [
+            (399, "status code < 400"),
+            (301, "3xx redirect status code"),
+            (600, "status code >= 600"),
+        ],
+    )
+    def test_server_response_error_invalid_status_codes(self, status_code, description):
+        """Test that ServerResponseError.from_response returns None for invalid status codes."""
+        response = httpx.Response(status_code, json={"detail": f"Test {description}"})
+        assert ServerResponseError.from_response(response) is None
+
 
 class TestTaskInstanceOperations:
     """
