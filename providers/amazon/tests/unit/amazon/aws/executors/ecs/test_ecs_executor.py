@@ -35,7 +35,6 @@ from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.workloads import ExecuteTask
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
@@ -417,6 +416,8 @@ class TestAwsEcsExecutor:
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
+        from airflow.executors.workloads import ExecuteTask
+
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
