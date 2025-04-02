@@ -22,6 +22,10 @@ from __future__ import annotations
 
 import os
 
+<<<<<<<< HEAD:dev/breeze/src/airflow_breeze/templates/conf_TEMPLATE.py.jinja2
 os.environ["AIRFLOW_PACKAGE_NAME"] = "{{ PACKAGE_PIP_NAME }}"
+========
+os.environ["AIRFLOW_PACKAGE_NAME"] = "apache-airflow-providers-fab"
+>>>>>>>> 28b9ce5f6a (Simplify tooling by switching completely to uv (#48223)):providers/fab/docs/conf.py
 
 from docs.provider_conf import *  # noqa: F403
