@@ -586,7 +586,7 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     return outlet_events
 
 
-def _get_dag_run_count(dag_id: str, states: list[str], run_ids: list[str]) -> DagRunCountResult:
+def get_dag_run_count(dag_id: str, states: list[str], run_ids: list[str]) -> DagRunCountResult:
     from airflow.sdk.execution_time.comms import GetDagRunCount
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 

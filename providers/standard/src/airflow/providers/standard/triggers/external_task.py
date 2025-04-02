@@ -182,7 +182,7 @@ class DagStateTrigger(BaseTrigger):
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.execution_time.context import _get_dag_run_count
+            from airflow.sdk.execution_time.context import get_dag_run_count
 
             count_runs_ids_or_dates = len(self.run_ids)
         else:
@@ -190,7 +190,7 @@ class DagStateTrigger(BaseTrigger):
 
         while True:
             if AIRFLOW_V_3_0_PLUS:
-                dag_run_count_result = await sync_to_async(_get_dag_run_count)(
+                dag_run_count_result = await sync_to_async(get_dag_run_count)(
                     dag_id=self.dag_id,
                     run_ids=self.run_ids,
                     states=self.states,  # type: ignore[arg-type]
