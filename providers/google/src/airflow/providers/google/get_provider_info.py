@@ -1652,6 +1652,7 @@ def get_provider_info():
             "sqlalchemy-spanner>=1.6.2",
             "tenacity>=8.1.0",
             "immutabledict>=4.2.0",
+            "types-protobuf!=5.29.1.20250402",
         ],
         "optional-dependencies": {
             "apache.beam": [
