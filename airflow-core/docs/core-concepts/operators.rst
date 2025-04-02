@@ -324,7 +324,7 @@ If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literall
   )
 
   python_var = "echo Data interval start:"
-  
+
   t2 = BashOperator(
       task_id="fstring_templating_simple",
       bash_command=f"{python_var} {{{{ ds }}}}",
