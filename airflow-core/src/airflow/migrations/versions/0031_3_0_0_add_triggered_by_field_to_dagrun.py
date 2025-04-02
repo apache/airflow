@@ -56,7 +56,9 @@ def upgrade():
                     native_enum=False,
                     length=50,
                 ),
-                nullable=True,
+                nullable=False,
+                # setting UI as default for existing 2.x dagruns
+                server_default="UI",
             )
         )
 
