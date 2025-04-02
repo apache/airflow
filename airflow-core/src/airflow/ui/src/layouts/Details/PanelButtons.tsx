@@ -42,7 +42,7 @@ type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly setDagView: (x: "graph" | "grid") => void;
-  readonly setLimit: (limit: number) => void;
+  readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 } & StackProps;
 
 const options = createListCollection({
