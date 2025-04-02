@@ -729,7 +729,7 @@ def update_config(args) -> None:
 
     This command scans the current configuration file for parameters that have been renamed,
     removed, or had their default values changed in Airflow 3.0, and automatically updates
-    the configuration file.
+    the configuration file. This command cleans up the existing comments in airflow.cfg
 
     CLI Arguments:
         --dry-run: flag (optional)
@@ -753,7 +753,7 @@ def update_config(args) -> None:
             Example: --ignore-option check_slas
 
     Examples:
-        1. Dry-run mode (print the changes without modifying airflow.cfg):
+        1. Dry-run mode (print the changes in modified airflow.cfg):
             airflow config update --dry-run
 
         2. Update the entire configuration file:

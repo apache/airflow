@@ -504,19 +504,21 @@ class TestCliConfigUpdate:
     def setup_fake_airflow_cfg(self, tmp_path, monkeypatch):
         fake_config = tmp_path / "airflow.cfg"
         fake_config.write_text(
-            "[test_admin]\n"
-            "rename_key = legacy_value\n"
-            "remove_key = to_be_removed\n\n"
-            "[test_core]\n"
-            "dags_folder = /some/path/to/dags\n"
-            "default_key = OldDefault\n"
+            """
+            [test_admin]
+            rename_key = legacy_value
+            remove_key = to_be_removed
+            [test_core]
+            dags_folder = /some/path/to/dags
+            default_key = OldDefault"""
         )
         monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config))
         monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config))
         conf.read(str(fake_config))
-        self.fake_config = fake_config
+        return fake_config
 
-    def test_update_renamed_option(self, monkeypatch):
+    def test_update_renamed_option(self, monkeypatch, setup_fake_airflow_cfg):
+        fake_config = setup_fake_airflow_cfg
         renamed_change = ConfigChange(
             config=ConfigParameter("test_admin", "rename_key"),
             renamed_to=ConfigParameter("test_core", "renamed_key"),
@@ -525,14 +527,15 @@ class TestCliConfigUpdate:
         assert conf.has_option("test_admin", "rename_key")
         args = self.parser.parse_args(["config", "update"])
         config_command.update_config(args)
-        content = self.fake_config.read_text()
+        content = fake_config.read_text()
         admin_section = content.split("[test_admin]")[-1]
         assert "rename_key" not in admin_section
         core_section = content.split("[test_core]")[-1]
         assert "renamed_key" in core_section
         assert "# Renamed from test_admin.rename_key" in content
 
-    def test_update_removed_option(self, monkeypatch):
+    def test_update_removed_option(self, monkeypatch, setup_fake_airflow_cfg):
+        fake_config = setup_fake_airflow_cfg
         removed_change = ConfigChange(
             config=ConfigParameter("test_admin", "remove_key"),
             suggestion="Option removed in Airflow 3.0.",
@@ -541,7 +544,7 @@ class TestCliConfigUpdate:
         assert conf.has_option("test_admin", "remove_key")
         args = self.parser.parse_args(["config", "update"])
         config_command.update_config(args)
-        content = self.fake_config.read_text()
+        content = fake_config.read_text()
         assert "remove_key" not in content
 
     def test_update_no_changes(self, monkeypatch, capsys):
