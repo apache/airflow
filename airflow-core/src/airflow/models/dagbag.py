@@ -668,7 +668,7 @@ class DagBag(LoggingMixin):
 
 def generate_md5_hash(context):
     bundle_name = context.get_current_parameters()["bundle_name"]
-    relative_fileloc = context.get_current_parameters()["relative_fileloc"]
+    relative_fileloc = context.get_current_parameters().get("relative_fileloc", "")
     return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
 
 
@@ -687,12 +687,22 @@ class DagPriorityParsingRequest(Base):
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    relative_fileloc = Column(String(2000), nullable=False)
+    relative_fileloc = Column(String(2000), nullable=True)
 
-    def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
+    def __init__(self, bundle_name: str, relative_fileloc: str = "") -> None:
         super().__init__()
         self.bundle_name = bundle_name
         self.relative_fileloc = relative_fileloc
+
+    def parse_whole_folder(self) -> bool:
+        """
+        Check if this request should parse the whole folder based on relative_fileloc.
+
+        Returns:
+            bool: True if relative_fileloc is None, indicating the whole folder should be parsed,
+                 False otherwise.
+        """
+        return self.relative_fileloc == ""
 
     def __repr__(self) -> str:
         return f"<DagPriorityParsingRequest: bundle_name={self.bundle_name} relative_fileloc={self.relative_fileloc}>"

@@ -12,23 +12,22 @@
 <!-- dag_priority_parsing_request -->
 <g id="node1" class="node">
 <title>dag_priority_parsing_request</title>
-<polygon fill="none" stroke="black" points="21.5,-78.5 21.5,-106.5 341.5,-106.5 341.5,-78.5 21.5,-78.5"/>
+<polygon fill="none" stroke="black" points="28.5,-78.5 28.5,-106.5 334.5,-106.5 334.5,-78.5 28.5,-78.5"/>
 <text text-anchor="start" x="50.5" y="-89.7" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_priority_parsing_request</text>
-<polygon fill="none" stroke="black" points="21.5,-53.5 21.5,-78.5 341.5,-78.5 341.5,-53.5 21.5,-53.5"/>
-<text text-anchor="start" x="26.5" y="-63.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="39.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="44.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
-<text text-anchor="start" x="156.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="21.5,-28.5 21.5,-53.5 341.5,-53.5 341.5,-28.5 21.5,-28.5"/>
-<text text-anchor="start" x="26.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00">bundle_name</text>
-<text text-anchor="start" x="120.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="125.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="246.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="21.5,-3.5 21.5,-28.5 341.5,-28.5 341.5,-3.5 21.5,-3.5"/>
-<text text-anchor="start" x="26.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00">relative_fileloc</text>
-<text text-anchor="start" x="125.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="130.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
-<text text-anchor="start" x="260.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="28.5,-53.5 28.5,-78.5 334.5,-78.5 334.5,-53.5 28.5,-53.5"/>
+<text text-anchor="start" x="33.5" y="-63.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="46.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="51.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
+<text text-anchor="start" x="163.5" y="-63.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="28.5,-28.5 28.5,-53.5 334.5,-53.5 334.5,-28.5 28.5,-28.5"/>
+<text text-anchor="start" x="33.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00">bundle_name</text>
+<text text-anchor="start" x="127.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="132.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="253.5" y="-38.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="28.5,-3.5 28.5,-28.5 334.5,-28.5 334.5,-3.5 28.5,-3.5"/>
+<text text-anchor="start" x="33.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00">relative_fileloc</text>
+<text text-anchor="start" x="132.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="137.5" y="-13.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
 </g>
 <!-- log -->
 <g id="node2" class="node">
