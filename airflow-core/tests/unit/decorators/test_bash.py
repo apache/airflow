@@ -37,7 +37,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
