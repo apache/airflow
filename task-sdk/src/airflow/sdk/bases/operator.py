@@ -331,6 +331,9 @@ else:
         )
         partial_kwargs.setdefault("executor_config", {})
 
+        for k in ("execute", "failure", "success", "retry", "skipped"):
+            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
+
         return OperatorPartial(
             operator_class=operator_class,
             kwargs=partial_kwargs,
