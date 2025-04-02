@@ -76,7 +76,7 @@ To invoke a Claude V2 model using the Completions API you would use:
 
 To invoke a Claude V3 Sonnet model using the Messages API you would use:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_claude_messages]
@@ -262,7 +262,7 @@ recommended over "wait_for_completion" in this case.
 
 Example using an Amazon Bedrock Batch Inference Job:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_batch_inference]
@@ -341,7 +341,7 @@ Bedrock adds batch inference jobs to a queue, and they may take some time to com
 for the job to complete, use TargetState.COMPLETED for the success_state, but if you only want to wait until
 the service confirms that the job is in the queue, use TargetState.SCHEDULED.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
