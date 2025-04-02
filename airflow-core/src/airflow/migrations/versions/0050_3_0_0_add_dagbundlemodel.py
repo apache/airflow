@@ -61,7 +61,7 @@ def upgrade():
         batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
 
     with op.batch_alter_table("dag_version", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("bundle_name", StringID(), nullable=False))
+        batch_op.add_column(sa.Column("bundle_name", StringID()))
         batch_op.add_column(sa.Column("bundle_version", StringID()))
 
 

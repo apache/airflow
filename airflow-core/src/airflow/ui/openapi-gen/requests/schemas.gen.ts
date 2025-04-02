@@ -2463,7 +2463,14 @@ export const $DAGRunResponse = {
       $ref: "#/components/schemas/DagRunState",
     },
     triggered_by: {
-      $ref: "#/components/schemas/DagRunTriggeredByType",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagRunTriggeredByType",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     conf: {
       additionalProperties: true,

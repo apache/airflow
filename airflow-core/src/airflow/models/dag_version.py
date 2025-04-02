@@ -45,7 +45,7 @@ class DagVersion(Base):
     version_number = Column(Integer, nullable=False, default=1)
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)
     dag_model = relationship("DagModel", back_populates="dag_versions")
-    bundle_name = Column(StringID(), nullable=False)
+    bundle_name = Column(StringID(), nullable=True)
     bundle_version = Column(StringID())
     dag_code = relationship(
         "DagCode",
