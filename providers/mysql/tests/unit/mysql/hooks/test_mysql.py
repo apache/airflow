@@ -93,6 +93,35 @@ class TestMySqlHookConn:
         args, kwargs = mock_connect.call_args
         assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
 
+        self.connection.login = "user@domain"
+        self.connection.password = "pass/word!"
+        assert self.db_hook.get_uri() == "mysql://user%40domain:pass%2Fword%21@host/schema?charset=utf-8"
+
+        # Test with mysql-connector-python client
+        self.connection.login = "user@domain"
+        self.connection.password = "password"
+        self.connection.extra = json.dumps({"client": "mysql-connector-python"})
+        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host/schema"
+
+        self.connection.port = 3307
+        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host:3307/schema"
+
+        self.connection.schema = "db/name"
+        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host:3307/db%2Fname"
+
+        self.connection.schema = "schema"
+        self.connection.extra = json.dumps(
+            {
+                "client": "mysql-connector-python",
+                "ssl_ca": "/path/to/ca",
+                "ssl_cert": "/path/to/cert with space",
+            }
+        )
+        assert (
+            self.db_hook.get_uri()
+            == "mysql+mysqlconnector://user%40domain:password@host:3307/schema?ssl_ca=%2Fpath%2Fto%2Fca&ssl_cert=%2Fpath%2Fto%2Fcert+with+space"
+        )
+
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection(self, mock_connect):
         conn = Connection(login="login-conn", password="password-conn", host="host", schema="schema")

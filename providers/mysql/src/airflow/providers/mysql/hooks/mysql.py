@@ -363,3 +363,46 @@ class MySqlHook(DbApiHook):
     def get_openlineage_default_schema(self):
         """MySQL has no concept of schema."""
         return None
+
+    def get_uri(self) -> str:
+        """Get URI for MySQL connection."""
+        from urllib.parse import quote_plus
+
+        conn = self.connection or self.get_connection(self.get_conn_id())
+        conn_schema = self.schema or conn.schema or ""
+        client_name = conn.extra_dejson.get("client", "mysqlclient")
+
+        # Determine URI prefix based on client
+        if client_name == "mysql-connector-python":
+            uri_prefix = "mysql+mysqlconnector://"
+        else:  # default: mysqlclient
+            uri_prefix = "mysql://"
+
+        auth_part = ""
+        if conn.login is not None:
+            auth_part += quote_plus(conn.login)
+            if conn.password is not None:
+                auth_part += ":" + quote_plus(conn.password)
+            auth_part += "@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part += f":{conn.port}"
+
+        schema_part = f"/{quote_plus(conn_schema)}" if conn_schema else ""
+
+        uri = f"{uri_prefix}{auth_part}{host_part}{schema_part}"
+
+        # Add extra connection parameters
+        extra = conn.extra_dejson.copy()
+        if "client" in extra:
+            extra.pop("client")
+
+        params = []
+        for k, v in extra.items():
+            if v:
+                params.append(f"{k}={quote_plus(str(v))}")
+        if params:
+            uri += "?" + "&".join(params)
+
+        return uri
