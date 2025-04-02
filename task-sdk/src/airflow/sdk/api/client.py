@@ -460,7 +460,7 @@ class DagRunOperations:
         states: list[str] | None = None,
         logical_dates: list[datetime] | None = None,
     ) -> DagRunCountResponse:
-        """Get the count of dag runs by run ids and states via the API server."""
+        """Get the count of dag runs by run ids, states, logical_dates via the API server."""
         params = {}
 
         if run_ids:
