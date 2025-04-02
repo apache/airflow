@@ -836,8 +836,8 @@ def _handle_trigger_dag_run(
         defer = TaskDeferred(
             trigger=DagStateTrigger(
                 dag_id=drte.trigger_dag_id,
-                states=drte.allowed_states + drte.failed_states,
-                execution_dates=[drte.logical_date],
+                states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
+                execution_dates=[drte.logical_date],  # type: ignore[list-item]
                 run_ids=[drte.dag_run_id],
                 poll_interval=drte.poke_interval,
             ),
