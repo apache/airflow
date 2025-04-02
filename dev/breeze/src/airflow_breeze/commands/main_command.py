@@ -300,13 +300,25 @@ def cleanup(all: bool):
         if not get_dry_run():
             shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
             AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
-            run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
+            run_command(["uv", "pip", "uninstall", "apache-airflow"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print("Removing build file and untracked files")
+    get_console().print(
+        "Removing build file and untracked files. This also removes files ignored in .gitignore"
+    )
     given_answer = user_confirm("Are you sure with the removal of build files?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = ["git", "clean", "-fdx", "-e", ".idea/", "-e", ".venv/"]
+        system_prune_command_to_execute = [
+            "git",
+            "clean",
+            "-fdx",
+            "-e",
+            ".idea/",
+            "-e",
+            ".vscode/",
+            "-e",
+            ".venv/",
+        ]
         run_command(
             system_prune_command_to_execute,
             check=False,

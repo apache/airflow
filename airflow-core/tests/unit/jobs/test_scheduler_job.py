@@ -5809,8 +5809,7 @@ class TestSchedulerJob:
         """
 
         # Spy on _do_scheduling and _process_executor_events so we can notice
-        # if nothing happened, and abort early! Given we are using
-        # SequentialExecutor this shouldn't be possible -- if there is nothing
+        # if nothing happened, and abort early! If there is nothing
         # to schedule and no events, it means we have stalled.
         def spy_on_return(orig, result):
             def spy(*args, **kwargs):
@@ -5862,8 +5861,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
     def test_mapped_dag(self, dag_id, session, testing_dag_bundle):
         """End-to-end test of a simple mapped dag"""
-        # Use SequentialExecutor for more predictable test behaviour
-        from airflow.executors.sequential_executor import SequentialExecutor
+        from airflow.executors.local_executor import LocalExecutor
 
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
         dagbag.sync_to_db("testing", None)
@@ -5885,7 +5883,7 @@ class TestSchedulerJob:
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
-        executor = SequentialExecutor()
+        executor = LocalExecutor()
 
         job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(job=job)

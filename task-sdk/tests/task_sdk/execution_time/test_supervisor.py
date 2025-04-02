@@ -52,7 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -1404,3 +1404,42 @@ class TestHandleRequest:
             input_stream = BytesIO(val)
             decoder = CommsDecoder(input=input_stream)
             assert decoder.get_message() == mock_response
+
+    def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
+        """Test that API server errors are properly handled and sent back to the task."""
+        error = ServerResponseError(
+            message="API Server Error",
+            request=httpx.Request("GET", "http://test"),
+            response=httpx.Response(500, json={"detail": "Internal Server Error"}),
+        )
+
+        mock_client_method = mocker.Mock(side_effect=error)
+        watched_subprocess.client.task_instances.succeed = mock_client_method
+
+        # Simulate the generator
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+
+        next(generator)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump_json().encode() + b"\n"
+        generator.send(msg)
+
+        # Verify the error was sent back to the task
+        val = watched_subprocess.stdin.getvalue()
+
+        assert val == (
+            b'{"error":"API_SERVER_ERROR","detail":{"status_code":500,"message":"API Server Error",'
+            b'"detail":{"detail":"Internal Server Error"}},"type":"ErrorResponse"}\n'
+        )
+
+        # Verify the error can be decoded correctly
+        input_stream = BytesIO(val)
+        decoder = CommsDecoder(input=input_stream)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            decoder.get_message()
+
+        assert exc_info.value.error.error == ErrorType.API_SERVER_ERROR
+        assert exc_info.value.error.detail == {
+            "status_code": error.response.status_code,
+            "message": str(error),
+            "detail": error.response.json(),
+        }

@@ -64,6 +64,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python-image",
                 "--use-uv",
                 "--uv-http-timeout",
+                "--build-timeout-minutes",
             ],
         },
         {
@@ -84,13 +85,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--dev-apt-command",
                 "--additional-dev-apt-command",
                 "--additional-dev-apt-env",
-            ],
-        },
-        {
-            "name": "Backtracking options",
-            "options": [
-                "--build-timeout-minutes",
-                "--eager-upgrade-additional-requirements",
             ],
         },
         {

@@ -30,7 +30,7 @@ import json
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -144,7 +144,12 @@ class BatchWaitersHook(BatchClientHook):
         return self._waiter_model
 
     def get_waiter(
-        self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
+        self,
+        waiter_name: str,
+        parameters: dict[str, str] | None = None,
+        config_overrides: dict[str, Any] | None = None,
+        deferrable: bool = False,
+        client=None,
     ) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.
@@ -175,7 +180,10 @@ class BatchWaitersHook(BatchClientHook):
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing); see ``.list_waiters``.
 
-        :param _: unused, just here to match the method signature in base_aws
+        :param parameters: unused, just here to match the method signature in base_aws
+        :param config_overrides: unused, just here to match the method signature in base_aws
+        :param deferrable: unused, just here to match the method signature in base_aws
+        :param client: unused, just here to match the method signature in base_aws
 
         :return: a waiter object for the named AWS Batch service
         """

@@ -1123,6 +1123,18 @@ def _generate_get_provider_info_py(context: dict[str, Any], provider_details: Pr
     )
 
 
+def _generate_docs_conf(context: dict[str, Any], provider_details: ProviderPackageDetails):
+    docs_conf_content = render_template(
+        template_name="conf",
+        context=context,
+        extension=".py",
+        keep_trailing_newline=True,
+    )
+    docs_conf_path = provider_details.root_provider_path / "docs" / "conf.py"
+    docs_conf_path.write_text(docs_conf_content)
+    get_console().print(f"[info]Generated {docs_conf_path} for the {provider_details.provider_id} provider\n")
+
+
 def _generate_readme_rst(context: dict[str, Any], provider_details: ProviderPackageDetails):
     get_provider_readme_content = render_template(
         template_name="PROVIDER_README",
@@ -1152,6 +1164,7 @@ def _generate_build_files_for_provider(
     init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
     _generate_readme_rst(context, provider_details)
+    _generate_docs_conf(context, provider_details)
     regenerate_pyproject_toml(context, provider_details, version_suffix=None)
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(

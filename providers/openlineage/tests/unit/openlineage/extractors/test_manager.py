@@ -42,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -282,6 +283,7 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()

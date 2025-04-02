@@ -154,58 +154,9 @@ airflow as a user, but in ``editable`` mode you can also install ``devel`` extra
 you want to run airflow locally for testing and ``doc`` extras that install tools needed to build
 the documentation.
 
-This is the full list of these extras:
 
-
-Core extras
-...........
-
-Those extras are available as regular core airflow extras - they install optional features of Airflow.
-
-  .. START CORE EXTRAS HERE
-
-aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, rabbitmq, s3fs, sentry, statsd, uv
-
-  .. END CORE EXTRAS HERE
-
-Provider extras
-...............
-
-Those extras are available as regular Airflow extras, they install providers in standard builds
-or dependencies that are necessary to enable the feature in editable build.
-
-  .. START PROVIDER EXTRAS HERE
-
-airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
-apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
-apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-cncf.kubernetes, cohere, common.compat, common.io, common.messaging, common.sql, databricks,
-datadog, dbt.cloud, dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, git,
-github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas,
-openlineage, opensearch, opsgenie, oracle, pagerduty, papermill, pgvector, pinecone, postgres,
-presto, qdrant, redis, salesforce, samba, segment, sendgrid, sftp, singularity, slack, smtp,
-snowflake, sqlite, ssh, standard, tableau, telegram, teradata, trino, vertica, weaviate, yandex,
-ydb, zendesk
-
-  .. END PROVIDER EXTRAS HERE
-
-Doc extras
-...........
-
-The ``doc`` extras are not available in the released packages. They are only available when you install
-Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
-Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
-``devel`` extras installed for airflow and providers in order to build documentation for airflow and
-providers respectively). The ``doc`` package is enough to build regular documentation, where
-``doc_gen`` is needed to generate ER diagram we have describing our database.
-
-  .. START DOC EXTRAS HERE
-
-doc, doc-gen
-
-  .. END DOC EXTRAS HERE
+You can read more about those extras in the
+`extras reference <https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html>`_.
 
 -----
 

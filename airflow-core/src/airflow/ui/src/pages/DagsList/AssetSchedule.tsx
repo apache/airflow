@@ -56,7 +56,8 @@ export const AssetSchedule = ({ dag }: Props) => {
             nextRunEvents[0]?.uri
           ) : (
             <>
-              {pendingEvents.length} of {nextRunEvents.length} assets updated
+              {pendingEvents.length}
+              {nextRunEvents.length > 1 ? ` of ${nextRunEvents.length} ` : " "}assets updated
             </>
           )}
         </Button>
