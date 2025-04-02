@@ -849,6 +849,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
+            from airflow.configuration import conf
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
 
@@ -863,12 +864,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             else:
                 dag.sync_to_db(session=self.session)
 
-            if dag.access_control:
+            if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
                     from airflow.www.security_appless import ApplessAirflowSecurityManager
-
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)

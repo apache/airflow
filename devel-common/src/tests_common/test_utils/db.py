@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -298,6 +299,8 @@ def clear_db_dag_bundles():
 
 
 def clear_dag_specific_permissions():
+    if "FabAuthManager" not in conf.get("core", "auth_manager"):
+        return
     try:
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
     except ImportError:
