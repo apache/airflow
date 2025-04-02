@@ -55,6 +55,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
@@ -1003,6 +1004,7 @@ def test_build_task_instance_run_id_different_inputs_gives_different_results():
     assert result1 != result2
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_configuration_precedence_when_creating_ol_client():
     _section_name = "openlineage"
     current_folder = pathlib.Path(__file__).parent.resolve()

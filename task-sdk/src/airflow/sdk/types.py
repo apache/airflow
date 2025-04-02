@@ -66,6 +66,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     max_tries: int
     hostname: str | None = None
     start_date: AwareDatetime
+    end_date: AwareDatetime | None = None
 
     def xcom_pull(
         self,

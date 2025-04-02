@@ -667,7 +667,7 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  triggered_by: DagRunTriggeredByType;
+  triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
   };

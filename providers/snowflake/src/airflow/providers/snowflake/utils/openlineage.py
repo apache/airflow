@@ -306,11 +306,12 @@ def emit_openlineage_events_for_snowflake_queries(
             query_metadata if query_metadata else "not found",
         )
 
-        query_specific_run_facets = {
+        # TODO(potiuk): likely typing here needs to be fixed
+        query_specific_run_facets = {  # type : ignore[assignment]
             "externalQuery": ExternalQueryRunFacet(externalQueryId=query_id, source=query_source_namespace)
         }
         if query_metadata.get("ERROR_MESSAGE"):
-            query_specific_run_facets["error"] = ErrorMessageRunFacet(
+            query_specific_run_facets["error"] = ErrorMessageRunFacet(  # type: ignore[assignment]
                 message=f"{query_metadata.get('ERROR_CODE')} : {query_metadata['ERROR_MESSAGE']}",
                 programmingLanguage="SQL",
             )

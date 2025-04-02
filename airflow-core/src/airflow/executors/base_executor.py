@@ -122,7 +122,6 @@ class BaseExecutor(LoggingMixin):
     is_local: bool = False
     is_production: bool = True
 
-    change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
 
     job_id: None | int | str = None

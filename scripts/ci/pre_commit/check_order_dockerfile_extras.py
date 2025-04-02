@@ -34,7 +34,7 @@ errors: list[str] = []
 
 MY_DIR_PATH = Path(__file__).parent.resolve()
 
-BUILD_ARGS_REF_PATH = AIRFLOW_ROOT_PATH / "docs" / "docker-stack" / "build-arg-ref.rst"
+BUILD_ARGS_REF_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst"
 GLOBAL_CONSTANTS_PATH = (
     AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
 )
