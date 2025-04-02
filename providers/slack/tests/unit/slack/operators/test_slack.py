@@ -168,7 +168,7 @@ class TestSlackAPIPostOperator:
             "Here is a cat video instead\n"
             "https://www.youtube.com/watch?v=J---aiyznGQ",
             "icon_url": "https://raw.githubusercontent.com/apache/"
-            "airflow/main/airflow/www/static/pin_100.png",
+            "airflow/2.5.0/airflow/www/static/pin_100.png",
             "attachments": "[]",
             "blocks": "[]",
         }
