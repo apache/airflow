@@ -372,7 +372,7 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
             super().execute(context=context)
 
 
-class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockAgentHook]):
+class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
     """
     Poll the batch inference job status until it reaches a terminal state; fails if creation fails.
 
