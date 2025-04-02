@@ -106,6 +106,19 @@ def init_plugins(app: FastAPI) -> None:
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
+    for middleware_dict in cast("list", plugins_manager.fastapi_root_middlewares):
+        name = middleware_dict.get("name")
+        middleware = middleware_dict.get("middleware")
+        args = middleware_dict.get("args", [])
+        kwargs = middleware_dict.get("kwargs", {})
+
+        if middleware is None:
+            log.error("'middleware' key is missing for the fastapi middleware: %s", name)
+            continue
+
+        log.debug("Adding root middleware %s", name)
+        app.add_middleware(middleware, *args, **kwargs)
+
 
 def init_flask_plugins(app: FastAPI) -> None:
     """Integrate Flask plugins (plugins from Airflow 2)."""

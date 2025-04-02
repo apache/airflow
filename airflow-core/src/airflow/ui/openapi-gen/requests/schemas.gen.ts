@@ -3666,6 +3666,24 @@ export const $FastAPIAppResponse = {
   description: "Serializer for Plugin FastAPI App responses.",
 } as const;
 
+export const $FastAPIRootMiddlewareResponse = {
+  properties: {
+    middleware: {
+      type: "string",
+      title: "Middleware",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["middleware", "name"],
+  title: "FastAPIRootMiddlewareResponse",
+  description: "Serializer for Plugin FastAPI root middleware responses.",
+} as const;
+
 export const $GridDAGRunwithTIs = {
   properties: {
     dag_run_id: {
@@ -4419,6 +4437,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Apps",
     },
+    fastapi_root_middlewares: {
+      items: {
+        $ref: "#/components/schemas/FastAPIRootMiddlewareResponse",
+      },
+      type: "array",
+      title: "Fastapi Root Middlewares",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -4472,6 +4497,7 @@ export const $PluginResponse = {
     "macros",
     "flask_blueprints",
     "fastapi_apps",
+    "fastapi_root_middlewares",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",

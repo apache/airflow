@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 
@@ -88,6 +89,13 @@ app = FastAPI()
 
 app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
+middleware_with_metadata = {
+    "middleware": TrustedHostMiddleware,
+    "args": [],
+    "kwargs": {"allowed_hosts": ["example.com", "*.example.com"]},
+    "name": "Name of the Middleware",
+}
+
 
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
@@ -105,6 +113,7 @@ class AirflowTestPlugin(AirflowPlugin):
     macros = [plugin_macro]
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
+    fastapi_root_middlewares = [middleware_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [

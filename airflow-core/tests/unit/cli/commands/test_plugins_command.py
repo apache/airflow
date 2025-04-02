@@ -84,6 +84,19 @@ class TestPluginsCommand:
                         "name": "Name of the App",
                     }
                 ],
+                "fastapi_root_middlewares": [
+                    {
+                        "args": [],
+                        "kwargs": {
+                            "allowed_hosts": [
+                                "example.com",
+                                "*.example.com",
+                            ],
+                        },
+                        "middleware": "starlette.middleware.trustedhost.TrustedHostMiddleware",
+                        "name": "Name of the Middleware",
+                    }
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",
