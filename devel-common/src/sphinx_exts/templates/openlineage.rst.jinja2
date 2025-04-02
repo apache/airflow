@@ -31,6 +31,23 @@ The OpenLineage integration can automatically inject information into Spark appl
 The following is a list of supported operators along with the corresponding information that can be injected.
 See :ref:`automatic injection of parent job information <options:spark_inject_parent_job_info>` for more details.
 
+
+apache-airflow-providers-apache-livy
+"""""""""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+
+
+apache-airflow-providers-apache-spark
+"""""""""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+
+
 apache-airflow-providers-google
 """""""""""""""""""""""""""""""
 
