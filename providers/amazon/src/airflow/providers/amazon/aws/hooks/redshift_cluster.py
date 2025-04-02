@@ -93,7 +93,7 @@ class RedshiftHook(AwsBaseHook):
             return "cluster_not_found"
 
     async def cluster_status_async(self, cluster_identifier: str) -> str:
-        async with await self.get_async_conn as client:
+        async with await self.get_async_conn() as client:
             response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)
             return response["Clusters"][0]["ClusterStatus"] if response else None
 
