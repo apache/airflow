@@ -355,9 +355,9 @@ class TestAwsConnectionWrapper:
         # Non init fields should be same in orig_wrapper and child wrapper
         wrap_non_init_fields = [f.name for f in fields(wrap_conn) if not f.init]
         for field in wrap_non_init_fields:
-            assert getattr(wrap_conn, field) == getattr(
-                orig_wrapper, field
-            ), "Expected no changes in non-init values"
+            assert getattr(wrap_conn, field) == getattr(orig_wrapper, field), (
+                "Expected no changes in non-init values"
+            )
 
         # Test overwrite/inherit init fields
         assert wrap_conn.region_name == (region_name or orig_wrapper.region_name)

@@ -125,7 +125,7 @@ def validate_stat(fn: Callable) -> Callable:
             log.exception("Invalid stat name: %s.", stat)
             return None
 
-    return cast(Callable, wrapper)
+    return cast("Callable", wrapper)
 
 
 def stat_name_otel_handler(

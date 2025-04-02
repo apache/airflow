@@ -18,17 +18,9 @@
 from __future__ import annotations
 
 import inspect
-import logging
 from collections.abc import Collection, Mapping
-from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from typing import Any, Callable, TypeVar
 
-from airflow.typing_compat import ParamSpec
-from airflow.utils.types import NOTSET
-
-if TYPE_CHECKING:
-    from airflow.sdk.types import OutletEventAccessorsProtocol
-
-P = ParamSpec("P")
 R = TypeVar("R")
 
 
@@ -58,7 +50,6 @@ class KeywordParameters:
         args: Collection[Any],
         kwargs: Mapping[str, Any],
     ) -> KeywordParameters:
-        import inspect
         import itertools
 
         signature = inspect.signature(func)
@@ -119,65 +110,3 @@ def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
         return func(*args, **kwargs)
 
     return kwargs_func
-
-
-class _ExecutionCallableRunner(Protocol):
-    @staticmethod
-    def run(*args, **kwargs): ...
-
-
-def ExecutionCallableRunner(
-    func: Callable[P, R],
-    outlet_events: OutletEventAccessorsProtocol,
-    *,
-    logger: logging.Logger,
-) -> _ExecutionCallableRunner:
-    """
-    Run an execution callable against a task context and given arguments.
-
-    If the callable is a simple function, this simply calls it with the supplied
-    arguments (including the context). If the callable is a generator function,
-    the generator is exhausted here, with the yielded values getting fed back
-    into the task context automatically for execution.
-
-    This convoluted implementation of inner class with closure is so *all*
-    arguments passed to ``run()`` can be forwarded to the wrapped function. This
-    is particularly important for the argument "self", which some use cases
-    need to receive. This is not possible if this is implemented as a normal
-    class, where "self" needs to point to the ExecutionCallableRunner object.
-
-    The function name violates PEP 8 due to backward compatibility. This was
-    implemented as a class previously.
-
-    :meta private:
-    """
-
-    class _ExecutionCallableRunnerImpl:
-        @staticmethod
-        def run(*args: P.args, **kwargs: P.kwargs) -> R:
-            from airflow.sdk.definitions.asset.metadata import Metadata
-
-            if not inspect.isgeneratorfunction(func):
-                return func(*args, **kwargs)
-
-            result: Any = NOTSET
-
-            def _run():
-                nonlocal result
-                result = yield from func(*args, **kwargs)
-
-            for metadata in _run():
-                if isinstance(metadata, Metadata):
-                    outlet_events[metadata.asset].extra.update(metadata.extra)
-
-                    if metadata.alias:
-                        outlet_events[metadata.alias].add(metadata.asset, extra=metadata.extra)
-
-                    continue
-                logger.warning("Ignoring unknown data of %r received from task", type(metadata))
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("Full yielded value: %r", metadata)
-
-            return result
-
-    return _ExecutionCallableRunnerImpl

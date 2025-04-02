@@ -38,6 +38,7 @@ import { getTaskInstanceLink } from "src/utils/links";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
 const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
@@ -143,7 +144,8 @@ const taskInstanceColumns = (
   },
   {
     accessorKey: "dag_version",
-    cell: ({ row: { original } }) => `v${original.dag_version?.version_number}`,
+    cell: ({ row: { original } }) =>
+      original.dag_version?.version_number === undefined ? "" : `v${original.dag_version.version_number}`,
     enableSorting: false,
     header: "Dag Version",
   },

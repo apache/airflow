@@ -68,11 +68,11 @@ Context
 
 You can access Airflow :ref:`context variables <templates:variables>` by adding them as keyword arguments as shown in the following example:
 
-.. include:: ../../shared/template-examples/taskflow.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
 
 Alternatively, you may add ``**kwargs`` to the signature of your task and all Airflow context variables will be accessible in the ``kwargs`` dict:
 
-.. include:: ../../shared/template-examples/taskflow-kwargs.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow-kwargs.rst
 
 For a full list of context variables, see :ref:`context variables <templates:variables>`.
 
@@ -129,10 +129,10 @@ a ``Asset``, which is ``@attr.define`` decorated, together with TaskFlow.
             return data["data"]
 
         @task()
-        def to_fahrenheit(temps: dict[int, float]) -> dict[int, float]:
+        def to_fahrenheit(temps: dict[int, dict[str, float]]) -> dict[int, float]:
             ret: dict[int, float] = {}
-            for year, celsius in temps.items():
-                ret[year] = float(celsius) * 1.8 + 32
+            for year, info in temps.items():
+                ret[year] = float(info["anomaly"]) * 1.8 + 32
 
             return ret
 

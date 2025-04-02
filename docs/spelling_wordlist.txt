@@ -629,7 +629,6 @@ explicit
 exportingmultiple
 extensibility
 externalbrowser
-exts
 faas
 facebook
 Failover
@@ -729,6 +728,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore
@@ -1590,6 +1590,7 @@ SparkSQL
 sparksql
 SpeechClient
 spegno
+sphinx_exts
 Splunk
 spotahome
 Sql

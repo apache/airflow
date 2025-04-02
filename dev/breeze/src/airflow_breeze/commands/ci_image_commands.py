@@ -82,6 +82,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
 )
+from airflow_breeze.global_constants import UV_VERSION
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -202,8 +203,7 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
         "started to backtrack dependency resolution.\n"
     )
     get_console().print(
-        "[warning]Please follow the instructions in "
-        "`dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
+        "[warning]Please follow the instructions in `dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
     )
     get_console().print(
         "[warning]in the `How to figure out backtracking dependencies` "
@@ -243,15 +243,6 @@ option_build_timeout_minutes = click.option(
     type=int,
     envvar="BUILD_TIMEOUT_MINUTES",
     help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
-)
-
-option_eager_upgrade_additional_requirements = click.option(
-    "--eager-upgrade-additional-requirements",
-    required=False,
-    type=str,
-    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
-    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
-    "(see `breeze ci find-backtracking-candidates`).",
 )
 
 option_upgrade_to_newer_dependencies = click.option(
@@ -294,7 +285,7 @@ option_ci_image_file_to_load = click.option(
     type=click.Path(dir_okay=False, readable=True, path_type=Path, resolve_path=True),
     envvar="IMAGE_FILE",
     help="Optional file name to load the image from - name must follow the convention:"
-    "`ci-image-save-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
+    "`ci-image-save-v3-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
     "linux_amd64 or linux_arm64. If it does not exist in current working dir and if you do not specify "
     "absolute file, it will be searched for in the --image-file-dir.",
 )
@@ -323,7 +314,6 @@ option_ci_image_file_to_load = click.option(
 @option_docker_cache
 @option_docker_host
 @option_dry_run
-@option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
 @option_install_mysql_client_type
@@ -364,7 +354,6 @@ def build(
     disable_airflow_repo_cache: bool,
     docker_cache: str,
     docker_host: str | None,
-    eager_upgrade_additional_requirements: str | None,
     github_repository: str,
     github_token: str | None,
     include_success_outputs,
@@ -437,7 +426,6 @@ def build(
         disable_airflow_repo_cache=disable_airflow_repo_cache,
         docker_cache=docker_cache,
         docker_host=docker_host,
-        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         force_build=True,
         github_repository=github_repository,
         github_token=github_token,
@@ -627,7 +615,7 @@ def save(
         run_command(["docker", "buildx", "du", "--verbose"], check=False)
     escaped_platform = platform.replace("/", "_")
     if not image_file:
-        image_file_to_store = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_store = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute():
         image_file_to_store = image_file
     else:
@@ -673,7 +661,7 @@ def load(
     escaped_platform = platform.replace("/", "_")
 
     if not image_file:
-        image_file_to_load = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_load = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute() or image_file.exists():
         image_file_to_load = image_file
     else:
@@ -684,10 +672,10 @@ def load(
             f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
         )
         sys.exit(1)
-    if not image_file_to_load.name.startswith(f"ci-image-save-{escaped_platform}"):
+    if not image_file_to_load.name.startswith(f"ci-image-save-v3-{escaped_platform}"):
         get_console().print(
             f"[error]The image file {image_file_to_load} does not start with "
-            f"'ci-image-save-{escaped_platform}'. Exiting.[/]"
+            f"'ci-image-save-v3-{escaped_platform}'. Exiting.[/]"
         )
         sys.exit(1)
 
@@ -1021,11 +1009,13 @@ def export_mount_cache(
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
-    dockerfile = """
+    dockerfile = f"""
     # syntax=docker/dockerfile:1.4
-    FROM python:3.9-slim-bookworm
+    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-bookworm-slim
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
+    RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
+    uv cache prune --ci
     RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
     tar -C /root/.cache/ -czf /root/.cache.tar.gz .
     """

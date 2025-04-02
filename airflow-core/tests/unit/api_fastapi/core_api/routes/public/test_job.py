@@ -50,7 +50,7 @@ TESTCASE_MULTIPLE_RUNNER = "should_report_success_for_multiple_runners"
 
 
 class TestJobEndpoint:
-    """Common class for /api/v2/jobs related unit tests."""
+    """Common class for /jobs related unit tests."""
 
     scheduler_jobs: list[Job] | None = None
     job_runners: list[SchedulerJobRunner] | None = None
@@ -129,7 +129,7 @@ class TestGetJobs(TestJobEndpoint):
     @pytest.mark.parametrize(
         "testcase, query_params, expected_status_code, expected_total_entries",
         [
-            # original testcases refactor from tests/cli/commands/remote_commands/test_jobs_command.py
+            # original testcases refactor from tests/cli/commands/test_jobs_command.py
             (TESTCASE_ONE_SCHEDULER, {}, 200, 1),
             (TESTCASE_ONE_SCHEDULER_WITH_HOSTNAME, {"hostname": "HOSTNAME"}, 200, 1),
             (TESTCASE_HA_SCHEDULERS, {"limit": 100}, 200, 3),
@@ -142,7 +142,7 @@ class TestGetJobs(TestJobEndpoint):
     ):
         # setup testcase at runtime based on the `testcase` parameter
         self.setup(testcase)
-        response = test_client.get("/api/v2/jobs", params=query_params)
+        response = test_client.get("/jobs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -165,9 +165,9 @@ class TestGetJobs(TestJobEndpoint):
             assert resp_job == expected_job
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/jobs")
+        response = unauthenticated_test_client.get("/jobs")
         assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/jobs")
+        response = unauthorized_test_client.get("/jobs")
         assert response.status_code == 403

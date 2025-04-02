@@ -51,7 +51,6 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.serialization.serialized_objects import SerializedAssetWatcher
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
@@ -65,7 +64,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG, SerializedAssetWatcher
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
@@ -196,11 +195,11 @@ def _serialize_dag_capturing_errors(
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
-        if dag_was_updated:
-            _sync_dag_perms(dag, session=session)
-        else:
+        if not dag_was_updated:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
+        elif "FabAuthManager" in conf.get("core", "auth_manager"):
+            _sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
@@ -276,7 +275,12 @@ def _update_import_errors(
                 },
             )
             # sending notification when an existing dag import error occurs
-            get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
+            try:
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
+            except Exception:
+                log.exception("error calling listener")
         else:
             session.add(
                 ParseImportError(
@@ -287,7 +291,10 @@ def _update_import_errors(
                 )
             )
             # sending notification when a new dag import error occurs
-            get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
+            try:
+                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
+            except Exception:
+                log.exception("error calling listener")
         session.query(DagModel).filter(
             DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
         ).update({"has_import_errors": True})
@@ -791,7 +798,7 @@ class AssetModelOperation(NamedTuple):
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watchers: list[SerializedAssetWatcher] = (
-                [cast(SerializedAssetWatcher, watcher) for watcher in asset.watchers]
+                [cast("SerializedAssetWatcher", watcher) for watcher in asset.watchers]
                 if name_uri in active_assets
                 else []
             )

@@ -32,6 +32,7 @@ from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import date, datetime
+from enum import Enum
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
@@ -139,6 +140,9 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_CTL_DIST_PATH,
+    AIRFLOW_CTL_ROOT_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
@@ -168,7 +172,7 @@ from airflow_breeze.utils.version_utils import (
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
-from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
+from airflow_breeze.utils.virtualenv_utils import create_venv
 
 if TYPE_CHECKING:
     from packaging.version import Version
@@ -239,7 +243,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.9"
+AIRFLOW_UV_VERSION = "0.6.10"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -247,7 +251,7 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.9"
+UV_VERSION = "0.6.10"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -269,7 +273,14 @@ AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile"
 AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile.dockerignore"
 AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
 
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+
+class DistributionBuildType(Enum):
+    """Type of the build"""
+
+    AIRFLOW = "airflow"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    AIRFLOW_CTL = "airflow-ctl"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -302,25 +313,29 @@ class DistributionPackageInfo(NamedTuple):
         *,
         distribution_format: str,
         dist_directory: Path,
-        build_type: Literal["airflow", "providers", "task-sdk"],
+        build_type: DistributionBuildType,
     ) -> tuple[DistributionPackageInfo, ...]:
-        if build_type == "airflow":
-            default_glob_pattern = "apache[_-]airflow-[0-9]"
-        elif build_type == "task-sdk":
-            default_glob_pattern = "apache[_-]airflow[_-]task[_-]sdk"
+        if build_type == DistributionBuildType.AIRFLOW:
+            default_glob_patterns = ["apache_airflow-", "apache_airflow_core-"]
+        elif build_type == DistributionBuildType.TASK_SDK:
+            default_glob_patterns = ["apache_airflow_task_sdk"]
+        elif build_type == DistributionBuildType.AIRFLOW_CTL:
+            default_glob_patterns = ["apache_airflow_ctl"]
         else:
-            default_glob_pattern = "apache[_-]airflow[_-]providers"
+            default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
         if distribution_format in ["sdist", "both"]:
-            for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
-                if not file.is_file() or "-source.tar.gz" in file.name:
-                    continue
-                dists_info.append(cls.from_sdist(filepath=file))
+            for default_glob_pattern in default_glob_patterns:
+                for file in dist_directory.glob(f"{default_glob_pattern}*.tar.gz"):
+                    if not file.is_file() or "-source.tar.gz" in file.name:
+                        continue
+                    dists_info.append(cls.from_sdist(filepath=file))
         if distribution_format in ["wheel", "both"]:
-            for file in dist_directory.glob(f"{default_glob_pattern}*whl"):
-                if not file.is_file():
-                    continue
-                dists_info.append(cls.from_wheel(filepath=file))
+            for default_glob_pattern in default_glob_patterns:
+                for file in dist_directory.glob(f"{default_glob_pattern}*.whl"):
+                    if not file.is_file():
+                        continue
+                    dists_info.append(cls.from_wheel(filepath=file))
         return tuple(sorted(dists_info, key=lambda di: (di.package, di.dist_type)))
 
     def __str__(self):
@@ -367,9 +382,12 @@ def _build_local_build_image():
 
 def get_current_package_version(package_directory_path: Path) -> str:
     get_console().print("[info]Checking package version\n")
-    package_version = subprocess.check_output(
-        [sys.executable, "-m", "hatch", "version"], text=True, cwd=package_directory_path
-    ).strip()
+    try:
+        package_version = subprocess.check_output(
+            [sys.executable, "-m", "hatch", "version"], text=True, cwd=package_directory_path
+        ).strip()
+    except Exception as ex:
+        print(f"test {ex}")
     get_console().print(f"[success]Version: {package_version}\n")
     return package_version
 
@@ -382,14 +400,52 @@ def set_package_version(version: str, init_file_path: Path, extra_text: str) -> 
     init_file_path.write_text(init_content)
 
 
+def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_path: Path):
+    get_console().print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
+    lines = pyproject_toml_path.read_text().splitlines()
+    updated_lines = []
+    for line in lines:
+        if line.startswith("version = "):
+            if not line.endswith(f'.{version_suffix}"'):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('"') + f'.{version_suffix}"'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
+        if line.strip().startswith('"apache-airflow-providers-') and ">=" in line:
+            if not line.endswith(
+                f'.{version_suffix}"',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
+        updated_lines.append(line)
+    new_content = "\n".join(updated_lines) + "\n"
+    get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
+    # Format the content to make it more readable with rich
+    syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
+    get_console().print(syntax)
+    pyproject_toml_path.write_text(new_content)
+
+
 @contextmanager
-def package_version(version_suffix: str, package_path: Path, init_file_path: Path):
+def package_version(
+    version_suffix: str, package_path: Path, init_file_path: Path, pyproject_toml_paths: list[Path]
+) -> Generator:
     from packaging.version import Version
 
     release_version_matcher = re.compile(r"^\d+\.\d+\.\d+$")
     original_package_version = get_current_package_version(package_path)
-
-    update_version = False
+    original_contents = []
+    for pyproject_toml_path in pyproject_toml_paths:
+        original_contents.append(pyproject_toml_path.read_text())
+    update_version_in__init_py = False
     if version_suffix:
         if original_package_version.endswith(f".{version_suffix}"):
             get_console().print(
@@ -403,32 +459,43 @@ def package_version(version_suffix: str, package_path: Path, init_file_path: Pat
                 f"Overriding the version in code with the {version_suffix}."
             )
             package_version = Version(original_package_version).base_version
-            update_version = True
+            update_version_in__init_py = True
         else:
             package_version = original_package_version
-            update_version = True
-    if update_version:
+            update_version_in__init_py = True
+    if update_version_in__init_py:
         set_package_version(
             f"{package_version}.{version_suffix}", init_file_path=init_file_path, extra_text="temporarily"
+        )
+    for pyproject_toml_path in pyproject_toml_paths:
+        update_version_suffix_in_pyproject_toml(
+            version_suffix=version_suffix,
+            pyproject_toml_path=pyproject_toml_path,
         )
     try:
         yield
     finally:
-        # Set the version back to the original version
-        if update_version:
+        if update_version_in__init_py:
             set_package_version(original_package_version, init_file_path=init_file_path, extra_text="back")
+        for pyproject_toml_path, original_content in zip(pyproject_toml_paths, original_contents):
+            get_console().print(f"[info]Restoring original content of {pyproject_toml_path}.\n")
+            pyproject_toml_path.write_text(original_content)
 
 
 def _build_airflow_packages_with_docker(
     distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
 ):
-    _build_local_build_image()
-    container_id = f"airflow-build-{random.getrandbits(64):08x}"
     with package_version(
         version_suffix=version_suffix_for_pypi,
         package_path=AIRFLOW_CORE_SOURCES_PATH / "..",
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
+        pyproject_toml_paths=[
+            AIRFLOW_ROOT_PATH / "pyproject.toml",
+            AIRFLOW_CORE_ROOT_PATH / "pyproject.toml",
+        ],
     ):
+        _build_local_build_image()
+        container_id = f"airflow-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
                 "docker",
@@ -473,8 +540,6 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 def _build_airflow_packages_with_hatch(
     distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
 ):
-    build_airflow_command = ["hatch", "build", "-c"]
-    apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
@@ -484,6 +549,7 @@ def _build_airflow_packages_with_hatch(
         version_suffix=version_suffix_for_pypi,
         package_path=AIRFLOW_CORE_ROOT_PATH,
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
+        pyproject_toml_paths=[AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"],
     ):
         run_command(
             build_airflow_core_command,
@@ -492,10 +558,13 @@ def _build_airflow_packages_with_hatch(
             cwd=AIRFLOW_CORE_ROOT_PATH,
         )
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
+    build_airflow_command = ["hatch", "build", "-c"]
+    apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
     with package_version(
         version_suffix=version_suffix_for_pypi,
         package_path=AIRFLOW_CORE_ROOT_PATH,
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
+        pyproject_toml_paths=[AIRFLOW_ROOT_PATH / "pyproject.toml"],
     ):
         run_command(
             build_airflow_command,
@@ -503,6 +572,8 @@ def _build_airflow_packages_with_hatch(
             env=env_copy,
             cwd=AIRFLOW_ROOT_PATH,
         )
+    for distribution_path in (AIRFLOW_CORE_ROOT_PATH / "dist").glob("apache_airflow_core*"):
+        shutil.move(distribution_path, AIRFLOW_DIST_PATH)
 
 
 def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...]):
@@ -519,10 +590,9 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                     pip_version=AIRFLOW_PIP_VERSION,
                     uv_version=AIRFLOW_UV_VERSION,
                 )
-                pip_command = create_pip_command(python_path)
                 venv_created = True
 
-            returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
+            returncode = _check_sdist_to_wheel(python_path, di, str(tmp_dir_name))
             if returncode != 0:
                 success_build = False
 
@@ -533,20 +603,17 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
         sys.exit(1)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str) -> int:
+def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo, cwd: str) -> int:
     get_console().print(
         f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
     )
-    result_pip_wheel = run_command(
+    result_build_wheel = run_command(
         [
-            *pip_command,
-            "wheel",
-            "--wheel-dir",
+            "uv",
+            "build",
+            "--wheel",
+            "--out-dir",
             cwd,
-            "--no-deps",
-            "--no-cache",
-            "--no-binary",
-            dist_info.package,
             dist_info.filepath.as_posix(),
         ],
         check=False,
@@ -556,14 +623,14 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[
         capture_output=True,
         text=True,
     )
-    if (returncode := result_pip_wheel.returncode) == 0:
+    if (returncode := result_build_wheel.returncode) == 0:
         get_console().print(
             f"[success]Successfully build wheel from sdist distribution for package {dist_info.package!r}.[/]"
         )
     else:
         get_console().print(
             f"[error]Unable to build wheel from sdist distribution for package {dist_info.package!r}.[/]\n"
-            f"{result_pip_wheel.stdout}\n{result_pip_wheel.stderr}"
+            f"{result_build_wheel.stdout}\n{result_build_wheel.stderr}"
         )
     return returncode
 
@@ -594,7 +661,9 @@ def prepare_airflow_distributions(
         )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="airflow"
+            distribution_format=distribution_format,
+            dist_directory=AIRFLOW_DIST_PATH,
+            build_type=DistributionBuildType.AIRFLOW,
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -611,53 +680,49 @@ def prepare_airflow_distributions(
     get_console().print("[success]Successfully prepared Airflow packages")
 
 
-@release_management.command(
-    name="prepare-task-sdk-distributions",
-    help="Prepare sdist/whl distributions of Airflow Task SDK.",
-)
-@option_distribution_format
-@option_version_suffix_for_pypi
-@option_use_local_hatch
-@option_verbose
-@option_dry_run
-def prepare_task_sdk_distributions(
+def _prepare_non_core_distributions(
     distribution_format: str,
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
+    root_path: Path,
+    init_file_path: Path,
+    distribution_path: Path,
+    distribution_name: str,
+    distribution_pretty_name: str,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
 
-    def _build_package_with_hatch(distribution_format: str):
+    def _build_package_with_hatch(build_distribution_format: str):
         command = [
             "hatch",
             "build",
             "-c",
         ]
-        if distribution_format == "sdist" or distribution_format == "both":
+        if build_distribution_format == "sdist" or build_distribution_format == "both":
             command += ["-t", "sdist"]
-        if distribution_format == "wheel" or distribution_format == "both":
+        if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += ["-t", "wheel"]
         env_copy = os.environ.copy()
         env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
         run_command(
             cmd=command,
-            cwd=TASK_SDK_ROOT_PATH,
+            cwd=root_path,
             env=env_copy,
             check=True,
         )
-        shutil.copytree(TASK_SDK_DIST_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
+        shutil.copytree(distribution_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
-    def _build_package_with_docker(distribution_format: str):
+    def _build_package_with_docker(build_distribution_format: str):
         _build_local_build_image()
         command = "hatch build -c "
-        if distribution_format == "sdist" or distribution_format == "both":
+        if build_distribution_format == "sdist" or build_distribution_format == "both":
             command += "-t sdist "
-        if distribution_format == "wheel" or distribution_format == "both":
+        if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += "-t wheel "
-        container_id = f"airflow-task-sdk-build-{random.getrandbits(64):08x}"
+        container_id = f"airflow-{distribution_name}-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
                 "docker",
@@ -672,7 +737,7 @@ def prepare_task_sdk_distributions(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-w",
-                "/opt/airflow/task-sdk",
+                f"/opt/airflow/{distribution_name}",
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "bash",
                 "-c",
@@ -681,27 +746,32 @@ def prepare_task_sdk_distributions(
             check=False,
         )
         if result.returncode != 0:
-            get_console().print("[error]Error preparing Airflow Task SDK[/]")
+            get_console().print(f"[error]Error preparing Airflow {distribution_pretty_name}[/]")
             fix_ownership_using_docker()
             sys.exit(result.returncode)
         AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         get_console().print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(["docker", "cp", f"{container_id}:/opt/airflow/task-sdk/dist/.", "./dist"], check=True)
+        run_command(
+            ["docker", "cp", f"{container_id}:/opt/airflow/{distribution_name}/dist/.", "./dist"], check=True
+        )
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_ROOT_PATH,
+            package_path=root_path,
             init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_hatch(
-                distribution_format=distribution_format,
+                build_distribution_format=distribution_format,
             )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="task-sdk"
+            distribution_format=distribution_format,
+            dist_directory=distribution_path,
+            build_type=DistributionBuildType(distribution_name),
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -712,13 +782,70 @@ def prepare_task_sdk_distributions(
     else:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_ROOT_PATH,
+            package_path=root_path,
             init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_docker(
-                distribution_format=distribution_format,
+                build_distribution_format=distribution_format,
             )
-    get_console().print("[success]Successfully prepared Airflow Task SDK packages")
+    get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
+
+
+@release_management.command(
+    name="prepare-task-sdk-distributions",
+    help="Prepare sdist/whl distributions of Airflow Task SDK.",
+)
+@option_distribution_format
+@option_version_suffix_for_pypi
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_task_sdk_distributions(
+    distribution_format: str,
+    version_suffix_for_pypi: str,
+    use_local_hatch: bool,
+):
+    _prepare_non_core_distributions(
+        # Argument parameters
+        distribution_format=distribution_format,
+        version_suffix_for_pypi=version_suffix_for_pypi,
+        use_local_hatch=use_local_hatch,
+        # Distribution specific parameters
+        root_path=TASK_SDK_ROOT_PATH,
+        init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+        distribution_path=TASK_SDK_DIST_PATH,
+        distribution_name="task-sdk",
+        distribution_pretty_name="Task SDK",
+    )
+
+
+@release_management.command(
+    name="prepare-airflow-ctl-distributions",
+    help="Prepare sdist/whl distributions of Airflow CTL.",
+)
+@option_distribution_format
+@option_version_suffix_for_pypi
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_airflow_ctl_distributions(
+    distribution_format: str,
+    version_suffix_for_pypi: str,
+    use_local_hatch: bool,
+):
+    _prepare_non_core_distributions(
+        # Argument parameters
+        distribution_format=distribution_format,
+        version_suffix_for_pypi=version_suffix_for_pypi,
+        use_local_hatch=use_local_hatch,
+        # Distribution specific parameters
+        root_path=AIRFLOW_CTL_ROOT_PATH,
+        init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
+        distribution_path=AIRFLOW_CTL_DIST_PATH,
+        distribution_name="airflow-ctl",
+        distribution_pretty_name="CTL",
+    )
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -1098,7 +1225,9 @@ def prepare_provider_distributions(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     packages = DistributionPackageInfo.dist_packages(
-        distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="providers"
+        distribution_format=distribution_format,
+        dist_directory=AIRFLOW_DIST_PATH,
+        build_type=DistributionBuildType.PROVIDERS,
     )
     get_console().print()
     _check_sdist_to_wheel_dists(packages)
@@ -2139,8 +2268,8 @@ def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     return any(
         file.startswith(
             (
-                f'apache_airflow_providers_{package.replace(".", "_")}',
-                f'apache-airflow-providers-{package.replace(".", "-")}',
+                f"apache_airflow_providers_{package.replace('.', '_')}",
+                f"apache-airflow-providers-{package.replace('.', '-')}",
             )
         )
         for file in dist_files
@@ -2153,7 +2282,7 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
     for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') and file.endswith(
+        if file.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and file.endswith(
             ".tar.gz"
         ):
             file = file[: -len(".tar.gz")]
@@ -3420,13 +3549,13 @@ def prepare_helm_chart_package(sign_email: str):
 
     from airflow_breeze.utils.kubernetes_utils import (
         K8S_BIN_BASE_PATH,
-        create_virtualenv,
         make_sure_helm_installed,
+        sync_virtualenv,
     )
 
     chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
     version = chart_yaml_dict["version"]
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_helm_installed()

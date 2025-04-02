@@ -73,6 +73,11 @@ class SFTPToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
+    :param use_stream: Determines the transfer method from SFTP to GCS.
+        When ``False`` (default), the file downloads locally
+        then uploads (may require significant disk space).
+        When ``True``, the file streams directly without using local disk.
+        Defaults to ``False``.
     """
 
     template_fields: Sequence[str] = (
@@ -95,6 +100,7 @@ class SFTPToGCSOperator(BaseOperator):
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
+        use_stream: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,6 +115,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
+        self.use_stream = use_stream
 
     @cached_property
     def sftp_hook(self):
@@ -166,16 +173,22 @@ class SFTPToGCSOperator(BaseOperator):
             destination_object,
         )
 
-        with NamedTemporaryFile("w") as tmp:
-            sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
+        if self.use_stream:
+            dest_bucket = gcs_hook.get_bucket(self.destination_bucket)
+            dest_blob = dest_bucket.blob(destination_object)
+            with dest_blob.open("wb") as write_stream:
+                sftp_hook.retrieve_file(source_path, write_stream, prefetch=self.sftp_prefetch)
+        else:
+            with NamedTemporaryFile("w") as tmp:
+                sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
 
-            gcs_hook.upload(
-                bucket_name=self.destination_bucket,
-                object_name=destination_object,
-                filename=tmp.name,
-                mime_type=self.mime_type,
-                gzip=self.gzip,
-            )
+                gcs_hook.upload(
+                    bucket_name=self.destination_bucket,
+                    object_name=destination_object,
+                    filename=tmp.name,
+                    mime_type=self.mime_type,
+                    gzip=self.gzip,
+                )
 
         if self.move_object:
             self.log.info("Executing delete of %s", source_path)

@@ -55,6 +55,7 @@ mock_config_response = {
         "up_for_retry": "gold",
         "upstream_failed": "orange",
     },
+    "dashboard_alert": [],
 }
 
 
@@ -108,17 +109,17 @@ def mock_config_data():
 class TestGetConfig:
     def test_should_response_200(self, mock_config_data, test_client):
         """
-        Test the /ui/config endpoint to verify response matches mock data.
+        Test the /config endpoint to verify response matches mock data.
         """
-        response = test_client.get("/ui/config")
+        response = test_client.get("/config")
 
         assert response.status_code == 200
         assert response.json() == mock_config_response
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/config")
+        response = unauthenticated_test_client.get("/config")
         assert response.status_code == 401
 
     def test_get_config_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/config")
+        response = unauthorized_test_client.get("/config")
         assert response.status_code == 403

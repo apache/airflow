@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Windows Remote Management (WinRM)",
         "description": "`Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741509045,
+        "source-date-epoch": 1743477848,
         "versions": [
+            "3.9.2",
             "3.9.1",
             "3.9.0",
             "3.7.0",

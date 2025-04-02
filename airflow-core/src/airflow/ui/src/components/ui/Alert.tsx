@@ -22,19 +22,19 @@ import { forwardRef } from "react";
 import { CloseButton } from "./CloseButton";
 
 export type AlertProps = {
-  closable?: boolean;
-  endElement?: React.ReactNode;
-  icon?: React.ReactElement;
-  onClose?: () => void;
-  startElement?: React.ReactNode;
-  title?: React.ReactNode;
+  readonly closable?: boolean;
+  readonly endElement?: React.ReactNode;
+  readonly icon?: React.ReactElement;
+  readonly onClose?: () => void;
+  readonly startElement?: React.ReactNode;
+  readonly title?: React.ReactNode;
 } & Omit<ChakraAlert.RootProps, "title">;
 
 export const Alert = forwardRef<HTMLDivElement, AlertProps>((props, ref) => {
   const { children, closable, endElement, icon, onClose, startElement, title, ...rest } = props;
 
   return (
-    <ChakraAlert.Root ref={ref} {...rest}>
+    <ChakraAlert.Root ref={ref} {...rest} alignItems="center">
       {startElement ?? <ChakraAlert.Indicator>{icon}</ChakraAlert.Indicator>}
       {Boolean(children) ? (
         <ChakraAlert.Content>

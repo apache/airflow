@@ -21,12 +21,12 @@ import { forwardRef } from "react";
 import { LuFile, LuX } from "react-icons/lu";
 
 type VisibilityProps = {
-  clearable?: boolean;
-  showSize?: boolean;
+  readonly clearable?: boolean;
+  readonly showSize?: boolean;
 };
 
 type FileUploadItemProps = {
-  file: File;
+  readonly file: File;
 } & VisibilityProps;
 
 export const Item = forwardRef<HTMLLIElement, FileUploadItemProps>((props, ref) => {

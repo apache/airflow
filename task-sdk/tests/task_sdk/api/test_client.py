@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 from unittest import mock
 
 import httpx
@@ -35,7 +36,13 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, OKResponse, RescheduleTask
+from airflow.sdk.execution_time.comms import (
+    DeferTask,
+    ErrorResponse,
+    OKResponse,
+    RescheduleTask,
+    TaskRescheduleStartDate,
+)
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
@@ -102,10 +109,33 @@ class TestClient:
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
 
+    def test_server_response_error_pickling(self):
+        responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        assert err.args == ("Server returned error",)
+        assert err.detail == {"detail": {"message": "Invalid input"}}
+
+        # Check that the error is picklable
+        pickled = pickle.dumps(err)
+        unpickled = pickle.loads(pickled)
+
+        assert isinstance(unpickled, ServerResponseError)
+
+        # Test that unpickled error has the same attributes as the original
+        assert unpickled.response.json() == {"detail": {"message": "Invalid input"}}
+        assert unpickled.detail == {"detail": {"message": "Invalid input"}}
+        assert unpickled.response.status_code == 404
+        assert unpickled.request.url == "http://error"
+
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_unrecoverable_error(self, mock_sleep):
         responses: list[httpx.Response] = [
-            *[httpx.Response(500, text="Internal Server Error")] * 11,
+            *[httpx.Response(500, text="Internal Server Error")] * 6,
             httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
@@ -115,12 +145,12 @@ class TestClient:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
         assert len(responses) == 3
-        assert mock_sleep.call_count == 9
+        assert mock_sleep.call_count == 4
 
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_recovered(self, mock_sleep):
         responses: list[httpx.Response] = [
-            *[httpx.Response(500, text="Internal Server Error")] * 3,
+            *[httpx.Response(500, text="Internal Server Error")] * 2,
             httpx.Response(200, json={"detail": "Recovered from error"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
@@ -129,7 +159,7 @@ class TestClient:
         response = client.get("http://error")
         assert response.status_code == 200
         assert len(responses) == 1
-        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_count == 2
 
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_overload(self, mock_sleep):
@@ -173,6 +203,42 @@ class TestClient:
         assert len(responses) == 1
         assert mock_sleep.call_count == 0
 
+    def test_token_renewal(self):
+        responses: list[httpx.Response] = [
+            httpx.Response(200, json={"ok": "1"}),
+            httpx.Response(404, json={"var": "not_found"}, headers={"Refreshed-API-Token": "abc"}),
+            httpx.Response(200, json={"ok": "3"}),
+        ]
+        client = make_client_w_responses(responses)
+        response = client.get("/")
+        assert response.status_code == 200
+        assert client.auth is not None
+        assert not client.auth.token
+        with pytest.raises(ServerResponseError):
+            response = client.get("/")
+
+        # Even thought it was Not Found, we should still respect the header
+        assert client.auth is not None
+        assert client.auth.token == "abc"
+
+        # Test that the next request is made with that new auth token
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.request.headers["Authorization"] == "Bearer abc"
+
+    @pytest.mark.parametrize(
+        ["status_code", "description"],
+        [
+            (399, "status code < 400"),
+            (301, "3xx redirect status code"),
+            (600, "status code >= 600"),
+        ],
+    )
+    def test_server_response_error_invalid_status_codes(self, status_code, description):
+        """Test that ServerResponseError.from_response returns None for invalid status codes."""
+        response = httpx.Response(status_code, json={"detail": f"Test {description}"})
+        assert ServerResponseError.from_response(response) is None
+
 
 class TestTaskInstanceOperations:
     """
@@ -198,7 +264,7 @@ class TestTaskInstanceOperations:
         def handle_request(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             call_count += 1
-            if call_count < 4:
+            if call_count < 3:
                 return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == f"/task-instances/{ti_id}/run":
                 actual_body = json.loads(request.read())
@@ -214,7 +280,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         resp = client.task_instances.start(ti_id, 100, start_date)
         assert resp == ti_context
-        assert call_count == 4
+        assert call_count == 3
 
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
@@ -500,6 +566,30 @@ class TestXCOMOperations:
             task_id="task_id",
             key="key",
             map_index=2,
+        )
+        assert isinstance(result, XComResponse)
+        assert result.key == "test_key"
+        assert result.value == "test_value"
+
+    def test_xcom_get_success_with_include_prior_dates(self):
+        # Simulate a successful response from the server when getting an xcom with include_prior_dates passed
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key" and request.url.params.get(
+                "include_prior_dates"
+            ):
+                return httpx.Response(
+                    status_code=201,
+                    json={"key": "test_key", "value": "test_value"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            include_prior_dates=True,
         )
         assert isinstance(result, XComResponse)
         assert result.key == "test_key"
@@ -813,3 +903,25 @@ class TestDagRunOperations:
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
+
+
+class TestTaskRescheduleOperations:
+    def test_get_start_date(self):
+        """Test that the client can get the start date of a task reschedule"""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-reschedules/{ti_id}/start_date":
+                assert request.url.params.get("try_number") == "1"
+
+                return httpx.Response(
+                    status_code=200,
+                    json="2024-01-01T00:00:00Z",
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_reschedule_start_date(id=ti_id, try_number=1)
+
+        assert isinstance(result, TaskRescheduleStartDate)
+        assert result.start_date == "2024-01-01T00:00:00Z"

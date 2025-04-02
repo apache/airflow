@@ -29,7 +29,7 @@ def get_provider_info():
         "state": "not-ready",
         "source-date-epoch": 1741121873,
         "versions": [
-            "2.0.0b1",
+            "2.0.0",
             "1.5.2",
             "1.5.1",
             "1.5.0",
@@ -86,12 +86,16 @@ def get_provider_info():
         "dependencies": [
             "apache-airflow>=3.0.0.dev0",
             "apache-airflow-providers-common-compat>=1.2.1",
-            "flask>=2.2,<2.3",
+            "blinker>=1.6.2",
+            "flask>=2.2.1,<2.3",
             "flask-appbuilder==4.5.3",
             "flask-login>=0.6.2",
+            "flask-session>=0.4.0,<0.6",
+            "flask-wtf>=1.1.0",
             "connexion[flask]>=2.14.2,<3.0",
             "jmespath>=0.7.0",
+            "werkzeug>=2.2,<4",
         ],
         "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},
-        "devel-dependencies": ["kerberos>=1.3.0"],
+        "devel-dependencies": ["kerberos>=1.3.0", "requests_kerberos>=0.14.0"],
     }

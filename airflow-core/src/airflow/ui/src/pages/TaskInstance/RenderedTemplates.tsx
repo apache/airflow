@@ -38,7 +38,7 @@ export const RenderedTemplates = () => {
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
             if (value !== null && value !== undefined) {
-              const renderedValue: string = typeof value === "object" ? JSON.stringify(value) : String(value);
+              const renderedValue = JSON.stringify(value);
 
               return (
                 <Table.Row key={key}>

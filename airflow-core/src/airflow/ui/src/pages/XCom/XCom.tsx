@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { TruncatedText } from "src/components/TruncatedText";
+import { getTaskInstanceLinkFromObj } from "src/utils/links";
 
 import { XComEntry } from "./XComEntry";
 
@@ -33,6 +35,49 @@ const columns: Array<ColumnDef<XComResponse>> = [
     accessorKey: "key",
     enableSorting: false,
     header: "Key",
+  },
+  {
+    accessorKey: "dag_id",
+    cell: ({ row: { original } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+      </Link>
+    ),
+    header: "Dag",
+  },
+  {
+    accessorKey: "run_id",
+    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
+          <TruncatedText text={original.run_id} />
+        </RouterLink>
+      </Link>
+    ),
+    header: "Run Id",
+  },
+  {
+    accessorKey: "task_id",
+    cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink
+          to={getTaskInstanceLinkFromObj({
+            dagId: original.dag_id,
+            dagRunId: original.run_id,
+            mapIndex: original.map_index,
+            taskId: original.task_id,
+          })}
+        >
+          <TruncatedText text={original.task_id} />
+        </RouterLink>
+      </Link>
+    ),
+    enableSorting: false,
+    header: "Task ID",
+  },
+  {
+    accessorKey: "map_index",
+    header: "Map Index",
   },
   {
     cell: ({ row: { original } }) => (

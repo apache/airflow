@@ -21,8 +21,8 @@ import { AbsoluteCenter, Button as ChakraButton, Span, Spinner } from "@chakra-u
 import * as React from "react";
 
 type ButtonLoadingProps = {
-  loading?: boolean;
-  loadingText?: React.ReactNode;
+  readonly loading?: boolean;
+  readonly loadingText?: React.ReactNode;
 };
 
 export type ButtonProps = {} & ButtonLoadingProps & ChakraButtonProps;

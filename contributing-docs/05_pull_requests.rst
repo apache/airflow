@@ -48,8 +48,7 @@ these guidelines:
 -   Maintainers will not merge a PR that regresses linting or does not pass CI tests (unless you have good
     justification that it a transient error or something that is being fixed in other PR).
 
--   Maintainers will not merge PRs that have unresolved conversation. Note! This is experimental - to be
-    assessed at the end of January 2024 if we want to continue it.
+-   Maintainers will not merge PRs that have unresolved conversation.
 
 -   We prefer that you ``rebase`` your PR (and do it quite often) rather than merge. It leads to
     easier reviews and cleaner changes where you know exactly what changes you've done. You can learn more
@@ -101,23 +100,20 @@ these guidelines:
 -   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`__.
     This makes the lives of those who come after you (and your future self) a lot easier.
 
-Experimental Requirement to resolve all conversations
------------------------------------------------------
+Requirement to resolve all conversations
+----------------------------------------
 
-In December 2023 we enabled - experimentally - the requirement to resolve all the open conversations in a
+We have decided to enable the requirement to resolve all the open conversations in a
 PR in order to make it merge-able. You will see in the status of the PR that it needs to have all the
 conversations resolved before it can be merged.
 
-This is an experiment and we will evaluate by the end of January 2024. If it turns out to be a good idea,
-we will keep it enabled in the future.
-
-The goal of this experiment is to make it easier to see when there are some conversations that are not
+The goal is to make it easier to see when there are some conversations that are not
 resolved for everyone involved in the PR - author, reviewers and maintainers who try to figure out if
 the PR is ready to merge and - eventually - merge it. The goal is also to use conversations more as a "soft" way
 to request changes and limit the use of ``Request changes`` status to only those cases when the maintainer
-is sure that the PR should not be merged in the current state. That should lead to faster review/merge
+is sure that the PR should not be merged in the current state. This leads to faster review/merge
 cycle and less problems with stalled PRs that have ``Request changes`` status but all the issues are
-already solved (assuming that maintainers will start treating the conversations this way).
+already solved.
 
 .. _coding_style:
 

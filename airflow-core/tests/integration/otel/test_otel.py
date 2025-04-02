@@ -106,14 +106,14 @@ def wait_for_dag_run_and_check_span_status(
             if dag_run_state in [State.SUCCESS, State.FAILED]:
                 break
 
-    assert (
-        dag_run_state == State.SUCCESS
-    ), f"Dag run did not complete successfully. Final state: {dag_run_state}."
+    assert dag_run_state == State.SUCCESS, (
+        f"Dag run did not complete successfully. Final state: {dag_run_state}."
+    )
 
     if span_status is not None:
-        assert (
-            dag_run_span_status == span_status
-        ), f"Dag run span status isn't {span_status} as expected.Actual status: {dag_run_span_status}."
+        assert dag_run_span_status == span_status, (
+            f"Dag run span status isn't {span_status} as expected.Actual status: {dag_run_span_status}."
+        )
 
 
 def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, span_status: str):
@@ -128,9 +128,9 @@ def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, sp
         )
 
         assert dag_run.state == state, f"Dag Run state isn't {state}. State: {dag_run.state}"
-        assert (
-            dag_run.span_status == span_status
-        ), f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
+        assert dag_run.span_status == span_status, (
+            f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
+        )
 
 
 def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_status: str | None):
@@ -147,9 +147,9 @@ def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_s
         assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
 
         if span_status is not None:
-            assert (
-                ti.span_status == span_status
-            ), f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
+            assert ti.span_status == span_status, (
+                f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
+            )
 
 
 def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool = True):
@@ -753,25 +753,25 @@ class TestOtelIntegration:
             celery_worker_process.wait()
 
             celery_status = celery_worker_process.poll()
-            assert (
-                celery_status is not None
-            ), "The celery worker process status is None, which means that it hasn't terminated as expected."
+            assert celery_status is not None, (
+                "The celery worker process status is None, which means that it hasn't terminated as expected."
+            )
 
             scheduler_process.terminate()
             scheduler_process.wait()
 
             scheduler_status = scheduler_process.poll()
-            assert (
-                scheduler_status is not None
-            ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            assert scheduler_status is not None, (
+                "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            )
 
             apiserver_process.terminate()
             apiserver_process.wait()
 
             apiserver_status = apiserver_process.poll()
-            assert (
-                apiserver_status is not None
-            ), "The apiserver process status is None, which means that it hasn't terminated as expected."
+            assert apiserver_status is not None, (
+                "The apiserver process status is None, which means that it hasn't terminated as expected."
+            )
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)
@@ -825,25 +825,25 @@ class TestOtelIntegration:
             celery_worker_process.wait()
 
             celery_status = celery_worker_process.poll()
-            assert (
-                celery_status is not None
-            ), "The celery worker process status is None, which means that it hasn't terminated as expected."
+            assert celery_status is not None, (
+                "The celery worker process status is None, which means that it hasn't terminated as expected."
+            )
 
             scheduler_process.terminate()
             scheduler_process.wait()
 
             scheduler_status = scheduler_process.poll()
-            assert (
-                scheduler_status is not None
-            ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            assert scheduler_status is not None, (
+                "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            )
 
             apiserver_process.terminate()
             apiserver_process.wait()
 
             apiserver_status = apiserver_process.poll()
-            assert (
-                apiserver_status is not None
-            ), "The apiserver process status is None, which means that it hasn't terminated as expected."
+            assert apiserver_status is not None, (
+                "The apiserver process status is None, which means that it hasn't terminated as expected."
+            )
 
         out, err = capfd.readouterr()
         log.info("out-start --\n%s\n-- out-end", out)

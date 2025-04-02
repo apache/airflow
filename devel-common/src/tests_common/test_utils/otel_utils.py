@@ -254,9 +254,9 @@ def assert_parent_children_spans(
 
     # Assert that all given children names match the names from the dictionary.
     for name in children_names:
-        assert (
-            name in names_from_dict
-        ), f"Span name '{name}' wasn't found in children span names. It's not a child of span '{parent_name}'."
+        assert name in names_from_dict, (
+            f"Span name '{name}' wasn't found in children span names. It's not a child of span '{parent_name}'."
+        )
 
 
 def assert_parent_children_spans_for_non_root(span_dict: dict, parent_name: str, children_names: list[str]):
@@ -272,9 +272,9 @@ def assert_parent_children_spans_for_non_root(span_dict: dict, parent_name: str,
 
     # Assert that all given children names match the names from the dictionary.
     for name in children_names:
-        assert (
-            name in names_from_dict
-        ), f"Span name '{name}' wasn't found in children span names. It's not a child of span '{parent_name}'."
+        assert name in names_from_dict, (
+            f"Span name '{name}' wasn't found in children span names. It's not a child of span '{parent_name}'."
+        )
 
 
 def assert_span_not_in_children_spans(
@@ -297,8 +297,8 @@ def assert_span_not_in_children_spans(
 
     if span_exists:
         assert child_id is not None, f"Span '{child_name}' should exist but it doesn't."
-        assert (
-            child_id not in child_span_id_list
-        ), f"Span '{child_name}' shouldn't be a child of span '{parent_name}', but it is."
+        assert child_id not in child_span_id_list, (
+            f"Span '{child_name}' shouldn't be a child of span '{parent_name}', but it is."
+        )
     else:
         assert child_id is None, f"Span '{child_name}' shouldn't exist but it does."

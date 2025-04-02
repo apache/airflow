@@ -146,12 +146,6 @@ class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAs
     main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
-class AirflowInactiveAssetAddedToAssetAliasException(_AirflowExecuteWithInactiveAssetExecption):
-    """Raise when inactive assets are added to an asset alias."""
-
-    main_message = "The following assets accessed by an AssetAlias are inactive"
-
-
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 

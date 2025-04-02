@@ -52,6 +52,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
+  const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const { fitView, getZoom } = useReactFlow();
 
@@ -69,9 +70,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box height="100%" position="relative" pr={2}>
-              <PanelButtons dagView={dagView} setDagView={setDagView} />
-              {dagView === "graph" ? <Graph /> : <Grid />}
+            <Box height="100%" overflowY="auto" position="relative" pr={2}>
+              <PanelButtons dagView={dagView} limit={limit} setDagView={setDagView} setLimit={setLimit} />
+              {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
             </Box>
           </Panel>
           <PanelResizeHandle

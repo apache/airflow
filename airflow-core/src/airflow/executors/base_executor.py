@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -115,7 +114,7 @@ class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
 
-    :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
+    :param parallelism: how many jobs should run at one time.
     """
 
     active_spans = ThreadSafeDict()
@@ -126,7 +125,6 @@ class BaseExecutor(LoggingMixin):
     is_local: bool = False
     is_production: bool = True
 
-    change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
 
     job_id: None | int | str = None
@@ -165,6 +163,10 @@ class BaseExecutor(LoggingMixin):
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
+
+        if self.parallelism <= 0:
+            raise ValueError("parallelism is set to 0 or lower")
+
         """
         Deque for storing task event log messages.
 
@@ -271,10 +273,7 @@ class BaseExecutor(LoggingMixin):
     @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+        open_slots = self.parallelism - len(self.running)
 
         num_running_tasks = len(self.running)
         num_queued_tasks = len(self.queued_tasks)
@@ -328,8 +327,7 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
         if open_slots == 0:
-            if self.parallelism:
-                self.log.info("Executor parallelism limit reached. 0 open slots.")
+            self.log.info("Executor parallelism limit reached. 0 open slots.")
         else:
             self.log.debug("%s open slots for executor %s", open_slots, name)
 
@@ -680,10 +678,7 @@ class BaseExecutor(LoggingMixin):
     @property
     def slots_available(self):
         """Number of new tasks this executor instance can accept."""
-        if self.parallelism:
-            return self.parallelism - len(self.running) - len(self.queued_tasks)
-        else:
-            return sys.maxsize
+        return self.parallelism - len(self.running) - len(self.queued_tasks)
 
     @property
     def slots_occupied(self):

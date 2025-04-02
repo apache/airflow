@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 pytestmark = pytest.mark.db_test
 
 
+@skip_if_force_lowest_dependencies_marker
 class TestGetPlugins:
     @pytest.mark.parametrize(
         "query_params, expected_total_entries, expected_names",
@@ -56,7 +59,7 @@ class TestGetPlugins:
     def test_should_respond_200(
         self, test_client, session, query_params, expected_total_entries, expected_names
     ):
-        response = test_client.get("/api/v2/plugins", params=query_params)
+        response = test_client.get("/plugins", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -64,9 +67,9 @@ class TestGetPlugins:
         assert [plugin["name"] for plugin in body["plugins"]] == expected_names
 
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/plugins")
+        response = unauthenticated_test_client.get("/plugins")
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/plugins")
+        response = unauthorized_test_client.get("/plugins")
         assert response.status_code == 403

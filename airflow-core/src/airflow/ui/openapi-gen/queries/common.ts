@@ -1,4 +1,4 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.0
+// generated with @7nohe/openapi-react-query-codegen@1.6.2
 import { UseQueryResult } from "@tanstack/react-query";
 
 import {
@@ -17,6 +17,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -1794,6 +1795,22 @@ export const UseLoginServiceLogoutKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useLoginServiceLogoutKey, ...(queryKey ?? [{ next }])];
+export type DefaultServiceNotFoundHandlerDefaultResponse = Awaited<
+  ReturnType<typeof DefaultService.notFoundHandler>
+>;
+export type DefaultServiceNotFoundHandlerQueryResult<
+  TData = DefaultServiceNotFoundHandlerDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDefaultServiceNotFoundHandlerKey = "DefaultServiceNotFoundHandler";
+export const UseDefaultServiceNotFoundHandlerKeyFn = (
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDefaultServiceNotFoundHandlerKey, ...(queryKey ?? [{ restOfPath }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;

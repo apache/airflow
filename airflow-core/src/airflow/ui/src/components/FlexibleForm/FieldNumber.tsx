@@ -51,7 +51,7 @@ export const FieldNumber = ({ name }: FlexibleFormElementProps) => {
       name={`element_${name}`}
       onValueChange={(event) => handleChange(event.value)}
       size="sm"
-      value={String(param.value ?? "")}
+      value={JSON.stringify(param.value ?? "")}
     >
       <NumberInputField />
     </NumberInputRoot>

@@ -20,13 +20,13 @@ import { RadioCard } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type RadioCardItemProps = {
-  addon?: React.ReactNode;
-  description?: React.ReactNode;
-  icon?: React.ReactElement;
-  indicator?: React.ReactNode | null;
-  indicatorPlacement?: "end" | "inside" | "start";
-  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-  label?: React.ReactNode;
+  readonly addon?: React.ReactNode;
+  readonly description?: React.ReactNode;
+  readonly icon?: React.ReactElement;
+  readonly indicator?: React.ReactNode | null;
+  readonly indicatorPlacement?: "end" | "inside" | "start";
+  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  readonly label?: React.ReactNode;
 } & RadioCard.ItemProps;
 
 export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>((props, ref) => {

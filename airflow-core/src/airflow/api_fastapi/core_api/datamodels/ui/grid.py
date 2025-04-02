@@ -21,6 +21,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -52,7 +53,6 @@ class GridDAGRunwithTIs(BaseModel):
     logical_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
-    version_number: int | None
     note: str | None
     task_instances: list[GridTaskInstanceSummary]
 
@@ -61,3 +61,4 @@ class GridResponse(BaseModel):
     """Response model for the Grid UI."""
 
     dag_runs: list[GridDAGRunwithTIs]
+    structure: StructureDataResponse

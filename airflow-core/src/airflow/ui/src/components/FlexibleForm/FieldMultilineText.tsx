@@ -42,7 +42,7 @@ export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
       onChange={(event) => handleChange(event.target.value)}
       rows={6}
       size="sm"
-      value={String(param.value ?? "")}
+      value={JSON.stringify(param.value ?? "")}
     />
   );
 };

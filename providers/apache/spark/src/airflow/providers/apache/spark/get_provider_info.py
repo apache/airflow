@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Spark",
         "description": "`Apache Spark <https://spark.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508415,
+        "source-date-epoch": 1743477786,
         "versions": [
+            "5.1.1",
             "5.0.1",
             "5.0.0",
             "4.11.3",
@@ -125,10 +126,12 @@ def get_provider_info():
                 "name": "pyspark",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "pyspark>=3.1.3", "grpcio-status>=1.59.0"],
-        "optional-dependencies": {
-            "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.4.0"],
-            "common.compat": ["apache-airflow-providers-common-compat"],
-        },
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.5.0",
+            "pyspark>=3.1.3",
+            "grpcio-status>=1.59.0",
+        ],
+        "optional-dependencies": {"cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.4.0"]},
         "devel-dependencies": [],
     }

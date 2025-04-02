@@ -52,7 +52,7 @@
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow-core/src/airflow/cli/commands/local_commands/triggerer_command.py @dstandish @hussein-awala
+/airflow-core/src/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
 /airflow-core/src/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
 /airflow-core/src/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
 /docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala
@@ -77,12 +77,14 @@
 /providers/apache/iceberg/ @Fokko
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb
-/dev/ @potiuk @ashb @jedcunningham
-/docker_tests/ @potiuk @ashb
-/scripts/ @potiuk @ashb
-Dockerfile @potiuk @ashb
-Dockerfile.ci @potiuk @ashb
+/.github/workflows/ @potiuk @ashb @gopidesupavan
+/dev/ @potiuk @ashb @jedcunningham @gopidesupavan
+/docker-tests/ @potiuk @ashb @gopidesupavan
+/kubernetes-tests/ @potiuk @ashb @gopidesupavan
+/helm-tests/ @dstandish @jedcunningham
+/scripts/ @potiuk @ashb @gopidesupavan
+Dockerfile @potiuk @ashb @gopidesupavan
+Dockerfile.ci @potiuk @ashb @gopidesupavan
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md @kaxil

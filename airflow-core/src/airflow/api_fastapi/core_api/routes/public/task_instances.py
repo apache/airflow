@@ -61,7 +61,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstancesBatchBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
@@ -307,7 +307,7 @@ def get_task_instance_tries(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
+        task_instances=cast("list[TaskInstanceHistoryResponse]", task_instances),
         total_entries=len(task_instances),
     )
 
@@ -853,6 +853,7 @@ def patch_task_instance(
     task_id: str,
     request: Request,
     body: PatchTaskInstanceBody,
+    user: GetUserDep,
     session: SessionDep,
     map_index: int = -1,
     update_mask: list[str] | None = Query(None),
@@ -883,13 +884,11 @@ def patch_task_instance(
             ti = tis[0] if isinstance(tis, list) else tis
         elif key == "note":
             if update_mask or body.note is not None:
-                # @TODO: replace None passed for user_id with actual user id when
-                # permissions and auth is in place.
                 if ti.task_instance_note is None:
-                    ti.note = (body.note, None)
+                    ti.note = (body.note, user.get_id())
                 else:
                     ti.task_instance_note.content = body.note
-                    ti.task_instance_note.user_id = None
+                    ti.task_instance_note.user_id = user.get_id()
                 session.commit()
 
     return TaskInstanceResponse.model_validate(ti)

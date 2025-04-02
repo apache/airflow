@@ -511,12 +511,12 @@ Using Breeze
 
         Direct links to those services that you can use from the host:
 
-          * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
-          * API server:    http://127.0.0.1:28080
-          * Flower:    http://127.0.0.1:25555
-          * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-          * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-          * Redis:     redis://127.0.0.1:26379/0
+          * ssh connection for remote debugging: ssh -p 12322 airflow@localhost (password: airflow)
+          * API server:    http://localhost:28080
+          * Flower:    http://localhost:25555
+          * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
+          * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
+          * Redis:     redis://localhost:26379/0
 
 
 .. raw:: html
@@ -539,32 +539,32 @@ Using Breeze
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# tmux
+     tmux
 
   3. Press Ctrl + B and "
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
+    airflow scheduler
 
 
   4. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow api-server
+    airflow api-server
 
   5. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow dag-processor
+    airflow dag-processor
 
   6. Press Ctrl + B and up arrow followed by Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow triggerer
+    airflow triggerer
 
   7. Press Ctrl + B followed by (Optional step for better tile arrangement)
 
@@ -588,7 +588,7 @@ Using Breeze
       </div>
 
 3. Setup a PostgreSQL database in your database management tool of choice
-   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   (e.g. DBeaver, DataGrip) with host ``localhost``, port ``25433``,
    user ``postgres``,  password ``airflow``, and default schema ``airflow``
 
    .. raw:: html

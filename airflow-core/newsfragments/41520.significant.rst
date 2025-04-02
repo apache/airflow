@@ -1,0 +1,26 @@
+Removed deprecated methods in ``airflow/utils/helpers.py``
+
+* Methods removed:
+
+  * ``chain`` (Use ``airflow.sdk.chain``)
+  * ``cross_downstream`` (Use ``airflow.sdk.cross_downstream``)
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.helpers.chain`` → ``airflow.sdk.chain``
+      * [x] ``airflow.utils.helpers.cross_downstream`` → ``airflow.sdk.cross_downstream``

@@ -415,6 +415,7 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  dashboard_alert: Array<UIAlert>;
 };
 
 /**
@@ -534,6 +535,8 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -596,6 +599,8 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -770,6 +775,8 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -988,7 +995,6 @@ export type GridDAGRunwithTIs = {
   logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -998,6 +1004,7 @@ export type GridDAGRunwithTIs = {
  */
 export type GridResponse = {
   dag_runs: Array<GridDAGRunwithTIs>;
+  structure: StructureDataResponse;
 };
 
 /**
@@ -1558,6 +1565,16 @@ export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
 };
+
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category: "info" | "warning" | "error";
+};
+
+export type category = "info" | "warning" | "error";
 
 export type ValidationError = {
   loc: Array<string | number>;
@@ -2596,6 +2613,12 @@ export type LogoutData = {
 };
 
 export type LogoutResponse = unknown;
+
+export type NotFoundHandlerData = {
+  restOfPath: string;
+};
+
+export type NotFoundHandlerResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/auth/links": {
@@ -5416,6 +5439,21 @@ export type $OpenApiTs = {
          * Temporary Redirect
          */
         307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/{rest_of_path}": {
+    get: {
+      req: NotFoundHandlerData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Validation Error
          */

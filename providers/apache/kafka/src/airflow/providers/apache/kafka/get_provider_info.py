@@ -26,9 +26,10 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-kafka",
         "name": "Apache Kafka",
         "state": "ready",
-        "source-date-epoch": 1741121829,
+        "source-date-epoch": 1743477777,
         "description": "`Apache Kafka  <https://kafka.apache.org/>`__\n",
         "versions": [
+            "1.8.0",
             "1.7.0",
             "1.6.1",
             "1.6.0",

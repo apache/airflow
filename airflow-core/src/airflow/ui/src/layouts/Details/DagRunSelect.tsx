@@ -31,11 +31,15 @@ type DagRunSelected = {
   value: string;
 };
 
-export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
+type DagRunSelectProps = {
+  readonly limit: number;
+};
+
+export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ limit }, ref) => {
   const { dagId = "", runId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useGrid();
+  const { data, isLoading } = useGrid(limit);
 
   const runOptions = createListCollection<DagRunSelected>({
     items: (data?.dag_runs ?? []).map((dr: GridDAGRunwithTIs) => ({
@@ -54,7 +58,6 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
 
   return (
     <Select.Root
-      bg="bg"
       collection={runOptions}
       data-testid="dag-run-select"
       disabled={isLoading}
@@ -63,6 +66,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       value={runId === undefined ? [] : [runId]}
       width="250px"
     >
+      <Select.Label fontSize="xs">Dag Run</Select.Label>
       <Select.Trigger clearable>
         <Select.ValueText placeholder="All Runs">
           {(items: Array<DagRunSelected>) => (

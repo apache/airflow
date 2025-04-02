@@ -58,6 +58,7 @@ PIP package         Version required
 ``scrapbook[all]``  ``>=0.5.0``
 ``ipykernel``       ``>=6.29.4``
 ``pandas``          ``>=2.1.2,<2.2``
+``nbconvert``       ``>=7.16.1``
 ==================  ==================
 
 Cross provider package dependencies

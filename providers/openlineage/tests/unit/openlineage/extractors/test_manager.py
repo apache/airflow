@@ -42,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -76,7 +77,7 @@ if AIRFLOW_V_2_10_PLUS:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance as SDKTaskInstance
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
@@ -282,6 +283,7 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
@@ -385,7 +387,9 @@ def mocked_parse(spy_agency):
 
             mocked_parse(
                 StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    ti=TaskInstance(
+                        id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
+                    ),
                     file="",
                     requests_fd=0,
                 ),
@@ -512,7 +516,7 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
     )
     ti = mocked_parse(what, "test_hookcollector_dag", task)
 
-    task_runner.run(ti, logging.getLogger(__name__))
+    task_runner.run(ti, ti.get_template_context(), logging.getLogger(__name__))
 
     datasets = hook_lineage_collector.collected_assets
 

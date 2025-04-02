@@ -31,6 +31,7 @@ from rich.console import Console
 console = Console(color_system="standard", width=200)
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+AIRFLOW_DIST_PATH = AIRFLOW_ROOT_PATH / "dist"
 REPRODUCIBLE_BUILD_YAML_PATH = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
@@ -113,32 +114,35 @@ def build_airflow_packages(distribution_format: str):
         sys.exit(build_process.returncode)
     if distribution_format in ["both", "sdist"]:
         console.print("[bright_blue]Checking if sdist packages can be built into wheels")
-        for file in (AIRFLOW_ROOT_PATH / "dist").glob("apache_airflow_(core)?[0-9]*.tar.gz"):
-            console.print(f"[bright_blue]Validate build wheel from sdist: {file.name}")
-            if "-sources.tar.gz" not in file.name:
-                # no need to delete - we are in temporary container
-                tmpdir = mkdtemp()
-                result = subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "pip",
-                        "wheel",
-                        "--wheel-dir",
-                        tmpdir,
-                        "--no-deps",
-                        "--no-cache",
-                        "--no-binary",
-                        ":all:",
-                        file.as_posix(),
-                    ],
-                    check=False,
-                )
-                if result.returncode != 0:
-                    console.print(f"[red]Error installing {file.name}")
-                    sys.exit(result.returncode)
-                console.print(f"[green]Sdist package {file.name} can be built into wheels")
-            console.print("[green]Sdist package is installed successfully.")
+        for glob_pattern in ["apache_airflow_core-*.tar.gz", "apache_airflow-*.tar.gz"]:
+            for sdist_distribution_file in AIRFLOW_DIST_PATH.glob(glob_pattern):
+                console.print(f"[bright_blue]Validate build wheel from sdist: {sdist_distribution_file.name}")
+                if "-sources.tar.gz" not in sdist_distribution_file.name:
+                    # no need to delete - we are in temporary container
+                    tmpdir = mkdtemp()
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-m",
+                            "pip",
+                            "wheel",
+                            "--wheel-dir",
+                            tmpdir,
+                            "--no-deps",
+                            "--no-cache",
+                            "--no-binary",
+                            ":all:",
+                            sdist_distribution_file.as_posix(),
+                        ],
+                        check=False,
+                    )
+                    if result.returncode != 0:
+                        console.print(f"[red]Error installing {sdist_distribution_file.name}")
+                        sys.exit(result.returncode)
+                    console.print(
+                        f"[green]Sdist package {sdist_distribution_file.name} can be built into wheels"
+                    )
+                console.print("[green]Sdist package is installed successfully.")
     console.print("[green]Airflow packages built successfully")
 
 
@@ -147,6 +151,6 @@ mark_git_directory_as_safe()
 
 build_airflow_packages(DISTRIBUTION_FORMAT)
 
-for file in (AIRFLOW_ROOT_PATH / "dist").glob("apache*"):
+for file in AIRFLOW_DIST_PATH.glob("apache_airflow*"):
     console.print(file.name)
 console.print()

@@ -716,6 +716,6 @@ From task sub_span3.
         output_lines = self.example_task_output.splitlines()
         cleaned_lines = clean_task_lines(output_lines)
 
-        assert (
-            cleaned_lines == self.example_task_output_after_processing.splitlines()
-        ), "Cleaned task lines do not match the expected output after processing."
+        assert cleaned_lines == self.example_task_output_after_processing.splitlines(), (
+            "Cleaned task lines do not match the expected output after processing."
+        )
