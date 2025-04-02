@@ -71,7 +71,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
-            <Box height="100%" position="relative" pr={2}>
+            <Box height="100%" overflowY="auto" position="relative" pr={2}>
               <PanelButtons dagView={dagView} limit={limit} setDagView={setDagView} setLimit={setLimit} />
               {dagView === "graph" ? <Graph /> : <Grid limit={limit} />}
             </Box>
