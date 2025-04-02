@@ -21,7 +21,7 @@
 DatabricksSQLStatementsOperator
 ===============================
 
-Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSQLStatementsOperator` to submits a
+Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSQLStatementsOperator` to submit a
 Databricks SQL Statement to Databricks using the
 `Databricks SQL Statement Execution API <https://docs.databricks.com/api/workspace/statementexecution>`_.
 

@@ -63,6 +63,7 @@ LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
+SQL_STATEMENTS_ENDPOINT = "api/2.0/sql/statements"
 
 
 class RunLifeCycleState(Enum):
@@ -230,7 +231,9 @@ class SQLStatementState:
         """True if the state is SUCCEEDED."""
         return self.state == "SUCCEEDED"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SQLStatementState):
+            return NotImplemented
         return (
             self.state == other.state
             and self.error_code == other.error_code
@@ -769,7 +772,7 @@ class DatabricksHook(BaseDatabricksHook):
         return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
-        response = self._do_api_call(("POST", "api/2.0/sql/statements"), json)
+        response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
         return response["statement_id"]
 
     def get_sql_statement_state(self, statement_id: str) -> SQLStatementState:
@@ -779,7 +782,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param statement_id: ID of the SQL statement.
         :return: state of the SQL statement.
         """
-        get_statement_endpoint = ("GET", f"api/2.0/sql/statements/{statement_id}")
+        get_statement_endpoint = ("GET", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}")
         response = self._do_api_call(get_statement_endpoint)
         state = response["status"]["state"]
         error_code = response["status"].get("error", {}).get("error_code", "")
@@ -793,7 +796,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param statement_id: ID of the SQL statement
         :return: state of the SQL statement
         """
-        get_sql_statement_endpoint = ("GET", f"api/2.0/sql/statements/{statement_id}")
+        get_sql_statement_endpoint = ("GET", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}")
         response = await self._a_do_api_call(get_sql_statement_endpoint)
         state = response["status"]["state"]
         error_code = response["status"].get("error", {}).get("error_code", "")
@@ -806,7 +809,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param statement_id: ID of the SQL statement
         """
-        cancel_sql_statement_endpoint = ("POST", f"api/2.0/sql/statements/{statement_id}/cancel")
+        cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
         self._do_api_call(cancel_sql_statement_endpoint)
 
     def test_connection(self) -> tuple[bool, str]:
