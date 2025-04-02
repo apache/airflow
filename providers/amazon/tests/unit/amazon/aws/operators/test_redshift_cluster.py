@@ -251,7 +251,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
             snapshot_identifier="test_snapshot",
         )
         delete_snapshot.execute(None)
-        mock_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
+        mock_conn.delete_cluster_snapshot.assert_called_once_with(
             SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
@@ -272,7 +272,7 @@ class TestRedshiftDeleteClusterSnapshotOperator:
             wait_for_completion=False,
         )
         delete_snapshot.execute(None)
-        mock_conn.return_value.delete_cluster_snapshot.assert_called_once_with(
+        mock_conn.delete_cluster_snapshot.assert_called_once_with(
             SnapshotClusterIdentifier="test_cluster",
             SnapshotIdentifier="test_snapshot",
         )
@@ -304,7 +304,7 @@ class TestResumeClusterOperator:
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
+        mock_conn.resume_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
     @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("time.sleep", return_value=None)
@@ -442,7 +442,7 @@ class TestPauseClusterOperator:
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
+        mock_conn.pause_cluster.assert_called_once_with(ClusterIdentifier="test_cluster")
 
     @mock.patch.object(RedshiftHook, "conn")
     @mock.patch("time.sleep", return_value=None)
@@ -484,7 +484,7 @@ class TestPauseClusterOperator:
     @mock.patch.object(RedshiftHook, "conn")
     def test_pause_cluster_wait_for_completion(self, mock_conn, mock_get_waiter):
         """Test Pause cluster operator with defer when deferrable param is true"""
-        mock_conn.return_value.pause_cluster.return_value = True
+        mock_conn.pause_cluster.return_value = True
         waiter = Mock()
         mock_get_waiter.return_value = waiter
 
@@ -500,7 +500,7 @@ class TestPauseClusterOperator:
     @mock.patch.object(RedshiftHook, "conn")
     def test_pause_cluster_deferrable_mode(self, mock_conn, mock_cluster_status):
         """Test Pause cluster operator with defer when deferrable param is true"""
-        mock_conn.return_value.pause_cluster.return_value = True
+        mock_conn.pause_cluster.return_value = True
         mock_cluster_status.return_value = "available"
 
         redshift_operator = RedshiftPauseClusterOperator(
@@ -521,7 +521,7 @@ class TestPauseClusterOperator:
         self, mock_conn, mock_cluster_status, mock_defer
     ):
         """Test Pause cluster operator with defer when deferrable param is true"""
-        mock_conn.return_value.pause_cluster.return_value = True
+        mock_conn.pause_cluster.return_value = True
         mock_cluster_status.return_value = "deleting"
 
         redshift_operator = RedshiftPauseClusterOperator(
@@ -568,7 +568,7 @@ class TestDeleteClusterOperator:
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_conn.return_value.delete_cluster.assert_called_once_with(
+        mock_conn.delete_cluster.assert_called_once_with(
             ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
             FinalClusterSnapshotIdentifier="",
@@ -583,13 +583,13 @@ class TestDeleteClusterOperator:
             wait_for_completion=False,
         )
         redshift_operator.execute(None)
-        mock_conn.return_value.delete_cluster.assert_called_once_with(
+        mock_conn.delete_cluster.assert_called_once_with(
             ClusterIdentifier="test_cluster",
             SkipFinalClusterSnapshot=True,
             FinalClusterSnapshotIdentifier="",
         )
 
-        mock_conn.return_value.cluster_status.assert_not_called()
+        mock_conn.cluster_status.assert_not_called()
 
     @mock.patch.object(RedshiftHook, "delete_cluster")
     @mock.patch.object(RedshiftHook, "conn")
