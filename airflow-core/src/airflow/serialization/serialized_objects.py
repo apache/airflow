@@ -1329,7 +1329,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
-                    serialize_op[template_field] = serialize_template_field(value, template_field)
+                    serialize_op[template_field] = serialize_template_field(
+                        value, template_field, allow_tuple_conversion=template_field == "op_args"
+                    )
 
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)

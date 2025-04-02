@@ -61,7 +61,12 @@ def get_serialized_template_fields(task: Operator):
 
     :meta private:
     """
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    return {
+        field: serialize_template_field(
+            getattr(task, field), field, allow_tuple_conversion=field == "op_args"
+        )
+        for field in task.template_fields
+    }
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):

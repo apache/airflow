@@ -572,7 +572,12 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     #   airflow.models.renderedtifields.get_serialized_template_fields
     from airflow.serialization.helpers import serialize_template_field
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    return {
+        field: serialize_template_field(
+            getattr(task, field), field, allow_tuple_conversion=field == "op_args"
+        )
+        for field in task.template_fields
+    }
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
