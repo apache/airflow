@@ -305,7 +305,6 @@ If you upgrade your environment and get the following error:
 
 change name from ``params`` in your operators.
 
-
 Templating Conflicts with f-strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
