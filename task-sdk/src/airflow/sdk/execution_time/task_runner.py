@@ -121,6 +121,8 @@ class RuntimeTaskInstance(TaskInstance):
     start_date: AwareDatetime
     """Start date of the task instance."""
 
+    end_date: AwareDatetime | None = None
+
     is_mapped: bool | None = None
     """True if the original task was mapped."""
 

@@ -34,6 +34,8 @@ import structlog
 if TYPE_CHECKING:
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
+    from airflow.logging_config import RemoteLogIO
+
 
 __all__ = [
     "configure_logging",
@@ -226,9 +228,14 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
             (
                 dict_tracebacks,
                 structlog.processors.UnicodeDecoder(),
-                json,
             ),
         )
+
+        # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
+        if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+            processors.extend(remote_processors)
+
+        processors.append(json)
 
         return processors, {
             "timestamper": timestamper,
@@ -253,6 +260,7 @@ def configure_logging(
             from airflow.configuration import conf
 
             log_level = conf.get("logging", "logging_level", fallback="INFO")
+
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
     if enable_pretty_log:
@@ -284,6 +292,12 @@ def configure_logging(
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
     ]
+
+    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+        # Ensure we add in any remote log processor before we add `console` or `json` formatter so these get
+        # called with the event_dict as a dict still
+        color_formatter.extend(remote_processors)
+        std_lib_formatter.extend(remote_processors)
 
     wrapper_class = structlog.make_filtering_bound_logger(lvl)
     if enable_pretty_log:
@@ -476,25 +490,14 @@ def init_log_file(local_relative_path: str) -> Path:
     return full_path
 
 
-def load_remote_log_handler() -> logging.Handler | None:
-    from airflow.logging_config import configure_logging as airflow_configure_logging
-    from airflow.utils.log.log_reader import TaskLogReader
+def load_remote_log_handler() -> RemoteLogIO | None:
+    import airflow.logging_config
 
-    try:
-        airflow_configure_logging()
-
-        return TaskLogReader().log_handler
-    finally:
-        # This is a _monstrosity_ but put our logging back immediately...
-        configure_logging()
+    return airflow.logging_config.REMOTE_TASK_LOG
 
 
 def upload_to_remote(logger: FilteringBoundLogger):
-    # We haven't yet switched the Remote log handlers over, they are still wired up in providers as
-    # logging.Handlers (but we should re-write most of them to just be the upload and read instead of full
-    # variants.) In the mean time, lets just create the right handler directly
     from airflow.configuration import conf
-    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     raw_logger = getattr(logger, "_logger")
 
@@ -512,18 +515,8 @@ def upload_to_remote(logger: FilteringBoundLogger):
     relative_path = Path(fname).relative_to(base_log_folder)
 
     handler = load_remote_log_handler()
-    if not isinstance(handler, FileTaskHandler):
-        logger.warning(
-            "Airflow core logging is not using a FileTaskHandler, can't upload logs to remote",
-            handler=type(handler),
-        )
+    if not handler:
         return
 
-    # This is a _monstrosity_, and super fragile, but we don't want to do the base FileTaskHandler
-    # set_context() which opens a real FH again. (And worse, in some cases it _truncates_ the file too). This
-    # is just for the first Airflow 3 betas, but we will re-write a better remote log interface that isn't
-    # tied to being a logging Handler.
-    handler.log_relative_path = relative_path.as_posix()  # type: ignore[attr-defined]
-    handler.upload_on_close = True  # type: ignore[attr-defined]
-
-    handler.close()
+    log_relative_path = relative_path.as_posix()
+    handler.upload(log_relative_path)
