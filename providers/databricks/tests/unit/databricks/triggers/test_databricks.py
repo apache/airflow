@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
 
 import pytest
@@ -259,6 +260,7 @@ class TestDatabricksExecutionTrigger:
 class TestDatabricksSQLStatementExecutionTrigger:
     @provide_session
     def setup_method(self, method, session=None):
+        self.end_time = time.time() + 60
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
         conn.login = LOGIN
@@ -270,6 +272,7 @@ class TestDatabricksSQLStatementExecutionTrigger:
             statement_id=STATEMENT_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=self.end_time,
         )
 
     def test_serialize(self):
@@ -278,6 +281,7 @@ class TestDatabricksSQLStatementExecutionTrigger:
             {
                 "statement_id": STATEMENT_ID,
                 "databricks_conn_id": DEFAULT_CONN_ID,
+                "end_time": self.end_time,
                 "polling_period_seconds": POLLING_INTERVAL_SECONDS,
                 "retry_delay": 10,
                 "retry_limit": 3,
