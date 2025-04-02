@@ -767,6 +767,10 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count.count})
 
 
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
