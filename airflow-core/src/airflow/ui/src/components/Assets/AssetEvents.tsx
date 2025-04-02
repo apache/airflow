@@ -42,7 +42,6 @@ type AssetEventProps = {
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
-  readonly showAssetName?: boolean;
   readonly showExtra?: boolean;
   readonly tableUrlState?: TableState;
   readonly title?: string;
