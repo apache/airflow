@@ -428,9 +428,11 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
         updated_lines.append(line)
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
-    # Format the content to make it more readable with rich
-    syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
-    get_console().print(syntax)
+    if get_verbose() or get_dry_run():
+        with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
+            # Format the content to make it more readable with rich
+            syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
+            get_console().print(syntax)
     pyproject_toml_path.write_text(new_content)
 
 
