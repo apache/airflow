@@ -145,9 +145,11 @@ def upgrade():
 
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
-        _rename_pk_constraint(
+        _rename_pk_constraint_unkown(
             batch_op=batch_op,
+            table_name="asset_alias_asset",
             original_name="dataset_alias_dataset_pkey",
+            alternative_name="asset_alias_asset_pkey",
             new_name="asset_alias_asset_pkey",
             columns=["alias_id", "asset_id"],
         )
