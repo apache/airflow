@@ -396,8 +396,8 @@ def generate_args_for_pytest(
             args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
-    else:
-        # This test group is in the IGNORE_DB_INIT_FOR_TEST_GROUPS set, so run without db init
+    if test_group == GroupOfTests.SYSTEM:
+        # System tests will be inited with the api server is started
         args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
