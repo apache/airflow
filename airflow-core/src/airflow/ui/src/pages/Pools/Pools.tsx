@@ -74,11 +74,7 @@ export const Pools = () => {
         <DataTable
           onStateChange={setTableURLState}
           initialState={tableURLState}  
-          isLoading={isLoading ? (
-            <Skeleton height="100px" />
-          ) : (
-            data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)
-          )} 
+          isLoading={isLoading}
           columns={[]} 
           data={data ? data.pools :[]}        />  
       </Box>
