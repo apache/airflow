@@ -23,7 +23,9 @@ updates:
       - /airflow-ctl
       - /clients/python
       - /dev/breeze
-      - /docker_tests
+      - /docker-tests
+      - /kubernetes-tests
+      - /helm-tests
       - /task-sdk
       - /
     schedule:

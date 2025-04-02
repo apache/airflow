@@ -46,6 +46,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -677,6 +678,7 @@ class TestSQLCheckOperatorDbHook:
             assert isinstance(self._operator._hook, PostgresHook)
             mock_get_conn.assert_called_once_with(self.conn_id)
 
+    @skip_if_force_lowest_dependencies_marker
     def test_not_allowed_conn_type(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -686,6 +688,7 @@ class TestSQLCheckOperatorDbHook:
             with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
                 self._operator._hook
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_snowflake(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -706,6 +709,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.schema == "schema"
             assert not self._operator._hook.log_sql
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_biguery(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -719,6 +723,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_templated(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",

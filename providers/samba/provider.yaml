@@ -22,7 +22,7 @@ description: |
     `Samba <https://www.samba.org/>`__
 
 state: ready
-source-date-epoch: 1741509510
+source-date-epoch: 1743477881
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 4.9.2

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Pig",
         "description": "`Apache Pig <https://pig.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508337,
+        "source-date-epoch": 1743477782,
         "versions": [
             "4.6.1",
             "4.6.0",

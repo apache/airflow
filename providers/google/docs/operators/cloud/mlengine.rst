@@ -56,7 +56,7 @@ The ``model`` field should be defined with a dictionary containing the informati
     :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
     The result of running this operator will be ready-to-use model saved in Model Registry.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_custom_python_training_job_v1]

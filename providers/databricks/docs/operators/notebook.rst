@@ -31,14 +31,14 @@ Examples
 
 Running a notebook in Databricks on a new cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks.py
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_notebook_new_cluster]
     :end-before: [END howto_operator_databricks_notebook_new_cluster]
 
 Running a notebook in Databricks on an existing cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks.py
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_notebook_existing_cluster]
     :end-before: [END howto_operator_databricks_notebook_existing_cluster]

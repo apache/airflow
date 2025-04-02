@@ -687,12 +687,6 @@ def start_airflow(
     is_flag=True,
 )
 @click.option(
-    "--skip-deletion",
-    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*` and"
-    "docs/apache-airflow/.",
-    is_flag=True,
-)
-@click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
     "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
@@ -720,7 +714,6 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
-    skip_deletion: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
     spellcheck_only: bool,
@@ -737,12 +730,12 @@ def build_docs(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
+        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "apis"]
     else:
-        directories_to_clean = ["_api"]
-    docs_dir = AIRFLOW_ROOT_PATH / "docs"
+        directories_to_clean = ["apis"]
+    generated_path = AIRFLOW_ROOT_PATH / "generated"
     for dir_name in directories_to_clean:
-        for directory in docs_dir.rglob(dir_name):
+        for directory in generated_path.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
 
@@ -763,7 +756,6 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,

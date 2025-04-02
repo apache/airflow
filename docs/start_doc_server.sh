@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+AIRFLOW_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../" && pwd )"
+readonly AIRFLOW_DIR
+DOC_BUILD_PATH="${AIRFLOW_DIR}/generated/_build"
+readonly DOC_BUILD_PATH
 
-DOCS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-readonly DOCS_DIR
-
-(cd "${DOCS_DIR}"/_build || exit;
+(cd "${DOC_BUILD_PATH}" || exit;
         python3 -m http.server 8000
 )

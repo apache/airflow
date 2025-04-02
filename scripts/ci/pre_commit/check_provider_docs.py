@@ -21,7 +21,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from jinja2 import BaseLoader, Environment
 from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common utils are importable
@@ -66,21 +65,14 @@ LICENCE_CONTENT_RST = """
     under the License.
 """
 
-CONFIGURATION_CONTENT_RST = """
-.. include:: ../exts/includes/providers-configurations-ref.rst
-"""
-
 SECURITY_CONTENT_RST = """
-.. include:: ../exts/includes/security.rst
+.. include:: /devel-common/src/sphinx_exts/includes/security.rst
 """
 
 INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST = """
-.. include:: ../exts/includes/installing-providers-from-sources.rst
+.. include:: .. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst
 """
 
-CHANGELOG_CONTENT_RST = """
-.. include:: ../../airflow/providers/{{provider_id | replace ('.', '/')}}/CHANGELOG.rst
-"""
 
 COMMIT_CONTENT_RST = """
  .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
@@ -189,7 +181,6 @@ def has_executor_package_defined(provider_id: str) -> bool:
 
 
 def run_all_checks():
-    jinja_loader = Environment(loader=BaseLoader(), autoescape=True)
     all_providers = get_all_provider_info_dicts()
     status: list[bool] = []
 
@@ -219,13 +210,6 @@ def run_all_checks():
             file_name="installing-providers-from-sources.rst",
             generated_content=LICENCE_CONTENT_RST + INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST,
         )
-        check_provider_doc_exists_and_in_index(
-            provider_id=provider_id,
-            index_link="Changelog <changelog>",
-            file_name="changelog.rst",
-            generated_content=LICENCE_CONTENT_RST
-            + jinja_loader.from_string(CHANGELOG_CONTENT_RST).render(provider_id=provider_id),
-        )
         if has_executor_package_defined(provider_id) and not provider_info.get("executors"):
             provider_yaml = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "provider.yaml"
             console.print()
@@ -249,13 +233,6 @@ def run_all_checks():
                     link=f"and related CLI commands: :doc:`apache-airflow-providers-{provider_id.replace('.', '-')}:cli-ref`",
                     docs_file=AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "cli-and-env-variables-ref.rst",
                 )
-        if provider_info.get("config"):
-            check_provider_doc_exists_and_in_index(
-                provider_id=provider_id,
-                index_link="Configuration <configurations-ref>",
-                file_name="configurations-ref.rst",
-                generated_content=LICENCE_CONTENT_RST + CONFIGURATION_CONTENT_RST,
-            )
     print(failed)
     if any(failed):
         sys.exit(1)

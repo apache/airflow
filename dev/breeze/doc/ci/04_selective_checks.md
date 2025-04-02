@@ -51,7 +51,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
-* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
+* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm-tests` folder.
 * `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
   build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
   The dependencies are automatically generated from the `provider.yaml` files in provider by
@@ -71,7 +71,6 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Airflow Python files` - files that are checked by `mypy-airflow` static checks
 * `All Providers Python files` - files that are checked by `mypy-providers` static checks
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
-* `All Docs Python files` - files that are checked by `mypy-docs` static checks
 * `All Provider Yaml files` - all provider yaml files
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
@@ -142,7 +141,6 @@ when some files are not changed. Those are the rules implemented:
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
   * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
-  * if no `All Docs Python files` changed - `mypy-docs` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped

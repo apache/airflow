@@ -52,7 +52,7 @@ Create a replication task
 To create a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsCreateTaskOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_create_task]
@@ -66,7 +66,7 @@ Start a replication task
 To start a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartTaskOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_start_task]
@@ -80,7 +80,7 @@ Get details of replication tasks
 To retrieve the details for a list of replication tasks you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_describe_tasks]
@@ -94,7 +94,7 @@ Stop a replication task
 To stop a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_stop_task]
@@ -108,7 +108,7 @@ Delete a replication task
 To delete a replication task you can use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDeleteTaskOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_delete_task]
@@ -122,7 +122,7 @@ Create a serverless replication config
 To create a serverless replication config use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsCreateReplicationConfigOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_create_replication_config]
@@ -136,7 +136,7 @@ Describe a serverless replication config
 To describe a serverless replication config use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationConfigsOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_describe_replication_config]
@@ -150,7 +150,7 @@ Start a serverless replication
 To start a serverless replication use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_serverless_start_replication]
@@ -164,7 +164,7 @@ Stop a serverless replication
 To stop a serverless replication use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_serverless_stop_replication]
@@ -178,7 +178,7 @@ Get the status of a serverless replication
 To get the status of a serverless replication use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationsOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_serverless_describe_replication]
@@ -192,7 +192,7 @@ Delete a serverless replication configuration
 To delete a serverless replication config use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsDeleteReplicationConfigOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms_serverless.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms_serverless.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dms_serverless_delete_replication_config]
@@ -211,7 +211,7 @@ Wait for a replication task to complete
 To check the state of a replication task until it is completed, you can use
 :class:`~airflow.providers.amazon.aws.sensors.dms.DmsTaskCompletedSensor`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_dms.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_dms.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_dms_task_completed]
