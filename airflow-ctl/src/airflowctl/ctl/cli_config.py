@@ -240,6 +240,8 @@ class AirflowCtlCommandFactory:
             "__init__",
             "__init_subclass__",
             "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
         ]
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and "Operations" in node.name and node.body:
