@@ -58,7 +58,6 @@ class LocalKubernetesExecutor(BaseExecutor):
     is_production: bool = True
 
     serve_logs: bool = True
-    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 
