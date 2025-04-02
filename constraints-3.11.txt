@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-01T19:56:36.713704
+# This constraints file was automatically generated on 2025-04-02T02:33:27.930942
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -70,7 +70,7 @@ adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.11.15
+aiohttp==3.11.16
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -457,7 +457,7 @@ linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
 lxml==5.3.1
-lz4==4.4.3
+lz4==4.4.4
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
@@ -484,7 +484,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.3.0
+multidict==6.3.1
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.21
 mypy-boto3-redshift-data==1.37.8
@@ -588,7 +588,7 @@ pyiceberg==0.9.0
 pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.10.1
-pymssql==2.3.2
+pymssql==2.3.4
 pyodbc==5.2.0
 pyparsing==3.2.3
 pypsrp==0.8.1
