@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import sys
 from collections import defaultdict, deque
@@ -431,7 +430,6 @@ class BaseExecutor(LoggingMixin):
                 # How/where do we do that? Executor loader?
                 from airflow.executors import workloads
 
-                carrier: dict = {}
                 if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                     ti = item.ti
 
@@ -464,10 +462,6 @@ class BaseExecutor(LoggingMixin):
                     workload_list.append(item)
                 else:
                     (command, _, queue, ti) = item
-                    # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
-                    # So set the carrier as an argument to the command.
-                    # The command execution will set it on the ti, and it will be propagated to the task itself.
-                    command = list(command) + ["--carrier", json.dumps(carrier)]
                     task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:
