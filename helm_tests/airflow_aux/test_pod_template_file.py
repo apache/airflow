@@ -272,6 +272,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
+        # Testing git-sync v3
         assert {
             "name": "GIT_SYNC_USERNAME",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
@@ -280,15 +281,14 @@ class TestPodTemplateFile:
             "name": "GIT_SYNC_PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
-
         # Testing git-sync v4
         assert {
             "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
             "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
