@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPUpdateJobTriggerOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_job_trigger"

@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
 from kubernetes.client import models as k8s
+
+from airflow.exceptions import AirflowException
 
 
 def convert_env_vars(env_vars) -> list[k8s.V1EnvVar]:

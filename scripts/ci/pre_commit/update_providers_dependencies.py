@@ -15,6 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#   "rich>=12.4.4",
+#   "pyyaml>=6.0.2",
+#   "tomli>=2.0.1; python_version < '3.11'"
+# ]
+# ///
 from __future__ import annotations
 
 import json
@@ -26,30 +34,27 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from rich.console import Console
 
-console = Console(color_system="standard", width=200)
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+)
 
 AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
+DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
-AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "providers"
-AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_PROVIDERS_DIR / "tests"
-AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_TESTS_PROVIDERS_DIR / "tests" / "system"
-
-DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
-
-PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
+PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 MY_FILE = Path(__file__).resolve()
-MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
-
 PROVIDERS: set[str] = set()
 
 PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported from Airflow
+sys.path.insert(0, str(AIRFLOW_CORE_SOURCES_PATH))  # make sure setup is imported from Airflow
 
 warnings: list[str] = []
 errors: list[str] = []
@@ -60,9 +65,6 @@ ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultd
 
 ALL_PROVIDERS: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict())
 ALL_PROVIDER_FILES: list[Path] = []
-
-# Allow AST to parse the files.
-sys.path.append(str(AIRFLOW_SOURCES_ROOT))
 
 
 class ImportFinder(NodeVisitor):
@@ -106,13 +108,13 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
 
 
 def find_all_providers_and_provider_files():
-    for root, dirs, filenames in os.walk(AIRFLOW_PROVIDERS_DIR):
+    for root, dirs, filenames in os.walk(AIRFLOW_PROVIDERS_ROOT_PATH):
         for filename in filenames:
             if filename == "provider.yaml":
                 provider_yaml_file = Path(root, filename)
-                provider_name = str(provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
-                    os.sep, "."
-                )
+                provider_name = str(
+                    provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+                ).replace(os.sep, ".")
                 PROVIDERS.add(provider_name)
                 PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
                     provider_yaml_file.parent / "pyproject.toml"
@@ -130,7 +132,7 @@ def find_all_providers_and_provider_files():
                 provider_info = yaml.safe_load(provider_yaml_file.read_text())
                 if provider_info["state"] == "suspended":
                     suspended_paths.append(
-                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix()
+                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
                     )
                 ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
@@ -232,12 +234,11 @@ if __name__ == "__main__":
             )
             dependency_groups = PYPROJECT_TOML_CONTENT[provider].get("dependency-groups")
             if dependency_groups and dependency_groups.get("dev"):
-                ALL_DEPENDENCIES[provider]["devel-deps"].extend(dependency_groups["dev"])
+                ALL_DEPENDENCIES[provider]["devel-deps"].extend(
+                    [dep for dep in dependency_groups["dev"] if not dep.startswith("apache-airflow")]
+                )
         else:
             ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
-            ALL_DEPENDENCIES[provider]["devel-deps"].extend(
-                provider_yaml_content.get("devel-dependencies") or []
-            )
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:
@@ -270,31 +271,10 @@ if __name__ == "__main__":
         DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else "{}"
     )
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
     old_content = DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else ""
     new_content = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
     DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
     if new_content != old_content:
-        if os.environ.get("CI"):
-            # make sure the message is printed outside the folded section
-            console.print("::endgroup::")
-            console.print()
-            console.print(f"There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print(
-                f"[red]You need to run the following command locally and commit generated "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
-            )
-            console.print("breeze static-checks --type update-providers-dependencies --all-files")
-            console.print()
-            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
-            console.print()
-            sys.exit(1)
-        else:
-            console.print()
-            console.print(
-                f"[yellow]Regenerated new dependencies. Please commit "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
-            )
-            console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print()
-    console.print()
+        console.print()
+        console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
+        console.print()

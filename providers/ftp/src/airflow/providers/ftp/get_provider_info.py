@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "File Transfer Protocol (FTP)",
         "description": "`File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734533870,
+        "source-date-epoch": 1743477823,
         "versions": [
+            "3.12.3",
+            "3.12.2",
             "3.12.0",
             "3.11.1",
             "3.11.0",
@@ -94,4 +96,5 @@ def get_provider_info():
             "common.compat": ["apache-airflow-providers-common-compat"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }

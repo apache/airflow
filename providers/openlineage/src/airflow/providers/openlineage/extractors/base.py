@@ -22,20 +22,22 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Union
 
 from attrs import Factory, define
-
 from openlineage.client.event_v2 import Dataset as OLDataset
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
     from openlineage.client.facet import BaseFacet as BaseFacet_V1
-from airflow.providers.openlineage.utils.utils import AIRFLOW_V_2_10_PLUS
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
 from openlineage.client.facet_v2 import JobFacet, RunFacet
+
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 # this is not to break static checks compatibility with v1 OpenLineage facet classes
 DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)
 BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet])
+
+OL_METHOD_NAME_START = "get_openlineage_facets_on_start"
+OL_METHOD_NAME_COMPLETE = "get_openlineage_facets_on_complete"
+OL_METHOD_NAME_FAIL = "get_openlineage_facets_on_failure"
 
 
 @define
@@ -81,6 +83,9 @@ class BaseExtractor(ABC, LoggingMixin):
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         return self.extract()
 
+    def extract_on_failure(self, task_instance) -> OperatorLineage | None:
+        return self.extract_on_complete(task_instance)
+
 
 class DefaultExtractor(BaseExtractor):
     """Extractor that uses `get_openlineage_facets_on_start/complete/failure` methods."""
@@ -96,45 +101,40 @@ class DefaultExtractor(BaseExtractor):
         return []
 
     def _execute_extraction(self) -> OperatorLineage | None:
-        # OpenLineage methods are optional - if there's no method, return None
-        try:
+        method = getattr(self.operator, OL_METHOD_NAME_START, None)
+        if callable(method):
             self.log.debug(
-                "Trying to execute `get_openlineage_facets_on_start` for %s.", self.operator.task_type
+                "Trying to execute '%s' method of '%s'.", OL_METHOD_NAME_START, self.operator.task_type
             )
-            return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
-        except ImportError:
-            self.log.error(
-                "OpenLineage provider method failed to import OpenLineage integration. "
-                "This should not happen. Please report this bug to developers."
-            )
-            return None
-        except AttributeError:
-            self.log.debug(
-                "Operator %s does not have the get_openlineage_facets_on_start method.",
-                self.operator.task_type,
-            )
-            return OperatorLineage()
+            return self._get_openlineage_facets(method)
+        self.log.debug(
+            "Operator '%s' does not have '%s' method.", self.operator.task_type, OL_METHOD_NAME_START
+        )
+        return OperatorLineage()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
-        failed_states = [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]
-        if not AIRFLOW_V_2_10_PLUS:  # todo: remove when min airflow version >= 2.10.0
-            # Before fix (#41053) implemented in Airflow 2.10 TaskInstance's state was still RUNNING when
-            # being passed to listener's on_failure method. Since `extract_on_complete()` is only called
-            # after task completion, RUNNING state means that we are dealing with FAILED task in < 2.10
-            failed_states = [TaskInstanceState.RUNNING]
-
-        if task_instance.state in failed_states:
-            on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
-            if on_failed and callable(on_failed):
-                self.log.debug(
-                    "Executing `get_openlineage_facets_on_failure` for %s.", self.operator.task_type
-                )
-                return self._get_openlineage_facets(on_failed, task_instance)
-        on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
-        if on_complete and callable(on_complete):
-            self.log.debug("Executing `get_openlineage_facets_on_complete` for %s.", self.operator.task_type)
-            return self._get_openlineage_facets(on_complete, task_instance)
+        method = getattr(self.operator, OL_METHOD_NAME_COMPLETE, None)
+        if callable(method):
+            self.log.debug(
+                "Trying to execute '%s' method of '%s'.", OL_METHOD_NAME_COMPLETE, self.operator.task_type
+            )
+            return self._get_openlineage_facets(method, task_instance)
+        self.log.debug(
+            "Operator '%s' does not have '%s' method.", self.operator.task_type, OL_METHOD_NAME_COMPLETE
+        )
         return self.extract()
+
+    def extract_on_failure(self, task_instance) -> OperatorLineage | None:
+        method = getattr(self.operator, OL_METHOD_NAME_FAIL, None)
+        if callable(method):
+            self.log.debug(
+                "Trying to execute '%s' method of '%s'.", OL_METHOD_NAME_FAIL, self.operator.task_type
+            )
+            return self._get_openlineage_facets(method, task_instance)
+        self.log.debug(
+            "Operator '%s' does not have '%s' method.", self.operator.task_type, OL_METHOD_NAME_FAIL
+        )
+        return self.extract_on_complete(task_instance)
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:
@@ -152,6 +152,10 @@ class DefaultExtractor(BaseExtractor):
                 "OpenLineage provider method failed to import OpenLineage integration. "
                 "This should not happen."
             )
-        except Exception:
-            self.log.warning("OpenLineage provider method failed to extract data from provider. ")
+        except Exception as e:
+            self.log.warning(
+                "OpenLineage method failed to extract data from Operator with the following exception: `%s`",
+                e,
+            )
+            self.log.debug("OpenLineage extraction failure details:", exc_info=True)
         return None

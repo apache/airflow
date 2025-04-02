@@ -26,6 +26,108 @@
 Changelog
 ---------
 
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
+* ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+* ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
+
+Misc
+~~~~
+* ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
+* ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
+* ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+* ``serialize http transports contained in composite transport (#47444)``
+* ``Implement task-level "on" callbacks in sdk (#48002)``
+* ``Calculate retry eligibility before task runs (#47996)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage serialization of dataset timetables for Airflow 2.9 (#47150)``
+
+Misc
+~~~~
+
+* ``chore: Update description of 'execution_timeout' in OpenLineage provider.yaml (#47448)``
+* ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+* ``Move task_sdk to a standalone task-sdk distribution (#47451)``
+* ``Move uuid6 to be devel dependency of openlineage (#47464)``
+* ``revert removing 'external_trigger' from OpenLineage provider (#47383)``
+* ``Implement stale dag bundle cleanup (#46503)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``change listener API, add basic support for task instance listeners in TaskSDK, make OpenLineage provider support Airflow 3's listener interface (#45294)``
+* ``feat: Add ProcessingEngineRunFacet to all OL events (#46283)``
+* ``feat: automatically inject OL transport info into spark jobs (#45326)``
+* ``feat: Add OpenLineage support for some SQL to GCS operators (#45242)``
+* ``feat: automatically inject OL info into spark job in DataprocCreateBatchOperator (#44612)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update OpenLineage emmiter to cope with nullable logical_date (#46722)``
+* ``fix: OL sql parsing add try-except for sqlalchemy engine (#46366)``
+* ``OpenLineage: Include 'AirflowDagRunFacet' in complete/failed events (#45615)``
+
+Misc
+~~~~
+
+* ``Adding uuid6 as a dependency for openlineage (#46653)``
+* ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
+* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provoder (#46600)``
+* ``AIP-72: Move Secrets Masker to task SDK (#46375)``
+* ``Add run_after column to DagRun model (#45732)``
+* ``Remove old lineage stuff (#45260)``
+* ``Start porting mapped task to SDK (#45627)``
+* ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
+* ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
+* ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``pass error for on_task_instance_failed in task sdk (#46941)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove remnants of old provider's structure (#46829)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``tests: Add more information to check in OL system test (#46379)``
+   * ``Move Google provider to new provider structure (#46344)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix example import tests after move of providers to new structure (#46217)``
+   * ``Fixing OPENLINEAGE system tests import failure after new structure changes (#46204)``
+   * ``Move OPENLINEAGE provider to new structure provider (#46068)``
+   * ``update outdated hyperlinks referencing provider package files (#45332)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+
 2.0.0
 .....
 
@@ -428,7 +530,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 1.2.1
 .....

@@ -51,9 +51,11 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
@@ -607,7 +609,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             "data_interval_end": event_time.isoformat(),
             "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
             "run_id": run_id,
-            "run_type": None,
+            "run_type": DagRunType.MANUAL,
             "start_date": event_time.isoformat(),
         },
     )
@@ -648,7 +650,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                             "data_interval_end": event_time.isoformat(),
                             "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
                             "run_id": run_id,
-                            "run_type": None,
+                            "run_type": DagRunType.MANUAL,
                             "start_date": event_time.isoformat(),
                         },
                     ),
@@ -1002,6 +1004,7 @@ def test_build_task_instance_run_id_different_inputs_gives_different_results():
     assert result1 != result2
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_configuration_precedence_when_creating_ol_client():
     _section_name = "openlineage"
     current_folder = pathlib.Path(__file__).parent.resolve()

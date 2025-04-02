@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "SSH",
         "description": "`Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536796,
+        "source-date-epoch": 1743477898,
         "versions": [
+            "4.0.1",
             "4.0.0",
             "3.14.0",
             "3.13.1",
@@ -89,4 +90,5 @@ def get_provider_info():
             {"hook-class-name": "airflow.providers.ssh.hooks.ssh.SSHHook", "connection-type": "ssh"}
         ],
         "dependencies": ["apache-airflow>=2.9.0", "paramiko>=2.9.0", "sshtunnel>=0.3.2"],
+        "devel-dependencies": [],
     }

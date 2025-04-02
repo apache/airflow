@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix mark task as completed before Snowflake job completes in SnowflakeSqlApiOperator when deferrable is False (#46672)``
+* ``[OpenLineage] fixed inputs in OL implementation of CopyFromExternalStageToSnowflakeOperator (#47168)``
+* ``fix deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SnowflakeSqlApiOperator snowflake_conn_id add to template_fields (#46422)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``snowflake: pass through the ocsp_fail_open setting (#46476)``
+
+Misc
+~~~~
+
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move SNOWFLAKE provider to new structure (#46059)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
 6.0.0
 .....
 
@@ -300,7 +350,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 5.1.1
 .....

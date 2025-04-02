@@ -38,19 +38,13 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     UI_ASSET_COMPILE_LOCK,
-    UI_ASSET_HASH_FILE,
+    UI_ASSET_HASH_PATH,
     UI_ASSET_OUT_DEV_MODE_FILE,
     UI_ASSET_OUT_FILE,
-    UI_DIST_DIR,
-    UI_NODE_MODULES_DIR,
-    WWW_ASSET_COMPILE_LOCK,
-    WWW_ASSET_HASH_FILE,
-    WWW_ASSET_OUT_DEV_MODE_FILE,
-    WWW_ASSET_OUT_FILE,
-    WWW_NODE_MODULES_DIR,
-    WWW_STATIC_DIST_DIR,
+    UI_DIST_PATH,
+    UI_NODE_MODULES_PATH,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -75,7 +69,7 @@ def run_command(
     **kwargs,
 ) -> RunCommandResult:
     """
-    Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
+    Runs command passed as list of strings with some extra functionality over Popen (kwargs from Popen can
     be used in this command even if not explicitly specified).
 
     It prints diagnostics when requested, also allows to "dry_run" the commands rather than actually
@@ -213,7 +207,7 @@ def assert_pre_commit_installed():
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
+    pre_commit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
@@ -236,8 +230,8 @@ def assert_pre_commit_installed():
                     )
                 else:
                     get_console().print(
-                        f"\n[error]Package name pre_commit version is wrong. It should be"
-                        f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                        f"\n[error]Package name pre_commit version is wrong. It should be "
+                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                     )
                     sys.exit(1)
                 if "pre-commit-uv" not in command_result.stdout:
@@ -299,8 +293,7 @@ def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
     get_console().print(f"[warning]\nThe CI image for Python version {python} may be outdated[/]\n")
     get_console().print(
-        f"\n[info]Please run at the earliest "
-        f"convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
+        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze ci-image build --python {python}\n\n"
     )
 
 
@@ -333,18 +326,18 @@ def change_directory_permission(directory_to_fix: Path):
         os.chmod(directory_to_fix, new)
 
 
-@working_directory(AIRFLOW_SOURCES_ROOT)
+@working_directory(AIRFLOW_ROOT_PATH)
 def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
     if get_verbose():
         get_console().print("[info]Fixing group permissions[/]")
-    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
+    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, check=False, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, check=False, text=True
     )
     if directories_to_fix_result.returncode == 0:
         directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
@@ -460,62 +453,11 @@ def kill_process_group(gid: int):
         pass
 
 
-def clean_www_assets():
-    get_console().print("[info]Cleaning www assets[/]")
-    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
-    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
-    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
-    get_console().print("[success]Cleaned www assets[/]")
-
-
-def run_compile_www_assets(
-    dev: bool,
-    run_in_background: bool,
-    force_clean: bool,
-):
-    if force_clean:
-        clean_www_assets()
-    if dev:
-        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
-        get_console().print(
-            "\n[info]If you want to see output of the compilation command,\n"
-            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
-            "[info]However, it requires you to have local yarn installation.\n"
-        )
-    command_to_execute = [
-        "pre-commit",
-        "run",
-        "--hook-stage",
-        "manual",
-        "compile-www-assets-dev" if dev else "compile-www-assets",
-        "--all-files",
-        "--verbose",
-    ]
-    get_console().print(
-        "[info]The output of the asset compilation is stored in: [/]"
-        f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
-    )
-    if run_in_background:
-        pid = os.fork()
-        if pid:
-            # Parent process - send signal to process group of the child process
-            atexit.register(kill_process_group, pid)
-        else:
-            # Check if we are not a group leader already (We should not be)
-            if os.getpid() != os.getsid(0):
-                # and create a new process group where we are the leader
-                os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
-            sys.exit(0)
-    else:
-        return _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
-
-
 def clean_ui_assets():
     get_console().print("[info]Cleaning ui assets[/]")
-    UI_ASSET_HASH_FILE.unlink(missing_ok=True)
-    shutil.rmtree(UI_NODE_MODULES_DIR, ignore_errors=True)
-    shutil.rmtree(UI_DIST_DIR, ignore_errors=True)
+    UI_ASSET_HASH_PATH.unlink(missing_ok=True)
+    shutil.rmtree(UI_NODE_MODULES_PATH, ignore_errors=True)
+    shutil.rmtree(UI_DIST_PATH, ignore_errors=True)
     get_console().print("[success]Cleaned ui assets[/]")
 
 

@@ -22,9 +22,10 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 state: ready
-source-date-epoch: 1734536796
+source-date-epoch: 1743477898
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.0.1
   - 4.0.0
   - 3.14.0
   - 3.13.1

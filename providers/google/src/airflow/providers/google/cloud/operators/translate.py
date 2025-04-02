@@ -22,6 +22,9 @@ from __future__ import annotations
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from typing import TYPE_CHECKING, cast
 
+from google.api_core.exceptions import GoogleAPICallError
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
 from airflow.providers.google.cloud.links.translate import (
@@ -35,11 +38,8 @@ from airflow.providers.google.cloud.links.translate import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.cloud.translate_v3.types import (
         BatchDocumentInputConfig,
@@ -54,6 +54,8 @@ if TYPE_CHECKING:
         automl_translation,
     )
     from google.cloud.translate_v3.types.translation_service import Glossary, GlossaryInputConfig
+
+    from airflow.utils.context import Context
 
 
 class CloudTranslateTextOperator(GoogleCloudBaseOperator):
@@ -1143,7 +1145,7 @@ class TranslateDocumentOperator(GoogleCloudBaseOperator):
                 project_id=self.project_id or hook.project_id,
                 output_config=self.document_output_config,
             )
-        return cast(dict, type(doc_translation_result).to_dict(doc_translation_result))
+        return cast("dict", type(doc_translation_result).to_dict(doc_translation_result))
 
 
 class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
@@ -1308,7 +1310,7 @@ class TranslateDocumentBatchOperator(GoogleCloudBaseOperator):
         )
         result = hook.wait_for_operation_result(batch_document_translate_operation)
         self.log.info("Batch document translation job finished")
-        return cast(dict, type(result).to_dict(result))
+        return cast("dict", type(result).to_dict(result))
 
 
 class TranslateCreateGlossaryOperator(GoogleCloudBaseOperator):

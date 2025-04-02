@@ -35,7 +35,12 @@ from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
-from requests import Session
+from google.api_core.exceptions import GoogleAPICallError, NotFound
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
@@ -49,20 +54,14 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
-from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
-from google.cloud.exceptions import GoogleCloudError
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from aiohttp import ClientSession
-
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
+    from requests import Session
 
 
 RT = TypeVar("RT")
@@ -136,16 +135,16 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(Callable[FParams, RT], _inner_wrapper)
+        return cast("Callable[FParams, RT]", _inner_wrapper)
 
-    return cast(Callable[[T], T], _wrapper)
+    return cast("Callable[[T], T]", _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
 # This allows the 'bucket' argument to be of type str instead of str | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-PROVIDE_BUCKET: str = cast(str, None)
+PROVIDE_BUCKET: str = cast("str", None)
 
 
 class GCSHook(GoogleBaseHook):
@@ -598,7 +597,13 @@ class GCSHook(GoogleBaseHook):
             context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
         )
 
-    def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
+    def exists(
+        self,
+        bucket_name: str,
+        object_name: str,
+        retry: Retry = DEFAULT_RETRY,
+        user_project: str | None = None,
+    ) -> bool:
         """
         Check for the existence of a file in Google Cloud Storage.
 
@@ -606,9 +611,11 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
         :param retry: (Optional) How to retry the RPC
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.blob(blob_name=object_name)
         return blob.exists(retry=retry)
 
@@ -625,7 +632,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -645,7 +652,7 @@ class GCSHook(GoogleBaseHook):
         self, bucket_name: str, object_name: str, min_ts: datetime, max_ts: datetime
     ) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -666,7 +673,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_before(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated before given time in Google Cloud Storage.
+        Check if a blob_name is updated before given time in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -718,6 +725,14 @@ class GCSHook(GoogleBaseHook):
         )
 
         self.log.info("Blob %s deleted.", object_name)
+
+    def get_bucket(self, bucket_name: str) -> storage.Bucket:
+        """
+        Get a bucket object from the Google Cloud Storage.
+
+        :param bucket_name: name of the bucket
+        """
+        return self.get_conn().bucket(bucket_name)
 
     def delete_bucket(self, bucket_name: str, force: bool = False, user_project: str | None = None) -> None:
         """
@@ -1487,5 +1502,5 @@ class GCSAsyncHook(GoogleBaseAsyncHook):
         token = await self.get_token(session=session)
         return Storage(
             token=token,
-            session=cast(Session, session),
+            session=cast("Session", session),
         )

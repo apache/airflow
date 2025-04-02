@@ -63,6 +63,25 @@ class KafkaBaseHook(BaseHook):
         if not (config.get("bootstrap.servers", None)):
             raise ValueError("config['bootstrap.servers'] must be provided.")
 
+        bootstrap_servers = config.get("bootstrap.servers")
+        if (
+            bootstrap_servers
+            and bootstrap_servers.find("cloud.goog") != -1
+            and bootstrap_servers.find("managedkafka") != -1
+        ):
+            try:
+                from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
+            except ImportError:
+                from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+                raise AirflowOptionalProviderFeatureException(
+                    "Failed to import ManagedKafkaHook. For using this functionality google provider version "
+                    ">= 14.1.0 should be pre-installed."
+                )
+            self.log.info("Adding token generation for Google Auth to the confluent configuration.")
+            hook = ManagedKafkaHook()
+            token = hook.get_confluent_token
+            config.update({"oauth_cb": token})
         return self._get_client(config)
 
     def test_connection(self) -> tuple[bool, str]:

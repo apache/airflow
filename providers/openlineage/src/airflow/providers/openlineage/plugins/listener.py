@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
+from openlineage.client.serde import Serde
 from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
@@ -50,7 +51,6 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
-from openlineage.client.serde import Serde
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -69,13 +69,15 @@ def _get_try_number_success(val):
 
 def _executor_initializer():
     """
-    Initialize worker processes for the executor used for DagRun listener.
+    Initialize processes for the executor used with DAGRun listener's methods (on scheduler).
 
     This function must be picklable, so it cannot be defined as an inner method or local function.
 
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
     the Airflow database.
     """
+    # This initializer is used only on the scheduler
+    # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
     settings.configure_orm()
 
 
@@ -104,7 +106,7 @@ class OpenLineageListener:
                 assert task
             dagrun = context["dag_run"]
             dag = context["dag"]
-            start_date = context["start_date"]
+            start_date = task_instance.start_date
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 
@@ -178,9 +180,13 @@ class OpenLineageListener:
                 self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
                 return
 
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=clear_number,
             )
 
@@ -188,14 +194,16 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
-                task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun=dagrun, task=task, task_instance_state=TaskInstanceState.RUNNING
+                )
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
@@ -276,9 +284,13 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_success():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
@@ -286,7 +298,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.COMPLETE.value.lower()
@@ -294,7 +306,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.SUCCESS,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.complete_task(
@@ -393,9 +408,13 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_failure():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
@@ -403,7 +422,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.FAIL.value.lower()
@@ -411,7 +430,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.FAILED,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.fail_task(
@@ -460,7 +482,9 @@ class OpenLineageListener:
                 process.wait(conf.execution_timeout())
             except psutil.TimeoutExpired:
                 self.log.warning(
-                    "OpenLineage process %s expired. This should not affect process execution.", pid
+                    "OpenLineage process with pid `%s` expired and will be terminated by listener. "
+                    "This has no impact on actual task execution status.",
+                    pid,
                 )
                 self._terminate_with_wait(process)
             except BaseException:
@@ -469,7 +493,8 @@ class OpenLineageListener:
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            configure_orm(disable_connection_pool=True)
+            if not AIRFLOW_V_3_0_PLUS:
+                configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
             callable()
             self.log.debug("Process with current pid finishes after %s", callable_name)

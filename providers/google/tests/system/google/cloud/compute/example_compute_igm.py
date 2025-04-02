@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -90,8 +91,7 @@ INSTANCE_GROUP_MANAGER_BODY = {
 }
 
 SOURCE_TEMPLATE_URL = (
-    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/"
-    f"global/instanceTemplates/{TEMPLATE_NAME}"
+    f"https://www.googleapis.com/compute/beta/projects/{PROJECT_ID}/global/instanceTemplates/{TEMPLATE_NAME}"
 )
 
 

@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Elasticsearch",
         "description": "`Elasticsearch <https://www.elastic.co/elasticsearch>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734533734,
+        "source-date-epoch": 1743477817,
         "versions": [
+            "6.2.1",
+            "6.2.0",
             "6.0.0",
             "5.5.3",
             "5.5.2",
@@ -218,4 +220,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "elasticsearch>=8.10,<9",
         ],
+        "devel-dependencies": [],
     }

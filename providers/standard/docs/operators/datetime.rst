@@ -39,7 +39,7 @@ take some time between when the DAGRun was scheduled and executed and it might m
 the DAGRun was scheduled properly, the actual time used for branching decision will be different than the
 schedule time and the branching decision might be different depending on those delays.
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_datetime_operator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_datetime_operator.py
     :language: python
     :start-after: [START howto_branch_datetime_operator]
     :end-before: [END howto_branch_datetime_operator]
@@ -50,7 +50,7 @@ the current date in order to allow comparisons with it. In the event that ``targ
 to a ``datetime.time`` that occurs before the given ``target_lower``, a day will be added to ``target_upper``.
 This is done to allow for time periods that span over two dates.
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_datetime_operator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_datetime_operator.py
     :language: python
     :start-after: [START howto_branch_datetime_operator_next_day]
     :end-before: [END howto_branch_datetime_operator_next_day]
@@ -66,7 +66,7 @@ The usage is much more "data range" friendly. The ``logical_date`` does not chan
 it is not affected by execution delays, so this approach is suitable for idempotent DAG runs that might be
 back-filled.
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_datetime_operator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_datetime_operator.py
     :language: python
     :start-after: [START howto_branch_datetime_operator_logical_date]
     :end-before: [END howto_branch_datetime_operator_logical_date]
@@ -78,7 +78,7 @@ BranchDayOfWeekOperator
 
 Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
 
-.. exampleinclude:: /../../airflow/example_dags/example_branch_day_of_week_operator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_day_of_week_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_day_of_week_branch]

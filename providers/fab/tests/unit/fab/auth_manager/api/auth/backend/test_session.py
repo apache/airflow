@@ -22,12 +22,12 @@ import pytest
 from flask import Response
 
 from airflow.providers.fab.auth_manager.api.auth.backend.session import requires_authentication
-from airflow.www import app as application
+from airflow.providers.fab.www import app as application
 
 
 @pytest.fixture
 def app():
-    return application.create_app(testing=True)
+    return application.create_app(enable_plugins=False)
 
 
 mock_call = Mock()

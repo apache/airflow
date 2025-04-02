@@ -17,13 +17,30 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 
 class TestCloudWatchEventsLink(BaseAwsLinksTestCase):
     link_class = CloudWatchEventsLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "us-west-1",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "awslogs_region": "ap-southeast-2",
+                    "awslogs_group": "/test/logs/group",
+                    "awslogs_stream_name": "test/stream/d56a66bb98a14c4593defa1548686edf",
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/cloudwatch/home"

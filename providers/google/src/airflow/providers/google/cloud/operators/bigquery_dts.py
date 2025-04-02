@@ -24,13 +24,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
-from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery_datatransfer_v1 import (
     StartManualTransferRunsResponse,
@@ -39,9 +32,18 @@ from google.cloud.bigquery_datatransfer_v1 import (
     TransferState,
 )
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
+from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 def _get_transfer_config_details(config_transfer_name: str):

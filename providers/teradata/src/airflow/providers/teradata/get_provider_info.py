@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Teradata",
         "description": "`Teradata <https://www.teradata.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537340,
+        "source-date-epoch": 1743477904,
         "versions": [
+            "3.0.2",
+            "3.0.1",
             "3.0.0",
             "2.6.1",
             "2.6.0",
@@ -106,4 +108,5 @@ def get_provider_info():
             "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
             "amazon": ["apache-airflow-providers-amazon"],
         },
+        "devel-dependencies": [],
     }

@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "gRPC",
         "description": "`gRPC <https://grpc.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734534759,
+        "source-date-epoch": 1743477829,
         "versions": [
+            "3.7.3",
+            "3.7.2",
             "3.7.0",
             "3.6.0",
             "3.5.2",
@@ -67,4 +69,5 @@ def get_provider_info():
             "google-auth-httplib2>=0.0.1",
             "grpcio>=1.59.0",
         ],
+        "devel-dependencies": [],
     }

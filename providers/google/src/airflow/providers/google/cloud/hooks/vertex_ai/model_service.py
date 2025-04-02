@@ -23,11 +23,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import ModelServiceClient
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -38,8 +40,10 @@ if TYPE_CHECKING:
     )
     from google.cloud.aiplatform_v1.types import Model, model_service
 
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
-class ModelServiceHook(GoogleBaseHook):
+
+class ModelServiceHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Endpoint Service APIs."""
 
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
@@ -50,21 +54,13 @@ class ModelServiceHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return ModelServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     @staticmethod
     def extract_model_id(obj: dict) -> str:
         """Return unique id of the model."""
         return obj["model"].rpartition("/")[-1]
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_model(

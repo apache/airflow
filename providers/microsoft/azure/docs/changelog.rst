@@ -27,6 +27,88 @@
 Changelog
 ---------
 
+12.2.2
+......
+
+Misc
+~~~~
+
+* ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Remove default_view property from DAG class and model (#47616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+12.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove extra string interpolation from fstrings (#47436)``
+* ``Fix support for old method signature of pagination_function in MSGraphAsyncOperator (#47101)``
+
+Misc
+~~~~
+
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+12.2.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+12.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added support for certificate authentication with MSGraphAsyncOperator (#45935)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'KiotaRequestAdapterHook' make sure proxy config parameter is parsed correctly, even if it is a string or json (#46145)``
+* ``fix: retry of PowerBIDatasetRefreshOperator when dataset refresh wasn't directly available (#45513)``
+* ``fix: compat issue HTTPX proxy configuration in KiotaRequestAdapterHook and fixed retry in MSGraphSensor (#45746)``
+* ``fix: assignment of proxies parameter in KiotaRequestAdapterHook (#45741)``
+* ``fix: Updated instantiated of httpx AsyncClient as the proxies parameter is deprecated and mounts parameter should be used instead (#45464)``
+* ``fix: return type for azure hook 'run_query' (#45470)``
+
+Misc
+~~~~
+
+* ``Refactor result_processor and event_handler signatures in MSGraphAsyncOperator (#46637)``
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``Add dynamic task mapping into TaskSDK runtime (#46032)``
+* ``Move update subscription from 'AzureServiceBusTopicCreateOperator' to 'AdminClientHook' (#45367)``
+* ``Move create topic from 'AzureServiceBusTopicCreateOperator' to 'AdminClientHook' (#45297)``
+* ``Refactor Azure Service Bus: move create_subscription to hook (#45125)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid imports from "providers" (#46801)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Migrate Amazon provider package (#46590)``
+   * ``Provider moving/microsoft azure (#46254)``
+
 12.0.0
 ......
 
@@ -439,7 +521,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 8.2.0
 .....

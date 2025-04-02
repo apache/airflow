@@ -171,6 +171,8 @@ BaseHook
 BaseObject
 BaseOperator
 baseOperator
+BaseOperatorLink
+baseoperatorlink
 basestring
 basetaskrunner
 BaseView
@@ -319,6 +321,7 @@ connectTimeoutMS
 connexion
 containerConfiguration
 containerd
+ContainerEntrypoint
 ContainerGroup
 containerinstance
 ContainerPort
@@ -378,6 +381,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+dags
 DagsFolderDagBundle
 Dask
 dask
@@ -467,6 +471,7 @@ DeidentifyTemplate
 del
 delim
 delitem
+deltalake
 dep
 DependencyMixin
 deploymentUrl
@@ -559,6 +564,7 @@ ec
 ecb
 ECR
 ecs
+EdDSA
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -623,7 +629,6 @@ explicit
 exportingmultiple
 extensibility
 externalbrowser
-exts
 faas
 facebook
 Failover
@@ -693,6 +698,7 @@ Gantt
 gantt
 gapic
 gapped
+gb
 gbq
 gcc
 gcloud
@@ -722,6 +728,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore
@@ -826,6 +833,7 @@ ImageAnnotatorClient
 imageORfile
 imagePullPolicy
 imagePullSecrets
+ImageUri
 imageVersion
 Imap
 imap
@@ -859,6 +867,7 @@ InstanceFlexibilityPolicy
 InstanceGroupConfig
 InstanceSelection
 instanceTemplates
+InstanceType
 instantiation
 integrations
 interdependencies
@@ -876,6 +885,7 @@ IPv4
 ipv4
 IPv6
 ipv6
+ipynb
 iPython
 irreproducible
 IRSA
@@ -932,6 +942,7 @@ juli
 Jupyter
 jupyter
 jupytercmd
+jwks
 JWT
 jwt
 Kafka
@@ -1050,6 +1061,7 @@ masterType
 Matomo
 matomo
 Maxime
+MaxRuntimeInSeconds
 mb
 md
 mediawiki
@@ -1373,6 +1385,8 @@ Qubole
 qubole
 QuboleCheckHook
 Quboles
+querybook
+Querybooks
 queryParameters
 querystring
 queueing
@@ -1576,6 +1590,7 @@ SparkSQL
 sparksql
 SpeechClient
 spegno
+sphinx_exts
 Splunk
 spotahome
 Sql
@@ -1854,6 +1869,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr
@@ -1887,8 +1903,10 @@ views
 virtualenv
 virtualenvs
 vm
+VolumeKmsKeyId
 VolumeMount
 volumeMounts
+VolumeSizeInGB
 vpc
 WaiterModel
 wape
@@ -1915,6 +1933,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

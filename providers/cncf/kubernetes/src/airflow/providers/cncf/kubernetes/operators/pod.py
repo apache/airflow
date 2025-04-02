@@ -32,10 +32,13 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
+import kubernetes
 import tenacity
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client.exceptions import ApiException
+from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-import kubernetes
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -81,9 +84,6 @@ from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.client.exceptions import ApiException
-from kubernetes.stream import stream
 
 if TYPE_CHECKING:
     import jinja2
@@ -132,23 +132,23 @@ class KubernetesPodOperator(BaseOperator):
         simplifies the authorization process.
 
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
-        for the Kubernetes cluster.
+        for the Kubernetes cluster. (templated)
     :param namespace: the namespace to run within kubernetes.
-    :param image: Docker image you wish to launch. Defaults to hub.docker.com,
+    :param image: Container image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories. (templated)
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
-        containing only [a-z0-9.-]).
+        containing only [a-z0-9.-]). (templated)
     :param random_name_suffix: if True, will generate a random suffix.
-    :param cmds: entrypoint of the container. (templated)
-        The docker images's entrypoint is used if this is not provided.
-    :param arguments: arguments of the entrypoint. (templated)
-        The docker image's CMD is used if this is not provided.
+    :param cmds: entrypoint of the container.
+        The container images's entrypoint is used if this is not provided. (templated)
+    :param arguments: arguments of the entrypoint.
+        The container image's CMD is used if this is not provided. (templated)
     :param ports: ports for the launched pod.
-    :param volume_mounts: volumeMounts for the launched pod.
-    :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
+    :param volume_mounts: volumeMounts for the launched pod. (templated)
+    :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes. (templated)
     :param env_vars: Environment variables initialized in the container. (templated)
-    :param env_from: (Optional) List of sources to populate environment variables in the container.
+    :param env_from: (Optional) List of sources to populate environment variables in the container. (templated)
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -187,7 +187,7 @@ class KubernetesPodOperator(BaseOperator):
     :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
-    :param hostname: hostname for the pod.
+    :param hostname: hostname for the pod. (templated)
     :param subdomain: subdomain for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
@@ -213,7 +213,9 @@ class KubernetesPodOperator(BaseOperator):
     :param base_container_name: The name of the base container in the pod. This container's logs
         will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
-        container name to use.
+        container name to use. (templated)
+    :param base_container_status_polling_interval: Polling period in seconds to check for the pod base
+        container status. Default to 1s.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
@@ -232,7 +234,7 @@ class KubernetesPodOperator(BaseOperator):
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
-    #  - airflow/decorators/__init__.pyi  (by a separate PR)
+    #  - airflow-core/src/airflow/decorators/__init__.pyi  (by a separate PR)
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
@@ -261,6 +263,7 @@ class KubernetesPodOperator(BaseOperator):
         "env_from",
         "node_selector",
         "kubernetes_conn_id",
+        "base_container_name",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -288,6 +291,7 @@ class KubernetesPodOperator(BaseOperator):
         startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         base_container_name: str | None = None,
+        base_container_status_polling_interval: float = 1,
         init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] | None = None,
         image_pull_policy: str | None = None,
@@ -365,6 +369,7 @@ class KubernetesPodOperator(BaseOperator):
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
+        self.base_container_status_polling_interval = base_container_status_polling_interval
         self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
@@ -720,7 +725,11 @@ class KubernetesPodOperator(BaseOperator):
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
             ):
-                self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
+                self.pod_manager.await_container_completion(
+                    pod=pod,
+                    container_name=self.base_container_name,
+                    polling_time=self.base_container_status_polling_interval,
+                )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
 
@@ -834,6 +843,10 @@ class KubernetesPodOperator(BaseOperator):
             last_log_time = event.get("last_log_time")
 
             if event["status"] in ("error", "failed", "timeout"):
+                event_message = event.get("message", "No message provided")
+                self.log.error(
+                    "Trigger emitted an %s event, failing the task: %s", event["status"], event_message
+                )
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)

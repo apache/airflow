@@ -28,15 +28,15 @@ from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from snowflake import connector
+from snowflake.connector import DictCursor, SnowflakeConnection, util_text
+from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
-from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.sqlalchemy import URL
 
 T = TypeVar("T")
 if TYPE_CHECKING:
@@ -367,9 +367,10 @@ class SnowflakeHook(DbApiHook):
 
         :return: the created session.
         """
+        from snowflake.snowpark import Session
+
         from airflow import __version__ as airflow_version
         from airflow.providers.snowflake import __version__ as provider_version
-        from snowflake.snowpark import Session
 
         conn_config = self._get_conn_params
         session = Session.builder.configs(conn_config).create()
@@ -543,15 +544,41 @@ class SnowflakeHook(DbApiHook):
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
         return urlparse(uri).hostname
 
-    def get_openlineage_database_specific_lineage(self, _) -> OperatorLineage | None:
+    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
+        """
+        Generate OpenLineage metadata for a Snowflake task instance based on executed query IDs.
+
+        If a single query ID is present, attach an `ExternalQueryRunFacet` to the lineage metadata.
+        If multiple query IDs are present, emits separate OpenLineage events for each query.
+
+        Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
+        so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
+        after task's execution. If we are able to query Snowflake for query execution metadata,
+        query event times will correspond to actual query's start and finish times.
+
+        Args:
+            task_instance: The Airflow TaskInstance object for which lineage is being collected.
+
+        Returns:
+            An `OperatorLineage` object if a single query ID is found; otherwise `None`.
+        """
         from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
+        from airflow.providers.snowflake.utils.openlineage import (
+            emit_openlineage_events_for_snowflake_queries,
+        )
 
-        if self.query_ids:
-            self.log.debug("openlineage: getting connection to get database info")
-            connection = self.get_connection(self.get_conn_id())
-            namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+        if not self.query_ids:
+            self.log.debug("openlineage: no snowflake query ids found.")
+            return None
+
+        self.log.debug("openlineage: getting connection to get database info")
+        connection = self.get_connection(self.get_conn_id())
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+
+        if len(self.query_ids) == 1:
+            self.log.debug("Attaching ExternalQueryRunFacet with single query_id to OpenLineage event.")
             return OperatorLineage(
                 run_facets={
                     "externalQuery": ExternalQueryRunFacet(
@@ -559,4 +586,21 @@ class SnowflakeHook(DbApiHook):
                     )
                 }
             )
+
+        self.log.info("Multiple query_ids found. Separate OpenLineage event will be emitted for each query.")
+        try:
+            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+
+            use_external_connection = should_use_external_connection(self)
+        except ImportError:
+            # OpenLineage provider release < 1.8.0 - we always use connection
+            use_external_connection = True
+
+        emit_openlineage_events_for_snowflake_queries(
+            query_ids=self.query_ids,
+            query_source_namespace=namespace,
+            task_instance=task_instance,
+            hook=self if use_external_connection else None,
+        )
+
         return None

@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Airbyte",
         "description": "`Airbyte <https://airbyte.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1737371678,
+        "source-date-epoch": 1743477757,
         "versions": [
+            "5.0.1",
             "5.0.0",
             "4.0.0",
             "3.9.0",
@@ -82,4 +83,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "airbyte-api>=0.52.0"],
+        "devel-dependencies": [],
     }

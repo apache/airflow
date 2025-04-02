@@ -26,25 +26,161 @@
 Changelog
 ---------
 
-.. note::
-  This release of provider is only available for Airflow 2.9+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
-
-9.3.0
+9.5.0
 .....
 
-Misc
-~~~~
+Features
+~~~~~~~~
 
-* ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+* ``Add a backup implementation in AWS MwaaHook for calling the MWAA API (#47035)``
+* ``Add AWS SageMaker Unified Studio Workflow Operator (#45726)``
+* ``Add error statuses check in RdsExportTaskExistenceSensor  (#46917)``
+* ``Common Message Queue (#46694)``
+* ``add startTime to paginator.paginate when fetching logs in GlueJobHook (#46950)``
+* ``Add MwaaDagRunSensor to Amazon Provider Package (#46945)``
+* ``Add wait/defer support - MwaaTriggerDagRunOperator (#47528)``
+* ``Add deferrable support for MwaaDagRunSensor (#47527)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned"``
+* ``Fix aws trigger tests, use get_async_conn for mock object (#47515)``
+* ``fix: don't use blocking property access for async purposes (#47326)``
+* ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
+* ``Log state for EMR Containers sensor on failure (#47125)``
+* ``Don't expect default conns in S3ToRedshiftOperator (#48363)``
+* ``Don't expect default connections to be present in RedshiftToS3Operator (#47968)``
+* ``fix PosixPath not working with file create_asset in download_file of S3Hook (#47880)``
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Add some typing and require kwargs for auth manager (#47455)``
+* ``AIP-84 - Add Auth for Assets (#47136)``
+* ``Base AWS classes - S3 (#47321)``
+* ``Remove unused methods from auth managers (#47316)``
+* ``Move api-server to port 8080 (#47310)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Remove old UI and webserver (#46942)``
+* ``Don't remove log groups from example_glue.py (#47128)``
+* ``Move 'fastapi-api' command to 'api-server' (#47076)``
+* ``Remove '/webapp' prefix from new UI (#47041)``
+* ``Restricting moto 5.1.0 to fix ci (#47005)``
+* ``Bump minimum boto3 version to 1.37.0 (#48238)``
+* ``Move BaseNotifier to Task SDK (#48008)``
+* ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
+* ``Bump mypy-boto3-appflow>=1.37.0 (#47912)``
+* ``Lower bind xmlsec dependency version (#47696)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add skipimport check for aiobotocore module in aws trigger tests (#47512)``
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Replace 'external_trigger' check with DagRunType (#45961)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Fix TestRdsCopyDbSnapshotOperator tests (#47006)``
+   * ``Fix new UI when running outside of breeze (#46991)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``(Re)move old dependencies from the old FAB UI (#48007)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Update example_s3 system test (#47974)``
+   * ``Set 'wait_for_completion' to True in example_mwaa system test (#47877)``
+   * ``Fix AWS auth manager system test (#47876)``
+   * ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Test 'MwaaHook''s IAM fallback in system test (#47759)``
+   * ``Update Dockerfile in aws execs docs (#47799)``
+   * ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
+   * ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+   * ``Set JWT token to localStorage from cookies (#47432)``
+   * ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+   * ``AIP-84 Add Auth for DAG Versioning (#47553)``
+   * ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+   * ``AIP-84 Add Auth for backfill (#47482)``
+   * ``test(aws): Fix aws trigger tests, use get_async_conn for mock object (#47667)``
+   * ``Adding xmlsec pin in amazon provider (#47656)``
+   * ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+   * ``Use a single http tag to report the server's location to front end, not two (#47572)``
+   * ``AIP 84 - Add auth for asset alias (#47241)``
+   * ``Prepare docs for Mar 1st wave of providers (#47545)``
+
+9.4.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+9.3.0
+.....
+
+.. warning::
+  * ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+
+Features
+~~~~~~~~
+
+* ``Add MwaaTriggerDagRunOperator and MwaaHook to Amazon Provider Package (#46579)``
+* ``Adding extra links for EC2 (#46340)``
+* ``Allow to pass container_name parameter to EcsRunTaskOperator (#46152)``
+* ``Adding DataSync links (#46292)``
+* ``Added extra links for Comprehend operators (#46031)``
+* ``Add support for timeout to BatchOperator (#45660)``
+* ``Adding SageMaker Transform extra link (#45677)``
+* ``Add MessageDeduplicationId support to AWS SqsPublishOperator (#45051)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``Fix schema path in AWS auth manager system test due to restructure (#46625)``
+* ``Increase retries in 'EmrContainerHook.create_emr_on_eks_cluster' (#46562)``
+* ``Update 'create_emr_on_eks_cluster' method to try when "cluster is not reachable as its connection is currently being updated" (#46497)``
+* ``Generate partition aware STS endpoints for EKS Hook (#45725)``
+* ``Sagemaker Operator Character limit fix  (#45551)``
+* ``Fix 'fetch_access_token_for_cluster' in EKS hook (#45469)``
+* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned" (#46684)``
+
+Misc
+~~~~
+
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``Update 'example_sqs' to not use 'logical_date' (#46696)``
+* ``Change improper AirflowProviderDeprecationWarning ignore to DeprecationWarning ignore for 3.12 tests (#46612)``
+* ``Update AWS auth manager to use Fastapi instead of Flask (#46381)``
+* ``AIP-72: Move Secrets Masker to task SDK (#46375)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Make parameter 'user' mandatory for all methods in the auth manager interface (#45986)``
+* ``Add 'run_job_kwargs' as templated field in 'GlueJobOperator' (#45973)``
+* ``Use Protocol for 'OutletEventAccessor' (#45762)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+* ``Remove marshmallow version restriction; update deprecated usages (#45499)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+* ``Add option in auth manager interface to define FastAPI api (#45009)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Migrate Amazon provider package (#46590)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * ``Revert "Fix fetch_access_token_for_cluster in EKS hook" (#45526)``
+   * ``Fix the way to get STS endpoint in EKS hook (#45520)``
+   * ``update outdated hyperlinks referencing provider package files (#45332)``
 
 9.2.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~
@@ -884,7 +1020,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Update http to s3 system test (#35711)``
 
 8.11.0

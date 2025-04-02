@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Influxdb",
         "description": "`InfluxDB <https://www.influxdata.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734534947,
+        "source-date-epoch": 1743477836,
         "versions": [
+            "2.8.3",
+            "2.8.2",
             "2.8.0",
             "2.7.1",
             "2.7.0",
@@ -72,5 +74,6 @@ def get_provider_info():
                 "connection-type": "influxdb",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "influxdb-client>=1.19.0", "requests>=2.27.0,<3"],
+        "dependencies": ["apache-airflow>=2.9.0", "influxdb-client>=1.19.0", "requests>=2.31.0,<3"],
+        "devel-dependencies": [],
     }

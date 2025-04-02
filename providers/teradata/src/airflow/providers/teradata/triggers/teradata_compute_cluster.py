@@ -21,7 +21,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_one_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.utils.constants import Constants
 from airflow.triggers.base import BaseTrigger, TriggerEvent

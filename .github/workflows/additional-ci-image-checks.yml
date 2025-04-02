@@ -93,7 +93,7 @@ jobs:
   # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
   # delay cache refresh. It does not attempt to upgrade to newer dependencies.
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
-  # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
+  # it uses prepared airflow and provider distributions that invalidate the cache anyway most of the time
   push-early-buildx-cache-to-github-registry:
     name: Push Early Image Cache
     uses: ./.github/workflows/push-image-cache.yml
@@ -102,7 +102,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
@@ -165,7 +164,6 @@ jobs:
 #    permissions:
 #      contents: read
 #      packages: write
-#    secrets: inherit
 #    with:
 #      platform: "linux/arm64"
 #      push-image: "false"

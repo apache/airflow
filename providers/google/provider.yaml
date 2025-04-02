@@ -29,9 +29,11 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1732429547
+source-date-epoch: 1743477827
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 14.1.0
+  - 14.0.0
   - 12.0.0
   - 11.0.0
   - 10.26.0
@@ -833,6 +835,7 @@ hooks:
   - integration-name: Google
     python-modules:
       - airflow.providers.google.common.hooks.base_google
+      - airflow.providers.google.common.hooks.operation_helpers
   - integration-name: Google Discovery API
     python-modules:
       - airflow.providers.google.common.hooks.discovery_api
@@ -1229,6 +1232,8 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
 
 
 secrets-backends:

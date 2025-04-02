@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Datadog",
         "description": "`Datadog <https://www.datadoghq.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734533260,
+        "source-date-epoch": 1743477808,
         "versions": [
+            "3.8.3",
+            "3.8.2",
             "3.8.0",
             "3.7.1",
             "3.7.0",
@@ -72,4 +74,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "datadog>=0.14.0"],
+        "devel-dependencies": [],
     }

@@ -25,6 +25,79 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add helper for any provider version check (#47909)``
+* ``feat: Add helper for OpenLineage version check (#47897)``
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+* ``AIP-84 Add Auth for DAG Versioning (#47553)``
+* ``AIP-84 Add Auth for backfill (#47482)``
+* ``AIP 84 Add auth for asset alias (#47241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``serialize http transports contained in composite transport (#47444)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``fix: compat test test_provider_not_installed failing on main (#48012)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+1.5.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: automatically inject OL transport info into spark jobs (#45326)``
+* ``feat: Add OpenLineage support for some SQL to GCS operators (#45242)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage sql parsing add try-except for sqlalchemy engine (#46366)``
+
+Misc
+~~~~
+
+* ``Remove old lineage stuff (#45260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``moving common-compat provider (#46063)``
+
 1.3.0
 .....
 

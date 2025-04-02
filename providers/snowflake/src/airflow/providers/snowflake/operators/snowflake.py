@@ -455,9 +455,13 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 method_name="execute_complete",
             )
         else:
-            statement_status = self.poll_on_queries()
-            if statement_status["error"]:
-                raise AirflowException(statement_status["error"])
+            while True:
+                statement_status = self.poll_on_queries()
+                if statement_status["error"]:
+                    raise AirflowException(statement_status["error"])
+                if not statement_status["running"]:
+                    break
+
             self._hook.check_query_output(self.query_ids)
 
     def poll_on_queries(self):
@@ -465,6 +469,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         queries_in_progress = set(self.query_ids)
         statement_success_status = {}
         statement_error_status = {}
+        statement_running_status = {}
         for query_id in self.query_ids:
             if not len(queries_in_progress):
                 break
@@ -479,8 +484,14 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             if statement_status.get("status") == "success":
                 statement_success_status[query_id] = statement_status
                 queries_in_progress.remove(query_id)
+            if statement_status.get("status") == "running":
+                statement_running_status[query_id] = statement_status
             time.sleep(self.poll_interval)
-        return {"success": statement_success_status, "error": statement_error_status}
+        return {
+            "success": statement_success_status,
+            "error": statement_error_status,
+            "running": statement_running_status,
+        }
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
         """
@@ -494,7 +505,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast(list[str], event["statement_query_ids"])
+                query_ids = cast("list[str]", event["statement_query_ids"])
                 hook.check_query_output(query_ids)
                 self.log.info("%s completed successfully.", self.task_id)
         else:

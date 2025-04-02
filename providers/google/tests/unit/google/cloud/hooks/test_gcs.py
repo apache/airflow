@@ -42,9 +42,9 @@ from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_obj
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
-from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
@@ -206,11 +206,11 @@ class TestGCSHook:
         exists_method.return_value = True
 
         # When
-        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object, user_project=None)
 
         # Then
         assert response
-        bucket_mock.assert_called_once_with(test_bucket)
+        bucket_mock.assert_called_once_with(test_bucket, user_project=None)
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with(retry=DEFAULT_RETRY)
 
@@ -226,7 +226,7 @@ class TestGCSHook:
         exists_method.return_value = False
 
         # When
-        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object, user_project=None)
 
         # Then
         assert not response
@@ -582,6 +582,14 @@ class TestGCSHook:
         assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
             uri=f"gs://{test_bucket}/{test_object}"
         )
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_get_bucket(self, mock_service):
+        test_bucket = "test bucket"
+
+        self.gcs_hook.get_bucket(bucket_name=test_bucket)
+
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_bucket(self, mock_service):

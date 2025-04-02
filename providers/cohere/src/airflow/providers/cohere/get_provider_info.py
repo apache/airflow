@@ -27,8 +27,20 @@ def get_provider_info():
         "name": "Cohere",
         "description": "`Cohere <https://docs.cohere.com/docs>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734529299,
-        "versions": ["1.4.0", "1.3.0", "1.2.1", "1.2.0", "1.1.3", "1.1.2", "1.1.1", "1.1.0", "1.0.0"],
+        "source-date-epoch": 1743477799,
+        "versions": [
+            "1.4.3",
+            "1.4.2",
+            "1.4.0",
+            "1.3.0",
+            "1.2.1",
+            "1.2.0",
+            "1.1.3",
+            "1.1.2",
+            "1.1.1",
+            "1.1.0",
+            "1.0.0",
+        ],
         "integrations": [
             {
                 "integration-name": "Cohere",
@@ -50,4 +62,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "cohere>=5.13.4"],
+        "devel-dependencies": [],
     }

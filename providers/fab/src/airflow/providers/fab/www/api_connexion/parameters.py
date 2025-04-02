@@ -104,7 +104,7 @@ def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Cal
                     kwargs[key] = formatter(kwargs[key])
             return func(*args, **kwargs)
 
-        return cast(T, wrapped_function)
+        return cast("T", wrapped_function)
 
     return format_parameters_decorator
 

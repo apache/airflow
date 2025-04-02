@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "ODBC",
         "description": "`ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734535799,
+        "source-date-epoch": 1743477855,
         "versions": [
+            "4.9.1",
             "4.9.0",
             "4.8.1",
             "4.8.0",
@@ -77,4 +78,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "pyodbc>=5.0.0",
         ],
+        "devel-dependencies": [],
     }

@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+0.20.1pre0
+..........
+
+Fix
+~~~
+
+* ``Fix JWT token auth in Airflow 3 beta as JWT mechanism changed.``
+
+
+0.20.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker exports not ti.start and ti.finished metrics.``
+
+
+0.19.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker can be set to maintenance via CLI and also return to normal operation.``
+
+
+
+0.18.1pre0
+..........
+
+Fix
+~~~
+
+* ``Edge worker will not jump to maintenance request from offline maintenance during shut down.``
+
+
 0.18.0pre0
 ..........
 

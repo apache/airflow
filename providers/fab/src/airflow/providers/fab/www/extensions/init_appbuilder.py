@@ -198,7 +198,8 @@ class AirflowAppBuilder:
         self.session = session
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
-        auth_manager.init()
+        if hasattr(auth_manager, "init_flask_resources"):
+            auth_manager.init_flask_resources()
         if hasattr(auth_manager, "security_manager"):
             self.sm = auth_manager.security_manager
         else:
@@ -210,6 +211,15 @@ class AirflowAppBuilder:
         self._add_admin_views()
         self._add_addon_views()
         self._init_extension(app)
+        self._swap_url_filter()
+
+    def _swap_url_filter(self):
+        """Use our url filtering util function so there is consistency between FAB and Airflow routes."""
+        from flask_appbuilder.security import views as fab_sec_views
+
+        from airflow.providers.fab.www.views import get_safe_url
+
+        fab_sec_views.get_safe_redirect = get_safe_url
 
     def _init_extension(self, app):
         app.appbuilder = self
@@ -297,7 +307,9 @@ class AirflowAppBuilder:
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
-        get_auth_manager().register_views()
+        auth_manager = get_auth_manager()
+        if hasattr(auth_manager, "register_views"):
+            auth_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -518,6 +530,9 @@ class AirflowAppBuilder:
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
 
+    def get_url_for_login_with(self, next_url: str | None = None) -> str:
+        return get_auth_manager().get_url_login(next_url=next_url)
+
     def get_url_for_locale(self, lang):
         return url_for(
             f"{self.bm.locale_view.endpoint}.{self.bm.locale_view.default_view}",
@@ -531,7 +546,8 @@ class AirflowAppBuilder:
     def _add_permission(self, baseview, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
+                if hasattr(self.sm, "add_permissions_view"):
+                    self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
@@ -545,7 +561,8 @@ class AirflowAppBuilder:
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_menu(name)
+                if hasattr(self.sm, "add_permissions_menu"):
+                    self.sm.add_permissions_menu(name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU, e)

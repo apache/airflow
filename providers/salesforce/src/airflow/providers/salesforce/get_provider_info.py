@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Salesforce",
         "description": "`Salesforce <https://www.salesforce.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536439,
+        "source-date-epoch": 1743477879,
         "versions": [
+            "5.10.1",
+            "5.10.0",
             "5.9.0",
             "5.8.0",
             "5.7.2",
@@ -96,4 +98,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "simple-salesforce>=1.0.0", "pandas>=2.1.2,<2.2"],
+        "devel-dependencies": [],
     }

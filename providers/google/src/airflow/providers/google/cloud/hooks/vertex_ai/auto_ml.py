@@ -23,9 +23,6 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import (
@@ -39,6 +36,12 @@ from google.cloud.aiplatform import (
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
+
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
@@ -46,7 +49,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.types import TrainingPipeline
 
 
-class AutoMLHook(GoogleBaseHook):
+class AutoMLHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Auto ML APIs."""
 
     def __init__(
@@ -79,7 +82,7 @@ class AutoMLHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_job_service_client(
@@ -93,7 +96,7 @@ class AutoMLHook(GoogleBaseHook):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_auto_ml_tabular_training_job(
@@ -251,14 +254,6 @@ class AutoMLHook(GoogleBaseHook):
     def extract_training_id(resource_name: str) -> str:
         """Return unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def cancel_auto_ml_job(self) -> None:
         """Cancel Auto ML Job for training pipeline."""

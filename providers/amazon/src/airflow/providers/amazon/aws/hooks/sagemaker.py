@@ -131,7 +131,7 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        time_utc = timezone.convert_to_utc(cast("datetime", job_description["LastModifiedTime"]))
         status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
@@ -1318,7 +1318,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param job_name: the name of the training job
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
             return response
 

@@ -77,6 +77,8 @@ class _VaultClient(LoggingMixin):
     :param assume_role_kwargs: AWS assume role param.
         See AWS STS Docs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
+    :param region: AWS region for STS API calls. Inferred from the boto3 client configuration if not provided
+        (for ``aws_iam`` auth_type).
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
@@ -108,6 +110,7 @@ class _VaultClient(LoggingMixin):
         secret_id: str | None = None,
         assume_role_kwargs: dict | None = None,
         role_id: str | None = None,
+        region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str | None = "/var/run/secrets/kubernetes.io/serviceaccount/token",
         gcp_key_path: str | None = None,
@@ -123,8 +126,7 @@ class _VaultClient(LoggingMixin):
         super().__init__()
         if kv_engine_version and kv_engine_version not in VALID_KV_VERSIONS:
             raise VaultError(
-                f"The version is not supported: {kv_engine_version}. "
-                f"It should be one of {VALID_KV_VERSIONS}"
+                f"The version is not supported: {kv_engine_version}. It should be one of {VALID_KV_VERSIONS}"
             )
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(
@@ -166,6 +168,7 @@ class _VaultClient(LoggingMixin):
         self.secret_id = secret_id
         self.role_id = role_id
         self.assume_role_kwargs = assume_role_kwargs
+        self.region = region
         self.kubernetes_role = kubernetes_role
         self.kubernetes_jwt_path = kubernetes_jwt_path
         self.gcp_key_path = gcp_key_path
@@ -329,7 +332,6 @@ class _VaultClient(LoggingMixin):
             auth_args = {
                 "access_key": self.key_id,
                 "secret_key": self.secret_id,
-                "role": self.role_id,
             }
         else:
             import boto3
@@ -341,6 +343,7 @@ class _VaultClient(LoggingMixin):
                     "access_key": credentials["Credentials"]["AccessKeyId"],
                     "secret_key": credentials["Credentials"]["SecretAccessKey"],
                     "session_token": credentials["Credentials"]["SessionToken"],
+                    "region": sts_client.meta.region_name,
                 }
             else:
                 session = boto3.Session()
@@ -349,10 +352,15 @@ class _VaultClient(LoggingMixin):
                     "access_key": credentials.access_key,
                     "secret_key": credentials.secret_key,
                     "session_token": credentials.token,
+                    "region": session.region_name,
                 }
 
         if self.auth_mount_point:
             auth_args["mount_point"] = self.auth_mount_point
+        if self.region:
+            auth_args["region"] = self.region
+        if self.role_id:
+            auth_args["role"] = self.role_id
 
         _client.auth.aws.iam_login(**auth_args)
 

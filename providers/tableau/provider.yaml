@@ -22,9 +22,11 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 state: ready
-source-date-epoch: 1734537261
+source-date-epoch: 1743477901
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.0.2
+  - 5.0.1
   - 5.0.0
   - 4.6.1
   - 4.6.0

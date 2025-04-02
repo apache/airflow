@@ -27,8 +27,7 @@ services:
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.inputrc:/root/.inputrc:cached
       # Remove airflow sources from container
-      - ../../../empty:/opt/airflow/airflow
-      # Remove all provider sources from container
+      - ../../../empty:/opt/airflow/airflow-core/src
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
@@ -36,8 +35,8 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/standard/src
-      # but keep providers tests
-      - ../../../tests/:/opt/airflow/tests:cached
+      # but keep tests and provider tests tests
+      - ../../../core-airflow/tests/:/opt/airflow/core-airflow/tests:cached
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
@@ -67,6 +66,7 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
+      - ../../../providers/common/messaging/tests:/opt/airflow/providers/common/messaging/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/databricks/tests:/opt/airflow/providers/databricks/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
@@ -80,6 +80,7 @@ services:
       - ../../../providers/fab/tests:/opt/airflow/providers/fab/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
+      - ../../../providers/git/tests:/opt/airflow/providers/git/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
       - ../../../providers/google/tests:/opt/airflow/providers/google/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests

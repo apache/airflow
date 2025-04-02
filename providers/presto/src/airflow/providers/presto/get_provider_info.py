@@ -27,8 +27,11 @@ def get_provider_info():
         "name": "Presto",
         "description": "`Presto <https://prestodb.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536350,
+        "source-date-epoch": 1743477874,
         "versions": [
+            "5.8.3",
+            "5.8.2",
+            "5.8.1",
             "5.8.0",
             "5.7.0",
             "5.6.0",
@@ -98,4 +101,5 @@ def get_provider_info():
             "pandas>=2.1.2,<2.2",
         ],
         "optional-dependencies": {"google": ["apache-airflow-providers-google"]},
+        "devel-dependencies": [],
     }

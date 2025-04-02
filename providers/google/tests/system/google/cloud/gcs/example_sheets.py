@@ -89,8 +89,7 @@ with DAG(
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
         destination_bucket=BUCKET_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', "
-        "key='spreadsheet_id') }}",
+        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_sheet_to_gcs]
@@ -113,8 +112,7 @@ with DAG(
         task_id="upload_gcs_to_sheet",
         bucket_name=BUCKET_NAME,
         object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', "
-        "key='spreadsheet_id') }}",
+        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_gcs_to_sheet]

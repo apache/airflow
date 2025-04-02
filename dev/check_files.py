@@ -134,6 +134,8 @@ def check_release(files: list[str], version: str):
             f"apache_airflow-{version}.tar.gz",
             f"apache-airflow-{version}-source.tar.gz",
             f"apache_airflow-{version}-py3-none-any.whl",
+            f"apache_airflow_core-{version}.tar.gz",
+            f"apache_airflow_core-{version}-py3-none-any.whl",
         ]
     )
     return check_all_files(expected_files=expected_files, actual_files=files)
@@ -256,6 +258,12 @@ def test_check_release_pass():
         "apache_airflow-2.8.1.tar.gz",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
+        "apache_airflow_core-2.8.1-py3-none-any.whl",
+        "apache_airflow_core-2.8.1-py3-none-any.whl.asc",
+        "apache_airflow_core-2.8.1-py3-none-any.whl.sha512",
+        "apache_airflow_core-2.8.1.tar.gz",
+        "apache_airflow_core-2.8.1.tar.gz.asc",
+        "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
     assert check_release(files, version="2.8.1rc2") == []
 
@@ -271,10 +279,15 @@ def test_check_release_fail():
         "apache-airflow-2.8.1-source.tar.gz.sha512",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
+        "apache_airflow_core-2.8.1-py3-none-any.whl",
+        "apache_airflow_core-2.8.1-py3-none-any.whl.asc",
+        "apache_airflow_core-2.8.1-py3-none-any.whl.sha512",
+        "apache_airflow_core-2.8.1.tar.gz.asc",
+        "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
 
     missing_files = check_release(files, version="2.8.1rc2")
-    assert missing_files == ["apache_airflow-2.8.1.tar.gz"]
+    assert missing_files == ["apache_airflow-2.8.1.tar.gz", "apache_airflow_core-2.8.1.tar.gz"]
 
 
 def test_check_providers_pass(monkeypatch, tmp_path):

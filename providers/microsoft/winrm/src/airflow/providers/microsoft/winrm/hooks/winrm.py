@@ -22,11 +22,12 @@ from __future__ import annotations
 from base64 import b64encode
 from contextlib import suppress
 
+from winrm.exceptions import WinRMOperationTimeoutError
+from winrm.protocol import Protocol
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
-from winrm.exceptions import WinRMOperationTimeoutError
-from winrm.protocol import Protocol
 
 # TODO: FIXME please - I have too complex implementation
 
@@ -117,13 +118,9 @@ class WinRMHook(BaseHook):
         self.credssp_disable_tlsv1_2 = credssp_disable_tlsv1_2
         self.send_cbt = send_cbt
 
-        self.client = None
         self.winrm_protocol = None
 
     def get_conn(self):
-        if self.client:
-            return self.client
-
         self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
         if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
@@ -212,15 +209,16 @@ class WinRMHook(BaseHook):
                     send_cbt=self.send_cbt,
                 )
 
-            self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
-            self.client = self.winrm_protocol.open_shell()
-
         except Exception as error:
-            error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
+            error_msg = f"Error creating connection to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)
             raise AirflowException(error_msg)
 
-        return self.client
+        if not hasattr(self.winrm_protocol, "get_command_output_raw"):
+            # since pywinrm>=0.5 get_command_output_raw replace _raw_get_command_output
+            self.winrm_protocol.get_command_output_raw = self.winrm_protocol._raw_get_command_output
+
+        return self.winrm_protocol
 
     def run(
         self,
@@ -240,18 +238,25 @@ class WinRMHook(BaseHook):
         :return: returns a tuple containing return_code, stdout and stderr in order.
         """
         winrm_client = self.get_conn()
+        self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
+        try:
+            shell_id = winrm_client.open_shell()
+        except Exception as error:
+            error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
+            self.log.error(error_msg)
+            raise AirflowException(error_msg)
 
         try:
             if ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", command)
                 encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, f"{ps_path} -encodedcommand {encoded_ps}"
+                command_id = winrm_client.run_command(  # type: ignore[attr-defined]
+                    shell_id, f"{ps_path} -encodedcommand {encoded_ps}"
                 )
             else:
                 self.log.info("Running command: '%s'...", command)
-                command_id = self.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, command
+                command_id = winrm_client.run_command(  # type: ignore[attr-defined]
+                    shell_id, command
                 )
 
                 # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
@@ -266,8 +271,8 @@ class WinRMHook(BaseHook):
                         stderr,
                         return_code,
                         command_done,
-                    ) = self.winrm_protocol._raw_get_command_output(  # type: ignore[attr-defined]
-                        winrm_client, command_id
+                    ) = winrm_client.get_command_output_raw(  # type: ignore[attr-defined]
+                        shell_id, command_id
                     )
 
                     # Only buffer stdout if we need to so that we minimize memory usage.
@@ -280,12 +285,12 @@ class WinRMHook(BaseHook):
                     for line in stderr.decode(output_encoding).splitlines():
                         self.log.warning(line)
 
-            self.winrm_protocol.cleanup_command(  # type: ignore[attr-defined]
-                winrm_client, command_id
+            winrm_client.cleanup_command(  # type: ignore[attr-defined]
+                shell_id, command_id
             )
 
             return return_code, stdout_buffer, stderr_buffer
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
-            self.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
+            winrm_client.close_shell(shell_id)  # type: ignore[attr-defined]

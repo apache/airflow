@@ -59,7 +59,7 @@ function core_tests() {
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
-        breeze testing system-tests tests/system/example_empty.py
+        breeze testing system-tests airflow-core/tests/system/example_empty.py
         RESULT=$?
         set +x
     else
@@ -130,13 +130,24 @@ function task_sdk_tests() {
 }
 
 
+function airflow_ctl_tests() {
+    echo "${COLOR_BLUE}Running Airflow CTL tests${COLOR_RESET}"
+    set -x
+    breeze testing airflow-ctl-tests
+    set +x
+    echo "${COLOR_BLUE}Airflow CTL tests completed${COLOR_RESET}"
+}
+
+
 function run_tests() {
     if [[ "${TEST_GROUP}" == "core" ]]; then
         core_tests
     elif [[ "${TEST_GROUP}" == "providers" ]]; then
         providers_tests
-    elif [[ "${TEST_GROUP}" == "task_sdk" ]]; then
+    elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
+    elif [[ "${TEST_GROUP}" == "airflow-ctl" ]]; then
+        airflow_ctl_tests
     else
         echo "Unknown test group: ${TEST_GROUP}"
         exit 1

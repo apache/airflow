@@ -115,6 +115,7 @@ jobs:
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
@@ -202,7 +203,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
@@ -226,6 +226,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -264,7 +265,9 @@ jobs:
     name: "CI image checks"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/ci-image-checks.yml
-    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
@@ -288,15 +291,17 @@ jobs:
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+      DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
-    name: "Provider packages tests"
-    uses: ./.github/workflows/test-provider-packages.yml
+    name: "provider distributions tests"
+    uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
@@ -320,7 +325,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
@@ -339,7 +343,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "postgres"
@@ -366,7 +369,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "mysql"
@@ -393,7 +395,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
@@ -422,7 +423,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
@@ -450,7 +450,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.canary-run == 'true' ||
@@ -480,7 +479,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
@@ -496,22 +494,21 @@ jobs:
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-with-lowest-direct-resolution:
-    name: "Lowest direct dependency providers tests"
+    name: "Lowest direct dependency tests"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.run-tests == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      test-name: "LowestDeps-Postgres"
+      test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
       test-groups: ${{ needs.build-info.outputs.test-groups }}
-      backend: "postgres"
+      backend: "sqlite"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
@@ -534,7 +531,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       build-type: "Regular"
@@ -546,7 +542,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+      build-provider-distributions: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -578,7 +574,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       platform: "linux/amd64"
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -593,21 +588,43 @@ jobs:
 
   tests-task-sdk:
     name: "Task SDK tests"
-    uses: ./.github/workflows/task-sdk-tests.yml
+    uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "task-sdk"
+      distribution-cmd-format: "prepare-task-sdk-distributions"
+      test-type: "task-sdk-tests"
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
+
+  tests-airflow-ctl:
+    name: "Airflow CTL tests"
+    uses: ./.github/workflows/airflow-distributions-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "airflow-ctl"
+      distribution-cmd-format: "prepare-airflow-ctl-distributions"
+      test-type: "airflow-ctl-tests"
+    if: >
+      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
       needs.build-info.outputs.only-new-ui-files != 'true')
 
@@ -616,7 +633,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    secrets: inherit
     needs:
       - build-info
       - generate-constraints
@@ -656,6 +672,7 @@ jobs:
       - additional-prod-image-tests
       - tests-kubernetes
       - tests-task-sdk
+      - tests-airflow-ctl
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]

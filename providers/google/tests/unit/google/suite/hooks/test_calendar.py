@@ -24,6 +24,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "api_version"

@@ -22,12 +22,12 @@ from __future__ import annotations
 
 import json
 import platform
+import subprocess
 from enum import Enum
-from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -133,18 +133,20 @@ KUBERNETES_EXECUTOR = "KubernetesExecutor"
 CELERY_EXECUTOR = "CeleryExecutor"
 CELERY_K8S_EXECUTOR = "CeleryKubernetesExecutor"
 EDGE_EXECUTOR = "EdgeExecutor"
-SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 ALLOWED_EXECUTORS = [
     LOCAL_EXECUTOR,
     KUBERNETES_EXECUTOR,
     CELERY_EXECUTOR,
     CELERY_K8S_EXECUTOR,
     EDGE_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
 ]
 
+SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
+FAB_AUTH_MANAGER = "FabAuthManager"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
-START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
+ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
+START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
@@ -193,7 +195,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.0"
+UV_VERSION = "0.6.10"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -228,8 +230,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
-    OPERATORS = "Operators"
-    WWW = "WWW"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -240,10 +240,15 @@ class SelectiveTaskSdkTestType(SelectiveTestType):
     TASK_SDK = "TaskSdk"
 
 
+class SelectiveAirflowCtlTestType(SelectiveTestType):
+    AIRFLOW_CTL = "AirflowCTL"
+
+
 class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -268,7 +273,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "helm-tests" / "tests" / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
@@ -279,6 +284,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+    GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
 
 
@@ -288,7 +294,7 @@ def all_task_sdk_test_packages() -> list[str]:
         return sorted(
             [
                 candidate.name
-                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                for candidate in (AIRFLOW_ROOT_PATH / "task-sdk" / "tests").iterdir()
                 if candidate.is_dir() and candidate.name != "__pycache__"
             ]
         )
@@ -301,8 +307,28 @@ ALLOWED_TASK_SDK_TEST_PACKAGES = [
     *all_task_sdk_test_packages(),
 ]
 
-ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
-ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
+
+@clearable_cache
+def all_ctl_test_packages() -> list[str]:
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_ROOT_PATH / "airflow-ctl" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
+
+
+ALLOWED_CTL_TEST_PACKAGES = [
+    "all",
+    *all_ctl_test_packages(),
+]
+
+ALLOWED_DISTRIBUTION_FORMATS = ["wheel", "sdist", "both"]
+ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
@@ -334,9 +360,8 @@ POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
-WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
-FASTAPI_API_HOST_PORT = "29091"
+WEB_HOST_PORT = "28080"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -407,6 +432,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.5": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -436,6 +462,7 @@ COMMITTERS = [
     "ashb",
     "bbovenzi",
     "bolkedebruin",
+    "bugraoz93",
     "criccomini",
     "dimberman",
     "dirrao",
@@ -448,6 +475,7 @@ COMMITTERS = [
     "gopidesupavan",
     "houqp",
     "hussein-awala",
+    "jason810496",
     "jedcunningham",
     "jgao54",
     "jghoman",
@@ -471,12 +499,14 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "rawwar",
     "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
     "shahar1",
+    "shubhamraj-git",
     "tirkarthi",
     "turbaszek",
     "uranusjr",
@@ -490,7 +520,7 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
     with open(airflow_init_py_file) as init_file:
         while line := init_file.readline():
@@ -504,7 +534,7 @@ def get_airflow_version():
 
 @clearable_cache
 def get_airflow_extras():
-    airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
+    airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
         for line in dockerfile.readlines():
             if "ARG AIRFLOW_EXTRAS=" in line:
@@ -513,23 +543,27 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "providers").rglob("provider.yaml")
-PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
+ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+)
+if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 
-with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
+with AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
-DEVEL_DEPS_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "devel_deps.txt"
+DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
-    "generated/provider_dependencies.json",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
-    "scripts/docker/install_airflow.sh",
+    "scripts/docker/install_airflow_when_building_images.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
@@ -592,20 +626,27 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "common.messaging",
+        "fab",
+        "openlineage",
+        "standard",
+    ]
+)
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant fab edge",
+        "remove-providers": "cloudant common.messaging fab edge git",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.4",
-        "remove-providers": "cloudant fab",
+        "airflow-version": "2.10.5",
+        "remove-providers": "cloudant common.messaging fab git",
         "run-tests": "true",
     },
 ]

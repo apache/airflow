@@ -28,11 +28,41 @@ Changelog
 ---------
 
 
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 2.0.0
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
+
 .. warning::
   The argument ``from_email`` is now an optional kwarg in ``SmtpNotifier``, and the argument ``to`` became the first
   positional argument.
@@ -48,6 +78,23 @@ Breaking changes
   * the connection extra field ``html_content_template`` instead of the configuration
     ``smtp.templated_html_content_path`` in ``SmtpNotifier``.
 
+* ``Replace Airflow email config by connection extras in SMTP provider (#46219)``
+
+Features
+~~~~~~~~
+
+* ``feat(smtp): support html_content and subject templates from SMTP connection (#46212)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move smtp provider to the new structure (#46556)``
 
 1.9.0
 .....
@@ -189,7 +236,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 1.4.1
 .....

@@ -39,6 +39,41 @@ Setup your project
              alt="Cloning github fork to Visual Studio Code">
       </div>
 
+3. If you use official Python plugin you also have to add "tests" directly of each
+   provider you want to develop as "Extra Paths". This way respective provider tests code
+   can be addressed in imports as ``from unit.postgres.hooks.test_postgres import ...``
+   This is important in Airflow 3.0 we split providers to be separate distributions -
+   each with separate ``pyproject.toml`` file. This might improve and might be better
+   automated in the future, but for now you need to do it for each provider separately.
+
+   To do this, open ``File -> Preferences -> Settings``
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/vscode_settings_menu.png"
+             alt="Open VS Code settings menu">
+      </div>
+
+   In ``Settings`` tab navigate to ``Workspace`` (this will set extra paths only for this project)
+   and go to ``Extensions -> Pylance`` section. At ``Python -> Analysis: Extra Paths`` add
+   the path to the tests directory of the provider you want to develop.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/vscode_add_extra_paths_item.png"
+             alt="Add providers test directory to Extra Paths in Pylance">
+      </div>
+
+   NB: if you use pyright as LSP with other editor you can set ``extraPaths`` the same
+   way in ``pyrightconfig.json``, see |pyright_conf_md|.
+
+   .. |pyright_conf_md| raw:: html
+
+     <a href="https://github.com/microsoft/pyright/blob/main/docs/configuration.md" target="_blank">pyright configuration docs</a>
+
+4. Once step 3 is done it is recommended to restart VS Code.
 
 Setting up debugging
 ####################
@@ -74,7 +109,7 @@ Setting up debugging
     if __name__ == "__main__":
         dag.test()
 
-- Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
+- Add ``"AIRFLOW__CORE__EXECUTOR": "LocalExecutor"`` to the ``"env"`` field of Debug configuration.
 
   - Using the ``Run`` view click on ``Create a launch.json file``
 
@@ -98,7 +133,7 @@ Setting up debugging
              "program": "${workspaceFolder}/files/dags/example_bash_operator.py",
              "env": {
                  "PYTHONUNBUFFERED": "1",
-                 "AIRFLOW__CORE__EXECUTOR": "DebugExecutor"
+                 "AIRFLOW__CORE__EXECUTOR": "LocalExecutor"
               },
               "python": "${env:HOME}/.pyenv/versions/airflow/bin/python"
          ]

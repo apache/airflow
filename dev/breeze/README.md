@@ -66,9 +66,11 @@ and we are in the process of developing Airflow 3, so breeze requires a lot of a
 the dev environment in sync with Airflow 3 development - this is also why it is part of the same
 repository as Airflow - because it needs to be closely synchronized with Airflow development.
 
-As of November 2024 Airflow switches to using `uv` as the main development environment for Airflow
+As of November 2024 Airflow switchd to using `uv` as the recommended development environment for Airflow
 and for Breeze. So the instructions below are for setting up the development environment for Breeze
-using `uv`. However we are using only standard python packaging tools, so you can still use `pip` or
+using `uv`.
+
+However we are using only standard python packaging tools, so you can still use `pip` or
 `pipenv` or other build frontends to install Breeze, but we recommend using `uv` as it is the most
 convenient way to install, manage python packages and virtual environments.
 
@@ -76,15 +78,20 @@ Unlike in Airflow, where we manage our own constraints, we use `uv` to manage re
 and we use `uv` to lock the dependencies. This way we can ensure that the dependencies are always
 up-to-date and that the development environment is always consistent for different people. This is
 why Breeze's `uv.lock` is committed to the repository and is used to install the dependencies by
-default by Breeze. Here's how to install breeze with `uv`
+default by Breeze. Here's how to install breeze development environment with `uv`:
 
 
 1. Install `uv` - see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/)
 
 > [!IMPORTANT]
-> All the commands below should be executed while you are in `dev/breeze` directory of the Airflow repository.
+>
+> 1. The version of `uv` should be at least as defined in `pyproject.toml` under `[tool.uv]` section,
+>    otherwise some breeze commands might malfunction (but you will get error from `uv` about it).
+> 2. All the commands below should be executed while you are in `dev/breeze` directory of the Airflow repository.
+>
 
-2. Create a new virtual environment for Breeze development:
+2. Create a new virtual environment for Breeze development (this step can be skipped, uv sync will create
+   venv as needed when running ``uv sync``)
 
 ```shell
 uv venv
@@ -96,7 +103,7 @@ uv venv
 uv sync
 ```
 
-After syncing, the `.venv` directory will contain the virtual environment with all the dependencies
+After syncing, the `.venv` directory in breeze folder will contain the virtual environment with all the dependencies
 installed - you can use that environment to develop Breeze - for example with your favourite IDE
 or text editor, you can also use `uv run` to run the scripts in the virtual environment.
 
@@ -128,6 +135,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 6b59c778b56a87c8b91951e553072e1dbca5c871dc7eeb6c010481c5ebf6388ad04571c04d89ed8fe3cc9d9e5c827d889b0d08d3cb8ef0fb2d3a6fd3457aa607
+Package config hash: 5ebfc6a3c5df1678d7f72b13d28ce7b4f676e7aacc5366ac0481c0c608575e51db9feb690174575d81bdafd02e50d79f939705f6630cf65104760173bfdc4c58
 
 ---------------------------------------------------------------------------------------------------------

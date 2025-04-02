@@ -27,8 +27,8 @@ def get_provider_info():
         "name": "Edge Executor",
         "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites\n",
         "state": "not-ready",
-        "source-date-epoch": 1737371680,
-        "versions": ["0.18.0pre0"],
+        "source-date-epoch": 1741121867,
+        "versions": ["0.20.1b1"],
         "plugins": [
             {
                 "name": "edge_executor",
@@ -99,5 +99,7 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.10.0", "pydantic>=2.10.2", "retryhttp>=1.2.0,!=1.3.0"],
+        "dependencies": ["apache-airflow>=2.10.0", "pydantic>=2.11.0", "retryhttp>=1.2.0,!=1.3.0"],
+        "optional-dependencies": {"fab": ["apache-airflow-providers-fab"]},
+        "devel-dependencies": [],
     }

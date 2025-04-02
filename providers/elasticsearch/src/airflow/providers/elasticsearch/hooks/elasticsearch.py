@@ -22,9 +22,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
+from elasticsearch import Elasticsearch
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from elasticsearch import Elasticsearch
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -162,7 +163,7 @@ class ElasticsearchSQLHook(DbApiHook):
 
     conn_name_attr = "elasticsearch_conn_id"
     default_conn_name = "elasticsearch_default"
-    connector = ESConnection
+    connector = ESConnection  # type: ignore[assignment]
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 

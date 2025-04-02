@@ -27,11 +27,17 @@ services:
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.inputrc:/root/.inputrc:cached
       # Remove airflow sources from container
-      - ../../../empty:/opt/airflow/airflow
-      # Remove task_sdk sources from container
-      - ../../../empty:/opt/airflow/task_sdk
-      # but keep tests
-      - ../../../tests/:/opt/airflow/tests:cached
+      - ../../../empty:/opt/airflow/airflow-core/src
+      # But keep airflow/__init__.py to make hatchling happy when building empty package
+      - /dev/null:/opt/airflow/airflow-core/src/airflow/__init__.py
+      # Remove task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
+      # But keep task-sdk/a__init__.py to make hatchling happy when building empty package
+      - /dev/null:/opt/airflow/task-sdk/src/airflow/sdk/__init__.py
+
+      - ../../../devel-common:/opt/airflow/devel-common
+      # And keep tests
+      - ../../../airflow-core/tests/:/opt/airflow/airflow-core/tests:cached
       # Mount providers to make sure that we have the latest providers - both tests and sources
       - ../../../providers/:/opt/airflow/providers:cached
       # and entrypoint and in_container scripts for testing

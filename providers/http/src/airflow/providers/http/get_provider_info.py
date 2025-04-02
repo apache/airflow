@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Hypertext Transfer Protocol (HTTP)",
         "description": "`Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734534857,
+        "source-date-epoch": 1743477833,
         "versions": [
+            "5.2.1",
+            "5.2.0",
             "5.0.0",
             "4.13.3",
             "4.13.2",
@@ -105,9 +107,10 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "requests>=2.27.0,<3",
-            "requests-toolbelt>=0.4.0",
+            "requests>=2.31.0,<3",
+            "requests-toolbelt>=1.0.0",
             "aiohttp>=3.9.2,!=3.11.0",
             "asgiref>=2.3.0",
         ],
+        "devel-dependencies": [],
     }

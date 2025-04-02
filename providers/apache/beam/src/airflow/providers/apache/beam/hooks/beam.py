@@ -45,6 +45,18 @@ if TYPE_CHECKING:
 
 _APACHE_BEAM_VERSION_SCRIPT = "import apache_beam; print(apache_beam.__version__)"
 
+# Map defined with option names to flag names for boolean options
+# that have a destination(dest) in parser.add_argument() different
+# from the flag name and whose default value is `None`.
+# or other SDK flags that should allow false value
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    "use_public_ips": "no_use_public_ips",
+}
+
+_FLAG_THAT_SETS_FALSE_VALUE_JAVA = {
+    "usePublicIps": "usePublicIps=false",  # Allow False flag value for Java SDK
+}
+
 
 class BeamRunnerType:
     """
@@ -68,8 +80,10 @@ def beam_options_to_args(options: dict) -> list[str]:
     Return a formatted pipeline options from a dictionary of arguments.
 
     The logic of this method should be compatible with Apache Beam:
-    https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
-    apache_beam/options/pipeline_options.py#L230-L251
+    https://github.com/apache/beam/blob/77f57d1fc498592089e32701b45505bbdccccd47/sdks/python/
+    apache_beam/options/pipeline_options.py#L260-L268
+
+    WARNING: In case of amending please check the latest main branch implementation!
 
     :param options: Dictionary with options
     :return: List of arguments
@@ -79,12 +93,29 @@ def beam_options_to_args(options: dict) -> list[str]:
 
     args: list[str] = []
     for attr, value in options.items():
-        if value is None or (isinstance(value, bool) and value):
-            args.append(f"--{attr}")
-        elif isinstance(value, bool) and not value:
-            continue
+        if isinstance(value, bool):
+            if value:
+                args.append(f"--{attr}")
+            elif attr in _FLAG_THAT_SETS_FALSE_VALUE:
+                # Capture overriding flags, which have a different dest
+                # from the flag name defined in the parser.add_argument
+                # Eg: no_use_public_ips, which has the dest=use_public_ips
+                # different from flag name
+                flag_that_disables_the_option = _FLAG_THAT_SETS_FALSE_VALUE[attr]
+                args.append(f"--{flag_that_disables_the_option}")
+            elif attr in _FLAG_THAT_SETS_FALSE_VALUE_JAVA:
+                # Capture Java flags that should not be skipped by having
+                # False value
+                false_value_flag = _FLAG_THAT_SETS_FALSE_VALUE_JAVA[attr]
+                args.append(f"--{false_value_flag}")
         elif isinstance(value, list):
             args.extend([f"--{attr}={v}" for v in value])
+        elif isinstance(value, dict):
+            args.append(f"--{attr}={json.dumps(value)}")
+        elif value is None:
+            # explicitly skip None values,as later they might be passed as string 'None',
+            # and override value by default https://github.com/apache/beam/pull/24948
+            continue
         else:
             args.append(f"--{attr}={value}")
     return args
@@ -95,7 +126,7 @@ def process_fd(
     fd,
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
-    check_job_status_callback: Callable[[], bool | None] | None = None,
+    is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
 ):
     """
     Print output to logs.
@@ -117,7 +148,7 @@ def process_fd(
         if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))
-        if check_job_status_callback and check_job_status_callback():
+        if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
             return
 
 
@@ -126,7 +157,7 @@ def run_beam_command(
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
-    check_job_status_callback: Callable[[], bool | None] | None = None,
+    is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -158,8 +189,8 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
-            if check_job_status_callback and check_job_status_callback():
+            process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
                 return
 
         if proc.poll() is not None:
@@ -167,7 +198,7 @@ def run_beam_command(
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
+        process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
 
     log.info("Process exited with return code: %s", proc.returncode)
 
@@ -198,7 +229,7 @@ class BeamHook(BaseHook):
         command_prefix: list[str],
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
-        check_job_status_callback: Callable[[], bool | None] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -208,7 +239,7 @@ class BeamHook(BaseHook):
             process_line_callback=process_line_callback,
             working_directory=working_directory,
             log=self.log,
-            check_job_status_callback=check_job_status_callback,
+            is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
         )
 
     def start_python_pipeline(
@@ -220,7 +251,7 @@ class BeamHook(BaseHook):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
-        check_job_status_callback: Callable[[], bool | None] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -289,7 +320,7 @@ class BeamHook(BaseHook):
                 variables=variables,
                 command_prefix=command_prefix,
                 process_line_callback=process_line_callback,
-                check_job_status_callback=check_job_status_callback,
+                is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
             )
 
     def start_java_pipeline(
@@ -298,6 +329,7 @@ class BeamHook(BaseHook):
         jar: str,
         job_class: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
     ) -> None:
         """
         Start Apache Beam Java pipeline.
@@ -316,6 +348,7 @@ class BeamHook(BaseHook):
             variables=variables,
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
+            is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
         )
 
     def start_go_pipeline(

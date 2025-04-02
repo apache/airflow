@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-FROM ibmjava:sfj-alpine
+FROM eclipse-temurin:21-jre-ubi9-minimal
 
 ARG AIRFLOW_APACHERAT_VERSION
 ARG APACHERAT_VERSION
-ARG APACHE_MIRROR="https://www-us.apache.org/dist"
+ARG APACHE_DOWNLOAD="https://downloads.apache.org"
+ARG COMMIT_SHA
+ENV dist_name="apache-rat-${APACHERAT_VERSION}"
+ENV rat_tgz="${dist_name}-bin.tar.gz"
 
 SHELL ["/bin/sh", "-e", "-x", "-c"]
 
@@ -29,21 +32,13 @@ SHELL ["/bin/sh", "-e", "-x", "-c"]
 # Those are build deps only but still we want the latest versions of those
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018
-RUN apk add -U --no-cache --virtual .build-deps \
-        gnupg \
-        unzip \
-    && wget -qT 30 "${APACHE_MIRROR}/creadur/KEYS" \
-    && gpg --import KEYS \
-    && rm KEYS \
-    && dist_name="apache-rat-${APACHERAT_VERSION}" \
-    && rat_tgz="${dist_name}-bin.tar.gz" \
-    && wget -qT 30 "${APACHE_MIRROR}/creadur/${dist_name}/${rat_tgz}.asc" \
-    && wget -qT 30 "${APACHE_MIRROR}/creadur/${dist_name}/${rat_tgz}" \
+RUN wget -qT 30 "${APACHE_DOWNLOAD}/creadur/KEYS" && gpg --import KEYS && rm KEYS \
+    && wget -qT 30 "${APACHE_DOWNLOAD}/creadur/${dist_name}/${rat_tgz}.asc" \
+    && wget -qT 30 "${APACHE_DOWNLOAD}/creadur/${dist_name}/${rat_tgz}" \
     && gpg --verify "${rat_tgz}.asc" "${rat_tgz}" \
     && tar --extract --gzip --file "${rat_tgz}" --strip-components=1 "${dist_name}/${dist_name}.jar" "${dist_name}/LICENSE" \
     && rm -vrf "${rat_tgz}" "${rat_tgz}.asc" \
     && ln -s "${dist_name}.jar" "apache-rat.jar" \
-    && apk del .build-deps \
     && rm -rf ~/.gnupg
 
 LABEL org.apache.airflow.component="apache-rat"
