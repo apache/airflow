@@ -740,7 +740,8 @@
       "python-slugify>=7.0.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2",
-      "tenacity>=8.1.0"
+      "tenacity>=8.1.0",
+      "types-protobuf!=5.29.1.20250402"
     ],
     "devel-deps": [],
     "plugins": [],
