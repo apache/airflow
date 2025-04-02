@@ -152,7 +152,7 @@ def task2():
 
 
 with DAG(
-    "otel_test_dag_with_pause",
+    "otel_test_dag_with_pause_between_tasks",
     default_args=args,
     schedule=None,
     catchup=False,

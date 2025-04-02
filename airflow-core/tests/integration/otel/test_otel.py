@@ -187,6 +187,20 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     #   |_ new_scheduler span
     #   |_ dag span (continued)
     #       |_ task2 span
+    #
+    # Since Airflow 3, there is no direct db access for tasks.
+    # As a result, the sub_spans won't be under the continued span but under the initial one.
+    # dag span
+    #   |_ task1 span
+    #       |_ sub_span_1
+    #           |_ sub_span_2
+    #               |_ sub_span_3
+    #       |_ sub_span_4
+    #   |_ scheduler_exited span
+    #   |_ new_scheduler span
+    #   |_ dag span (continued)
+    #       |_ task1 span (continued)
+    #       |_ task2 span
 
     dag_id = dag.dag_id
 
@@ -261,7 +275,7 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
         children_names=dag_continued_span_children_names,
     )
 
-    if continuance_for_t1:
+    if continuance_for_t1 and not AIRFLOW_V_3_0_PLUS:
         # Check children of the continued task1 span.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
@@ -1248,7 +1262,7 @@ class TestOtelIntegration:
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
-            check_spans_without_continuance(output=out, dag=dag, is_recreated=True)
+            check_spans_without_continuance(output=out, dag=dag, is_recreated=True, check_t1_sub_spans=False)
 
     def test_scheduler_exits_forcefully_after_the_first_task_finishes(
         self, monkeypatch, celery_worker_env_vars, capfd, session
