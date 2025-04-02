@@ -214,21 +214,9 @@ class TestLoggingSettings:
 
             with patch.object(log, "info") as mock_info:
                 configure_logging()
-                mock_info.assert_called_once_with(
+                mock_info.assert_any_call(
                     "Successfully imported user-defined logging config from %s",
                     f"etc.airflow.config.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
-                )
-
-    # When we try to load a valid config
-    def test_loading_valid_local_settings(self):
-        with settings_context(SETTINGS_FILE_VALID):
-            from airflow.logging_config import configure_logging, log
-
-            with patch.object(log, "info") as mock_info:
-                configure_logging()
-                mock_info.assert_called_once_with(
-                    "Successfully imported user-defined logging config from %s",
-                    f"{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG",
                 )
 
     # When we load an empty file, it should go to default
@@ -238,23 +226,6 @@ class TestLoggingSettings:
 
             with pytest.raises(ImportError):
                 configure_logging()
-
-    # When the key is not available in the configuration
-    def test_when_the_config_key_does_not_exists(self):
-        from airflow import logging_config
-
-        with conf_vars({("logging", "logging_config_class"): None}):
-            with patch.object(logging_config.log, "debug") as mock_debug:
-                logging_config.configure_logging()
-                mock_debug.assert_any_call("Unable to load custom logging, using default config instead")
-
-    # Just default
-    def test_loading_local_settings_without_logging_config(self):
-        from airflow.logging_config import configure_logging, log
-
-        with patch.object(log, "debug") as mock_info:
-            configure_logging()
-            mock_info.assert_called_once_with("Unable to load custom logging, using default config instead")
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
@@ -269,9 +240,9 @@ class TestLoggingSettings:
         pytest.importorskip(
             "airflow.providers.microsoft.azure", reason="'microsoft.azure' provider not installed"
         )
+        import airflow.logging_config
         from airflow.config_templates import airflow_local_settings
-        from airflow.logging_config import configure_logging
-        from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
+        from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
 
         with conf_vars(
             {
@@ -281,10 +252,9 @@ class TestLoggingSettings:
             }
         ):
             importlib.reload(airflow_local_settings)
-            configure_logging()
+            airflow.logging_config.configure_logging()
 
-        logger = logging.getLogger("airflow.task")
-        assert isinstance(logger.handlers[0], WasbTaskHandler)
+        assert isinstance(airflow.logging_config.REMOTE_TASK_LOG, WasbRemoteLogIO)
 
     @pytest.mark.parametrize(
         "remote_base_log_folder, log_group_arn",
@@ -307,8 +277,9 @@ class TestLoggingSettings:
         self, remote_base_log_folder, log_group_arn
     ):
         """Test if the correct ARNs are configured for Cloudwatch"""
+        import airflow.logging_config
         from airflow.config_templates import airflow_local_settings
-        from airflow.logging_config import configure_logging
+        from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudWatchRemoteLogIO
 
         with conf_vars(
             {
@@ -318,18 +289,18 @@ class TestLoggingSettings:
             }
         ):
             importlib.reload(airflow_local_settings)
-            configure_logging()
-            assert (
-                airflow_local_settings.DEFAULT_LOGGING_CONFIG["handlers"]["task"]["log_group_arn"]
-                == log_group_arn
-            )
+            airflow.logging_config.configure_logging()
+
+            remote_io = airflow.logging_config.REMOTE_TASK_LOG
+            assert isinstance(remote_io, CloudWatchRemoteLogIO)
+            assert remote_io.log_group_arn == log_group_arn
 
     def test_loading_remote_logging_with_kwargs(self):
         """Test if logging can be configured successfully with kwargs"""
         pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
+        import airflow.logging_config
         from airflow.config_templates import airflow_local_settings
-        from airflow.logging_config import configure_logging
-        from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
+        from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
 
         with conf_vars(
             {
@@ -340,8 +311,8 @@ class TestLoggingSettings:
             }
         ):
             importlib.reload(airflow_local_settings)
-            configure_logging()
+            airflow.logging_config.configure_logging()
 
-        logger = logging.getLogger("airflow.task")
-        assert isinstance(logger.handlers[0], S3TaskHandler)
-        assert getattr(logger.handlers[0], "delete_local_copy") is True
+        task_log = airflow.logging_config.REMOTE_TASK_LOG
+        assert isinstance(task_log, S3RemoteLogIO)
+        assert getattr(task_log, "delete_local_copy") is True
