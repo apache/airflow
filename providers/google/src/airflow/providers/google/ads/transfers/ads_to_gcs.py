@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 import csv
-import warnings
 from collections.abc import Sequence
 from operator import attrgetter
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -54,8 +52,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
     :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
     :param gcp_conn_id: Airflow Google Cloud connection ID
     :param google_ads_conn_id: Airflow Google Ads connection ID
-    :param page_size: The number of results per API page request. Max 10,000 (for version 16 and 16.1)
-        This parameter deprecated. After March 01, 2025, it will be removed.
     :param gzip: Option to compress local file or file data for upload
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -87,7 +83,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
         obj: str,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
-        page_size: int | None = None,
         gzip: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         api_version: str | None = None,
@@ -101,8 +96,6 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.obj = obj
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
-        # TODO: remove this after deprecation removal for page_size parameter
-        self.page_size = page_size or 10000 if api_version == "v16" else None
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
@@ -114,16 +107,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-        if self.api_version != "v16" and self.page_size:
-            warnings.warn(
-                "page_size parameter for the GoogleAdsToGcsOperator is deprecated and will be removed "
-                "after March 01, 2025.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            rows = service.search(client_ids=self.client_ids, query=self.query)
-        else:
-            rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
+        rows = service.search(client_ids=self.client_ids, query=self.query)
 
         try:
             getter = attrgetter(*self.attributes)

@@ -208,4 +208,4 @@ class DagStateTrigger(BaseTrigger):
             )
             .scalar()
         )
-        return typing.cast(int, count)
+        return typing.cast("int", count)

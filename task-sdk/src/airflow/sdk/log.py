@@ -21,6 +21,7 @@ import io
 import itertools
 import logging.config
 import os
+import re
 import sys
 import warnings
 from functools import cache
@@ -38,6 +39,9 @@ __all__ = [
     "configure_logging",
     "reset_logging",
 ]
+
+
+JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
 
 
 def exception_group_tracebacks(
@@ -91,8 +95,8 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
 
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
-        if isinstance(v, str) and v.startswith("eyJ"):
-            event_dict[k] = "eyJ***"
+        if isinstance(v, str):
+            event_dict[k] = re.sub(JWT_PATTERN, "eyJ***", v)
     return event_dict
 
 
@@ -133,9 +137,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(
-    enable_pretty_log: bool,
-):
+def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
     if enable_pretty_log:
         timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
     else:
@@ -148,9 +150,11 @@ def logging_processors(
         structlog.stdlib.PositionalArgumentsFormatter(),
         logger_name,
         redact_jwt,
-        mask_logs,
         structlog.processors.StackInfoRenderer(),
     ]
+
+    if mask_secrets:
+        processors.append(mask_logs)
 
     # Imports to suppress showing code from these modules. We need the import to get the filepath for
     # structlog to ignore.
@@ -255,7 +259,7 @@ def configure_logging(
         formatter = "colored"
     else:
         formatter = "plain"
-    processors, named = logging_processors(enable_pretty_log)
+    processors, named = logging_processors(enable_pretty_log, mask_secrets=not sending_to_supervisor)
     timestamper = named["timestamper"]
 
     pre_chain: list[structlog.typing.Processor] = [

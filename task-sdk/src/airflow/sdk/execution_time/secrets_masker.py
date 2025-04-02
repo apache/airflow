@@ -130,6 +130,19 @@ def _secrets_masker() -> SecretsMasker:
     )
 
 
+def reset_secrets_masker() -> None:
+    """
+    Reset the secrets masker to clear existing patterns and replacer.
+
+    This utility ensures that an execution environment starts with a fresh masker,
+    preventing any carry over of patterns or replacer from previous execution or parent processes.
+
+    New processor types should invoke this method when setting up their own masking to avoid
+    inheriting masking rules from existing execution environments.
+    """
+    _secrets_masker().reset_masker()
+
+
 @cache
 def _get_v1_env_var_type() -> type:
     try:
@@ -350,6 +363,11 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
+
+    def reset_masker(self):
+        """Reset the patterns and the replacer in the masker instance."""
+        self.patterns = set()
+        self.replacer = None
 
 
 class RedactedIO(TextIO):

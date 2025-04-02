@@ -192,7 +192,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         if not context:
             return {}
 
-        context_dict = cast(dict, context)
+        context_dict = cast("dict", context)
         ti = context_dict["ti"]
         run_id = context_dict["run_id"]
 

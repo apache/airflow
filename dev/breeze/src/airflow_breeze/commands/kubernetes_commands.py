@@ -23,6 +23,7 @@ import shutil
 import sys
 import tempfile
 from copy import deepcopy
+from itertools import chain
 from pathlib import Path
 from shlex import quote
 
@@ -1474,8 +1475,10 @@ def _run_tests(
             f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
         )
         return 1, f"Tests {kubectl_cluster_name}"
+    pytest_cmd = ["python3", "-m", "pytest"]
     the_tests: list[str] = ["kubernetes_tests/"]
-    command_to_run = " ".join([quote(arg) for arg in ["python3", "-m", "pytest", *the_tests, *test_args]])
+    ordered_unique_args = dict.fromkeys(chain(pytest_cmd, the_tests, test_args))
+    command_to_run = " ".join(quote(arg) for arg in ordered_unique_args)
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],

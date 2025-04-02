@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,32 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sends lineage metadata to a backend."""
-
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
+
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class LineageBackend:
-    """Sends lineage metadata to a backend."""
-
-    def send_lineage(
-        self,
-        operator: BaseOperator,
-        inlets: list | None = None,
-        outlets: list | None = None,
-        context: dict | None = None,
-    ):
-        """
-        Send lineage metadata to a backend.
-
-        :param operator: the operator executing a transformation on the inlets and outlets
-        :param inlets: the inlets to this operator
-        :param outlets: the outlets from this operator
-        :param context: the current context of the task instance
-        """
-        raise NotImplementedError()
+AIRFLOW_V_2_10_PLUS = get_base_airflow_version_tuple() >= (2, 10, 0)
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)

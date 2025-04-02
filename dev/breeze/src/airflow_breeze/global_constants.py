@@ -133,14 +133,12 @@ KUBERNETES_EXECUTOR = "KubernetesExecutor"
 CELERY_EXECUTOR = "CeleryExecutor"
 CELERY_K8S_EXECUTOR = "CeleryKubernetesExecutor"
 EDGE_EXECUTOR = "EdgeExecutor"
-SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 ALLOWED_EXECUTORS = [
     LOCAL_EXECUTOR,
     KUBERNETES_EXECUTOR,
     CELERY_EXECUTOR,
     CELERY_K8S_EXECUTOR,
     EDGE_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
 ]
 
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
@@ -148,7 +146,7 @@ FAB_AUTH_MANAGER = "FabAuthManager"
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
-START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
+START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
@@ -242,10 +240,15 @@ class SelectiveTaskSdkTestType(SelectiveTestType):
     TASK_SDK = "TaskSdk"
 
 
+class SelectiveAirflowCtlTestType(SelectiveTestType):
+    AIRFLOW_CTL = "AirflowCTL"
+
+
 class GroupOfTests(Enum):
     CORE = "core"
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
+    CTL = "airflow-ctl"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -281,6 +284,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
     GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+    GroupOfTests.CTL: [ALL_TEST_TYPE],
 }
 
 
@@ -301,6 +305,26 @@ def all_task_sdk_test_packages() -> list[str]:
 ALLOWED_TASK_SDK_TEST_PACKAGES = [
     "all",
     *all_task_sdk_test_packages(),
+]
+
+
+@clearable_cache
+def all_ctl_test_packages() -> list[str]:
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_ROOT_PATH / "airflow-ctl" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
+
+
+ALLOWED_CTL_TEST_PACKAGES = [
+    "all",
+    *all_ctl_test_packages(),
 ]
 
 ALLOWED_DISTRIBUTION_FORMATS = ["wheel", "sdist", "both"]

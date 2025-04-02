@@ -380,10 +380,12 @@ class SerializedDagModel(Base):
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
             if session.scalar(
-                select(literal(True)).where(
+                select(literal(True))
+                .where(
                     cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                 )
+                .select_from(cls)
             ):
                 return False
 

@@ -53,8 +53,7 @@ class TestSparkJDBCOperator:
         "partition_column": "columnMcColumnFace",
         "lower_bound": "10",
         "upper_bound": "20",
-        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
-        "comments VARCHAR(1024)",
+        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)",
         "use_krb5ccache": True,
     }
 
