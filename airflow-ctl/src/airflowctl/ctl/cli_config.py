@@ -182,7 +182,7 @@ class GroupCommand(NamedTuple):
 CLICommand = Union[ActionCommand, GroupCommand]
 
 
-class AirflowCtlCommandFactory:
+class CommandFactory:
     """Factory class that creates 1-1 mapping with airflowctl/api/operations."""
 
     data_models_extended_map: dict[str, list[str]]
@@ -431,7 +431,7 @@ class AirflowCtlCommandFactory:
         return self.group_commands_list
 
 
-airflow_ctl_command_factory = AirflowCtlCommandFactory()
+airflow_ctl_command_factory = CommandFactory()
 
 AUTH_COMMANDS = (
     ActionCommand(
