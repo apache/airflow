@@ -1246,6 +1246,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
+            class_attr = inspect.getattr_static(cls, k, None)
+            if isinstance(class_attr, property) and class_attr.fset is None:
+                # Skip read-only properties such as "is_mapped".
+                continue
             if k not in shallow_copy:
                 v = copy.deepcopy(v, memo)
             else:
