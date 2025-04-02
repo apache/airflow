@@ -407,20 +407,35 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _get_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
-        files: list[DagFileInfo] = []
+        files: set[DagFileInfo] = set()
         bundles = {b.name: b for b in self._dag_bundles}
         requests = session.scalars(
             select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
         )
         for request in requests:
             bundle = bundles[request.bundle_name]
-            files.append(
-                DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+            if request.parse_whole_folder():
+                # If relative_fileloc is null, get all files from DagModel
+                dag_files = session.scalars(
+                    select(DagModel.relative_fileloc).where(DagModel.bundle_name == bundle.name).distinct()
                 )
-            )
+                for relative_fileloc in dag_files:
+                    files.add(
+                        DagFileInfo(
+                            rel_path=Path(relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+                        )
+                    )
+            else:
+                # If relative_fileloc has a value, just add that specific file
+                files.add(
+                    DagFileInfo(
+                        rel_path=Path(request.relative_fileloc),
+                        bundle_name=bundle.name,
+                        bundle_path=bundle.path,
+                    )
+                )
             session.delete(request)
-        return files
+        return list(files)
 
     @provide_session
     @retry_db_transaction
