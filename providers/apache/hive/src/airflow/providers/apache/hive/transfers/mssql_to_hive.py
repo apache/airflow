@@ -104,9 +104,9 @@ class MsSqlToHiveOperator(BaseOperator):
     def type_map(cls, mssql_type: int) -> str:
         """Map MsSQL type to Hive type."""
         map_dict = {
-            pymssql.BINARY.value: "INT",
-            pymssql.DECIMAL.value: "FLOAT",
-            pymssql.NUMBER.value: "INT",
+            pymssql.BINARY.value: "INT",  # type:ignore[attr-defined]
+            pymssql.DECIMAL.value: "FLOAT",  # type:ignore[attr-defined]
+            pymssql.NUMBER.value: "INT",  # type:ignore[attr-defined]
         }
         return map_dict.get(mssql_type, "STRING")
 
