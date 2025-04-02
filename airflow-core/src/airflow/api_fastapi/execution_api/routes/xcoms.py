@@ -237,7 +237,7 @@ def set_xcom(
                     "message": "pushed value is too large to map as a downstream's dependency",
                 },
             )
-        session.add(task_map)
+        session.merge(task_map)
 
     # else:
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
