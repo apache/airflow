@@ -129,7 +129,7 @@ def upgrade():
             UPDATE serialized_dag sd
             JOIN dag_version dv ON sd.dag_id = dv.dag_id
             SET sd.dag_version_id = dv.id,
-                created_at = dv.created_at
+                sd.created_at = dv.created_at
         """)
         )
     else:
