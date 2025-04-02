@@ -952,7 +952,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running {self.activity}: {validated_event}")
 
-        self.log.info("%s '%s' complete.", self.activity, self.job_name)
+        self.log.info("%s '%s' complete.", self.activity, validated_event["job_arn"])
 
         return validated_event["job_arn"]
 
