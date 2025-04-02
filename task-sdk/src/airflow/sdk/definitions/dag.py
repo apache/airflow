@@ -450,7 +450,9 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    disable_bundle_versioning: bool = attrs.field(init=True)
+    disable_bundle_versioning: bool = attrs.field(
+        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -521,12 +523,6 @@ class DAG:
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             return _create_timetable(schedule, instance.timezone)
-
-    @disable_bundle_versioning.default
-    def _disable_bundle_versioning_default(self):
-        from airflow.configuration import conf as airflow_conf
-
-        return airflow_conf.getboolean("dag_processor", "disable_bundle_versioning")
 
     @timezone.default
     def _extract_tz(instance):
@@ -1088,6 +1084,7 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_fast: bool = False,
         dag_display_name: str | None = None,
+        disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.
