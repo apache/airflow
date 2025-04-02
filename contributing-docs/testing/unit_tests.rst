@@ -1306,26 +1306,52 @@ downgraded dependencies will contain both Airflow and Google Provider dependenci
  + gcloud-aio-bigquery==6.1.2
  - gcloud-aio-storage==9.2.0
 
+You can reproduce the same set of dependencies in your local virtual environment by:
+
+.. code-block:: bash
+
+    cd airflow-core
+    uv sync --resolution lowest-direct
+
+for airflow core, and
+
+.. code-block:: bash
+
+    cd providers/provider_id
+    uv sync --resolution lowest-direct
+
+for the providers.
 
 How to fix failing lowest-direct dependency resolution tests
 ............................................................
 
 When your tests pass in regular test, but fail in "lowest-direct" dependency resolution tests, you need
-to figure out the lower-bindings missing in  ``hatch_build.py``  (for Airflow core dependencies) or
-in the corresponding provider's ``provider.yaml`` file. This is usually a very easy thing that takes a little
-bit of time to figure out especially if you just added new feature from a library that you use, just check in
-the release notes what is the minimum version of the library that you can use and set it as the
-``>=VERSION`` in the ``hatch_build.py`` or ``provider.yaml`` file. For ``hatch_build.py`` changes you do not
-need to do anything else, for ``provider.yaml`` file you need to regenerate generated dependencies
-by running ``pre-commit run`` in the provider directory after adding the file to git or just letting the
-pre-commit to do it's job if you already has pre-commit installed via ``pre-commit install`` - then just
-committing the change will regenerate the dependencies automatically.
+to figure out one of the problems:
 
-After that, re-run the ``breeze shell --force-lowest-dependencies`` command and see if the tests pass.
+* lower-bindings missing in the ``pyproject.toml`` file (in ``airflow-core`` or corresponding provider).
+  This is usually a very easy thing that takes a little bit of time to figure out especially if you
+  just added new feature from a library that you use, just check in the release notes what is the minimum
+  version of the library that you can use and set it as the ``>=VERSION`` in the ``pyproject.toml``.
 
-.. code-block:: bash
+* figuring out if airflow-core or the provider needs additional providers or additional dependencies in dev
+  dependency group for the provider - sometimes tests need another provider to be installed that is not
+  normally needed as required dependencies of the provider being tested. Those dependencies
+  should be added after the ``# Additional devel dependencies`` comment in case of providers. Adding the
+  dependencies here means that when ``uv sync`` is run, the packages and it's dependencies will be installed.
 
-   breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
+.. code-block:: toml
+
+    [dependency-groups]
+    dev = [
+        "apache-airflow",
+        "apache-airflow-task-sdk",
+        "apache-airflow-devel-common",
+        "apache-airflow-providers-common-sql",
+        "apache-airflow-providers-fab",
+        # Additional devel dependencies (do not remove this line and add extra development dependencies)
+        "deltalake>=0.12.0",
+        "apache-airflow-providers-microsoft-azure",
+    ]
 
 Sometimes it might get a bit tricky to know what is the minimum version of the library you should be using
 but in this case you can easily find it by looking at the error and list of downgraded packages and
@@ -1336,8 +1362,8 @@ you to quickly figure out the right version without knowing the root cause of th
 Assume you suspect library "foo" that was downgraded from 1.0.0 to 0.1.0 is causing the problem. Bisecting
 technique looks like follows:
 
-* enter breeze with ``--force-lowest-dependencies`` flag (the ``foo`` library is downgraded to 0.1.0). Your
-  test should fail.
+* Run ``uv sync --resolution lowest-direct``(the ``foo`` library is downgraded to 0.1.0). Your test should
+  fail.
 * make sure that just upgrading the ``foo`` library to 1.0.0 -> re-run failing test (with ``pytest <test>``)
   and see that it passes.
 * downgrade the ``foo`` library to 0.1.0 -> re-run failing test (with ``pytest <test>``) and see that it
@@ -1349,10 +1375,24 @@ technique looks like follows:
   and lower version, if it fails, continue with finding the middle version between the current version and
   higher version.
 * continue that way until you find the version that is the lowest version that passes the test.
-* set this version in the ``hatch_build.py`` or ``provider.yaml`` file, regenerate the generated
-  dependencies file and re-start breeze with ``--force-lowest-dependencies`` flag and see that the
-  library has been downgraded to the version you set and the test passes.
+* set this version in ``pyproject.toml`` file, run ``uv sync --resolution lowest-direct`` and see if the test
+  passes. If it does, you are done. If it does not, repeat the process.
 
+You can also skip some of the tests to be run when force lowest dependencies are used when tests are run in
+breeze by adding the marker below. This is sometimes needed if your "core" or "provider" tests depend on
+all or many providers to be installed (for example tests loading multiple examples or connections):
+
+.. code-block:: python
+
+    from tests_common.pytest_plugin import skip_if_force_lowest_dependencies_marker
+
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_my_test_that_should_be_skipped():
+        assert 1 == 1
+
+And you can locally also set ``FORCE_LOWEST_DEPENDENCIES`` to ``true`` environment variable before
+running ``pytest`` to also skip the tests when running them locally.
 
 Other Settings
 --------------

@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Flex } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useState, type PropsWithChildren, type ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -52,10 +52,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
+  const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const { fitView, getZoom } = useReactFlow();
-
-  const [limit, setLimit] = useState<number>(10);
 
   return (
     <OpenGroupsProvider dagId={dagId}>

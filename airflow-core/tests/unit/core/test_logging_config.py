@@ -31,6 +31,9 @@ import pytest
 from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
+pytestmark = skip_if_force_lowest_dependencies_marker
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {

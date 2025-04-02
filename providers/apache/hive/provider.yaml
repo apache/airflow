@@ -22,7 +22,7 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 state: ready
-source-date-epoch: 1742979243
+source-date-epoch: 1743477774
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 9.0.4

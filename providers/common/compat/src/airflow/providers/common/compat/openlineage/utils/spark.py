@@ -27,27 +27,27 @@ if TYPE_CHECKING:
         inject_parent_job_information_into_spark_properties,
         inject_transport_information_into_spark_properties,
     )
-else:
-    try:
-        from airflow.providers.openlineage.utils.spark import (
-            inject_parent_job_information_into_spark_properties,
-            inject_transport_information_into_spark_properties,
+    from airflow.sdk import Context
+try:
+    from airflow.providers.openlineage.utils.spark import (
+        inject_parent_job_information_into_spark_properties,
+        inject_transport_information_into_spark_properties,
+    )
+except ImportError:
+
+    def inject_parent_job_information_into_spark_properties(properties: dict, context: Context) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.macros`."
+            "Skipping the injection of OpenLineage parent job information into Spark properties."
         )
-    except ImportError:
+        return properties
 
-        def inject_parent_job_information_into_spark_properties(properties: dict, context) -> dict:
-            log.warning(
-                "Could not import `airflow.providers.openlineage.plugins.macros`."
-                "Skipping the injection of OpenLineage parent job information into Spark properties."
-            )
-            return properties
-
-        def inject_transport_information_into_spark_properties(properties: dict, context) -> dict:
-            log.warning(
-                "Could not import `airflow.providers.openlineage.plugins.listener`."
-                "Skipping the injection of OpenLineage transport information into Spark properties."
-            )
-            return properties
+    def inject_transport_information_into_spark_properties(properties: dict, context: Context) -> dict:
+        log.warning(
+            "Could not import `airflow.providers.openlineage.plugins.listener`."
+            "Skipping the injection of OpenLineage transport information into Spark properties."
+        )
+        return properties
 
 
 __all__ = [

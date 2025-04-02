@@ -49,4 +49,4 @@ Airflow configuration options
 -----------------------------
 
 
-.. include:: ../exts/includes/sections-and-options.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/sections-and-options.rst

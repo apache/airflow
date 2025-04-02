@@ -22,7 +22,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH, console
+from common_precommit_utils import (
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    KNOWN_SECOND_LEVEL_PATHS,
+    console,
+)
 
 ACCEPTED_NON_INIT_DIRS = [
     "adr",
@@ -37,9 +42,6 @@ ACCEPTED_NON_INIT_DIRS = [
 ]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore'
-
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
 
 ALLOWED_SUB_FOLDERS_OF_TESTS = ["unit", "system", "integration"]
 

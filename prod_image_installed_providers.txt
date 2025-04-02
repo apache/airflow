@@ -4,6 +4,7 @@ celery
 cncf.kubernetes
 common.compat
 common.io
+common.messaging
 common.sql
 docker
 elasticsearch

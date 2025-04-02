@@ -327,11 +327,15 @@ labelPRBasedOnFilePath:
     - .readthedocs.yml
 
   kind:documentation:
-    - docs/**/*
+    - airflow-core/docs/**/*
+    - chart/docs/**/*
+    - devel-common/src/docs/**/*
+    - providers/**/docs/**/*
+    - providers-summary-docs/**/*
+    - docker-stack-docs/**/*
 
   area:helm-chart:
     - chart/**/*
-    - docs/helm-chart/**
 
   area:UI:
     - airflow-core/docs/ui.rst
@@ -410,8 +414,8 @@ labelPRBasedOnFilePath:
 
   area:production-image:
     - Dockerfile
-    - docs/docker-stack/**/*
-    - docker_tests/**/*
+    - docker-stack-docs/**/*
+    - docker-tests/**/*
 
   area:system-tests:
     - airflow-core/tests/system/**/*
@@ -427,6 +431,12 @@ labelPRBasedOnFilePath:
 
   area:airflow-ctl:
     - airflow-ctl/**/*
+
+  area:docker-tests:
+    - docker-tests/**/*
+
+  area:kubernetes-tests:
+    - kubernetes-tests/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

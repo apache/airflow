@@ -36,6 +36,7 @@ from airflow.providers_manager import (
     ProvidersManager,
 )
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
 
@@ -49,6 +50,7 @@ def test_cleanup_providers_manager(cleanup_providers_manager):
     assert ProvidersManager().hooks is hooks
 
 
+@skip_if_force_lowest_dependencies_marker
 class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog, cleanup_providers_manager):

@@ -346,6 +346,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
+        airflow_task_sdk_constraints_location = None
         console.print(f"\nInstalling airflow ctl from remote spec {use_airflow_version}\n")
         airflow_ctl_distribution = f"apache-airflow-ctl @ {use_airflow_version}"
         airflow_ctl_constraints_location = get_airflow_constraints_location(
@@ -795,6 +796,8 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
             ]
+            if version.minor < 10:
+                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
                 github_actions=github_actions,

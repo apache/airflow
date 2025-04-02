@@ -22,7 +22,7 @@ description: |
     `Discord <https://discord.com/>`__
 
 state: ready
-source-date-epoch: 1742980067
+source-date-epoch: 1743477813
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.9.4
