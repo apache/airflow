@@ -48,7 +48,7 @@ from typing import Annotated, Any, Literal, Union
 from uuid import UUID
 
 from fastapi import Body
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_serializer
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
@@ -218,7 +218,7 @@ class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
 class TaskRescheduleStartDate(BaseModel):
     """Response containing the first reschedule date for a task instance."""
 
-    start_date: datetime | None
+    start_date: AwareDatetime | None
     type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
 
 

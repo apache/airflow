@@ -609,7 +609,7 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.is_success:
             return None
         # 4xx or 5xx error?
-        if 400 < (response.status_code // 100) >= 600:
+        if not (400 <= response.status_code < 600):
             return None
 
         if response.headers.get("content-type") != "application/json":

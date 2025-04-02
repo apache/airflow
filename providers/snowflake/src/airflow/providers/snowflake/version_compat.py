@@ -14,33 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-from pydantic import BaseModel
 
-from airflow.api_fastapi.common.types import UIAlert
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
+
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class ConfigResponse(BaseModel):
-    """configuration serializer."""
-
-    navbar_color: str
-    navbar_text_color: str
-    navbar_hover_color: str
-    navbar_text_hover_color: str
-    navbar_logo_text_color: str
-    page_size: int
-    auto_refresh_interval: int
-    default_ui_timezone: str
-    hide_paused_dags_by_default: bool
-    instance_name: str
-    instance_name_has_markup: bool
-    enable_swagger_ui: bool
-    require_confirmation_dag_change: bool
-    default_wrap: bool
-    warn_deployment_exposure: bool
-    audit_view_excluded_events: str
-    audit_view_included_events: str
-    test_connection: str
-    state_color_mapping: dict
-    dashboard_alert: list[UIAlert]
+AIRFLOW_V_2_10_PLUS = get_base_airflow_version_tuple() >= (2, 10, 0)
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)

@@ -20,12 +20,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
 
 API_VERSION: Final[str] = "2025-03-26"
 
@@ -88,12 +88,12 @@ class DagRunAssetReference(BaseModel):
     )
     run_id: Annotated[str, Field(title="Run Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
-    start_date: Annotated[datetime, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     state: Annotated[str, Field(title="State")]
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
 
 
 class DagRunState(str, Enum):
@@ -149,10 +149,10 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     Schema for response with previous successful DagRun information for Task Template Context.
     """
 
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
-    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
 
 
 class TIDeferredStatePayload(BaseModel):
@@ -183,7 +183,7 @@ class TIEnterRunningPayload(BaseModel):
     hostname: Annotated[str, Field(title="Hostname")]
     unixname: Annotated[str, Field(title="Unixname")]
     pid: Annotated[int, Field(title="Pid")]
-    start_date: Annotated[datetime, Field(title="Start Date")]
+    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
 
 
 class TIHeartbeatInfo(BaseModel):
@@ -207,8 +207,8 @@ class TIRescheduleStatePayload(BaseModel):
         extra="forbid",
     )
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
-    reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
-    end_date: Annotated[datetime, Field(title="End Date")]
+    reschedule_date: Annotated[AwareDatetime, Field(title="Reschedule Date")]
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]
 
 
 class TIRetryStatePayload(BaseModel):
@@ -220,7 +220,7 @@ class TIRetryStatePayload(BaseModel):
         extra="forbid",
     )
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
-    end_date: Annotated[datetime, Field(title="End Date")]
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -243,7 +243,7 @@ class TISuccessStatePayload(BaseModel):
         extra="forbid",
     )
     state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
-    end_date: Annotated[datetime, Field(title="End Date")]
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
 
@@ -277,7 +277,7 @@ class TriggerDAGRunPayload(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
@@ -360,7 +360,7 @@ class AssetEventResponse(BaseModel):
     """
 
     id: Annotated[int, Field(title="Id")]
-    timestamp: Annotated[datetime, Field(title="Timestamp")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
     asset: AssetResponse
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
@@ -388,12 +388,12 @@ class DagRun(BaseModel):
     )
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
-    run_after: Annotated[datetime, Field(title="Run After")]
-    start_date: Annotated[datetime, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
+    run_after: Annotated[AwareDatetime, Field(title="Run After")]
+    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
@@ -429,4 +429,4 @@ class TITerminalStatePayload(BaseModel):
         extra="forbid",
     )
     state: TerminalStateNonSuccess
-    end_date: Annotated[datetime, Field(title="End Date")]
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]

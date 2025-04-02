@@ -50,6 +50,30 @@ class TestKubernetesExecutor(BaseK8STest):
             timeout=300,
         )
 
+    @pytest.mark.execution_timeout(300)
+    def test_integration_run_dag_task_mapping(self):
+        dag_id = "example_task_mapping_second_order"
+        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
+        print(f"Found the job with logical_date {logical_date}")
+
+        # Wait some time for the operator to complete
+        self.monitor_task(
+            host=self.host,
+            dag_run_id=dag_run_id,
+            dag_id=dag_id,
+            task_id="get_nums",
+            expected_final_state="success",
+            timeout=300,
+        )
+
+        self.ensure_dag_expected_state(
+            host=self.host,
+            logical_date=logical_date,
+            dag_id=dag_id,
+            expected_final_state="success",
+            timeout=300,
+        )
+
     @pytest.mark.execution_timeout(500)
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"

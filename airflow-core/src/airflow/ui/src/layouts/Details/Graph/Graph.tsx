@@ -94,7 +94,7 @@ export const Graph = () => {
   const { openGroupIds } = useOpenGroups();
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
