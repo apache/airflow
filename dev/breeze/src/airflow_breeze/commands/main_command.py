@@ -303,22 +303,29 @@ def cleanup(all: bool):
             run_command(["uv", "pip", "uninstall", "apache-airflow"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
+
+    to_be_excluded_from_deletion = (
+        # dirs
+        ".idea/",  # Pycharm config
+        ".vscode/",  # VSCode config
+        ".venv/",
+        "files/",
+        "logs/",
+        # files
+        ".bash_history",
+        ".bash_aliases",
+    )
+
     get_console().print(
-        "Removing build file and untracked files. This also removes files ignored in .gitignore"
+        "Removing build file and git untracked files. This also removes files ignored in .gitignore.\n"
+        f"The following files will not be removed: `{to_be_excluded_from_deletion}`."
     )
     given_answer = user_confirm("Are you sure with the removal of build files?")
     if given_answer == Answer.YES:
-        system_prune_command_to_execute = [
-            "git",
-            "clean",
-            "-fdx",
-            "-e",
-            ".idea/",
-            "-e",
-            ".vscode/",
-            "-e",
-            ".venv/",
-        ]
+        system_prune_command_to_execute = ["git", "clean", "-fdx"]
+        for excluded_object in to_be_excluded_from_deletion:
+            system_prune_command_to_execute.extend(["-e", excluded_object])
+
         run_command(
             system_prune_command_to_execute,
             check=False,
