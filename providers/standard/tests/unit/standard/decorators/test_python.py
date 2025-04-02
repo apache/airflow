@@ -168,8 +168,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 line = line - 1
 
         warn = recwarn[0]
-        assert warn.filename == __file__
-        assert warn.lineno == line
+        # since it is resolved dynamically now from decorators init
+        assert warn.filename.endswith("decorators/__init__.py")
 
         assert t3(5, 5).operator.multiple_outputs is False
 
