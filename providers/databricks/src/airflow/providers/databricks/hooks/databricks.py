@@ -772,6 +772,12 @@ class DatabricksHook(BaseDatabricksHook):
         return self._do_api_call(("PATCH", f"api/2.0/permissions/jobs/{job_id}"), json)
 
     def post_sql_statement(self, json: dict[str, Any]) -> str:
+        """
+        Submit a SQL statement to the Databricks SQL Statements endpoint.
+
+        :param json: The data used in the body of the request to the SQL Statements endpoint.
+        :return: The statement_id as a string.
+        """
         response = self._do_api_call(("POST", f"{SQL_STATEMENTS_ENDPOINT}"), json)
         return response["statement_id"]
 
@@ -809,6 +815,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param statement_id: ID of the SQL statement
         """
+        self.log.info("Canceling SQL statement with ID: %s", statement_id)
         cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
         self._do_api_call(cancel_sql_statement_endpoint)
 

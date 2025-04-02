@@ -1008,7 +1008,8 @@ class DatabricksSQLStatementsOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
-    :param do_xcom_push: Whether we should push statement_id to xcom.
+    :param do_xcom_push: Whether we should push statement_id to xcom.:
+    :param timeout: The timeout for the Airflow task executing the SQL statement. By default a value of 3600 seconds is used.
     :param deferrable: Run operator in the deferrable mode.
     """
 
@@ -1034,6 +1035,7 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
+        timeout: float = 3600,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -1054,6 +1056,8 @@ class DatabricksSQLStatementsOperator(BaseOperator):
 
         # This variable will be used in case our task gets killed.
         self.statement_id: str | None = None
+
+        self.timeout = timeout
         self.do_xcom_push = do_xcom_push
 
     @cached_property
@@ -1070,7 +1074,8 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         )
 
     def _handle_operator_execution(self) -> None:
-        while True:
+        end_time = time.time() + self.timeout
+        while end_time > time.time():
             statement_state = self._hook.get_sql_statement_state(self.statement_id)
             if statement_state.is_terminal:
                 if statement_state.is_successful:
@@ -1087,13 +1092,20 @@ class DatabricksSQLStatementsOperator(BaseOperator):
             self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
             time.sleep(self.polling_period_seconds)
 
+        self._hook.cancel_sql_statement(self.statement_id)
+        raise AirflowException(
+            f"{self.task_id} timed out after {self.timeout} seconds with state: {statement_state.state}",
+        )
+
     def _handle_deferrable_operator_execution(self) -> None:
         statement_state = self._hook.get_sql_statement_state(self.statement_id)
+        end_time = time.time() + self.timeout
         if not statement_state.is_terminal:
             self.defer(
                 trigger=DatabricksSQLStatementExecutionTrigger(
                     statement_id=self.statement_id,
                     databricks_conn_id=self.databricks_conn_id,
+                    end_time=end_time,
                     polling_period_seconds=self.polling_period_seconds,
                     retry_limit=self.databricks_retry_limit,
                     retry_delay=self.databricks_retry_delay,
@@ -1104,6 +1116,13 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         else:
             if statement_state.is_successful:
                 self.log.info("%s completed successfully.", self.task_id)
+            else:
+                error_message = (
+                    f"{self.task_id} failed with terminal state: {statement_state.state} "
+                    f"and with the error code {statement_state.error_code} "
+                    f"and error message {statement_state.error_message}"
+                )
+                raise AirflowException(error_message)
 
     def execute(self, context: Context):
         json = {

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
@@ -127,6 +128,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
 
     :param statement_id: ID of the SQL statement.
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    :param end_time: The end time (set based on timeout supplied for the operator) for the SQL statement execution.
     :param polling_period_seconds: Controls the rate of the poll for the result of this run.
         By default, the trigger will poll every 30 seconds.
     :param retry_limit: The number of times to retry the connection in case of service outages.
@@ -138,6 +140,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         self,
         statement_id: str,
         databricks_conn_id: str,
+        end_time: float,
         polling_period_seconds: int = 30,
         retry_limit: int = 3,
         retry_delay: int = 10,
@@ -147,6 +150,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         super().__init__()
         self.statement_id = statement_id
         self.databricks_conn_id = databricks_conn_id
+        self.end_time = end_time
         self.polling_period_seconds = polling_period_seconds
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
@@ -166,6 +170,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 "statement_id": self.statement_id,
                 "databricks_conn_id": self.databricks_conn_id,
                 "polling_period_seconds": self.polling_period_seconds,
+                "end_time": self.end_time,
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
@@ -174,7 +179,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
 
     async def run(self):
         async with self.hook:
-            while True:
+            while self.end_time > time.time():
                 statement_state = await self.hook.a_get_sql_statement_state(self.statement_id)
                 if not statement_state.is_terminal:
                     self.log.info(
@@ -200,3 +205,17 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                     }
                 )
                 return
+
+            # If we reach here, it means the statement should be timed out as per the end_time.
+            self.hook.cancel_sql_statement(self.statement_id)
+            yield TriggerEvent(
+                {
+                    "statement_id": self.statement_id,
+                    "state": statement_state.to_json(),
+                    "error": {
+                        "error_code": "TIMEOUT",
+                        "error_message": f"Statement ID {self.statement_id} timed out after set end time {self.end_time}",
+                    },
+                }
+            )
+            return
