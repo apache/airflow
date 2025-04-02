@@ -987,7 +987,9 @@ class ActivitySubprocess(WatchedSubprocess):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
         elif isinstance(msg, GetDagRunCount):
-            dr_resp = self.client.dag_runs.get_dag_run_count(msg.dag_id, msg.run_ids, msg.states)
+            dr_resp = self.client.dag_runs.get_dag_run_count(
+                msg.dag_id, msg.run_ids, msg.states, msg.logical_dates
+            )
             resp = DagRunCountResult.from_api_response(dr_resp).model_dump_json().encode()
 
         elif isinstance(msg, GetTaskRescheduleStartDate):

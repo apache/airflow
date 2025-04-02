@@ -381,7 +381,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = xcom.model_dump_json().encode()
 
         elif isinstance(msg, GetDagRunCount):
-            dr_resp = self.client.dag_runs.get_dag_run_count(msg.dag_id, msg.run_ids, msg.states)
+            dr_resp = self.client.dag_runs.get_dag_run_count(
+                msg.dag_id, msg.run_ids, msg.states, msg.logical_dates
+            )
 
             if isinstance(dr_resp, DagRunCountResponse):
                 dag_run_state_count_result = DagRunCountResult.from_api_response(dr_resp)

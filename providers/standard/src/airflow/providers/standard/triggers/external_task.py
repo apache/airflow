@@ -194,6 +194,7 @@ class DagStateTrigger(BaseTrigger):
                     dag_id=self.dag_id,
                     run_ids=self.run_ids,
                     states=self.states,  # type: ignore[arg-type]
+                    logical_dates=self.execution_dates,
                 )
                 num_dags = dag_run_count_result.count
             else:

@@ -737,10 +737,11 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
 
 
 class CustomTriggerDagRun(BaseTrigger):
-    def __init__(self, trigger_dag_id, run_ids, states):
+    def __init__(self, trigger_dag_id, run_ids, states, logical_dates):
         self.trigger_dag_id = trigger_dag_id
         self.run_ids = run_ids
         self.states = states
+        self.logical_dates = logical_dates
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -749,6 +750,7 @@ class CustomTriggerDagRun(BaseTrigger):
                 "trigger_dag_id": self.trigger_dag_id,
                 "run_ids": self.run_ids,
                 "states": self.states,
+                "logical_dates": self.logical_dates,
             },
         )
 
@@ -760,14 +762,11 @@ class CustomTriggerDagRun(BaseTrigger):
             dag_id=self.trigger_dag_id,
             run_ids=self.run_ids,
             states=self.states,
+            logical_dates=self.logical_dates,
         )
         yield TriggerEvent({"count": dag_run_states_count.count})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
@@ -781,10 +780,17 @@ async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, da
     task_instance.state = TaskInstanceState.DEFERRED
 
     # Use the same dag run with states deferred to fetch the count
-    trigger = CustomTriggerDagRun(trigger_dag_id=dr.dag_id, run_ids=[dr.run_id], states=[dr.state])
+    trigger = CustomTriggerDagRun(
+        trigger_dag_id=dr.dag_id, run_ids=[dr.run_id], states=[dr.state], logical_dates=[dr.logical_date]
+    )
     trigger_orm = Trigger(
         classpath=trigger.serialize()[0],
-        kwargs={"trigger_dag_id": dr.dag_id, "run_ids": [dr.run_id], "states": [dr.state]},
+        kwargs={
+            "trigger_dag_id": dr.dag_id,
+            "run_ids": [dr.run_id],
+            "states": [dr.state],
+            "logical_dates": [dr.logical_date],
+        },
     )
     trigger_orm.id = 1
     session.add(trigger_orm)

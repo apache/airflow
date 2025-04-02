@@ -277,6 +277,34 @@ class TestDagRunCount:
         assert response.status_code == 200
         assert response.json() == {"count": 2}
 
+    def test_dag_run_count_by_logical_dates_and_success_failure_states(self, client, session, dag_maker):
+        dag_id = "dag_run_count_by_logical_dates_and_success_failure_states"
+        run_one_logical_date = timezone.datetime(2025, 4, 20)
+        run_two_logical_date = timezone.datetime(2025, 5, 20)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(
+            run_id="test_run_id5", state=DagRunState.SUCCESS, logical_date=timezone.datetime(2025, 4, 20)
+        )
+        dag_maker.create_dagrun(
+            run_id="test_run_id6", state=DagRunState.FAILED, logical_date=timezone.datetime(2025, 5, 20)
+        )
+
+        session.commit()
+
+        response = client.get(
+            f"/execution/dag-runs/{dag_id}/count",
+            params={
+                "logical_dates": [run_one_logical_date, run_two_logical_date],
+                "states": [DagRunState.SUCCESS, DagRunState.FAILED],
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"count": 2}
+
     def test_dag_run_count_by_run_ids_and_states_dag_not_found(self, client):
         dag_id = "dag_not_found"
 

@@ -918,7 +918,28 @@ class TestDagRunOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.dag_runs.get_dag_run_count(
-            dag_id="test_state", run_ids=["test_run_id"], states=[DagRunState.RUNNING]
+            dag_id="test_state",
+            run_ids=["test_run_id"],
+            states=[DagRunState.RUNNING],
+        )
+        assert result == DagRunCountResponse(count=1)
+
+    def test_get_dag_count_by_logical_dates_and_states(self):
+        """Test that the client can get the count of dag runs by run ids and states"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_state/count":
+                return httpx.Response(
+                    status_code=200,
+                    json={"count": 1},
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_dag_run_count(
+            dag_id="test_state",
+            logical_dates=[timezone.datetime(2022, 1, 1)],
+            states=[DagRunState.RUNNING],
         )
         assert result == DagRunCountResponse(count=1)
 

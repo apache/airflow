@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import HTTPException, Query, status
@@ -165,9 +166,10 @@ def get_dagrun_state(
 )
 def get_dag_count(
     dag_id: str,
-    run_ids: Annotated[list[str], Query(description="List of run IDs")],
-    states: Annotated[list[str], Query(description="List of states")],
     session: SessionDep,
+    run_ids: Annotated[list[str] | None, Query()] = None,
+    states: Annotated[list[str] | None, Query()] = None,
+    logical_dates: Annotated[list[datetime] | None, Query()] = None,
 ) -> DagRunCountResponse:
     """Get the count of DAGs by run_ids and states."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -177,9 +179,16 @@ def get_dag_count(
             detail={"reason": "not_found", "message": f"DAG with dag_id: '{dag_id}' not found"},
         )
 
-    result = session.scalar(
-        select(func.count()).where(
-            DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids), DagRun.state.in_(states)
-        )
-    )
-    return DagRunCountResponse(count=result)
+    query = select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)
+
+    if run_ids:
+        query = query.where(DagRun.run_id.in_(run_ids))
+
+    if states:
+        query = query.where(DagRun.state.in_(states))
+
+    if logical_dates:
+        query = query.where(DagRun.logical_date.in_(logical_dates))
+
+    result = session.scalar(query)
+    return DagRunCountResponse(count=result or 0)

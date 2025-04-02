@@ -1346,10 +1346,31 @@ class TestHandleRequest:
                 GetDagRunCount(dag_id="test_dag", run_ids=["test_run1", "test_run2"], states=["success"]),
                 b'{"count":2,"type":"DagRunCountResult"}\n',
                 "dag_runs.get_dag_run_count",
-                ("test_dag", ["test_run1", "test_run2"], ["success"]),
+                ("test_dag", ["test_run1", "test_run2"], ["success"], None),
                 {},
                 DagRunCountResult(count=2),
                 id="get_dag_run_count",
+            ),
+            pytest.param(
+                GetDagRunCount(
+                    dag_id="test_dag",
+                    logical_dates=[
+                        timezone.parse("2025-01-10T12:00:00Z"),
+                        timezone.parse("2025-02-10T12:00:00Z"),
+                    ],
+                    states=["success"],
+                ),
+                b'{"count":2,"type":"DagRunCountResult"}\n',
+                "dag_runs.get_dag_run_count",
+                (
+                    "test_dag",
+                    None,
+                    ["success"],
+                    [timezone.parse("2025-01-10T12:00:00Z"), timezone.parse("2025-02-10T12:00:00Z")],
+                ),
+                {},
+                DagRunCountResult(count=2),
+                id="get_dag_run_count_by_logical_date_states",
             ),
             pytest.param(
                 GetTaskRescheduleStartDate(ti_id=TI_ID),

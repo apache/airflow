@@ -453,9 +453,26 @@ class DagRunOperations:
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
-    def get_dag_run_count(self, dag_id: str, run_ids: list[str], states: list[str]) -> DagRunCountResponse:
+    def get_dag_run_count(
+        self,
+        dag_id: str,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+        logical_dates: list[datetime] | None = None,
+    ) -> DagRunCountResponse:
         """Get the count of dag runs by run ids and states via the API server."""
-        resp = self.client.get(f"dag-runs/{dag_id}/count", params={"run_ids": run_ids, "states": states})
+        params = {}
+
+        if run_ids:
+            params.update({"run_ids": run_ids})
+
+        if states:
+            params.update({"states": states})
+
+        if logical_dates is not None:
+            params.update({"logical_dates": [date.isoformat() for date in logical_dates]})
+
+        resp = self.client.get(f"dag-runs/{dag_id}/count", params=params)
         return DagRunCountResponse.model_validate_json(resp.read())
 
 

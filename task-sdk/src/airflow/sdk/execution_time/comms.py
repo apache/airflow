@@ -432,8 +432,9 @@ class GetDagRunState(BaseModel):
 
 class GetDagRunCount(BaseModel):
     dag_id: str
-    run_ids: list[str]
-    states: list[str]
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    logical_dates: list[datetime] | None = None
     type: Literal["GetDagRunCount"] = "GetDagRunCount"
 
 

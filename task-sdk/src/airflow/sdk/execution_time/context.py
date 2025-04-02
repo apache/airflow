@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Generator, Iterator, Mapping
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
@@ -586,7 +587,12 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     return outlet_events
 
 
-def get_dag_run_count(dag_id: str, states: list[str], run_ids: list[str]) -> DagRunCountResult:
+def get_dag_run_count(
+    dag_id: str,
+    states: list[str] | None = None,
+    run_ids: list[str] | None = None,
+    logical_dates: list[datetime] | None = None,
+) -> DagRunCountResult:
     from airflow.sdk.execution_time.comms import GetDagRunCount
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -597,6 +603,7 @@ def get_dag_run_count(dag_id: str, states: list[str], run_ids: list[str]) -> Dag
                 dag_id=dag_id,
                 states=states,
                 run_ids=run_ids,
+                logical_dates=logical_dates,
             ),
         )
         msg = SUPERVISOR_COMMS.get_message()
