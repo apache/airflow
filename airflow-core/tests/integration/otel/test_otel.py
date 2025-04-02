@@ -575,6 +575,8 @@ class TestOtelIntegration:
     test_dir = os.path.dirname(os.path.abspath(__file__))
     dag_folder = os.path.join(test_dir, "dags")
 
+    max_wait_seconds_for_pause = 180
+
     use_otel = os.getenv("use_otel", default="false")
     log_level = os.getenv("log_level", default="none")
 
@@ -991,7 +993,15 @@ class TestOtelIntegration:
             # Control file path.
             control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
+            deadline = time.monotonic() + self.max_wait_seconds_for_pause
+
             while True:
+                # To avoid get stuck waiting.
+                if time.monotonic() > deadline:
+                    raise TimeoutError(
+                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                    )
+
                 try:
                     with open(control_file) as file:
                         file_contents = file.read()
@@ -1100,7 +1110,15 @@ class TestOtelIntegration:
             # Control file path.
             control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
+            deadline = time.monotonic() + self.max_wait_seconds_for_pause
+
             while True:
+                # To avoid get stuck waiting.
+                if time.monotonic() > deadline:
+                    raise TimeoutError(
+                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                    )
+
                 try:
                     with open(control_file) as file:
                         file_contents = file.read()
@@ -1193,7 +1211,15 @@ class TestOtelIntegration:
             # Control file path.
             control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
+            deadline = time.monotonic() + self.max_wait_seconds_for_pause
+
             while True:
+                # To avoid get stuck waiting.
+                if time.monotonic() > deadline:
+                    raise TimeoutError(
+                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                    )
+
                 try:
                     with open(control_file) as file:
                         file_contents = file.read()
@@ -1290,7 +1316,15 @@ class TestOtelIntegration:
             # Control file path.
             control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
+            deadline = time.monotonic() + self.max_wait_seconds_for_pause
+
             while True:
+                # To avoid get stuck waiting.
+                if time.monotonic() > deadline:
+                    raise TimeoutError(
+                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                    )
+
                 try:
                     with open(control_file) as file:
                         file_contents = file.read()
