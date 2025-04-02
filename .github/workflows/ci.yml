@@ -494,7 +494,7 @@ jobs:
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-with-lowest-direct-resolution:
-    name: "Lowest direct dependency providers tests"
+    name: "Lowest direct dependency tests"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
@@ -504,11 +504,11 @@ jobs:
       needs.build-info.outputs.run-tests == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      test-name: "LowestDeps-Postgres"
+      test-name: "LowestDeps"
       force-lowest-dependencies: "true"
       test-scope: "All"
       test-groups: ${{ needs.build-info.outputs.test-groups }}
-      backend: "postgres"
+      backend: "sqlite"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}

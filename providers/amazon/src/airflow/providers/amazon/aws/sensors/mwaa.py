@@ -150,7 +150,8 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
                     external_dag_run_id=self.external_dag_run_id,
                     success_states=self.success_states,
                     failure_states=self.failure_states,
-                    waiter_delay=self.poke_interval,
+                    # somehow the type of poke_interval is derived as float ??
+                    waiter_delay=self.poke_interval,  # type: ignore[arg-type]
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                 ),

@@ -2715,7 +2715,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": f"write{i}"},
                     asset=AssetResponse(
                         name="test_inlet_asset_extra", uri="test_inlet_asset_extra", group="asset"
@@ -2791,7 +2791,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": f"write{i}"},
                     asset=AssetResponse(
                         name="test_inlet_asset_extra_ds", uri="test_inlet_asset_extra_ds", group="asset"
@@ -2914,7 +2914,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": i},
                     asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
                 )
@@ -2981,7 +2981,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": i},
                     asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
                 )

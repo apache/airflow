@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom
 else:
-    from airflow.models.xcom import XCom
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 def _bootstrap_dagbag():

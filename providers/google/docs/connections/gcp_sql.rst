@@ -109,7 +109,7 @@ For using IAM you need to enable ``"use_iam": "True"`` in the ``extra`` field. A
 
 For example:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_iam.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_iam.py
     :language: python
     :start-after: [START howto_operator_cloudsql_iam_connections]
     :end-before: [END howto_operator_cloudsql_iam_connections]

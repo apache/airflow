@@ -203,6 +203,42 @@ class TestClient:
         assert len(responses) == 1
         assert mock_sleep.call_count == 0
 
+    def test_token_renewal(self):
+        responses: list[httpx.Response] = [
+            httpx.Response(200, json={"ok": "1"}),
+            httpx.Response(404, json={"var": "not_found"}, headers={"Refreshed-API-Token": "abc"}),
+            httpx.Response(200, json={"ok": "3"}),
+        ]
+        client = make_client_w_responses(responses)
+        response = client.get("/")
+        assert response.status_code == 200
+        assert client.auth is not None
+        assert not client.auth.token
+        with pytest.raises(ServerResponseError):
+            response = client.get("/")
+
+        # Even thought it was Not Found, we should still respect the header
+        assert client.auth is not None
+        assert client.auth.token == "abc"
+
+        # Test that the next request is made with that new auth token
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.request.headers["Authorization"] == "Bearer abc"
+
+    @pytest.mark.parametrize(
+        ["status_code", "description"],
+        [
+            (399, "status code < 400"),
+            (301, "3xx redirect status code"),
+            (600, "status code >= 600"),
+        ],
+    )
+    def test_server_response_error_invalid_status_codes(self, status_code, description):
+        """Test that ServerResponseError.from_response returns None for invalid status codes."""
+        response = httpx.Response(status_code, json={"detail": f"Test {description}"})
+        assert ServerResponseError.from_response(response) is None
+
 
 class TestTaskInstanceOperations:
     """

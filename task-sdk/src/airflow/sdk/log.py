@@ -21,6 +21,7 @@ import io
 import itertools
 import logging.config
 import os
+import re
 import sys
 import warnings
 from functools import cache
@@ -38,6 +39,9 @@ __all__ = [
     "configure_logging",
     "reset_logging",
 ]
+
+
+JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
 
 
 def exception_group_tracebacks(
@@ -91,8 +95,8 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
 
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
-        if isinstance(v, str) and v.startswith("eyJ"):
-            event_dict[k] = "eyJ***"
+        if isinstance(v, str):
+            event_dict[k] = re.sub(JWT_PATTERN, "eyJ***", v)
     return event_dict
 
 

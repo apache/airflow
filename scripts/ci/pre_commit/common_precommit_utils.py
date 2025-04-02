@@ -34,6 +34,9 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
+# Here we should add the second level paths that we want to have sub-packages in
+KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 try:
@@ -129,7 +132,7 @@ def run_command_via_breeze_shell(
     cmd: list[str],
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     backend: str = "none",
-    executor: str = "SequentialExecutor",
+    executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
     project_name: str = "pre-commit",
     skip_environment_initialization: bool = True,
@@ -149,6 +152,7 @@ def run_command_via_breeze_shell(
         "--quiet",
         "--restart",
         "--skip-image-upgrade-check",
+        # Note: The terminal is disabled - because pre-commit is run inside git without pseudo-terminal
         "--tty",
         "disabled",
     ]
