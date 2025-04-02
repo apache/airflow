@@ -24,6 +24,7 @@ import { usePoolServiceGetPools } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { type SearchParamsKeysType, SearchParamsKeys } from "src/constants/searchParams";
+import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 
 import AddPoolButton from "./AddPoolButton";
@@ -33,8 +34,8 @@ export const Pools = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
-  
-  const { tableURLState } = useTableURLState();
+
+  const { setTableURLState,tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
@@ -70,11 +71,16 @@ export const Pools = () => {
         <AddPoolButton />
       </HStack>
       <Box mt={4}>
-        {isLoading ? (
-          <Skeleton height="100px" />
-        ) : (
-          data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)
-        )}
+        <DataTable
+          onStateChange={setTableURLState}
+          initialState={tableURLState}  
+          isLoading={isLoading ? (
+            <Skeleton height="100px" />
+          ) : (
+            data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)
+          )} 
+          columns={[]} 
+          data={data ? data.pools :[]}        />  
       </Box>
     </>
   );
