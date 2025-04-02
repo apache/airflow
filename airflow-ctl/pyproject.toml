@@ -116,7 +116,7 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
-url = "http://0.0.0.0:8080/openapi.json"
+url = "http://0.0.0.0:28080/openapi.json"
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
