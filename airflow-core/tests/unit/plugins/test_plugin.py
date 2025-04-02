@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
@@ -89,10 +89,16 @@ app = FastAPI()
 
 app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
+
+class DummyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        return await call_next(request)
+
+
 middleware_with_metadata = {
-    "middleware": TrustedHostMiddleware,
+    "middleware": DummyMiddleware,
     "args": [],
-    "kwargs": {"allowed_hosts": ["example.com", "*.example.com"]},
+    "kwargs": {},
     "name": "Name of the Middleware",
 }
 

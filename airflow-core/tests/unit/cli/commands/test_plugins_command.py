@@ -87,13 +87,8 @@ class TestPluginsCommand:
                 "fastapi_root_middlewares": [
                     {
                         "args": [],
-                        "kwargs": {
-                            "allowed_hosts": [
-                                "example.com",
-                                "*.example.com",
-                            ],
-                        },
-                        "middleware": "starlette.middleware.trustedhost.TrustedHostMiddleware",
+                        "kwargs": {},
+                        "middleware": "unit.plugins.test_plugin.DummyMiddleware",
                         "name": "Name of the Middleware",
                     }
                 ],
