@@ -381,7 +381,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockAgentHook]):
         :ref:`howto/sensor:BedrockBatchInferenceSensor`
 
     :param job_arn: The Amazon Resource Name (ARN) of the batch inference job. (templated)
-    :param target_state: A BedrockBatchInferenceSensor.TargetState; defaults to 'SCHEDULED' (templated)
+    :param success_state: A BedrockBatchInferenceSensor.TargetState; defaults to 'SCHEDULED' (templated)
 
     :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
         module to be installed.
