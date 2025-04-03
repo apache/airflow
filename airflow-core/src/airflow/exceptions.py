@@ -413,6 +413,7 @@ class DownstreamTasksSkipped(AirflowException):
         self.tasks = tasks
 
 
+# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
 class DagRunTriggerException(AirflowException):
     """
     Signal by an operator to trigger a specific Dag Run of a dag.
@@ -450,6 +451,7 @@ class DagRunTriggerException(AirflowException):
         self.deferrable = deferrable
 
 
+# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
 class DagRunTriggerExecuteCompleteException(AirflowException):
     """
     Signal by an operator execute complete method.
