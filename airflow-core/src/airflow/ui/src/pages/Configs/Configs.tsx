@@ -16,21 +16,55 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Separator, Text, VStack } from "@chakra-ui/react";
+import { Heading, Separator, VStack } from "@chakra-ui/react";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
+import type { ConfigOption } from "openapi/requests/types.gen";
+import { DataTable } from "src/components/DataTable";
 
-import { ConfigPageSection } from "./ConfigPageSection";
+type ConfigColums = {
+  section: string;
+} & ConfigOption;
+
+const columns: Array<ColumnDef<ConfigColums>> = [
+  {
+    accessorKey: "section",
+    enableSorting: false,
+    header: () => "section",
+  },
+  {
+    accessorKey: "key",
+    enableSorting: false,
+    header: () => "key",
+  },
+  {
+    accessorKey: "value",
+    enableSorting: false,
+    header: () => "value",
+  },
+];
 
 export const Configs = () => {
   const { data } = useConfigServiceGetConfig();
 
+  const render =
+    data?.sections.flatMap((section) =>
+      section.options.map((option) => ({
+        ...option,
+        section: section.name,
+      })),
+    ) ?? [];
+
   return (
     <>
-      <Text>Configs</Text>
+      <Heading mb={4}>Airflow Configuration</Heading>
       <Separator />
       <VStack alignItems="none">
-        {data?.sections.map((section) => <ConfigPageSection key={section.name} section={section} />)}
+        <>
+          <DataTable columns={columns} data={render} displayMode="table" />
+          <Separator />
+        </>
       </VStack>
     </>
   );
