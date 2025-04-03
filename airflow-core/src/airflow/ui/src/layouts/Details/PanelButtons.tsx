@@ -24,6 +24,8 @@ import {
   Stack,
   createListCollection,
   type SelectValueChangeDetails,
+  Accordion,
+  Text,
 } from "@chakra-ui/react";
 import { FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
@@ -31,6 +33,7 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import DagVersionSelect from "src/components/DagVersionSelect";
+import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { Select } from "src/components/ui";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -39,7 +42,7 @@ type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly setDagView: (x: "graph" | "grid") => void;
-  readonly setLimit: (limit: number) => void;
+  readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
 } & StackProps;
 
 const options = createListCollection({
@@ -58,8 +61,9 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
-    "immediate",
+    "tasks",
   );
+  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
   const displayRunOptions = createListCollection({
     items: [
       { label: "5", value: "5" },
@@ -77,10 +81,18 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   };
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "immediate" || !deps.includes(event.value[0])) {
+    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
       removeDependencies();
     } else {
       setDependencies(event.value[0]);
+    }
+  };
+
+  const handleDirectionUpdate = (
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    if (event.value[0] !== undefined) {
+      setDirection(event.value[0] as Direction);
     }
   };
 
@@ -89,6 +101,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
       alignItems="flex-start"
       justifyContent="space-between"
       position="absolute"
+      pr={3}
       top={0}
       width="100%"
       zIndex={1}
@@ -114,56 +127,84 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
           <MdOutlineAccountTree />
         </IconButton>
       </ButtonGroup>
-      <Stack alignItems="flex-end" gap={1} mr={2}>
-        <HStack>
-          <DagVersionSelect disabled={dagView !== "graph"} />
-          <Select.Root
-            bg="bg"
-            collection={displayRunOptions}
-            data-testid="display-dag-run-options"
-            onValueChange={handleLimitChange}
-            size="sm"
-            value={[limit.toString()]}
-            width="70px"
-          >
-            <Select.Trigger>
-              <Select.ValueText />
-            </Select.Trigger>
-            <Select.Content>
-              {displayRunOptions.items.map((option) => (
-                <Select.Item item={option} key={option.value}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </HStack>
-        {dagView === "graph" ? (
-          <>
-            <Select.Root
-              bg="bg"
-              collection={options}
-              data-testid="filter-duration"
-              onValueChange={handleDepsChange}
-              size="sm"
-              value={[dependencies]}
-              width="210px"
-            >
-              <Select.Trigger>
-                <Select.ValueText placeholder="Dependencies" />
-              </Select.Trigger>
-              <Select.Content>
-                {options.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            <DagRunSelect limit={limit} />
-          </>
-        ) : undefined}
-      </Stack>
+      <Accordion.Root collapsible>
+        <Accordion.Item borderBottomWidth={0} value="1">
+          <Accordion.ItemTrigger justifyContent="flex-end">
+            <Text fontSize="sm">Options</Text>
+            <Accordion.ItemIndicator />
+          </Accordion.ItemTrigger>
+          <Accordion.ItemContent display="flex" justifyContent="flex-end">
+            <Accordion.ItemBody bg="bg.muted" p={2} width="fit-content">
+              <Stack gap={1} mr={2}>
+                {dagView === "graph" ? (
+                  <>
+                    <DagVersionSelect />
+                    <DagRunSelect limit={limit} />
+                    <Select.Root
+                      collection={options}
+                      data-testid="filter-duration"
+                      onValueChange={handleDepsChange}
+                      size="sm"
+                      value={[dependencies]}
+                    >
+                      <Select.Label fontSize="xs">Dependencies</Select.Label>
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Dependencies" />
+                      </Select.Trigger>
+                      <Select.Content>
+                        {options.items.map((option) => (
+                          <Select.Item item={option} key={option.value}>
+                            {option.label}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                    <Select.Root
+                      collection={directionOptions}
+                      onValueChange={handleDirectionUpdate}
+                      size="sm"
+                      value={[direction]}
+                    >
+                      <Select.Label fontSize="xs">Graph Direction</Select.Label>
+                      <Select.Trigger>
+                        <Select.ValueText />
+                      </Select.Trigger>
+                      <Select.Content>
+                        {directionOptions.items.map((option) => (
+                          <Select.Item item={option} key={option.value}>
+                            {option.label}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  </>
+                ) : (
+                  <Select.Root
+                    collection={displayRunOptions}
+                    data-testid="display-dag-run-options"
+                    onValueChange={handleLimitChange}
+                    size="sm"
+                    value={[limit.toString()]}
+                  >
+                    <Select.Label>Number of Dag Runs</Select.Label>
+                    <Select.Trigger>
+                      {}
+                      <Select.ValueText />
+                    </Select.Trigger>
+                    <Select.Content>
+                      {displayRunOptions.items.map((option) => (
+                        <Select.Item item={option} key={option.value}>
+                          {option.label}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                )}
+              </Stack>
+            </Accordion.ItemBody>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      </Accordion.Root>
     </HStack>
   );
 };

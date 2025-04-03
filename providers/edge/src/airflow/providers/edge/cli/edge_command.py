@@ -544,8 +544,8 @@ def maintenance(args):
     marker_path.write_text(
         MaintenanceMarker(
             maintenance=args.maintenance,
-            comments=f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {getuser()} put '
-            f'node into maintenance mode via cli\nComment: {args.comments}'
+            comments=f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {getuser()} put "
+            f"node into maintenance mode via cli\nComment: {args.comments}"
             if args.maintenance == "on"
             else None,
         ).json

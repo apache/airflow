@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import HTTPException, Query, status
+from fastapi import Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -39,7 +39,8 @@ router = AirflowRouter(
 @router.get("/{task_instance_id}/start_date")
 def get_start_date(
     task_instance_id: UUID, session: SessionDep, try_number: Annotated[int, Query()] = 1
-) -> UtcDateTime:
+) -> UtcDateTime | None:
+    """Get the first reschedule date if found, None if no records exist."""
     start_date = session.scalar(
         select(TaskReschedule)
         .where(
@@ -50,7 +51,5 @@ def get_start_date(
         .with_only_columns(TaskReschedule.start_date)
         .limit(1)
     )
-    if start_date is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return start_date

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-slack"
-version = "9.0.2"
+version = "9.0.3"
 description = "Provider package apache-airflow-providers-slack for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -71,6 +71,9 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-postgres",
+    "apache-airflow-providers-snowflake",
 ]
 
 [tool.uv.sources]
@@ -84,8 +87,8 @@ apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-slack/9.0.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

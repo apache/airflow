@@ -18,6 +18,6 @@ For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.pr
 
   * ruff
 
-    * AIR302
+    * AIR303
 
       * [ ] ``airflow.operators.EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``

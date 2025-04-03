@@ -470,9 +470,10 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.sdk import DAG as SDKDAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 
@@ -644,12 +645,21 @@ class DagBag(LoggingMixin):
     @provide_session
     def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
+        import airflow.models.dag
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+
+        dags = [
+            dag
+            if isinstance(dag, airflow.models.dag.DAG)
+            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+            for dag in self.dags.values()
+        ]
 
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
-            self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
+            dags,
             self.import_errors,
             self.dag_warnings,
             session=session,

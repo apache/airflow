@@ -71,7 +71,7 @@ class TestGetDagWarnings:
         ],
     )
     def test_get_dag_warnings(self, test_client, query_params, expected_total_entries, expected_messages):
-        response = test_client.get("/api/v2/dagWarnings", params=query_params)
+        response = test_client.get("/dagWarnings", params=query_params)
         assert response.status_code == 200
         response_json = response.json()
         assert response_json["total_entries"] == expected_total_entries
@@ -79,15 +79,15 @@ class TestGetDagWarnings:
         assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dagWarnings", params={})
+        response = unauthenticated_test_client.get("/dagWarnings", params={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/dagWarnings", params={})
+        response = unauthorized_test_client.get("/dagWarnings", params={})
         assert response.status_code == 403
 
     def test_get_dag_warnings_bad_request(self, test_client):
-        response = test_client.get("/api/v2/dagWarnings", params={"warning_type": "invalid"})
+        response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()
         assert response.status_code == 422
         assert response_json["detail"][0]["msg"] == "Input should be 'asset conflict' or 'non-existent pool'"

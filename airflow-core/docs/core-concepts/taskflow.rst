@@ -68,11 +68,11 @@ Context
 
 You can access Airflow :ref:`context variables <templates:variables>` by adding them as keyword arguments as shown in the following example:
 
-.. include:: ../../shared/template-examples/taskflow.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
 
 Alternatively, you may add ``**kwargs`` to the signature of your task and all Airflow context variables will be accessible in the ``kwargs`` dict:
 
-.. include:: ../../shared/template-examples/taskflow-kwargs.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow-kwargs.rst
 
 For a full list of context variables, see :ref:`context variables <templates:variables>`.
 

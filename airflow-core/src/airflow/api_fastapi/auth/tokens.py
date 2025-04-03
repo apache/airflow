@@ -451,7 +451,7 @@ class JWTGenerator:
             del claims["aud"]
 
         if extras is not None:
-            claims.update(extras)
+            claims = extras | claims
         headers = {"alg": self.algorithm, **(headers or {})}
         if self._private_key:
             headers["kid"] = self.kid

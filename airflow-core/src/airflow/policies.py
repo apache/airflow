@@ -173,7 +173,7 @@ def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set
         codestr = textwrap.dedent(
             f"""
             def {name}_name_mismatch_shim{desired_sig}:
-                return __target({' ,'.join(desired_sig.parameters)})
+                return __target({" ,".join(desired_sig.parameters)})
             """
         )
         code = compile(codestr, "<policy-shim>", "single")

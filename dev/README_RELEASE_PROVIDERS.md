@@ -296,7 +296,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+  breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:
@@ -353,6 +353,12 @@ should keep the final version number without the rc suffix, even if they are rc1
 They also need to be signed and have checksum files. You can generate the checksum/signature files by running
 the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
 generates corresponding .asc and .sha512 files for each file to sign.
+note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
+
+```shell script
+brew install libassuan
+brew install gnupg
+```
 
 ## Build and sign the source and convenience packages
 
@@ -388,6 +394,9 @@ pushd dist
 ../dev/sign.sh *
 popd
 ```
+
+If you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
+check above steps to install them.
 
 ## Commit the source packages to Apache SVN repo
 

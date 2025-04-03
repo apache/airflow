@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 import uuid
 from http import HTTPStatus
@@ -32,7 +31,7 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
+from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -60,11 +59,12 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DRCount,
     ErrorResponse,
     OKResponse,
-    RuntimeCheckOnTask,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
+    TICount,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -197,23 +197,35 @@ class TaskInstanceOperations:
         resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
-    def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
-        try:
-            self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
-            return OKResponse(ok=True)
-        except ServerResponseError as e:
-            if e.response.status_code == 400:
-                return OKResponse(ok=False)
-            elif e.response.status_code == 409:
-                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
-                return OKResponse(ok=True)
-            raise
-
     def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
         """Get the start date of a task reschedule via the API server."""
         resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
         return TaskRescheduleStartDate.model_construct(start_date=resp.json())
+
+    def get_count(
+        self,
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> TICount:
+        """Get count of task instances matching the given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "task_ids": task_ids,
+            "task_group_id": task_group_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+            "states": states,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        resp = self.client.get("task-instances/count", params=params)
+        return TICount(count=resp.json())
 
 
 class ConnectionOperations:
@@ -289,7 +301,13 @@ class XComOperations:
         return int(content_range[len("map_indexes ") :])
 
     def get(
-        self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -297,6 +315,8 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
+        if include_prior_dates:
+            params.update({"include_prior_dates": include_prior_dates})
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
@@ -459,6 +479,27 @@ class DagRunOperations:
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
 
+    def get_count(
+        self,
+        dag_id: str,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> DRCount:
+        """Get count of DAG runs matching the given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+            "states": states,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        resp = self.client.get("dag-runs/count", params=params)
+        return DRCount(count=resp.json())
+
 
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
@@ -488,6 +529,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
                     "run_after": "2021-01-01T00:00:00Z",
+                    "consumed_asset_events": [],
                 },
                 "max_tries": 0,
                 "should_retry": False,
@@ -496,13 +538,10 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"text": "Hello, world!"})
 
 
-# Config options for SDK how retries on HTTP requests should be handled
-# Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
-# So far there is no other config facility in SDK we use ENV for the moment
-# TODO: Consider these env variables while handling airflow confs in task sdk
-API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10))
-API_RETRY_WAIT_MIN = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
-API_RETRY_WAIT_MAX = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
+# Note: Given defaults make attempts after 1, 3, 7, 15 and fails after 31seconds
+API_RETRIES = conf.getint("workers", "execution_api_retries")
+API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
+API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 
 
 class Client(httpx.Client):
@@ -525,11 +564,16 @@ class Client(httpx.Client):
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
-            event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
+            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
 
     _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+    def _update_auth(self, response: httpx.Response):
+        if new_token := response.headers.get("Refreshed-API-Token"):
+            log.debug("Execution API issued us a refreshed Task token")
+            self.auth = BearerAuth(new_token)
 
     @retry(
         reraise=True,
@@ -605,12 +649,16 @@ class ServerResponseError(httpx.HTTPStatusError):
 
     detail: list[RemoteValidationError] | str | dict[str, Any] | None
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
+        return Exception.__new__, (type(self),) + self.args, self.__dict__
+
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:
         if response.is_success:
             return None
         # 4xx or 5xx error?
-        if 400 < (response.status_code // 100) >= 600:
+        if not (400 <= response.status_code < 600):
             return None
 
         if response.headers.get("content-type") != "application/json":

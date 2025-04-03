@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Amazon",
         "description": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1741507721,
+        "source-date-epoch": 1743477760,
         "versions": [
             "9.5.0",
             "9.4.0",
@@ -1410,7 +1410,7 @@ def get_provider_info():
         "devel-dependencies": [
             "aiobotocore>=2.13.0",
             "aws_xray_sdk>=2.12.0",
-            "moto[cloudformation,glue]>=5.0.0",
+            "moto[cloudformation,glue]>=5.1.2",
             "mypy-boto3-appflow>=1.37.0",
             "mypy-boto3-rds>=1.34.90",
             "mypy-boto3-redshift-data>=1.34.0",

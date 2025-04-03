@@ -133,7 +133,7 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.definitions.baseoperator import BaseOperator
+        from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
         from airflow.settings import task_instance_mutation_hook
 

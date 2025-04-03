@@ -207,6 +207,8 @@ class DagFileProcessorManager(LoggingMixin):
     )
     _bundles_last_refreshed: float = attrs.field(default=0, init=False)
     """Last time we checked if any bundles are ready to be refreshed"""
+    _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
+    """List of bundles that need to be force refreshed in the next loop"""
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -231,6 +233,10 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
+        reset_secrets_masker()
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -321,6 +327,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._kill_timed_out_processors()
 
+            self._queue_requested_files_for_parsing()
+
             self._refresh_dag_bundles(known_files=known_files)
 
             if not self._file_queue:
@@ -332,8 +340,6 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 # if new files found in dag dir, add them
                 self.add_files_to_queue(known_files=known_files)
-
-            self._refresh_requested_filelocs()
 
             self._start_new_processes()
 
@@ -381,20 +387,40 @@ class DagFileProcessorManager(LoggingMixin):
                 self.selector.unregister(key.fileobj)
                 key.fileobj.close()  # type: ignore[union-attr]
 
-    def _refresh_requested_filelocs(self) -> None:
-        """Refresh filepaths from dag dir as requested by users via APIs."""
-        return
-        # TODO: AIP-66 make bundle aware - fileloc will be relative (eventually), thus not unique in order to know what file to repase
-        # Get values from DB table
-        filelocs = self._get_priority_filelocs()
-        for fileloc in filelocs:
-            # Try removing the fileloc if already present
+    def _queue_requested_files_for_parsing(self) -> None:
+        """Queue any files requested for parsing as requested by users via UI/API."""
+        files = self._get_priority_files()
+        bundles_to_refresh: set[str] = set()
+        for file in files:
+            # Try removing the file if already present
             try:
-                self._file_queue.remove(fileloc)
+                self._file_queue.remove(file)
             except ValueError:
                 pass
-            # enqueue fileloc to the start of the queue.
-            self._file_queue.appendleft(fileloc)
+            # enqueue file to the start of the queue.
+            self._file_queue.appendleft(file)
+            bundles_to_refresh.add(file.bundle_name)
+
+        self._force_refresh_bundles |= bundles_to_refresh
+        if self._force_refresh_bundles:
+            self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
+
+    @provide_session
+    def _get_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
+        files: list[DagFileInfo] = []
+        bundles = {b.name: b for b in self._dag_bundles}
+        requests = session.scalars(
+            select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
+        )
+        for request in requests:
+            bundle = bundles[request.bundle_name]
+            files.append(
+                DagFileInfo(
+                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+                )
+            )
+            session.delete(request)
+        return files
 
     @provide_session
     @retry_db_transaction
@@ -439,17 +465,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue([file_info], True)
         Stats.incr("dag_processing.other_callback_count")
 
-    @classmethod
-    @provide_session
-    def _get_priority_filelocs(cls, session: Session = NEW_SESSION):
-        """Get filelocs from DB table."""
-        filelocs: list[str] = []
-        requests = session.scalars(select(DagPriorityParsingRequest))
-        for request in requests:
-            filelocs.append(request.fileloc)
-            session.delete(request)
-        return filelocs
-
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
@@ -457,7 +472,7 @@ class DagFileProcessorManager(LoggingMixin):
         # we don't need to check if it's time to refresh every loop - that is way too often
         next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
         now_seconds = time.monotonic()
-        if now_seconds < next_check:
+        if now_seconds < next_check and not self._force_refresh_bundles:
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
                 next_check - now_seconds,
@@ -497,6 +512,7 @@ class DagFileProcessorManager(LoggingMixin):
                     elapsed_time_since_refresh < bundle.refresh_interval
                     and current_version_matches_db
                     and previously_seen
+                    and bundle.name not in self._force_refresh_bundles
                 ):
                     self.log.info("Not time to refresh bundle %s", bundle.name)
                     continue
@@ -510,6 +526,7 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
 
                 bundle_model.last_refreshed = now
+                self._force_refresh_bundles.discard(bundle.name)
 
                 if bundle.supports_versioning:
                     # We can short-circuit the rest of this if (1) bundle was seen before by
@@ -853,7 +870,7 @@ class DagFileProcessorManager(LoggingMixin):
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.absolute_path,
-            bundle_path=cast(Path, dag_file.bundle_path),
+            bundle_path=cast("Path", dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,

@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 import contextlib
-from collections.abc import Generator, Iterator, Mapping
+from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
@@ -43,7 +44,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
@@ -112,12 +114,13 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
 
     # iterate over configured backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
@@ -142,8 +145,14 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+    # we need to make sure that we "atomically" send a request and get the response to that
+    # back so that two triggers don't end up interleaving requests and create a possible
+    # race condition where the wrong trigger reads the response.
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
+        msg = SUPERVISOR_COMMS.get_message()
+
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
@@ -155,19 +164,18 @@ def _get_connection(conn_id: str) -> Connection:
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     # TODO: check cache first
     # enabled only if SecretCache.init() has been called first
-    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     var_val = None
     # iterate over backends if not in cache (or expired)
-    for secrets_backend in SECRETS_BACKEND:
+    for secrets_backend in ensure_secrets_backend_loaded():
         try:
             var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
             if var_val is not None:
                 return var_val
         except Exception:
             log.exception(
-                "Unable to retrieve variable from secrets backend (%s). "
-                "Checking subsequent secrets backend.",
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 
@@ -184,8 +192,14 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-    msg = SUPERVISOR_COMMS.get_message()
+    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
+    # we need to make sure that we "atomically" send a request and get the response to that
+    # back so that two triggers don't end up interleaving requests and create a possible
+    # race condition where the wrong trigger reads the response.
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
@@ -268,61 +282,8 @@ class MacrosAccessor:
         return True
 
 
-@attrs.define
-class OutletEventAccessor:
-    """Wrapper to access an outlet asset event in template."""
-
-    key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
-    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
-
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
-        """Add an AssetEvent to an existing Asset."""
-        if not isinstance(self.key, AssetAliasUniqueKey):
-            return
-
-        asset_alias_name = self.key.name
-        event = AssetAliasEvent(
-            source_alias_name=asset_alias_name,
-            dest_asset_key=AssetUniqueKey.from_asset(asset),
-            extra=extra or {},
-        )
-        self.asset_alias_events.append(event)
-
-
-class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
-    """Lazy mapping of outlet asset event accessors."""
-
+class _AssetRefResolutionMixin:
     _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
-
-    def __init__(self) -> None:
-        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
-
-    def __str__(self) -> str:
-        return f"OutletEventAccessors(_dict={self._dict})"
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return (
-            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
-        )
-
-    def __len__(self) -> int:
-        return len(self._dict)
-
-    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
-        hashable_key: BaseAssetUniqueKey
-        if isinstance(key, Asset):
-            hashable_key = AssetUniqueKey.from_asset(key)
-        elif isinstance(key, AssetAlias):
-            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-        elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
-        else:
-            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
-
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
 
     def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
         with contextlib.suppress(KeyError):
@@ -363,6 +324,105 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         if TYPE_CHECKING:
             assert isinstance(msg, AssetResult)
         return Asset(**msg.model_dump(exclude={"type"}))
+
+
+@attrs.define
+class TriggeringAssetEventsAccessor(
+    _AssetRefResolutionMixin,
+    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReference"]],
+):
+    """Lazy mapping of triggering asset events."""
+
+    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReference]]
+
+    @classmethod
+    def build(cls, events: Iterable[AssetEventDagRunReference]) -> TriggeringAssetEventsAccessor:
+        collected: dict[BaseAssetUniqueKey, list[AssetEventDagRunReference]] = collections.defaultdict(list)
+        for event in events:
+            collected[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
+            for alias in event.source_aliases:
+                collected[AssetAliasUniqueKey(name=alias.name)].append(event)
+        return cls(collected)
+
+    def __str__(self) -> str:
+        return f"TriggeringAssetEventAccessor(_events={self._events})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias()
+            for key in self._events
+        )
+
+    def __len__(self) -> int:
+        return len(self._events)
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReference]:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        return self._events[hashable_key]
+
+
+@attrs.define
+class OutletEventAccessor:
+    """Wrapper to access an outlet asset event in template."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, Any] = attrs.Factory(dict)
+    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
+        """Add an AssetEvent to an existing Asset."""
+        if not isinstance(self.key, AssetAliasUniqueKey):
+            return
+
+        asset_alias_name = self.key.name
+        event = AssetAliasEvent(
+            source_alias_name=asset_alias_name,
+            dest_asset_key=AssetUniqueKey.from_asset(asset),
+            extra=extra or {},
+        )
+        self.asset_alias_events.append(event)
+
+
+class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+    """Lazy mapping of outlet asset event accessors."""
+
+    def __init__(self) -> None:
+        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
+        )
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        if hashable_key not in self._dict:
+            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
+        return self._dict[hashable_key]
 
 
 @attrs.define(init=False)

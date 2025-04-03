@@ -34,14 +34,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-0.2.0b1
-.......
+0.2.0
+.....
 
-Latest change: 2025-03-19
+Latest change: 2025-03-25
 
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  =============================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  =============================================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`bafa787a05 <https://github.com/apache/airflow/commit/bafa787a05cae7563b0479cacac72bed5b45db28>`__  2025-03-25   ``Implement pre- and post-execute hooks in sdk (#48230)``
+`23260e4121 <https://github.com/apache/airflow/commit/23260e412171b7ccace7519efa4d1e6c58a7b9d6>`__  2025-03-21   ``Fix python operators errors when initialising plugins in virtualenv jinja script (#48035)``
+`8f1a53801a <https://github.com/apache/airflow/commit/8f1a53801a4da94fb81f65c11dcccf74601e1859>`__  2025-03-22   ``Support '@task.bash' with Task SDK (#48060)``
+`545bf451d4 <https://github.com/apache/airflow/commit/545bf451d47a9a5335ccf7858dee22ff88ab4de1>`__  2025-03-21   ``Setting Airflow context Environment variables for operators (#47644)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
 `4b83391b75 <https://github.com/apache/airflow/commit/4b83391b75fb24209904bad5721cf16a391cf065>`__  2025-03-19   ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
 `566bea2db3 <https://github.com/apache/airflow/commit/566bea2db3e1544e63a467432837957e77be4439>`__  2025-03-18   ``Relocate utils/weekday.py to standard provider (#47892)``
 `91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
@@ -53,7 +60,7 @@ Commit                                                                          
 `a6f6733b35 <https://github.com/apache/airflow/commit/a6f6733b3586e025715d6e8d6033f8ce2a0fa1cf>`__  2025-03-15   ``AIP-72: Implement short circuit and branch operators (#46584)``
 `2fa9230d2a <https://github.com/apache/airflow/commit/2fa9230d2a5dcb09123a2dbb9297894ac40471ad>`__  2025-03-13   ``Rewrite asset event registration (#47677)``
 `7f7c7a7b45 <https://github.com/apache/airflow/commit/7f7c7a7b4594fe753dcfa106e2c14228e8d09793>`__  2025-03-10   ``Fix comment typo in PythonOperator (#47558)``
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  =============================================================================================
 
 0.1.1
 .....

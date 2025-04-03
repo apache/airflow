@@ -396,7 +396,7 @@ def find_matching_long_package_names(
     processed_package_filters.extend(get_long_package_names(short_packages))
 
     removed_packages: list[str] = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
     all_packages_including_removed: list[str] = available_doc_packages + removed_packages
     invalid_filters = [
@@ -598,8 +598,8 @@ def convert_cross_package_dependencies_to_table(
     prefix = "apache-airflow-providers-"
     base_url = "https://airflow.apache.org/docs/"
     for dependency in cross_package_dependencies:
-        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
+        pip_package_name = f"{prefix}{dependency.replace('.', '-')}"
+        url_suffix = f"{dependency.replace('.', '-')}"
         if markdown:
             url = f"[{pip_package_name}]({base_url}{url_suffix})"
         else:
@@ -773,7 +773,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             f"[error]Error {e}[/]\n"
             f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
             f'[warning]Please refresh the tags manually via:[/]\n\n"'
-            f'{" ".join(fetch_command)}\n\n'
+            f"{' '.join(fetch_command)}\n\n"
         )
         sys.exit(1)
 
@@ -905,10 +905,9 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = "\n" + "\n".join(cross_provider_dependencies)
     else:  # If there are no cross-provider dependencies, we need to remove the line
         formatted_cross_provider_dependencies = ""
-
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
-    get_pyproject_toml_content = render_template(
+    pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
         extension=".toml",
@@ -917,7 +916,7 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
-    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_pyproject_toml_path.write_text(pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
     )

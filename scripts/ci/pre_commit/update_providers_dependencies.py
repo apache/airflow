@@ -15,6 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#   "rich>=12.4.4",
+#   "pyyaml>=6.0.2",
+#   "tomli>=2.0.1; python_version < '3.11'"
+# ]
+# ///
 from __future__ import annotations
 
 import json
@@ -42,8 +50,6 @@ DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_depend
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 MY_FILE = Path(__file__).resolve()
-MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
-
 PROVIDERS: set[str] = set()
 
 PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
@@ -265,31 +271,10 @@ if __name__ == "__main__":
         DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else "{}"
     )
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
     old_content = DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else ""
     new_content = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
     DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
     if new_content != old_content:
-        if os.environ.get("CI"):
-            # make sure the message is printed outside the folded section
-            console.print("::endgroup::")
-            console.print()
-            console.print(f"There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print(
-                f"[red]You need to run the following command locally and commit generated "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_ROOT_PATH)} file:\n"
-            )
-            console.print("breeze static-checks --type update-providers-dependencies --all-files")
-            console.print()
-            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
-            console.print()
-            sys.exit(1)
-        else:
-            console.print()
-            console.print(
-                f"[yellow]Regenerated new dependencies. Please commit "
-                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_ROOT_PATH)}!\n"
-            )
-            console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
-            console.print()
-    console.print()
+        console.print()
+        console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
+        console.print()

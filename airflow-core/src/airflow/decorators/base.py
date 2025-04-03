@@ -29,7 +29,6 @@ import attr
 import typing_extensions
 
 from airflow.models.baseoperator import (
-    BaseOperator,
     coerce_resources,
     coerce_timedelta,
     get_merged_defaults,
@@ -41,9 +40,9 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
+from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
@@ -149,7 +148,7 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
-class DecoratedOperator(BaseOperator):
+class DecoratedOperator(TaskSDKBaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -250,7 +249,8 @@ class DecoratedOperator(BaseOperator):
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
-        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
+        # TODO(potiuk) - this xcom push is temporary and should be fixed
+        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)  # type: ignore[attr-defined]
 
     def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
@@ -295,7 +295,7 @@ FParams = ParamSpec("FParams")
 
 FReturn = TypeVar("FReturn")
 
-OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
+OperatorSubclass = TypeVar("OperatorSubclass", bound="TaskSDKBaseOperator")
 
 
 @attr.define(slots=False)
@@ -492,7 +492,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         partial_kwargs.setdefault("op_kwargs", {})
 
         # Mypy does not work well with a subclassed attrs class :(
-        _MappedOperator = cast(Any, DecoratedMappedOperator)
+        _MappedOperator = cast("Any", DecoratedMappedOperator)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -645,7 +645,7 @@ def task_decorator_factory(
     python_callable: Callable | None = None,
     *,
     multiple_outputs: bool | None = None,
-    decorated_operator_class: type[BaseOperator],
+    decorated_operator_class: type[TaskSDKBaseOperator],
     **kwargs,
 ) -> TaskDecorator:
     """
@@ -665,7 +665,7 @@ def task_decorator_factory(
     it's instantiated.
     """
     if multiple_outputs is None:
-        multiple_outputs = cast(bool, attr.NOTHING)
+        multiple_outputs = cast("bool", attr.NOTHING)
     if python_callable:
         decorator = _TaskDecorator(
             function=python_callable,
@@ -673,7 +673,7 @@ def task_decorator_factory(
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
-        return cast(TaskDecorator, decorator)
+        return cast("TaskDecorator", decorator)
     elif python_callable is not None:
         raise TypeError("No args allowed while using @task, use kwargs instead")
 
@@ -685,4 +685,4 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
 
-    return cast(TaskDecorator, decorator_factory)
+    return cast("TaskDecorator", decorator_factory)

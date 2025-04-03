@@ -52,6 +52,7 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
+from airflow.configuration import conf
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -61,6 +62,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     VariableResponse,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -68,21 +70,23 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
     DeleteXCom,
+    ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -104,17 +108,14 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
-# TODO: Pull this from config
-#  (previously `[scheduler] task_instance_heartbeat_sec` with the following as fallback if it is 0:
-#  `[scheduler] task_instance_heartbeat_timeout`)
-HEARTBEAT_TIMEOUT: int = 30
+HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
 # Don't heartbeat more often than this
-MIN_HEARTBEAT_INTERVAL: int = 5
-MAX_FAILED_HEARTBEATS: int = 3
+MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
+MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
@@ -124,8 +125,6 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
-
-SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -148,7 +147,7 @@ def mkpipe(
     io: BinaryIO | socket
     if remote_read:
         # If _we_ are writing, we don't want to buffer
-        io = cast(BinaryIO, local.makefile("wb", buffering=0))
+        io = cast("BinaryIO", local.makefile("wb", buffering=0))
     else:
         io = local
 
@@ -514,7 +513,31 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            self._handle_request(msg, log)
+            try:
+                self._handle_request(msg, log)
+            except ServerResponseError as e:
+                error_details = e.response.json() if e.response else None
+                log.error(
+                    "API server error",
+                    status_code=e.response.status_code,
+                    detail=error_details,
+                    message=str(e),
+                )
+
+                # Send error response back to task so that the error appears in the task logs
+                error_resp = (
+                    ErrorResponse(
+                        error=ErrorType.API_SERVER_ERROR,
+                        detail={
+                            "status_code": e.response.status_code,
+                            "message": str(e),
+                            "detail": error_details,
+                        },
+                    )
+                    .model_dump_json()
+                    .encode()
+                )
+                self.stdin.write(error_resp + b"\n")
 
     def _handle_request(self, msg, log: FilteringBoundLogger) -> None:
         raise NotImplementedError()
@@ -829,6 +852,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
+                    ti_id=self.id,
                 )
                 self.kill(signal.SIGTERM, force=True)
             else:
@@ -875,9 +899,6 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-        elif isinstance(msg, RuntimeCheckOnTask):
-            runtime_check_resp = self.client.task_instances.runtime_checks(id=self.id, msg=msg)
-            resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -902,7 +923,9 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = var.model_dump_json().encode()
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            xcom = self.client.xcoms.get(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+            )
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
         elif isinstance(msg, GetXComCount):
@@ -967,6 +990,24 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskRescheduleStartDate):
             tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
             resp = tr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetTICount):
+            ti_count = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = ti_count.model_dump_json().encode()
+        elif isinstance(msg, GetDRCount):
+            dr_count = self.client.dag_runs.get_count(
+                dag_id=msg.dag_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = dr_count.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1074,22 +1115,12 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
-def initialize_secrets_backend_on_workers():
+def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """Initialize the secrets backend on workers."""
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    global SECRETS_BACKEND
-    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
-
-
-def register_secrets_masker():
-    """Register the secrets masker to mask task logs."""
-    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
-
-    for field in get_sensitive_variables_fields():
-        mask_secret(field)
+    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
 
 def supervise(
@@ -1119,6 +1150,8 @@ def supervise(
     :return: Exit code of the process.
     """
     # One or the other
+    from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
@@ -1149,9 +1182,9 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    initialize_secrets_backend_on_workers()
+    ensure_secrets_backend_loaded()
 
-    register_secrets_masker()
+    reset_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

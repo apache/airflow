@@ -32,6 +32,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
@@ -262,6 +263,7 @@ class TestPluginsManager:
             # rendering templates.
             assert hasattr(macros, MacroPlugin.name)
 
+    @skip_if_force_lowest_dependencies_marker
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
@@ -282,6 +284,7 @@ class TestPluginsManager:
         finally:
             get_listener_manager().clear()
 
+    @skip_if_force_lowest_dependencies_marker
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager
 
@@ -290,6 +293,7 @@ class TestPluginsManager:
             plugins_manager.load_providers_plugins()
             assert len(plugins_manager.plugins) >= 2
 
+    @skip_if_force_lowest_dependencies_marker
     def test_does_not_double_import_entrypoint_provider_plugins(self):
         from airflow import plugins_manager
 

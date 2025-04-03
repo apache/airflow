@@ -29,7 +29,7 @@ dependencies = [
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
-    "pydantic>=2.10.2",
+    "pydantic>=2.11.0",
     "rich-argparse>=1.0.0",
     "structlog>=25.2.0",
     "uuid6>=2024.7.10",
@@ -98,7 +98,7 @@ codegen = [
 #
 # TODO: Automate this in CI via pre-commit hook and generate the file each time
 # The API should be running in the background to serve the OpenAPI schema
-# uv run --group codegen --project apache-airflow --directory airflow/ datamodel-codegen
+# uv run --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true
@@ -118,3 +118,43 @@ use-union-operator=true # 3.9+annotations, not `Union[]`
 
 url = "http://0.0.0.0:8080/openapi.json"
 output = "src/airflowctl/api/datamodels/generated.py"
+
+## pytest settings ##
+[tool.pytest.ini_options]
+addopts = [
+    "--tb=short",
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
+
+
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+pythonpath = "tests"
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"

@@ -23,6 +23,7 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
@@ -50,10 +51,11 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
-from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
@@ -66,7 +68,6 @@ from airflow.timetables.simple import (
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import EdgeInfoType
 
 if TYPE_CHECKING:
     # TODO: Task-SDK: Remove pendulum core dep
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
+    from airflow.utils.types import EdgeInfoType
 
 
 log = logging.getLogger(__name__)
@@ -374,7 +376,7 @@ class DAG:
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
-    dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
+    dag_id: str = attrs.field(kw_only=False, validator=lambda i, a, v: validate_key(v))
     description: str | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(str)),
@@ -406,7 +408,7 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
+    sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -448,7 +450,9 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    disable_bundle_versioning: bool = attrs.field(init=True)
+    disable_bundle_versioning: bool = attrs.field(
+        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -520,12 +524,6 @@ class DAG:
         else:
             return _create_timetable(schedule, instance.timezone)
 
-    @disable_bundle_versioning.default
-    def _disable_bundle_versioning_default(self):
-        from airflow.configuration import conf as airflow_conf
-
-        return airflow_conf.getboolean("dag_processor", "disable_bundle_versioning")
-
     @timezone.default
     def _extract_tz(instance):
         import pendulum
@@ -551,6 +549,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -982,7 +989,7 @@ class DAG:
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
         # Note - older serialized DAGs may not have edge_info being a dict at all
-        empty = cast(EdgeInfoType, {})
+        empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
         else:
@@ -1030,7 +1037,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "_log",
     "task_dict",
     "template_searchpath",
-    # "sla_miss_callback",
+    "sla_miss_callback",
     "on_success_callback",
     "on_failure_callback",
     "template_undefined",
@@ -1063,7 +1070,6 @@ if TYPE_CHECKING:
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
-        # sla_miss_callback: Any = None,
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
@@ -1078,6 +1084,7 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_fast: bool = False,
         dag_display_name: str | None = None,
+        disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.

@@ -60,6 +60,7 @@ class EmptyContext:
     """If no Tracer is configured, EmptyContext is used as a fallback."""
 
     trace_id = 1
+    span_id = 1
 
 
 class EmptySpan:
@@ -151,27 +152,31 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_dagrun(
-        cls,
-        dagrun,
-        span_name=None,
-        service_name=None,
-        component=None,
-        links=None,
-    ):
-        """Start a span from dagrun."""
+    def start_root_span(cls, span_name=None, component=None, start_time=None, start_as_current=True):
+        """Start a root span."""
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_taskinstance(
+    def start_child_span(
         cls,
-        ti,
         span_name=None,
+        parent_context=None,
         component=None,
-        child=False,
         links=None,
+        start_time=None,
+        start_as_current=True,
     ):
-        """Start a span from taskinstance."""
+        """Start a child span."""
+        raise NotImplementedError()
+
+    @classmethod
+    def inject(cls) -> dict:
+        """Inject the current span context into a carrier and return it."""
+        raise NotImplementedError()
+
+    @classmethod
+    def extract(cls, carrier) -> EmptyContext:
+        """Extract the span context from a provided carrier."""
         raise NotImplementedError()
 
 
@@ -212,28 +217,34 @@ class EmptyTrace:
         return EMPTY_SPAN
 
     @classmethod
-    def start_span_from_dagrun(
-        cls,
-        dagrun,
-        span_name=None,
-        service_name=None,
-        component=None,
-        links=None,
+    def start_root_span(
+        cls, span_name=None, component=None, start_time=None, start_as_current=True
     ) -> EmptySpan:
-        """Start a span from dagrun."""
+        """Start a root span."""
         return EMPTY_SPAN
 
     @classmethod
-    def start_span_from_taskinstance(
+    def start_child_span(
         cls,
-        ti,
         span_name=None,
+        parent_context=None,
         component=None,
-        child=False,
         links=None,
+        start_time=None,
+        start_as_current=True,
     ) -> EmptySpan:
-        """Start a span from taskinstance."""
+        """Start a child span."""
         return EMPTY_SPAN
+
+    @classmethod
+    def inject(cls):
+        """Inject the current span context into a carrier and return it."""
+        return {}
+
+    @classmethod
+    def extract(cls, carrier) -> EmptyContext:
+        """Extract the span context from a provided carrier."""
+        return EMPTY_CTX
 
 
 class _TraceMeta(type):

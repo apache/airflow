@@ -280,7 +280,7 @@ jobs:
       - name: "Restore docs inventory cache"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: ./docs/_inventory_cache/
+          path: ./generated/_inventory_cache/
           # TODO(potiuk): do better with determining the key
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
         id: restore-docs-inventory-cache
@@ -292,7 +292,7 @@ jobs:
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: ./docs/_inventory_cache/
+          path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
@@ -303,7 +303,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
-          path: './docs/_build'
+          path: './generated/_build'
           retention-days: '7'
           if-no-files-found: 'error'
         if: matrix.flag == '--docs-only'
@@ -339,7 +339,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: airflow-docs
-          path: './docs/_build'
+          path: './generated/_build'
       - name: Check disk space available
         run: df -h
       - name: Create /mnt/airflow-site directory
@@ -384,7 +384,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
-        run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
+        run: aws s3 sync --delete ./generated/_build s3://apache-airflow-docs
 
   test-python-api-client:
     timeout-minutes: 60

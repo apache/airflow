@@ -90,8 +90,7 @@ with DAG(
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
         destination_bucket=BUCKET_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', "
-        "key='spreadsheet_id') }}",
+        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_sheet_to_gcs]
