@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Separator, VStack } from "@chakra-ui/react";
+import { Heading, Separator } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useConfigServiceGetConfig } from "openapi/queries";
 import type { ConfigOption } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { ErrorAlert } from "src/components/ErrorAlert";
 
 type ConfigColums = {
   section: string;
@@ -46,7 +47,7 @@ const columns: Array<ColumnDef<ConfigColums>> = [
 ];
 
 export const Configs = () => {
-  const { data } = useConfigServiceGetConfig();
+  const { data, error } = useConfigServiceGetConfig();
 
   const render =
     data?.sections.flatMap((section) =>
@@ -60,12 +61,11 @@ export const Configs = () => {
     <>
       <Heading mb={4}>Airflow Configuration</Heading>
       <Separator />
-      <VStack alignItems="none">
-        <>
-          <DataTable columns={columns} data={render} displayMode="table" />
-          <Separator />
-        </>
-      </VStack>
+      {error === null ? (
+        <DataTable columns={columns} data={render} displayMode="table" modelName="Config" />
+      ) : (
+        <ErrorAlert error={error} />
+      )}
     </>
   );
 };
