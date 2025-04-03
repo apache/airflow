@@ -27,6 +27,7 @@ import os
 from argparse import Namespace
 from collections.abc import Iterable
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, NamedTuple, Union
 
 import airflowctl.api.datamodels.generated as generated_datamodels
@@ -175,6 +176,7 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
+    api_operation: dict | None = None
     description: str | None = None
     epilog: str | None = None
 
@@ -185,20 +187,21 @@ CLICommand = Union[ActionCommand, GroupCommand]
 class CommandFactory:
     """Factory class that creates 1-1 mapping with airflowctl/api/operations."""
 
-    data_models_extended_map: dict[str, list[str]]
+    datamodels_extended_map: dict[str, list[str]]
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[GroupCommand]
 
-    def __init__(self):
+    def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
         self.func_map = {}
         self.operations = []
         self.args_map = {}
         self.commands_map = {}
         self.group_commands_list = []
+        self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -230,10 +233,8 @@ class CommandFactory:
                 "parent": parent_node,
             }
 
-        file_path = inspect.getfile(BaseOperations)
-
-        with open(file_path, encoding="utf-8") as file:
-            tree = ast.parse(file.read(), filename=file_path)
+        with open(self.file_path, encoding="utf-8") as file:
+            tree = ast.parse(file.read(), filename=self.file_path)
 
         exclude_method_names = [
             "error",
@@ -431,7 +432,7 @@ class CommandFactory:
         return self.group_commands_list
 
 
-airflow_ctl_command_factory = CommandFactory()
+command_factory = CommandFactory()
 
 AUTH_COMMANDS = (
     ActionCommand(
@@ -453,4 +454,4 @@ core_commands: list[CLICommand] = [
     ),
 ]
 # Add generated group commands
-core_commands.extend(airflow_ctl_command_factory.group_commands)
+core_commands.extend(command_factory.group_commands)
