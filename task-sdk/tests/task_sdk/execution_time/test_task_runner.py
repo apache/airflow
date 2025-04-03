@@ -67,9 +67,12 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DRCount,
     ErrorResponse,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
+    GetTICount,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -81,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TICount,
     TriggerDagRun,
     VariableResult,
     XComResult,
@@ -1395,6 +1399,54 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_get_ti_count(self, mock_supervisor_comms):
+        """Test that get_ti_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = TICount(count=2)
+
+        count = RuntimeTaskInstance.get_ti_count(
+            dag_id="test_dag",
+            task_ids=["task1", "task2"],
+            task_group_id="group1",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetTICount(
+                dag_id="test_dag",
+                task_ids=["task1", "task2"],
+                task_group_id="group1",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
+
+    def test_get_dr_count(self, mock_supervisor_comms):
+        """Test that get_dr_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = DRCount(count=2)
+
+        count = RuntimeTaskInstance.get_dr_count(
+            dag_id="test_dag",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDRCount(
+                dag_id="test_dag",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
 
 
 class TestXComAfterTaskExecution:
