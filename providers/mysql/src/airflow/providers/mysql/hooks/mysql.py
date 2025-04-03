@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Union
+from urllib.parse import quote_plus
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -366,8 +367,6 @@ class MySqlHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Get URI for MySQL connection."""
-        from urllib.parse import quote_plus
-
         conn = self.connection or self.get_connection(self.get_conn_id())
         conn_schema = self.schema or conn.schema or ""
         client_name = conn.extra_dejson.get("client", "mysqlclient")
@@ -379,9 +378,9 @@ class MySqlHook(DbApiHook):
             uri_prefix = "mysql://"
 
         auth_part = ""
-        if conn.login is not None:
+        if conn.login:
             auth_part += quote_plus(conn.login)
-            if conn.password is not None:
+            if conn.password:
                 auth_part += ":" + quote_plus(conn.password)
             auth_part += "@"
 

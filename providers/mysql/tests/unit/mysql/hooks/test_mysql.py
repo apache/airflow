@@ -86,41 +86,89 @@ class TestMySqlHookConn:
         assert kwargs["db"] == "schema"
 
     @mock.patch("MySQLdb.connect")
-    def test_get_uri(self, mock_connect):
-        self.connection.extra = json.dumps({"charset": "utf-8"})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
+    @pytest.mark.parametrize(
+        "connection_params, expected_uri",
+        [
+            (
+                {
+                    "login": "login",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"charset": "utf-8"}),
+                },
+                "mysql://login:password@host/schema?charset=utf-8",
+            ),
+            (
+                {
+                    "login": "user@domain",
+                    "password": "pass/word!",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"charset": "utf-8"}),
+                },
+                "mysql://user%40domain:pass%2Fword%21@host/schema?charset=utf-8",
+            ),
+            (
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host/schema",
+            ),
+            (
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": 3307,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/schema",
+            ),
+            (
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "db/name",
+                    "port": 3307,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/db%2Fname",
+            ),
+            (
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": 3307,
+                    "extra": json.dumps(
+                        {
+                            "client": "mysql-connector-python",
+                            "ssl_ca": "/path/to/ca",
+                            "ssl_cert": "/path/to/cert with space",
+                        }
+                    ),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/schema?ssl_ca=%2Fpath%2Fto%2Fca&ssl_cert=%2Fpath%2Fto%2Fcert+with+space",
+            ),
+        ],
+    )
+    def test_get_uri_parametrized(self, mock_connect, connection_params, expected_uri):
+        """Test get_uri method with various connection parameters."""
+        for key, value in connection_params.items():
+            setattr(self.connection, key, value)
 
-        self.connection.login = "user@domain"
-        self.connection.password = "pass/word!"
-        assert self.db_hook.get_uri() == "mysql://user%40domain:pass%2Fword%21@host/schema?charset=utf-8"
-
-        # Test with mysql-connector-python client
-        self.connection.login = "user@domain"
-        self.connection.password = "password"
-        self.connection.extra = json.dumps({"client": "mysql-connector-python"})
-        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host/schema"
-
-        self.connection.port = 3307
-        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host:3307/schema"
-
-        self.connection.schema = "db/name"
-        assert self.db_hook.get_uri() == "mysql+mysqlconnector://user%40domain:password@host:3307/db%2Fname"
-
-        self.connection.schema = "schema"
-        self.connection.extra = json.dumps(
-            {
-                "client": "mysql-connector-python",
-                "ssl_ca": "/path/to/ca",
-                "ssl_cert": "/path/to/cert with space",
-            }
-        )
-        assert (
-            self.db_hook.get_uri()
-            == "mysql+mysqlconnector://user%40domain:password@host:3307/schema?ssl_ca=%2Fpath%2Fto%2Fca&ssl_cert=%2Fpath%2Fto%2Fcert+with+space"
-        )
+        assert self.db_hook.get_uri() == expected_uri
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection(self, mock_connect):
