@@ -850,6 +850,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
+                    ti_id=self.id,
                 )
                 self.kill(signal.SIGTERM, force=True)
             else:
