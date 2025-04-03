@@ -451,29 +451,6 @@ class DagRunTriggerException(AirflowException):
         self.deferrable = deferrable
 
 
-# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
-class DagRunTriggerExecuteCompleteException(AirflowException):
-    """
-    Signal by an operator execute complete method.
-
-    Special exception raised to signal that the operator ``TriggerDagRunOperator`` to execute_complete method.
-    """
-
-    def __init__(
-        self,
-        *,
-        trigger_dag_id: str,
-        run_ids: str,
-        allowed_states: list[str | DagRunState],
-        failed_states: list[str | DagRunState],
-    ):
-        super().__init__()
-        self.trigger_dag_id = trigger_dag_id
-        self.run_ids = run_ids
-        self.allowed_states = allowed_states
-        self.failed_states = failed_states
-
-
 class TaskDeferred(BaseException):
     """
     Signal an operator moving to deferred state.
