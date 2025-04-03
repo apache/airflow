@@ -493,6 +493,7 @@ class TestWatchedSubprocess:
                 "status_code": 409,
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
+                "ti_id": ti_id,
             }
         ]
 
