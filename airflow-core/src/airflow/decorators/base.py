@@ -29,7 +29,6 @@ import attr
 import typing_extensions
 
 from airflow.models.baseoperator import (
-    BaseOperator,
     coerce_resources,
     coerce_timedelta,
     get_merged_defaults,
@@ -149,7 +148,7 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
-class DecoratedOperator(BaseOperator):
+class DecoratedOperator(TaskSDKBaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -250,7 +249,8 @@ class DecoratedOperator(BaseOperator):
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
-        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
+        # TODO(potiuk) - this xcom push is temporary and should be fixed
+        return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)  # type: ignore[attr-defined]
 
     def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
@@ -295,7 +295,7 @@ FParams = ParamSpec("FParams")
 
 FReturn = TypeVar("FReturn")
 
-OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
+OperatorSubclass = TypeVar("OperatorSubclass", bound="TaskSDKBaseOperator")
 
 
 @attr.define(slots=False)
@@ -645,7 +645,7 @@ def task_decorator_factory(
     python_callable: Callable | None = None,
     *,
     multiple_outputs: bool | None = None,
-    decorated_operator_class: type[BaseOperator],
+    decorated_operator_class: type[TaskSDKBaseOperator],
     **kwargs,
 ) -> TaskDecorator:
     """

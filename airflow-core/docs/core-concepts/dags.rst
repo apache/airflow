@@ -20,7 +20,7 @@
 Dags
 ====
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
@@ -32,7 +32,7 @@ It defines four Tasks - A, B, C, and D - and dictates the order in which they ha
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 
@@ -292,7 +292,7 @@ The DAG decorator
 
 As well as the more traditional ways of declaring a single DAG using a context manager or the ``DAG()`` constructor, you can also decorate a function with ``@dag`` to turn it into a DAG generator function:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_dag_decorator.py
     :language: python
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
@@ -399,7 +399,7 @@ This special Operator skips all tasks downstream of itself if you are not on the
 
 Here's an example:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_latest_only_with_trigger.py
+.. exampleinclude:: /../src/airflow/example_dags/example_latest_only_with_trigger.py
     :language: python
     :start-after: [START example]
     :end-before: [END example]
@@ -636,7 +636,7 @@ Here's an example DAG which illustrates labeling different branches:
 
 .. image:: /img/edge_label_example.png
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_branch_labels.py
+.. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
     :start-after: from airflow.utils.edgemodifier import Label
 

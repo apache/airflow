@@ -47,7 +47,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, As
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -446,3 +446,14 @@ def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_mak
     dag2 = SerializedDAG.to_dict(from_dict)
 
     assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()
+
+
+@pytest.mark.db_test
+def test_serialized_dag_has_task_concurrency_limits(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="task1", bash_command="echo 1", max_active_tis_per_dag=1)
+
+    ser_dict = SerializedDAG.to_dict(dag)
+    lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
+
+    assert lazy_serialized_dag.has_task_concurrency_limits

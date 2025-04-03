@@ -91,7 +91,7 @@ class TestSensorHelper:
         dag_run = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=run_type,
-                logical_date=logical_date,
+                run_after=logical_date,
                 data_interval=data_interval,
             ),
             run_type=run_type,

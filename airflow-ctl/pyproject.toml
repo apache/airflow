@@ -98,7 +98,7 @@ codegen = [
 #
 # TODO: Automate this in CI via pre-commit hook and generate the file each time
 # The API should be running in the background to serve the OpenAPI schema
-# uv run --group codegen --project apache-airflow --directory airflow/ datamodel-codegen
+# uv run --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true

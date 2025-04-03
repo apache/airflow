@@ -19,14 +19,10 @@
 import { useState } from "react";
 
 import { useSimpleAuthManagerLoginServiceCreateToken } from "openapi/queries";
-import type { LoginBody } from "src/login/Login";
 import type { LoginResponse } from "openapi/requests/types.gen";
+import type { LoginBody } from "src/login/Login";
 
-export const useCreateToken = ({
-  onSuccess,
-}: {
-  onSuccess: (data: LoginResponse) => void;
-}) => {
+export const useCreateToken = ({ onSuccess }: { onSuccess: (data: LoginResponse) => void }) => {
   const [error, setError] = useState<unknown>(undefined);
 
   const onError = (_error: unknown) => {

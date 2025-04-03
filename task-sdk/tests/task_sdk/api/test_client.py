@@ -61,6 +61,7 @@ class TestClient:
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",
                         "run_after": "2021-01-01T00:00:00Z",
+                        "consumed_asset_events": [],
                     },
                     "max_tries": 0,
                     "should_retry": False,
@@ -225,6 +226,19 @@ class TestClient:
         response = client.get("/")
         assert response.status_code == 200
         assert response.request.headers["Authorization"] == "Bearer abc"
+
+    @pytest.mark.parametrize(
+        ["status_code", "description"],
+        [
+            (399, "status code < 400"),
+            (301, "3xx redirect status code"),
+            (600, "status code >= 600"),
+        ],
+    )
+    def test_server_response_error_invalid_status_codes(self, status_code, description):
+        """Test that ServerResponseError.from_response returns None for invalid status codes."""
+        response = httpx.Response(status_code, json={"detail": f"Test {description}"})
+        assert ServerResponseError.from_response(response) is None
 
 
 class TestTaskInstanceOperations:
@@ -391,6 +405,48 @@ class TestTaskInstanceOperations:
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
 
         assert result == {"ok": True}
+
+    def test_get_count_basic(self):
+        """Test basic get_count functionality with just dag_id."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/count"
+            assert request.url.params.get("dag_id") == "test_dag"
+            return httpx.Response(200, json=5)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_count(dag_id="test_dag")
+        assert result.count == 5
+
+    def test_get_count_with_all_params(self):
+        """Test get_count with all optional parameters."""
+
+        logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
+        logical_dates = [timezone.parse(d) for d in logical_dates_str]
+        task_ids = ["task1", "task2"]
+        states = ["success", "failed"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/count"
+            assert request.method == "GET"
+            params = request.url.params
+            assert params["dag_id"] == "test_dag"
+            assert params.get_list("task_ids") == task_ids
+            assert params["task_group_id"] == "group1"
+            assert params.get_list("logical_dates") == logical_dates_str
+            assert params.get_list("run_ids") == []
+            assert params.get_list("states") == states
+            return httpx.Response(200, json=10)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_count(
+            dag_id="test_dag",
+            task_ids=task_ids,
+            task_group_id="group1",
+            logical_dates=logical_dates,
+            states=states,
+        )
+        assert result.count == 10
 
 
 class TestVariableOperations:
@@ -890,6 +946,58 @@ class TestDagRunOperations:
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
+
+    def test_get_count_basic(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                return httpx.Response(status_code=200, json=1)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag")
+        assert result.count == 1
+
+    def test_get_count_with_states(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("states") == ["success", "failed"]
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag", states=["success", "failed"])
+        assert result.count == 2
+
+    def test_get_count_with_logical_dates(self):
+        logical_dates = [timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
+        logical_dates_str = [d.isoformat() for d in logical_dates]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("logical_dates") == logical_dates_str
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(
+            dag_id="test_dag", logical_dates=[timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
+        )
+        assert result.count == 2
+
+    def test_get_count_with_run_ids(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("run_ids") == ["run1", "run2"]
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag", run_ids=["run1", "run2"])
+        assert result.count == 2
 
 
 class TestTaskRescheduleOperations:
