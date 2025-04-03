@@ -163,7 +163,7 @@
                     "matcher": "path",
                     "argument": "status",
                     "expected": "Stopping",
-                    "state": "retry"
+                    "state": "failure"
                 },
                 {
                     "matcher": "path",
