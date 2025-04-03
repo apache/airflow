@@ -106,7 +106,7 @@ looks like:
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
-        # A list of dictionaries contanning FastAPI app object and some metadata. See example below.
+        # A list of dictionaries containing FastAPI app objects and some metadata. See the example below.
         fastapi_apps = []
         # A list of dictionaries contanning FastAPI middlwerare factory object and some metadata. See example below.
         fastapi_root_middlewares = []
