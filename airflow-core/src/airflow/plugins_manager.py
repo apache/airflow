@@ -593,12 +593,14 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                         for d in getattr(plugin, attr)
                     ]
                 elif attr == "fastapi_root_middlewares":
+                    # remove args and kwargs from plugin info to hide potentially sensitive info.
                     info[attr] = [
                         {
-                            **d,
-                            "middleware": qualname(d["middleware"]) if "middleware" in d else None,
+                            k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
+                            for k, v in middleware_dict.items()
+                            if k not in ("args", "kwargs")
                         }
-                        for d in getattr(plugin, attr)
+                        for middleware_dict in getattr(plugin, attr)
                     ]
                 else:
                     info[attr] = getattr(plugin, attr)
