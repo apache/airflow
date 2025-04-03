@@ -623,7 +623,7 @@ repos:
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
           ^airflow-core/tests/|
           ^providers/.*/tests/|
-          ^.pre-commit-config\.yaml$|
+          ^\.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*changelog\.(rst|txt)$|
           ^.*commits\.(rst|txt)$|
