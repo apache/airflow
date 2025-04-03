@@ -807,7 +807,8 @@ def update_release_notes(
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(provider_id=provider_id, type_of_change=type_of_change)
                 )
-                _update_source_date_epoch_in_provider_yaml(provider_id)
+                if not reapply_templates_only:
+                    _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,
@@ -815,7 +816,8 @@ def update_release_notes(
                 only_min_version_update=only_min_version_update,
             )
     else:
-        _update_source_date_epoch_in_provider_yaml(provider_id)
+        if not reapply_templates_only:
+            _update_source_date_epoch_in_provider_yaml(provider_id)
 
     provider_details = get_provider_details(provider_id)
     current_release_version = provider_details.versions[0]
@@ -854,7 +856,8 @@ def update_release_notes(
                 provider_id=provider_id,
                 type_of_change=type_of_change,
             )
-            _update_source_date_epoch_in_provider_yaml(provider_id)
+            if not reapply_templates_only:
+                _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,

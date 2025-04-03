@@ -1198,11 +1198,24 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-ctl"
 ]
-doc = [
-    "apache-airflow-devel-common[doc]"
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
-doc-gen = [
-    "apache-airflow-devel-common[doc-gen]"
+docs-gen = [
+    "apache-airflow-devel-common[docs-gen]"
 ]
 # special case for google's leveldb dependency that is notriously difficult to install
 # we are not installing it by default we only install it in CI image when image is built
@@ -1226,6 +1239,8 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
+apache-airflow-providers = { workspace = true }
+apache-aurflow-docker-stack = { workspace = true }
 # Automatically generated provider workspace items
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1335,6 +1350,8 @@ members = [
     "helm-tests",
     "kubernetes-tests",
     "task-sdk",
+    "providers-summary-docs",
+    "docker-stack-docs",
     # Automatically generated provider workspace members
     "providers/airbyte",
     "providers/alibaba",
