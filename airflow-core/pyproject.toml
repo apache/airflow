@@ -135,7 +135,7 @@ dependencies = [
     "uuid6>=2024.7.10",
     # Werkzug 3 breaks Flask-Login 0.6.2
     # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<3",
+    "werkzeug>=2.0,<4",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-io>=1.5.2",
