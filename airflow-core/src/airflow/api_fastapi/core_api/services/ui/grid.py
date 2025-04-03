@@ -117,11 +117,9 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
             task_nodes[task_node.task_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": (
-                    task_nodes[parent_node.node_id]["task_count"]
-                    if _is_task_node_mapped_task_group(parent_node) and parent_node
-                    else [1]
-                ),
+                "task_count": task_nodes[parent_node.node_id]["task_count"]
+                if _is_task_node_mapped_task_group(parent_node) and parent_node
+                else [1],
             }
             # No Need to Add the Task Count to the Parent Node, these are already counted in Add the Parent
             return
@@ -141,14 +139,12 @@ def _get_total_task_count(
     run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
 ) -> int:
     return sum(
-        (
-            node
-            if isinstance(node, int)
-            else (
-                DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
-                if isinstance(node, (MappedTaskGroup, MappedOperator))
-                else node
-            )
+        node
+        if isinstance(node, int)
+        else (
+            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
+            if isinstance(node, (MappedTaskGroup, MappedOperator))
+            else node
         )
         for node in task_count
     )
@@ -255,9 +251,9 @@ def fill_task_instance_summaries(
                 queued_dttm=ti_queued_dttm,
                 child_states=child_states,
                 task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
-                state=(
-                    TaskInstanceState[overall_ti_state.upper()] if overall_ti_state != "no_status" else None
-                ),
+                state=TaskInstanceState[overall_ti_state.upper()]
+                if overall_ti_state != "no_status"
+                else None,
                 note=ti_note,
             )
         )
