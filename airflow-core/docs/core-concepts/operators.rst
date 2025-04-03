@@ -308,9 +308,9 @@ change name from ``params`` in your operators.
 Templating Conflicts with f-strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When constructing strings for templated fields (like ``bash_command`` in ``BashOperator``) using Python f-strings, be mindful of the interaction between f-string interpolation and Jinja templating syntax. Both use curly braces (`{}`).
+When constructing strings for templated fields (like ``bash_command`` in ``BashOperator``) using Python f-strings, be mindful of the interaction between f-string interpolation and Jinja templating syntax. Both use curly braces (``{}``).
 
-Python f-strings interpret double curly braces (`{{` and `}}`) as escape sequences for literal single braces (`{` and `}`). However, Jinja uses double curly braces (`{{ variable }}`) to denote variables for templating.
+Python f-strings interpret double curly braces (``{{`` and ``}}``) as escape sequences for literal single braces (``{`` and ``}``). However, Jinja uses double curly braces (``{{ variable }}``) to denote variables for templating.
 
 If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literally within a string defined using an f-string, so that Airflow's Jinja engine can process it later, you must escape the braces for the f-string by doubling them *again*. This means using **four** curly braces:
 
