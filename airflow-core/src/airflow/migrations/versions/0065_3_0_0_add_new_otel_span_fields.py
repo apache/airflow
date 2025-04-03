@@ -53,9 +53,9 @@ def upgrade():
 def downgrade():
     """Unapply add new otel span fields."""
     with op.batch_alter_table("dag_run") as batch_op:
-        op.drop_column("scheduled_by_job_id")
-        op.drop_column("context_carrier")
-        op.drop_column("span_status")
+        batch_op.drop_column("scheduled_by_job_id")
+        batch_op.drop_column("context_carrier")
+        batch_op.drop_column("span_status")
 
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.drop_column("context_carrier")
