@@ -335,10 +335,10 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             packages_to_install.append(f"{provider_package}=={version}")
         else:
             console.print("[yellow]NOK. Skipping.")
-    find_airflow_distibutions = AIRFLOW_DIST_PATH.glob("apache_airflow-*.whl")
+    find_airflow_distributions = AIRFLOW_DIST_PATH.glob("apache_airflow-*.whl")
     airflow_install = "."
-    if find_airflow_distibutions:
-        airflow_install = next(find_airflow_distibutions).as_posix()
+    if find_airflow_distributions:
+        airflow_install = next(find_airflow_distributions).as_posix()
     airflow_core_install = "./airflow-core[all]"
     find_airflow_core_distributions = AIRFLOW_DIST_PATH.glob("apache_airflow_core-*.whl")
     if find_airflow_core_distributions:
