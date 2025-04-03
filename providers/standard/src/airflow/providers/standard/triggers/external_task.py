@@ -195,7 +195,6 @@ class DagStateTrigger(BaseTrigger):
                     states=self.states,  # type: ignore[arg-type]
                     logical_dates=self.execution_dates,
                 )
-                print(num_dags)
             else:
                 num_dags = await self.count_dags()  # type: ignore[call-arg]
 
