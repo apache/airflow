@@ -88,7 +88,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md @eladkal
+/dev/PROVIDER_DISTRIBUTIONS_DETAILS.md @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README_RELEASE_PROVIDERS.md  @eladkal
