@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-03T07:59:20.482453
+# This constraints file was automatically generated on 2025-04-03T14:01:21.898240
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -175,6 +175,7 @@ apache-airflow-providers-smtp==2.0.2
 apache-airflow-providers-snowflake==6.1.1
 apache-airflow-providers-sqlite==4.0.1
 apache-airflow-providers-ssh==4.0.1
+apache-airflow-providers-standard==0.2.0
 apache-airflow-providers-tableau==5.0.2
 apache-airflow-providers-telegram==4.7.2
 apache-airflow-providers-teradata==3.0.2
@@ -572,8 +573,8 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.1
-pydantic_core==2.33.0
+pydantic==2.11.2
+pydantic_core==2.33.1
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
