@@ -1101,6 +1101,8 @@ class DatabricksSQLStatementsOperator(BaseOperator):
         statement_state = self._hook.get_sql_statement_state(self.statement_id)
         end_time = time.time() + self.timeout
         if not statement_state.is_terminal:
+            if not self.statement_id:
+                raise AirflowException("Failed to retrieve statement_id after submitting SQL statement.")
             self.defer(
                 trigger=DatabricksSQLStatementExecutionTrigger(
                     statement_id=self.statement_id,
