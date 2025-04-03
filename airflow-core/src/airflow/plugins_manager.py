@@ -411,7 +411,7 @@ def initialize_fastapi_plugins():
     global fastapi_apps
     global fastapi_root_middlewares
 
-    if fastapi_apps and fastapi_root_middlewares:
+    if fastapi_apps is not None and fastapi_root_middlewares is not None:
         return
 
     ensure_plugins_loaded()
