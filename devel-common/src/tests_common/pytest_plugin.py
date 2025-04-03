@@ -2084,6 +2084,7 @@ def create_runtime_ti(mocked_parse):
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,
+                consumed_asset_events=[],
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
