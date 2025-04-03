@@ -222,6 +222,20 @@ class TaskRescheduleStartDate(BaseModel):
     type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
 
 
+class TICount(BaseModel):
+    """Response containing count of Task Instances matching certain filters."""
+
+    count: int
+    type: Literal["TICount"] = "TICount"
+
+
+class DRCount(BaseModel):
+    """Response containing count of DAG Runs matching certain filters."""
+
+    count: int
+    type: Literal["DRCount"] = "DRCount"
+
+
 class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
@@ -239,10 +253,12 @@ ToTask = Annotated[
         AssetEventsResult,
         ConnectionResult,
         DagRunStateResult,
+        DRCount,
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
         TaskRescheduleStartDate,
+        TICount,
         VariableResult,
         XComResult,
         XComCountResponse,
@@ -445,30 +461,50 @@ class GetTaskRescheduleStartDate(BaseModel):
     type: Literal["GetTaskRescheduleStartDate"] = "GetTaskRescheduleStartDate"
 
 
+class GetTICount(BaseModel):
+    dag_id: str
+    task_ids: list[str] | None = None
+    task_group_id: str | None = None
+    logical_dates: list[AwareDatetime] | None = None
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    type: Literal["GetTICount"] = "GetTICount"
+
+
+class GetDRCount(BaseModel):
+    dag_id: str
+    logical_dates: list[AwareDatetime] | None = None
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    type: Literal["GetDRCount"] = "GetDRCount"
+
+
 ToSupervisor = Annotated[
     Union[
-        SucceedTask,
         DeferTask,
+        DeleteXCom,
         GetAssetByName,
         GetAssetByUri,
         GetAssetEventByAsset,
         GetAssetEventByAssetAlias,
         GetConnection,
         GetDagRunState,
+        GetDRCount,
         GetPrevSuccessfulDagRun,
         GetTaskRescheduleStartDate,
+        GetTICount,
         GetVariable,
         GetXCom,
         GetXComCount,
         PutVariable,
         RescheduleTask,
         RetryTask,
-        SkipDownstreamTasks,
         SetRenderedFields,
         SetXCom,
+        SkipDownstreamTasks,
+        SucceedTask,
         TaskState,
         TriggerDagRun,
-        DeleteXCom,
     ],
     Field(discriminator="type"),
 ]
