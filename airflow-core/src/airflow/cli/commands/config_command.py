@@ -666,14 +666,14 @@ def lint_config(args) -> None:
         1. Lint all sections and options:
             airflow config lint
 
-        2. Lint a specific sections:
+        2. Lint a specific section:
             airflow config lint --section core,webserver
 
-        3. Lint a specific sections and options:
+        3. Lint specific sections and options:
             airflow config lint --section smtp --option smtp_user
 
-        4. Ignore a sections:
-            irflow config lint --ignore-section webserver,api
+        4. Ignore a section:
+            airflow config lint --ignore-section webserver,api
 
         5. Ignore an options:
             airflow config lint --ignore-option smtp_user,session_lifetime_days
