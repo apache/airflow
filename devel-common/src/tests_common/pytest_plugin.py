@@ -33,6 +33,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -143,6 +144,12 @@ _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+)
+if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
@@ -842,6 +849,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
+            from airflow.configuration import conf
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
 
@@ -856,21 +864,25 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             else:
                 dag.sync_to_db(session=self.session)
 
-            if dag.access_control:
+            if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
                     from airflow.www.security_appless import ApplessAirflowSecurityManager
-
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
                 self.serialized_model = SerializedDagModel(dag)
-                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                sdm = self.session.scalar(
+                    select(SerializedDagModel).where(
+                        SerializedDagModel.dag_id == dag.dag_id,
+                        SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
+                    )
+                )
 
-                if AIRFLOW_V_3_0_PLUS and not sdm:
+                if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
                     from airflow.models.dag_version import DagVersion
                     from airflow.models.dagcode import DagCode
 
@@ -2072,6 +2084,7 @@ def create_runtime_ti(mocked_parse):
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,
+                consumed_asset_events=[],
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
@@ -2226,7 +2239,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             if hasattr(XCom.get_one, "spy"):
                 spy_agency.unspy(XCom.get_one)
 
-    class RunTaskWithXCom:
+    class RunTaskWithXCom(RunTaskCallable):
         def __init__(self, create_runtime_ti):
             self.create_runtime_ti = create_runtime_ti
             self.xcom = XComHelper()
@@ -2251,7 +2264,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: BaseOperator,
+            task: TaskSDKBaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,
@@ -2306,3 +2319,14 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 def mock_xcom_backend():
     with mock.patch("airflow.sdk.execution_time.task_runner.XCom", create=True) as xcom_backend:
         yield xcom_backend
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)

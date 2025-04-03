@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
@@ -24,14 +25,16 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
-from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
 
 class FakeExecutor:
     pass
+
+
+celery_executor = pytest.importorskip("airflow.providers.celery.executors.celery_executor")
+ecs_executor = pytest.importorskip("airflow.providers.amazon.aws.executors.ecs.ecs_executor")
 
 
 @pytest.mark.usefixtures("clean_executor_loader")
@@ -45,7 +48,6 @@ class TestExecutorLoader:
         "executor_name",
         [
             "CeleryExecutor",
-            "DebugExecutor",
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -237,6 +239,8 @@ class TestExecutorLoader:
                 assert executors == expected_executors_list
 
     def test_init_executors(self):
+        from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
             executors = executor_loader.ExecutorLoader.init_executors()
             executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
@@ -266,8 +270,8 @@ class TestExecutorLoader:
         "executor_config",
         [
             "Celery::Executor, LocalExecutor",
-            "LocalExecutor, Ce:ler:yExecutor, DebugExecutor",
-            "LocalExecutor, CeleryExecutor:, DebugExecutor",
+            "LocalExecutor, Ce:ler:yExecutor",
+            "LocalExecutor, CeleryExecutor:",
             "LocalExecutor, my_cool_alias:",
             "LocalExecutor, my_cool_alias:CeleryExecutor",
             "LocalExecutor, module.path.first:alias_second",
@@ -282,11 +286,10 @@ class TestExecutorLoader:
         ("executor_config", "expected_value"),
         [
             ("CeleryExecutor", "CeleryExecutor"),
-            ("DebugExecutor", "DebugExecutor"),
             ("KubernetesExecutor", "KubernetesExecutor"),
             ("LocalExecutor", "LocalExecutor"),
             ("CeleryExecutor, LocalExecutor", "CeleryExecutor"),
-            ("LocalExecutor, CeleryExecutor, DebugExecutor", "LocalExecutor"),
+            ("LocalExecutor, CeleryExecutor", "LocalExecutor"),
         ],
     )
     def test_should_support_import_executor_from_core(self, executor_config, expected_value):
@@ -343,26 +346,30 @@ class TestExecutorLoader:
             executor_loader.ExecutorLoader.load_executor("LocalExecutor")
             mock_get_executor_names.assert_called_once()
 
-    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor", autospec=True)
-    def test_load_custom_executor_with_classname(self, mock_executor):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "executor",
-                ): "my_alias:airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
-            }
-        ):
-            executor_loader.ExecutorLoader.init_executors()
-            assert isinstance(executor_loader.ExecutorLoader.load_executor("my_alias"), AwsEcsExecutor)
-            assert isinstance(executor_loader.ExecutorLoader.load_executor("AwsEcsExecutor"), AwsEcsExecutor)
-            assert isinstance(
-                executor_loader.ExecutorLoader.load_executor(
-                    "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
-                ),
-                AwsEcsExecutor,
-            )
-            assert isinstance(
-                executor_loader.ExecutorLoader.load_executor(executor_loader._executor_names[0]),
-                AwsEcsExecutor,
-            )
+    def test_load_custom_executor_with_classname(self):
+        from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
+
+        with patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor", autospec=True):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "my_alias:airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                }
+            ):
+                executor_loader.ExecutorLoader.init_executors()
+                assert isinstance(executor_loader.ExecutorLoader.load_executor("my_alias"), AwsEcsExecutor)
+                assert isinstance(
+                    executor_loader.ExecutorLoader.load_executor("AwsEcsExecutor"), AwsEcsExecutor
+                )
+                assert isinstance(
+                    executor_loader.ExecutorLoader.load_executor(
+                        "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                    ),
+                    AwsEcsExecutor,
+                )
+                assert isinstance(
+                    executor_loader.ExecutorLoader.load_executor(executor_loader._executor_names[0]),
+                    AwsEcsExecutor,
+                )

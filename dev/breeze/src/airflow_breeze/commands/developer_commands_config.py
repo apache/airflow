@@ -299,6 +299,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-build-cache",
             ],
         },
     ],
@@ -310,7 +311,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--spellcheck-only",
                 "--clean-build",
                 "--one-pass-only",
-                "--skip-deletion",
                 "--package-filter",
                 "--include-not-ready-providers",
                 "--include-removed-providers",

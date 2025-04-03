@@ -24,6 +24,8 @@ import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
+import { TriggeredRuns } from "./TriggeredRuns";
+
 export const AssetEvent = ({
   assetId,
   event,
@@ -33,7 +35,6 @@ export const AssetEvent = ({
   readonly event: AssetEventResponse;
   readonly showExtra?: boolean;
 }) => {
-  const hasDagRuns = event.created_dagruns.length > 0;
   let source = "";
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -44,6 +45,8 @@ export const AssetEvent = ({
   } else if (from_trigger === true) {
     source = "Trigger";
   }
+
+  const extraString = JSON.stringify(extra);
 
   return (
     <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
@@ -81,16 +84,9 @@ export const AssetEvent = ({
         )}
       </HStack>
       <HStack>
-        <Text>Triggered Dag Runs: </Text>
-        {hasDagRuns ? (
-          <Link to={`/dags/${event.created_dagruns[0]?.dag_id}/runs/${event.created_dagruns[0]?.run_id}`}>
-            <Text color="fg.info"> {event.created_dagruns[0]?.dag_id} </Text>
-          </Link>
-        ) : (
-          "~"
-        )}
+        <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {showExtra ? <Code>{JSON.stringify(extra)}</Code> : undefined}
+      {showExtra && extraString !== "{}" ? <Code>{extraString}</Code> : undefined}
     </Box>
   );
 };
