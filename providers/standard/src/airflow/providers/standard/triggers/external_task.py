@@ -178,29 +178,45 @@ class DagStateTrigger(BaseTrigger):
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.execution_time.context import get_dr_count
-
         runs_ids_or_dates = 0
         if self.run_ids:
             runs_ids_or_dates = len(self.run_ids)
         elif self.execution_dates:
             runs_ids_or_dates = len(self.execution_dates)
 
-        while True:
-            if AIRFLOW_V_3_0_PLUS:
-                num_dags = await sync_to_async(get_dr_count)(
-                    dag_id=self.dag_id,
-                    run_ids=self.run_ids,
-                    states=self.states,  # type: ignore[arg-type]
-                    logical_dates=self.execution_dates,
-                )
-            else:
+        if AIRFLOW_V_3_0_PLUS:
+            event = await self.validate_count_dags_af_3(runs_ids_or_dates_len=runs_ids_or_dates)
+            yield TriggerEvent(event)
+            return
+        else:
+            while True:
                 num_dags = await self.count_dags()  # type: ignore[call-arg]
+                if num_dags == runs_ids_or_dates:
+                    yield TriggerEvent(self.serialize())
+                    return
+                await asyncio.sleep(self.poll_interval)
 
-            if num_dags == runs_ids_or_dates:
-                yield TriggerEvent(self.serialize())
-                return
+    async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
+        from airflow.sdk.execution_time.context import get_dagrun_state, get_dr_count
+
+        cls_path, data = self.serialize()
+
+        while True:
+            num_dags = await sync_to_async(get_dr_count)(
+                dag_id=self.dag_id,
+                run_ids=self.run_ids,
+                states=self.states,  # type: ignore[arg-type]
+                logical_dates=self.execution_dates,
+            )
+            if num_dags == runs_ids_or_dates_len:
+                if isinstance(self.run_ids, list):
+                    for run_id in self.run_ids:
+                        state = await sync_to_async(get_dagrun_state)(
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                        )
+                        data[run_id] = state
+                        return cls_path, data
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async

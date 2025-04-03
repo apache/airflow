@@ -457,28 +457,6 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.count
 
-    @staticmethod
-    def get_dagrun_state(
-        dag_id: str,
-        run_id: str,
-    ) -> str:
-        """Return the state of the DAG run matching the given criteria."""
-        log = structlog.get_logger(logger_name="task")
-
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetDagRunState(
-                dag_id=dag_id,
-                run_id=run_id,
-            ),
-        )
-        response = SUPERVISOR_COMMS.get_message()
-
-        if TYPE_CHECKING:
-            assert isinstance(response, DagRunStateResult)
-
-        return response.state
-
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""

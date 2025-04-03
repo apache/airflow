@@ -305,35 +305,33 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
         if AIRFLOW_V_3_0_PLUS:
-            ti = context["ti"]
-            run_ids = event[1]["run_ids"]
-
-            failed_run_id_conditions = []
-
-            for run_id in run_ids:
-                state = ti.get_dagrun_state(
-                    dag_id=self.trigger_dag_id,
-                    run_id=run_id,
-                )
-
-                if state in self.failed_states:
-                    failed_run_id_conditions.append(run_id)
-                    continue
-                if state in self.allowed_states:
-                    self.log.info(
-                        "%s finished with allowed state %s for run_id %s",
-                        self.trigger_dag_id,
-                        state,
-                        run_id,
-                    )
-
-            if failed_run_id_conditions:
-                raise AirflowException(
-                    f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
-                    f" {failed_run_id_conditions}"
-                )
+            self._trigger_dag_run_af_3_execute_complete(event=event)
         else:
             self._trigger_dag_run_af_2_execute_complete(event=event)
+
+    def _trigger_dag_run_af_3_execute_complete(self, event: tuple[str, dict[str, Any]]):
+        run_ids = event[1]["run_ids"]
+        event_data = event[1]
+        failed_run_id_conditions = []
+
+        for run_id in run_ids:
+            state = event_data.get(run_id)
+            if state in self.failed_states:
+                failed_run_id_conditions.append(run_id)
+                continue
+            if state in self.allowed_states:
+                self.log.info(
+                    "%s finished with allowed state %s for run_id %s",
+                    self.trigger_dag_id,
+                    state,
+                    run_id,
+                )
+
+        if failed_run_id_conditions:
+            raise AirflowException(
+                f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
+                f" {failed_run_id_conditions}"
+            )
 
     @provide_session
     def _trigger_dag_run_af_2_execute_complete(
