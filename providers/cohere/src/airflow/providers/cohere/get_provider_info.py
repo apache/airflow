@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Cohere",
         "description": "`Cohere <https://docs.cohere.com/docs>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477799,
+        "source-date-epoch": 1743647338,
         "versions": [
             "1.4.3",
             "1.4.2",

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Simple Mail Transfer Protocol (SMTP)",
         "description": "`Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477891,
+        "source-date-epoch": 1743647443,
         "versions": [
             "2.0.2",
             "2.0.1",

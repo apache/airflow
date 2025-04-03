@@ -246,6 +246,7 @@ Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
+
 [tool.hatch.version]
 path = "src/airflow/__init__.py"
 
@@ -294,6 +295,23 @@ dev = [
     # TODO(potiuk): check if this is really needed
     "apache-airflow-providers-ftp",
 ]
+
+# To run docs building go to the `doc` directory and run:
+#
+#    uv run --group doc sphinx-build -T --color -b html  . _build
+#
+# To check spelling:
+#
+#    uv run --group doc sphinx-build -T --color -b spelling  . _build
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run sphinx-autobuild -T --color -b html  . _build
+#
+doc = [
+    "apache-airflow-devel-common[doc]"
+]
+
 
 [tool.uv]
 required-version = ">=0.6.3"

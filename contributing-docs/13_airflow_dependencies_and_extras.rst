@@ -160,5 +160,5 @@ You can read more about those extras in the
 
 -----
 
-You can now check how to update Airflow's `metadata database <13_metadata_database_updates.rst>`__ if you need
+You can now check how to update Airflow's `metadata database <14_metadata_database_updates.rst>`__ if you need
 to update structure of the DB.

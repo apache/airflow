@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Tableau",
         "description": "`Tableau <https://www.tableau.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477901,
+        "source-date-epoch": 1743647452,
         "versions": [
             "5.0.2",
             "5.0.1",

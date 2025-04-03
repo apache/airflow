@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "ArangoDB",
         "description": "`ArangoDB <https://www.arangodb.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477788,
+        "source-date-epoch": 1743647325,
         "versions": [
             "2.7.3",
             "2.7.2",

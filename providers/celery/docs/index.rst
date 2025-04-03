@@ -91,7 +91,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``celery[redis]``   ``>=5.4.0,<6``
+``celery[redis]``   ``>=5.5.0,<6``
 ``flower``          ``>=1.0.0``
 ==================  ==================
 

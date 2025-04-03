@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "ODBC",
         "description": "`ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477855,
+        "source-date-epoch": 1743647405,
         "versions": [
             "4.9.1",
             "4.9.0",

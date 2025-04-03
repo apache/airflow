@@ -152,3 +152,9 @@ airflow/www/node_modules
 *.py.*.html
 *.py.*.bin
 /kubernetes-tests/.venv/
+
+# Exclude doc files
+
+**/_api
+**/_build
+**/_doctree

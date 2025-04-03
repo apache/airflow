@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Cassandra",
         "description": "`Apache Cassandra <https://cassandra.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1743477765,
+        "source-date-epoch": 1743647302,
         "versions": [
             "3.7.1",
             "3.7.0",

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Yandex",
         "description": "This package is for Yandex, including:\n\n    - `Yandex.Cloud <https://cloud.yandex.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477911,
+        "source-date-epoch": 1743647463,
         "versions": [
             "4.0.3",
             "4.0.2",
