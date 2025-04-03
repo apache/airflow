@@ -24,6 +24,8 @@ import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+
 const links = [
   {
     href: "https://airflow.apache.org/docs/",
@@ -34,7 +36,7 @@ const links = [
     title: "GitHub Repo",
   },
   {
-    href: "/docs",
+    href: new URL("docs", baseUrl).href,
     title: "REST API Reference",
   },
 ];
