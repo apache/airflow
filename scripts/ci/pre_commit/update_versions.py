@@ -47,6 +47,7 @@ REPLACEMENTS: dict[str, list[str]] = {
     r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": ["docker-stack-docs/README.md"],
     r"(\(Assuming Airflow version `).*(`\))": ["docker-stack-docs/README.md"],
     r"(^version = \").*(\"$)": ["pyproject.toml", "airflow-core/pyproject.toml"],
+    r"(^.*\"apache-airflow-core==).*(\",$)": ["pyproject.toml"],
 }
 
 
