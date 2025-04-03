@@ -256,6 +256,61 @@ class TestOracleHookConn:
         with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
             self.db_hook.get_conn()
 
+    @pytest.mark.parametrize(
+        "connection_params, expected_uri",
+        [
+            (
+                {"extra": '{"service_name": "schema"}', "schema": None, "port": 1521},
+                "oracle://login:password@host:1521/schema",
+            ),
+            (
+                {"extra": '{"sid": "sid"}', "schema": None, "port": 1521},
+                "oracle://login:password@host:1521/sid",
+            ),
+            (
+                {"extra": "{}", "schema": "db_schema", "port": 1521},
+                "oracle://login:password@host:1521/db_schema",
+            ),
+            ({"extra": "{}", "schema": None, "port": 1521}, "oracle://login:password@host:1521"),
+            (
+                {"extra": "{}", "schema": "db_schema", "port": None},
+                "oracle://login:password@host:1521/db_schema",
+            ),
+            (
+                {"extra": '{"sid": "sid", "service_name": "service"}', "schema": "db_schema", "port": 1521},
+                "oracle://login:password@host:1521/db_schema",
+            ),
+            (
+                {"extra": '{"sid": "sid", "service_name": "service"}', "schema": None, "port": 1521},
+                "oracle://login:password@host:1521",
+            ),
+            (
+                {"extra": '{"sid": "sid"}', "schema": "db_schema", "port": 1521},
+                "oracle://login:password@host:1521/sid",
+            ),
+            (
+                {"extra": '{"service_name": "service"}', "schema": "db_schema", "port": 1521},
+                "oracle://login:password@host:1521/service",
+            ),
+            (
+                {
+                    "extra": '{"service_name": "(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))"}',
+                    "schema": None,
+                    "port": 1521,
+                },
+                "oracle://login:password@host:1521/(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_uri(self, mock_connect, connection_params, expected_uri):
+        self.connection.extra = connection_params["extra"]
+        self.connection.schema = connection_params["schema"]
+        self.connection.port = connection_params["port"]
+
+        uri = self.db_hook.get_uri()
+        assert uri == expected_uri
+
 
 class TestOracleHook:
     def setup_method(self):
