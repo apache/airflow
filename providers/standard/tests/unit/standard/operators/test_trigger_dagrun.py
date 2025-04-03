@@ -20,7 +20,6 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 import time_machine
@@ -208,11 +207,15 @@ class TestDagRunOperator:
             poke_interval=10,
             failed_states=[],
         )
-        context = MagicMock()
-        context["ti"].get_dagrun_state.return_value = "success"
 
         try:
-            operator.execute_complete(context, ("event", {"run_ids": ["run_id_1"]}))
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "success"},
+                ),
+            )
         except Exception as e:
             pytest.fail(f"Error: {e}")
 
@@ -225,11 +228,15 @@ class TestDagRunOperator:
             poke_interval=10,
             failed_states=["failed"],
         )
-        context = MagicMock()
-        context["ti"].get_dagrun_state.return_value = "failed"
 
         with pytest.raises(AirflowException, match="failed with failed state"):
-            operator.execute_complete(context, ("event", {"run_ids": ["run_id_1"]}))
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "failed"},
+                ),
+            )
 
 
 # TODO: To be removed once the provider drops support for Airflow 2

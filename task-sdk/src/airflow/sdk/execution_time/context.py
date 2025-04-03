@@ -660,3 +660,18 @@ def get_dr_count(
         assert isinstance(response, DRCount)
 
     return response.count
+
+
+def get_dagrun_state(dag_id: str, run_id: str) -> str:
+    """Return the state of the DAG run with the given Run ID."""
+    from airflow.sdk.execution_time.comms import DagRunStateResult, GetDagRunState
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
+        response = SUPERVISOR_COMMS.get_message()
+
+    if TYPE_CHECKING:
+        assert isinstance(response, DagRunStateResult)
+
+    return response.state
