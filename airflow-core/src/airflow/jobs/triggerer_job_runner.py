@@ -44,8 +44,10 @@ from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DRCount,
     ErrorResponse,
     GetConnection,
+    GetDRCount,
     GetVariable,
     GetXCom,
     VariableResult,
@@ -213,6 +215,7 @@ ToTriggerRunner = Annotated[
         ConnectionResult,
         VariableResult,
         XComResult,
+        DRCount,
         ErrorResponse,
     ],
     Field(discriminator="type"),
@@ -224,7 +227,7 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom],
+    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom, GetDRCount],
     Field(discriminator="type"),
 ]
 """
@@ -374,6 +377,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = xcom_result.model_dump_json(exclude_unset=True).encode()
             else:
                 resp = xcom.model_dump_json().encode()
+
+        elif isinstance(msg, GetDRCount):
+            dr_count = self.client.dag_runs.get_count(
+                dag_id=msg.dag_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = dr_count.model_dump_json().encode()
+
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

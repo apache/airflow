@@ -41,7 +41,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -231,9 +231,8 @@ class TriggerDagRunOperator(BaseOperator):
             allowed_states=self.allowed_states,
             failed_states=self.failed_states,
             poke_interval=self.poke_interval,
+            deferrable=self._defer,
         )
-
-        # TODO: Support deferral
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
@@ -304,8 +303,23 @@ class TriggerDagRunOperator(BaseOperator):
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
+    def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DagRunTriggerExecuteCompleteException
+
+            raise DagRunTriggerExecuteCompleteException(
+                trigger_dag_id=self.trigger_dag_id,
+                run_ids=event[1]["run_ids"],
+                allowed_states=self.allowed_states,  # type: ignore[arg-type]
+                failed_states=self.failed_states,  # type: ignore[arg-type]
+            )
+        else:
+            self._trigger_dag_run_af_2_execute_complete(event=event)
+
     @provide_session
-    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
+    def _trigger_dag_run_af_2_execute_complete(
+        self, event: tuple[str, dict[str, Any]], session: Session = NEW_SESSION
+    ):
         # This logical_date is parsed from the return trigger event
         provided_logical_date = event[1]["execution_dates"][0]
         try:

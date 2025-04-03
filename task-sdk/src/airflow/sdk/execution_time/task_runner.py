@@ -99,7 +99,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException
+    from airflow.exceptions import DagRunTriggerException, DagRunTriggerExecuteCompleteException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -685,6 +685,26 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     return None
 
 
+def _defer_task(
+    defer: TaskDeferred, ti: RuntimeTaskInstance, log: Logger
+) -> tuple[ToSupervisor, IntermediateTIState]:
+    # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
+
+    log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
+    classpath, trigger_kwargs = defer.trigger.serialize()
+
+    msg = DeferTask(
+        classpath=classpath,
+        trigger_kwargs=trigger_kwargs,
+        trigger_timeout=defer.timeout,
+        next_method=defer.method_name,
+        next_kwargs=defer.kwargs or {},
+    )
+    state = IntermediateTIState.DEFERRED
+
+    return msg, state
+
+
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -700,6 +720,7 @@ def run(
         AirflowTaskTerminated,
         AirflowTaskTimeout,
         DagRunTriggerException,
+        DagRunTriggerExecuteCompleteException,
         DownstreamTasksSkipped,
         TaskDeferred,
     )
@@ -744,19 +765,10 @@ def run(
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
         msg, state = _handle_trigger_dag_run(drte, context, ti, log)
+    except DagRunTriggerExecuteCompleteException as drte:
+        msg, state = _handle_trigger_dag_run_execute_complete(drte, context, ti, log)
     except TaskDeferred as defer:
-        # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
-        log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
-        classpath, trigger_kwargs = defer.trigger.serialize()
-
-        msg = DeferTask(
-            classpath=classpath,
-            trigger_kwargs=trigger_kwargs,
-            trigger_timeout=defer.timeout,
-            next_method=defer.method_name,
-            next_kwargs=defer.kwargs or {},
-        )
-        state = IntermediateTIState.DEFERRED
+        msg, state = _defer_task(defer, ti, log)
     except AirflowSkipException as e:
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
@@ -840,7 +852,7 @@ def _handle_current_task_failed(
 
 def _handle_trigger_dag_run(
     drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
-) -> tuple[ToSupervisor, TerminalTIState]:
+) -> tuple[ToSupervisor, IntermediateTIState | TerminalTIState]:
     """Handle exception from TriggerDagRunOperator."""
     log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
     SUPERVISOR_COMMS.send_request(
@@ -876,7 +888,22 @@ def _handle_trigger_dag_run(
     # be used when creating the extra link on the webserver.
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
-    if drte.wait_for_completion:
+    if drte.deferrable:
+        from airflow.exceptions import TaskDeferred
+        from airflow.providers.standard.triggers.external_task import DagStateTrigger
+
+        defer = TaskDeferred(
+            trigger=DagStateTrigger(
+                dag_id=drte.trigger_dag_id,
+                states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
+                execution_dates=[drte.logical_date] if drte.logical_date else None,
+                run_ids=[drte.dag_run_id],
+                poll_interval=drte.poke_interval,
+            ),
+            method_name="execute_complete",
+        )
+        return _defer_task(defer, ti, log)
+    elif drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -909,6 +936,44 @@ def _handle_trigger_dag_run(
                 dag_id=drte.trigger_dag_id,
                 state=comms_msg.state,
             )
+
+    return _handle_current_task_success(context, ti)
+
+
+def _handle_trigger_dag_run_execute_complete(
+    drte: DagRunTriggerExecuteCompleteException, context: Context, ti: RuntimeTaskInstance, log: Logger
+) -> tuple[ToSupervisor, TerminalTIState]:
+    run_ids = drte.run_ids
+    failed_run_id_conditions = []
+
+    for run_id in run_ids:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=drte.trigger_dag_id, run_id=run_id))
+        comms_msg = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(comms_msg, DagRunStateResult)
+
+        if comms_msg.state in drte.failed_states:
+            failed_run_id_conditions.append(run_id)
+            continue
+        if comms_msg.state in drte.allowed_states:
+            log.info(
+                "%s finished with allowed state %s for run_id %s",
+                drte.trigger_dag_id,
+                comms_msg.state,
+                run_id,
+            )
+
+    if failed_run_id_conditions:
+        log.error(
+            "%s failed with failed states %s for run_ids %s",
+            drte.trigger_dag_id,
+            drte.failed_states,
+            failed_run_id_conditions,
+        )
+        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+        state = TerminalTIState.FAILED
+        return msg, state
 
     return _handle_current_task_success(context, ti)
 

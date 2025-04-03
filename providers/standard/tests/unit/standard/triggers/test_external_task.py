@@ -239,6 +239,7 @@ class TestDagStateTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 had a different implementation")
     async def test_dag_state_trigger(self, session):
         """
         Assert that the DagStateTrigger only goes off on or after a DagRun
@@ -270,6 +271,55 @@ class TestDagStateTrigger:
         # Progress the dag to a "success" state so that yields a TriggerEvent
         dag_run.state = DagRunState.SUCCESS
         session.commit()
+        await asyncio.sleep(0.5)
+        assert task.done() is True
+
+        # Prevents error when task is destroyed while in "pending" state
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
+    @mock.patch("airflow.sdk.execution_time.context.get_dr_count")
+    async def test_dag_state_trigger_af_3(self, mock_get_dag_run_count, session):
+        """
+        Assert that the DagStateTrigger only goes off on or after a DagRun
+        reaches an allowed state (i.e. SUCCESS).
+        """
+
+        # Mock the get_dag_run_count_by_run_ids_and_states function to return 0 first time
+        mock_get_dag_run_count.return_value = mock.Mock(count=0)
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            run_type="manual",
+            run_id="external_task_run_id",
+            logical_date=timezone.datetime(2022, 1, 1),
+        )
+        session.add(dag_run)
+        session.commit()
+
+        trigger = DagStateTrigger(
+            dag_id=dag.dag_id,
+            states=self.STATES,
+            run_ids=["external_task_run_id"],
+            poll_interval=0.2,
+            execution_dates=[timezone.datetime(2022, 1, 1)],
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # It should not have produced a result
+        assert task.done() is False
+
+        # Progress the dag to a "success" state so that yields a TriggerEvent
+        dag_run.state = DagRunState.SUCCESS
+        session.commit()
+
+        # Mock the get_dag_run_count_by_run_ids_and_states function to return 1 second time
+        mock_get_dag_run_count.return_value = mock.Mock(count=1)
         await asyncio.sleep(0.5)
         assert task.done() is True
 
