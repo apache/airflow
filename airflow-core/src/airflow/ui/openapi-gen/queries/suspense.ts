@@ -39,12 +39,12 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menu
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinksSuspense = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenuSuspense = <
+  TData = Common.AuthLinksServiceGetAuthMenuDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -52,8 +52,8 @@ export const useAuthLinksServiceGetAuthLinksSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenuKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenu() as TData,
     ...options,
   });
 /**

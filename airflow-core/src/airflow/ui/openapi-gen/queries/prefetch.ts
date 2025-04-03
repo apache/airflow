@@ -39,14 +39,14 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menu
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient) =>
+export const prefetchUseAuthLinksServiceGetAuthMenu = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
+    queryKey: Common.UseAuthLinksServiceGetAuthMenuKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenu(),
   });
 /**
  * Next Run Assets

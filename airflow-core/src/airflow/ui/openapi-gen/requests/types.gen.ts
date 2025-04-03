@@ -971,6 +971,11 @@ export type ExtraLinksResponse = {
   [key: string]: string | null;
 };
 
+export type ExtraMenuItem = {
+  text: string;
+  href: string;
+};
+
 /**
  * Serializer for Plugin FastAPI App responses.
  */
@@ -1102,19 +1107,26 @@ export type JobResponse = {
 };
 
 /**
- * Menu Item for responses.
+ * Define all menu items defined in the menu.
  */
-export type MenuItem = {
-  text: string;
-  href: string;
-};
+export type MenuItem =
+  | "Assets"
+  | "Connections"
+  | "Dags"
+  | "Docs"
+  | "Events"
+  | "Plugins"
+  | "Pools"
+  | "Providers"
+  | "Variables"
+  | "XComs";
 
 /**
  * Menu Item Collection serializer for responses.
  */
 export type MenuItemCollectionResponse = {
-  menu_items: Array<MenuItem>;
-  total_entries: number;
+  authorized_menu_items: Array<MenuItem>;
+  extra_menu_items: Array<ExtraMenuItem>;
 };
 
 /**
@@ -1683,7 +1695,7 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
-export type GetAuthLinksResponse = MenuItemCollectionResponse;
+export type GetAuthMenuResponse = MenuItemCollectionResponse;
 
 export type NextRunAssetsData = {
   dagId: string;
@@ -2621,7 +2633,7 @@ export type NotFoundHandlerData = {
 export type NotFoundHandlerResponse = unknown;
 
 export type $OpenApiTs = {
-  "/ui/auth/links": {
+  "/ui/auth/menu": {
     get: {
       res: {
         /**
