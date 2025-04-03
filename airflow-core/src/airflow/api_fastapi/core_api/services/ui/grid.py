@@ -20,6 +20,7 @@ from __future__ import annotations
 from functools import cache
 from operator import methodcaller
 from typing import Callable
+from uuid import UUID
 
 from typing_extensions import Any
 
@@ -40,6 +41,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import task_group_to_dict
 
@@ -115,9 +117,11 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
             task_nodes[task_node.task_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
-                "task_count": task_nodes[parent_node.node_id]["task_count"]
-                if _is_task_node_mapped_task_group(parent_node) and parent_node
-                else [1],
+                "task_count": (
+                    task_nodes[parent_node.node_id]["task_count"]
+                    if _is_task_node_mapped_task_group(parent_node) and parent_node
+                    else [1]
+                ),
             }
             # No Need to Add the Task Count to the Parent Node, these are already counted in Add the Parent
             return
@@ -137,12 +141,14 @@ def _get_total_task_count(
     run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
 ) -> int:
     return sum(
-        node
-        if isinstance(node, int)
-        else (
-            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
-            if isinstance(node, (MappedTaskGroup, MappedOperator))
-            else node
+        (
+            node
+            if isinstance(node, int)
+            else (
+                DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
+                if isinstance(node, (MappedTaskGroup, MappedOperator))
+                else node
+            )
         )
         for node in task_count
     )
@@ -176,9 +182,20 @@ def fill_task_instance_summaries(
         )
         for (task_id, run_id), tis in grouped_task_instances.items()
     }
+
+    serdag_cache: dict[UUID, SerializedDAG] = {}
+    task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
+
     for (task_id, run_id), tis in grouped_task_instances.items():
-        serdag = tis[0].dag_version.serialized_dag.dag
-        task_node_map = get_task_group_map(dag=serdag)
+        serdag_id = tis[0].dag_version.serialized_dag.id
+
+        serdag_cache[serdag_id] = serdag_cache.get(serdag_id) or tis[0].dag_version.serialized_dag.dag
+        serdag = serdag_cache[serdag_id]
+
+        task_group_map_cache[serdag_id] = task_group_map_cache.get(serdag_id) or get_task_group_map(
+            dag=serdag
+        )
+        task_node_map = task_group_map_cache[serdag_id]
 
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
@@ -204,6 +221,7 @@ def fill_task_instance_summaries(
                 for state in state_priority
             }
         )
+
         # Update Nested Task Group States by aggregating the child states
         child_states.update(
             {
@@ -237,9 +255,9 @@ def fill_task_instance_summaries(
                 queued_dttm=ti_queued_dttm,
                 child_states=child_states,
                 task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
-                state=TaskInstanceState[overall_ti_state.upper()]
-                if overall_ti_state != "no_status"
-                else None,
+                state=(
+                    TaskInstanceState[overall_ti_state.upper()] if overall_ti_state != "no_status" else None
+                ),
                 note=ti_note,
             )
         )
