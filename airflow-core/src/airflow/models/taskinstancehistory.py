@@ -25,14 +25,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
-    func,
-    select,
     text,
 )
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -62,10 +60,6 @@ class TaskInstanceHistory(Base):
 
     __tablename__ = "task_instance_history"
     try_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
-    task_instance_id = Column(
-        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
-        nullable=False,
-    )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -118,7 +112,7 @@ class TaskInstanceHistory(Base):
         for column in self.__table__.columns:
             if column.name == "id":
                 continue
-            if column.name == "task_instance_id":
+            if column.name == "try_id":
                 setattr(self, column.name, ti.id)
                 continue
             setattr(self, column.name, getattr(ti, column.name))
@@ -147,22 +141,14 @@ class TaskInstanceHistory(Base):
             "try_number",
             name="task_instance_history_dtrt_uq",
         ),
+        Index("tih_dag_run", dag_id, run_id),
     )
 
     @staticmethod
     @provide_session
     def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
-        exists_q = session.scalar(
-            select(func.count(TaskInstanceHistory.task_id)).where(
-                TaskInstanceHistory.dag_id == ti.dag_id,
-                TaskInstanceHistory.task_id == ti.task_id,
-                TaskInstanceHistory.run_id == ti.run_id,
-                TaskInstanceHistory.map_index == ti.map_index,
-                TaskInstanceHistory.try_number == ti.try_number,
-            )
-        )
-        if exists_q:
+        if session.get(TaskInstanceHistory, ti.id):
             return
         ti_history_state = ti.state
         if ti.state not in State.finished:

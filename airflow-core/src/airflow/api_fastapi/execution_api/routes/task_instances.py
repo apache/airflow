@@ -218,7 +218,7 @@ def ti_run(
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
             )
-            .filter(TaskReschedule.ti_id == ti_id_str, TaskReschedule.try_number == ti.try_number)
+            .filter(TaskReschedule.try_id == ti_id_str)
             .scalar()
             or 0
         )
@@ -303,9 +303,9 @@ def ti_update_state(
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         ti = session.get(TI, ti_id_str)
-        TaskInstanceHistory.record_ti(ti, session=session)
-        ti.try_id = uuid7()
         updated_state = ti_patch_payload.state
+        TaskInstanceHistory.record_ti(ti, session=session)
+        ti.id = uuid7()
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TISuccessStatePayload):
@@ -383,7 +383,6 @@ def ti_update_state(
         session.add(
             TaskReschedule(
                 task_instance.id,
-                task_instance.try_number,
                 actual_start_date,
                 ti_patch_payload.end_date,
                 ti_patch_payload.reschedule_date,

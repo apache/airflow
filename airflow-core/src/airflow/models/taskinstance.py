@@ -452,7 +452,7 @@ def clear_task_instances(
     for ti in tis:
         task_instance_ids.append(ti.id)
         TaskInstanceHistory.record_ti(ti, session)
-        ti.try_id = uuid7()
+        ti.id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
@@ -723,7 +723,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.end_date = source.end_date
     target.duration = source.duration
     target.state = source.state
-    target.try_id = source.try_id
     target.try_number = source.try_number
     target.max_tries = source.max_tries
     target.hostname = source.hostname
@@ -1573,7 +1572,6 @@ def _handle_reschedule(
     session.add(
         TaskReschedule(
             ti.id,
-            ti.try_number,
             actual_start_date,
             ti.end_date,
             reschedule_exception.reschedule_date,
@@ -1623,7 +1621,6 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
-    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
@@ -3154,7 +3151,7 @@ class TaskInstance(Base, LoggingMixin):
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
                 TaskInstanceHistory.record_ti(ti, session=session)
-                ti.try_id = uuid7()
+                ti.id = uuid7()
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")

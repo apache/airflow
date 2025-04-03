@@ -771,11 +771,11 @@ class TestTIUpdateState:
 
         tih = (
             session.query(TaskInstanceHistory)
-            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id)
+            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id)
             .one()
         )
         assert tih.try_id
-        assert tih.try_id != ti.try_id
+        assert tih.try_id != ti.id
 
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
