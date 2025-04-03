@@ -336,7 +336,7 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
-    context_carrier: Annotated[dict | None, Field(title="Context Carrier")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
 
 
 class BundleInfo(BaseModel):
