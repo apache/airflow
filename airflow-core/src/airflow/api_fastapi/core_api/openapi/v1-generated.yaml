@@ -8531,10 +8531,14 @@ components:
           - type: 'null'
           title: Last Expired
         bundle_name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Bundle Name
         relative_fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Relative Fileloc
         fileloc:
           type: string
@@ -8765,10 +8769,14 @@ components:
           - type: 'null'
           title: Last Expired
         bundle_name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Bundle Name
         relative_fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Relative Fileloc
         fileloc:
           type: string
@@ -9286,10 +9294,14 @@ components:
           - type: 'null'
           title: Last Expired
         bundle_name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Bundle Name
         relative_fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Relative Fileloc
         fileloc:
           type: string
