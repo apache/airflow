@@ -630,7 +630,6 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join(
     [
         "common.messaging",
-        "fab",
         "openlineage",
     ]
 )
