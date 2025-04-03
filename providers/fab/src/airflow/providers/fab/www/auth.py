@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
-    from airflow.models.xcom import BaseXCom
+    from airflow.models.xcom import XComModel
 
 T = TypeVar("T", bound=Callable)
 
@@ -121,7 +121,7 @@ def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callab
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -189,7 +189,7 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -240,7 +240,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -249,7 +249,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            items: set[BaseXCom | DagRun | TaskInstance] = set(args[1])
+            items: set[XComModel | DagRun | TaskInstance] = set(args[1])
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
                     "method": method,
@@ -269,7 +269,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -303,7 +303,7 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 
@@ -336,7 +336,7 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                 kwargs=kwargs,
             )
 
-        return cast(T, decorated)
+        return cast("T", decorated)
 
     return has_access_decorator
 

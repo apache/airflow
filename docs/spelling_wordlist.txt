@@ -381,6 +381,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+dags
 DagsFolderDagBundle
 Dask
 dask
@@ -563,6 +564,7 @@ ec
 ecb
 ECR
 ecs
+EdDSA
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -627,7 +629,6 @@ explicit
 exportingmultiple
 extensibility
 externalbrowser
-exts
 faas
 facebook
 Failover
@@ -727,6 +728,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore
@@ -1588,6 +1590,7 @@ SparkSQL
 sparksql
 SpeechClient
 spegno
+sphinx_exts
 Splunk
 spotahome
 Sql
@@ -1930,6 +1933,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+1.5.3
+.....
+
+Misc
+~~~~
+
+* ``Make open ai provider compatible with openai>=1.66.0 (#47726)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Pin OpenAI Python client to <1.66.0 (#47643)``
+
 1.5.2
 .....
 
@@ -171,7 +186,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 1.0.0

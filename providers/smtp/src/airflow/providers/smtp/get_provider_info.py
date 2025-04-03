@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Simple Mail Transfer Protocol (SMTP)",
         "description": "`Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741509651,
+        "source-date-epoch": 1743477891,
         "versions": [
+            "2.0.2",
             "2.0.1",
             "2.0.0",
             "1.9.0",
@@ -73,6 +74,6 @@ def get_provider_info():
             {"hook-class-name": "airflow.providers.smtp.hooks.smtp.SmtpHook", "connection-type": "smtp"}
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-common-compat>=1.6.0"],
         "devel-dependencies": [],
     }

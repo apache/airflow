@@ -18,12 +18,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.sdk import get_current_context
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventDagRunReference,
+    AssetEventResponse,
+    AssetResponse,
+)
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -39,6 +44,8 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     ErrorResponse,
+    GetAssetByName,
+    GetAssetByUri,
     VariableResult,
 )
 from airflow.sdk.execution_time.context import (
@@ -46,11 +53,15 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
+    TriggeringAssetEventsAccessor,
     VariableAccessor,
+    _AssetRefResolutionMixin,
     _convert_connection_result_conn,
     _convert_variable_result_to_variable,
+    context_to_airflow_vars,
     set_current_context,
 )
+from airflow.utils import timezone
 
 
 def test_convert_connection_result_conn():
@@ -101,6 +112,79 @@ def test_convert_variable_result_to_variable_with_deserialize_json():
     assert var == Variable(
         key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
+
+
+class TestAirflowContextHelpers:
+    def setup_method(self):
+        self.dag_id = "dag_id"
+        self.task_id = "task_id"
+        self.try_number = 1
+        self.logical_date = "2017-05-21T00:00:00"
+        self.dag_run_id = "dag_run_id"
+        self.owner = ["owner1", "owner2"]
+        self.email = ["email1@test.com"]
+        self.context = {
+            "dag_run": mock.MagicMock(
+                name="dag_run",
+                run_id=self.dag_run_id,
+                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
+            ),
+            "task_instance": mock.MagicMock(
+                name="task_instance",
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+                try_number=self.try_number,
+                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
+            ),
+            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
+        }
+
+    def test_context_to_airflow_vars_empty_context(self):
+        assert context_to_airflow_vars({}) == {}
+
+    def test_context_to_airflow_vars_all_context(self):
+        assert context_to_airflow_vars(self.context) == {
+            "airflow.ctx.dag_id": self.dag_id,
+            "airflow.ctx.logical_date": self.logical_date,
+            "airflow.ctx.task_id": self.task_id,
+            "airflow.ctx.dag_run_id": self.dag_run_id,
+            "airflow.ctx.try_number": str(self.try_number),
+            "airflow.ctx.dag_owner": "owner1,owner2",
+            "airflow.ctx.dag_email": "email1@test.com",
+        }
+
+        assert context_to_airflow_vars(self.context, in_env_var_format=True) == {
+            "AIRFLOW_CTX_DAG_ID": self.dag_id,
+            "AIRFLOW_CTX_LOGICAL_DATE": self.logical_date,
+            "AIRFLOW_CTX_TASK_ID": self.task_id,
+            "AIRFLOW_CTX_TRY_NUMBER": str(self.try_number),
+            "AIRFLOW_CTX_DAG_RUN_ID": self.dag_run_id,
+            "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
+            "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
+        }
+
+    def test_context_to_airflow_vars_with_default_context_vars(self):
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            airflow_cluster = "cluster-a"
+            mock_method.return_value = {"airflow_cluster": airflow_cluster}
+
+            context_vars = context_to_airflow_vars(self.context)
+            assert context_vars["airflow.ctx.airflow_cluster"] == airflow_cluster
+
+            context_vars = context_to_airflow_vars(self.context, in_env_var_format=True)
+            assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
+
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            mock_method.return_value = {"airflow_cluster": [1, 2]}
+            with pytest.raises(TypeError) as error:
+                context_to_airflow_vars(self.context)
+            assert str(error.value) == "value of key <airflow_cluster> must be string, not <class 'list'>"
+
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            mock_method.return_value = {1: "value"}
+            with pytest.raises(TypeError) as error:
+                context_to_airflow_vars(self.context)
+            assert str(error.value) == "key <1> must be string"
 
 
 class TestConnectionAccessor:
@@ -202,10 +286,9 @@ class TestVariableAccessor:
         mock_supervisor_comms.get_message.return_value = var_result
 
         # Fetch the variable; triggers __getattr__
-        var = accessor.test_key
+        value = accessor.test_key
 
-        expected_var = Variable(key="test_key", value="test_value")
-        assert var == expected_var
+        assert value == var_result.value
 
     def test_get_method_valid_variable(self, mock_supervisor_comms):
         """Test that the get method returns the requested variable using `var.get`."""
@@ -214,20 +297,19 @@ class TestVariableAccessor:
 
         mock_supervisor_comms.get_message.return_value = var_result
 
-        var = accessor.get("test_key")
-        assert var == Variable(key="test_key", value="test_value")
+        val = accessor.get("test_key")
+        assert val == var_result.value
 
     def test_get_method_with_default(self, mock_supervisor_comms):
         """Test that the get method returns the default variable when the requested variable is not found."""
 
         accessor = VariableAccessor(deserialize_json=False)
-        default_var = {"default_key": "default_value"}
         error_response = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"test_key": "test_value"})
 
         mock_supervisor_comms.get_message.return_value = error_response
 
-        var = accessor.get("nonexistent_var_key", default_var=default_var)
-        assert var == default_var
+        val = accessor.get("nonexistent_var_key", default="default_value")
+        assert val == "default_value"
 
 
 class TestCurrentContext:
@@ -318,6 +400,129 @@ class TestOutletEventAccessor:
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
 
+class TestTriggeringAssetEventsAccessor:
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        _AssetRefResolutionMixin._asset_ref_cache = {}
+        yield
+        _AssetRefResolutionMixin._asset_ref_cache = {}
+
+    @pytest.fixture
+    def event_data(self):
+        return [
+            {
+                "asset": {
+                    "name": "1",
+                    "uri": "1",
+                    "extra": {},
+                },
+                "extra": {},
+                "source_task_id": "t1",
+                "source_dag_id": "d1",
+                "source_run_id": "r1",
+                "source_map_index": -1,
+                "source_aliases": [],
+                "timestamp": "2025-01-01T00:00:12Z",
+            },
+            {
+                "asset": {
+                    "name": "1",
+                    "uri": "1",
+                    "extra": {},
+                },
+                "extra": {},
+                "source_task_id": "t2",
+                "source_dag_id": "d1",
+                "source_run_id": "r1",
+                "source_map_index": -1,
+                "source_aliases": [
+                    {"name": "a"},
+                    {"name": "b"},
+                ],
+                "timestamp": "2025-01-01T00:05:43Z",
+            },
+            {
+                "asset": {
+                    "name": "2",
+                    "uri": "2",
+                    "extra": {},
+                },
+                "extra": {},
+                "source_task_id": "t2",
+                "source_dag_id": "d1",
+                "source_run_id": "r1",
+                "source_map_index": -1,
+                "source_aliases": [],
+                "timestamp": "2025-01-01T00:06:07Z",
+            },
+        ]
+
+    @pytest.fixture
+    def accessor(self, event_data):
+        return TriggeringAssetEventsAccessor.build(
+            [AssetEventDagRunReference.model_validate(d) for d in event_data],
+        )
+
+    @pytest.mark.parametrize(
+        "key, result_indexes",
+        [
+            (Asset("1"), [0, 1]),
+            (Asset("2"), [2]),
+            (AssetAlias("a"), [1]),
+            (AssetAlias("b"), [1]),
+        ],
+    )
+    def test_getitem(self, event_data, accessor, key, result_indexes):
+        expected = [AssetEventDagRunReference.model_validate(event_data[index]) for index in result_indexes]
+        assert accessor[key] == expected
+
+    @pytest.mark.parametrize(
+        "name, resolved_asset, result_indexes",
+        [
+            ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
+            ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
+        ],
+    )
+    def test_getitem_name_ref(
+        self,
+        mock_supervisor_comms,
+        event_data,
+        accessor,
+        name,
+        resolved_asset,
+        result_indexes,
+    ):
+        mock_supervisor_comms.get_message.return_value = resolved_asset
+        expected = [AssetEventDagRunReference.model_validate(event_data[index]) for index in result_indexes]
+        assert accessor[Asset.ref(name=name)] == expected
+        assert len(mock_supervisor_comms.send_request.mock_calls) == 1
+        assert mock_supervisor_comms.send_request.mock_calls[0].kwargs["msg"] == GetAssetByName(name=name)
+        assert _AssetRefResolutionMixin._asset_ref_cache
+
+    @pytest.mark.parametrize(
+        "uri, resolved_asset, result_indexes",
+        [
+            ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
+            ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
+        ],
+    )
+    def test_getitem_uri_ref(
+        self,
+        mock_supervisor_comms,
+        event_data,
+        accessor,
+        uri,
+        resolved_asset,
+        result_indexes,
+    ):
+        mock_supervisor_comms.get_message.return_value = resolved_asset
+        expected = [AssetEventDagRunReference.model_validate(event_data[index]) for index in result_indexes]
+        assert accessor[Asset.ref(uri=uri)] == expected
+        assert len(mock_supervisor_comms.send_request.mock_calls) == 1
+        assert mock_supervisor_comms.send_request.mock_calls[0].kwargs["msg"] == GetAssetByUri(uri=uri)
+        assert _AssetRefResolutionMixin._asset_ref_cache
+
+
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
         "access_key, internal_key",
@@ -398,7 +603,7 @@ class TestInletEventAccessor:
         asset_event_resp = AssetEventResponse(
             id=1,
             created_dagruns=[],
-            timestamp=datetime.now(),
+            timestamp=timezone.utcnow(),
             asset=AssetResponse(name="test", uri="test", group="asset"),
         )
         events_result = AssetEventsResult(asset_events=[asset_event_resp])

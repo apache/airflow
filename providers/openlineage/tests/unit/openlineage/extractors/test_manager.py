@@ -42,11 +42,14 @@ from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     try:
-        from airflow.sdk.api.datamodels._generated import TIRunContext
+        from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
         from airflow.sdk.definitions.context import Context
 
     except ImportError:
@@ -54,7 +57,7 @@ if TYPE_CHECKING:
         # TIRunContext is only used in Airflow 3 tests
         from airflow.utils.context import Context
 
-        TIRunContext = Any  # type: ignore[misc, assignment]
+        AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
 
 if AIRFLOW_V_2_10_PLUS:
@@ -76,7 +79,7 @@ if AIRFLOW_V_2_10_PLUS:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance as SDKTaskInstance
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
@@ -282,6 +285,7 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
@@ -293,7 +297,9 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
     hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
     assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
@@ -318,7 +324,9 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     # s3://bucket/input_key not here - use data from operator
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
@@ -381,7 +389,9 @@ def mocked_parse(spy_agency):
 
             mocked_parse(
                 StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    ti=TaskInstance(
+                        id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
+                    ),
                     file="",
                     requests_fd=0,
                 ),
@@ -432,6 +442,7 @@ class MakeTIContextCallable(Protocol):
         run_type: str = ...,
         task_reschedule_count: int = ...,
         conf: dict[str, Any] | None = ...,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
     ) -> TIRunContext: ...
 
 
@@ -453,6 +464,7 @@ def make_ti_context() -> MakeTIContextCallable:
         run_type: str = "manual",
         task_reschedule_count: int = 0,
         conf=None,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -466,9 +478,11 @@ def make_ti_context() -> MakeTIContextCallable:
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,  # type: ignore
+                consumed_asset_events=list(consumed_asset_events),
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
+            should_retry=False,
         )
 
     return _make_context
@@ -507,7 +521,7 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
     )
     ti = mocked_parse(what, "test_hookcollector_dag", task)
 
-    task_runner.run(ti, logging.getLogger(__name__))
+    task_runner.run(ti, ti.get_template_context(), logging.getLogger(__name__))
 
     datasets = hook_lineage_collector.collected_assets
 

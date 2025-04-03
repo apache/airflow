@@ -199,7 +199,7 @@ function handle_mount_sources() {
 # Determine which airflow version to use
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_PACKAGES_FROM_DIST=} != "true" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_DISTRIBUTIONS_FROM_DIST=} != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -226,6 +226,7 @@ function determine_airflow_to_use() {
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
         # Use uv run to install necessary dependencies automatically
+        # in the future we will be able to use uv sync when `uv.lock` is supported
         uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
@@ -235,6 +236,10 @@ function determine_airflow_to_use() {
         echo "${COLOR_BLUE}Installing airflow and providers ${COLOR_RESET}"
         echo
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+    fi
+    if [[ "${USE_AIRFLOW_VERSION}" =~ ^2.* ]]; then
+        # Remove auth manager setting
+        unset AIRFLOW__CORE__AUTH_MANAGER
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -264,7 +269,8 @@ function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    local min_sqlalchemy_version
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" airflow-core/pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -278,12 +284,13 @@ function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
         return
     fi
-    local MIN_PENDULUM_VERSION="2.1.2"
+    local min_pendulum_version
+    min_pendulum_version=$(grep "pendulum>=" airflow-core/pyproject.toml | head -1 | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
-    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${MIN_PENDULUM_VERSION}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${MIN_PENDULUM_VERSION}"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
     pip check
 }
 
@@ -311,28 +318,28 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
+        local provider_id
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
-        export EXTRA
+        provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
         echo
-        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo
-        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py "${provider_id}"; then
             echo
-            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo "S${COLOR_YELLOW}Skipping ${provider_id} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!${COLOR_RESET}"
             echo
             exit 0
         fi
+        cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
+        uv sync --resolution lowest-direct
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
+        cd "${AIRFLOW_SOURCES}/airflow-core"
+        uv sync --resolution lowest-direct
     fi
-    set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task-sdk" --editable "./devel-common"
-    set +x
 }
 
 function check_airflow_python_client_installation() {
@@ -359,9 +366,13 @@ function start_api_server_with_examples(){
     echo
     airflow dags reserialize
     echo "Example dags parsing finished"
-    echo "Create admin user"
-    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
-    echo "Admin user created"
+    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        echo "Create admin user"
+        airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain || true
+        echo "Admin user created"
+    else
+        echo "Skipping user creation as auth manager different from Fab is used"
+    fi
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo

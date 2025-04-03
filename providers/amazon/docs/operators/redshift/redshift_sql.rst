@@ -40,7 +40,7 @@ The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries again
 To execute a SQL query against an Amazon Redshift cluster without using a Redshift connection,
 please check ``RedshiftDataOperator``.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_execute_query.py
+.. exampleinclude:: /../../common/sql/tests/system/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_execute_query]

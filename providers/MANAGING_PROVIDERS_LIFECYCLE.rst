@@ -30,7 +30,7 @@ Another recommendation that will help you is to look for a provider that works s
 help you to set up tests and other dependencies.
 
 First, you need to set up your local development environment. See
-`Contributors Quick Start <../../contributing-docs/03_contributors_quick_start.rst>`_
+`Contributors Quick Start </contributing-docs/03_contributors_quick_start.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
 easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
@@ -201,7 +201,7 @@ by ``pip``).
 Integration tests
 -----------------
 
-See `Airflow Integration Tests <../../contributing-docs/testing/integration-tests.rst>`_
+See `Airflow Integration Tests </contributing-docs/testing/integration-tests.rst>`_
 
 
 Documentation
@@ -209,7 +209,7 @@ Documentation
 
 An important part of building a new provider is the documentation.
 Some steps for documentation occurs automatically by ``pre-commit`` see
-`Installing pre-commit guide <../../contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
+`Installing pre-commit guide </contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
 
 Those are important files in the airflow source tree that affect providers. The ``pyproject.toml`` in root
 Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
@@ -265,7 +265,7 @@ Operator has extra-parameters.
       The NewProviderOperator requires a ``connection_id`` and this other awesome parameter.
       You can see an example below:
 
-      .. exampleinclude:: /../../providers/<PROVIDER>/example_dags/example_<PROVIDER>.py
+      .. exampleinclude:: /../../<PROVIDER>/example_dags/example_<PROVIDER>.py
           :language: python
           :start-after: [START howto_operator_<PROVIDER>]
           :end-before: [END howto_operator_<PROVIDER>]
@@ -416,7 +416,7 @@ The fix for that is to turn the feature into an optional provider feature (in th
 
 
 * In case we suspend an important provider, which is part of the default Dockerfile you might want to
-  update the tests for PROD docker image in ``docker_tests/test_prod_image.py``.
+  update the tests for PROD docker image in ``docker-tests/tests/docker_tests/test_prod_image.py``.
 
 * Some of the suspended providers might also fail ``breeze`` unit tests that expect a fixed set of providers.
   Those tests should be adjusted (but this is not very likely to happen, because the tests are using only
@@ -540,7 +540,7 @@ flag is used):
 
 * ``breeze build-docs``
 * ``breeze release-management prepare-provider-documentation``
-* ``breeze release-management prepare-provider-packages``
+* ``breeze release-management prepare-provider-distributions``
 * ``breeze release-management publish-docs``
 
 For all those commands, release manager needs to specify ``--include-removed-providers`` when all providers

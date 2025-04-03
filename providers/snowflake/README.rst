@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``pandas``                                  ``>=2.1.2,<2.2``
 ``pyarrow``                                 ``>=14.0.1``
@@ -67,7 +67,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

@@ -46,6 +46,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.ec2 import get_default_vpc_id
 
@@ -323,7 +324,7 @@ with DAG(
     )
     # [END howto_operator_dms_create_task]
 
-    task_arn = cast(str, create_task.output)
+    task_arn = cast("str", create_task.output)
 
     # [START howto_operator_dms_start_task]
     start_task = DmsStartTaskOperator(

@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from importlib import reload
 from unittest import mock
 
 import pytest
 
 from airflow.cli import cli_parser
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test]
 try:
@@ -30,7 +33,19 @@ try:
     class TestFABCLiDB:
         @classmethod
         def setup_class(cls):
-            cls.parser = cli_parser.get_parser()
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                }
+            ):
+                # Reload the module to use FAB auth manager
+                reload(cli_parser)
+                # Clearing the cache before calling it
+                cli_parser.get_parser.cache_clear()
+                cls.parser = cli_parser.get_parser()
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb(self, mock_resetdb):

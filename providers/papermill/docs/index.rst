@@ -95,7 +95,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 ==================  ==================
 PIP package         Version required
@@ -105,13 +105,14 @@ PIP package         Version required
 ``scrapbook[all]``  ``>=0.5.0``
 ``ipykernel``       ``>=6.29.4``
 ``pandas``          ``>=2.1.2,<2.2``
+``nbconvert``       ``>=7.16.1``
 ==================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

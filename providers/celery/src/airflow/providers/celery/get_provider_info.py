@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Celery",
         "description": "`Celery <https://docs.celeryq.dev/en/stable/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508520,
+        "source-date-epoch": 1743477793,
         "versions": [
+            "3.10.4",
             "3.10.3",
             "3.10.2",
             "3.10.0",
@@ -297,7 +298,7 @@ def get_provider_info():
                 },
             },
         },
-        "dependencies": ["apache-airflow>=2.9.0", "celery[redis]>=5.4.0,<6", "flower>=1.0.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "celery[redis]>=5.5.0,<6", "flower>=1.0.0"],
         "optional-dependencies": {"cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.4.0"]},
         "devel-dependencies": [],
     }

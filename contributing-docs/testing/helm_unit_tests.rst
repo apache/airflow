@@ -21,7 +21,7 @@ Helm Unit Tests
 
 On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
-add them in ``helm_tests``.
+add them in ``helm-tests``.
 
 .. code-block:: python
 
@@ -37,7 +37,7 @@ Example test here:
 
 .. code-block:: python
 
-    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
+    from chart_utils.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
@@ -89,19 +89,19 @@ This enters breeze container.
 
 .. code-block:: bash
 
-    pytest helm_tests -n auto
+    pytest helm-tests -n auto
 
 This runs all chart tests using all processors you have available.
 
 .. code-block:: bash
 
-    pytest helm_tests/test_airflow_common.py -n auto
+    pytest helm-tests/tests/other/test_airflow_common.py -n auto
 
 This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
 
 .. code-block:: bash
 
-    pytest helm_tests/test_airflow_common.py
+    pytest helm-tests/tests/other/test_airflow_common.py
 
 This will run all tests from ``tests_airflow_common.py`` file sequentially.
 

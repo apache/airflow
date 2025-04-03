@@ -34,9 +34,9 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from unit.standard.operators.test_python import BasePythonTest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg
@@ -851,9 +851,9 @@ def test_task_decorator_has_wrapped_attr():
 
     decorated_test_func = task_decorator(org_test_func)
 
-    assert hasattr(
-        decorated_test_func, "__wrapped__"
-    ), "decorated function does not have __wrapped__ attribute"
+    assert hasattr(decorated_test_func, "__wrapped__"), (
+        "decorated function does not have __wrapped__ attribute"
+    )
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
@@ -869,9 +869,9 @@ def test_task_decorator_has_doc_attr():
 
     decorated_test_func = task_decorator(org_test_func)
     assert hasattr(decorated_test_func, "__doc__"), "decorated function should have __doc__ attribute"
-    assert (
-        decorated_test_func.__doc__ == org_test_func.__doc__
-    ), "__doc__ attr should be the original docstring"
+    assert decorated_test_func.__doc__ == org_test_func.__doc__, (
+        "__doc__ attr should be the original docstring"
+    )
 
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):

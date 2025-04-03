@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.transfers.s3_to_dynamodb import S3ToDynamoDBOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 log = logging.getLogger(__name__)

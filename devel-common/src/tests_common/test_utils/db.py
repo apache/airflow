@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -33,7 +34,6 @@ from airflow.models import (
     TaskReschedule,
     Trigger,
     Variable,
-    XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
@@ -55,6 +55,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 def _bootstrap_dagbag():
@@ -81,9 +86,10 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
+    from flask import Flask
+
     from airflow.configuration import conf
     from airflow.utils import db
-    from flask import Flask
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -154,14 +160,22 @@ def clear_db_assets():
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
         if AIRFLOW_V_2_10_PLUS:
-            from tests_common.test_utils.compat import AssetAliasModel
+            from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
             session.query(AssetAliasModel).delete()
+            session.query(DagScheduleAssetAliasReference).delete()
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.asset import AssetActive, asset_trigger_association_table
+            from airflow.models.asset import (
+                AssetActive,
+                DagScheduleAssetNameReference,
+                DagScheduleAssetUriReference,
+                asset_trigger_association_table,
+            )
 
             session.query(asset_trigger_association_table).delete()
             session.query(AssetActive).delete()
+            session.query(DagScheduleAssetNameReference).delete()
+            session.query(DagScheduleAssetUriReference).delete()
 
 
 def clear_db_triggers():
@@ -285,6 +299,8 @@ def clear_db_dag_bundles():
 
 
 def clear_dag_specific_permissions():
+    if "FabAuthManager" not in conf.get("core", "auth_manager"):
+        return
     try:
         from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
     except ImportError:
@@ -323,6 +339,7 @@ def clear_dag_specific_permissions():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()
     clear_db_dag_code()
@@ -340,4 +357,6 @@ def clear_all():
     clear_db_deadline()
     clear_dag_specific_permissions()
     if AIRFLOW_V_3_0_PLUS:
+        clear_db_backfills()
         clear_db_dag_bundles()
+        clear_db_dag_parsing_requests()

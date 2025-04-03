@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -58,7 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
-    "apache-airflow-providers-common-compat>=1.1.0",
+    "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-sql>=1.20.0",
     # In pandas 2.2 minimal version of the sqlalchemy is 2.0
     # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
@@ -87,6 +87,7 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "responses>=0.25.0",
 ]
 
 [tool.uv.sources]
@@ -105,7 +106,7 @@ apache-airflow-providers-standard = {workspace = true}
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
-"Twitter" = "https://x.com/ApacheAirflow"
+"Mastodon" = "https://fosstodon.org/@airflow"
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]

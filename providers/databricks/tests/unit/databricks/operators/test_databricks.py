@@ -27,16 +27,20 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
-from airflow.providers.databricks.hooks.databricks import RunState
+from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
+    DatabricksSQLStatementsOperator,
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
 )
-from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
+from airflow.providers.databricks.triggers.databricks import (
+    DatabricksExecutionTrigger,
+    DatabricksSQLStatementExecutionTrigger,
+)
 from airflow.providers.databricks.utils import databricks as utils
 
 pytestmark = pytest.mark.db_test
@@ -64,6 +68,8 @@ EXISTING_CLUSTER_ID = "existing-cluster-id"
 RUN_NAME = "run-name"
 RUN_ID = 1
 RUN_PAGE_URL = "run-page-url"
+STATEMENT_ID = "statement_id"
+WAREHOUSE_ID = "warehouse_id"
 JOB_ID = "42"
 JOB_NAME = "job-name"
 JOB_DESCRIPTION = "job-description"
@@ -1948,6 +1954,171 @@ class TestDatabricksRunNowOperator:
         assert not mock_defer.called
 
 
+class TestDatabricksSQLStatementsOperator:
+    def test_init(self):
+        """
+        Test the initializer.
+        """
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+
+        assert op.statement == "select * from test.test;"
+        assert op.warehouse_id == WAREHOUSE_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_success(self, db_mock_class):
+        """
+        Test the execute function in case where the statement is successful.
+        """
+        expected_json = {
+            "statement": "select * from test.test;",
+            "warehouse_id": WAREHOUSE_ID,
+            "catalog": None,
+            "schema": None,
+            "parameters": None,
+            "wait_timeout": "0s",
+        }
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        op.execute(None)
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksSQLStatementsOperator",
+        )
+
+        db_mock.post_sql_statement.assert_called_once_with(expected_json)
+        db_mock.get_sql_statement_state.assert_called_once_with(STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_exec_failure(self, db_mock_class):
+        """
+        Test the execute function in case where the statement failed.
+        """
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState(
+            state="FAILED", error_code="500", error_message="Something went wrong"
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute(None)
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksSQLStatementsOperator",
+        )
+        db_mock.get_sql_statement_state.assert_called_once_with(STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill(self, db_mock_class):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+        db_mock = db_mock_class.return_value
+        op.statement_id = STATEMENT_ID
+
+        op.on_kill()
+
+        db_mock.cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_wait_for_termination_is_default(self, db_mock_class):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID, statement="select * from test.test;", warehouse_id=WAREHOUSE_ID
+        )
+
+        assert op.wait_for_termination
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_no_wait_for_termination(self, db_mock_class):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            wait_for_termination=False,
+        )
+        db_mock = db_mock_class.return_value
+
+        assert not op.wait_for_termination
+
+        op.execute(None)
+
+        db_mock.get_sql_statement_state.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_task_deferred(self, db_mock_class):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(None)
+        assert isinstance(exc.value.trigger, DatabricksSQLStatementExecutionTrigger)
+        assert exc.value.method_name == "execute_complete"
+
+    def test_execute_complete_success(self):
+        """
+        Test `execute_complete` function in case the Trigger has returned a successful completion event.
+        """
+        event = {
+            "statement_id": STATEMENT_ID,
+            "state": SQLStatementState("SUCCEEDED").to_json(),
+            "error": {},
+        }
+
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+        )
+        assert op.execute_complete(context=None, event=event) is None
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_execute_complete_failure(self, db_mock_class):
+        """
+        Test `execute_complete` function in case the Trigger has returned a failure completion event.
+        """
+        event = {
+            "statement_id": STATEMENT_ID,
+            "state": SQLStatementState("FAILED").to_json(),
+            "error": SQLStatementState(
+                state="FAILED", error_code="500", error_message="Something Went Wrong"
+            ).to_json(),
+        }
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException, match="^SQL Statement execution failed with terminal state: .*"):
+            op.execute_complete(context=None, event=event)
+
+
 class TestDatabricksNotebookOperator:
     def test_is_instance_of_databricks_task_base_operator(self):
         operator = DatabricksNotebookOperator(
@@ -2013,9 +2184,9 @@ class TestDatabricksNotebookOperator:
 
         with pytest.raises(TaskDeferred) as exec_info:
             operator.monitor_databricks_job()
-        assert isinstance(
-            exec_info.value.trigger, DatabricksExecutionTrigger
-        ), "Trigger is not a DatabricksExecutionTrigger"
+        assert isinstance(exec_info.value.trigger, DatabricksExecutionTrigger), (
+            "Trigger is not a DatabricksExecutionTrigger"
+        )
         assert exec_info.value.method_name == "execute_complete"
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")

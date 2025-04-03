@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr_eks"

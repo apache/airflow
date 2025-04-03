@@ -210,7 +210,13 @@ def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
 
     if not ti.task.reschedule:
         return False
-
+    if AIRFLOW_V_3_0_PLUS:
+        return (
+            session.query(
+                exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+            ).scalar()
+            is True
+        )
     return (
         session.query(
             exists().where(
@@ -369,7 +375,18 @@ class DagRunInfo(InfoJsonEncodable):
         "run_id",
         "run_type",
         "start_date",
+        "end_date",
     ]
+
+    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+
+    @classmethod
+    def duration(cls, dagrun: DagRun) -> float | None:
+        if not getattr(dagrun, "end_date", None) or not isinstance(dagrun.end_date, datetime.datetime):
+            return None
+        if not getattr(dagrun, "start_date", None) or not isinstance(dagrun.start_date, datetime.datetime):
+            return None
+        return (dagrun.end_date - dagrun.start_date).total_seconds()
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
@@ -740,7 +757,9 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception:
                 log.warning(
-                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    "OpenLineage event emission failed. "
+                    "Exception below is being caught but it's printed for visibility. "
+                    "This has no impact on actual task execution status.",
                     exc_info=True,
                 )
 

@@ -145,12 +145,9 @@ github:
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
     - aritra24
     - omkar-foss
-    - rawwar
     - nathadfield
     - sunank200
-    - vatsrahul1001
     - cmarteepants
-    - bugraoz93
     - karenbraganz
     - gyli
 
@@ -160,6 +157,3 @@ notifications:
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org
   discussions: commits@airflow.apache.org
-
-meta:
-  prevgen: true

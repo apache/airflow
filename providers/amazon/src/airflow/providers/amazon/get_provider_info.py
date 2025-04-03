@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Amazon",
         "description": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1741507721,
+        "source-date-epoch": 1743477760,
         "versions": [
             "9.5.0",
             "9.4.0",
@@ -1372,10 +1372,10 @@ def get_provider_info():
         "executors": ["airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-compat>=1.3.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "apache-airflow-providers-http",
-            "boto3>=1.34.90",
+            "boto3>=1.37.0",
             "botocore>=1.34.90",
             "inflection>=0.5.1",
             "watchtower>=3.0.0,!=3.3.0,<4",
@@ -1410,8 +1410,8 @@ def get_provider_info():
         "devel-dependencies": [
             "aiobotocore>=2.13.0",
             "aws_xray_sdk>=2.12.0",
-            "moto[cloudformation,glue]>=5.0.0",
-            "mypy-boto3-appflow>=1.35.39",
+            "moto[cloudformation,glue]>=5.1.2",
+            "mypy-boto3-appflow>=1.37.0",
             "mypy-boto3-rds>=1.34.90",
             "mypy-boto3-redshift-data>=1.34.0",
             "mypy-boto3-s3>=1.34.90",
@@ -1419,5 +1419,6 @@ def get_provider_info():
             "openapi-schema-validator>=0.6.2",
             "openapi-spec-validator>=0.7.1",
             "opensearch-py>=2.2.0",
+            "responses>=0.25.0",
         ],
     }

@@ -428,9 +428,9 @@ def test_async_create_build_fires_correct_trigger_should_execute_successfully(
     with pytest.raises(TaskDeferred) as exc:
         ti.task.execute({"ti": ti})
 
-    assert isinstance(
-        exc.value.trigger, CloudBuildCreateBuildTrigger
-    ), "Trigger is not a CloudBuildCreateBuildTrigger"
+    assert isinstance(exc.value.trigger, CloudBuildCreateBuildTrigger), (
+        "Trigger is not a CloudBuildCreateBuildTrigger"
+    )
 
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)

@@ -25,7 +25,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
-from kubernetes_asyncio.client.models import V1Pod
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -36,6 +35,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
+    from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
 
 
@@ -265,20 +265,16 @@ class KubernetesPodTrigger(BaseTrigger):
         pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
-        return cast(V1Pod, pod)
+        return cast("V1Pod", pod)
 
-    def _get_async_hook(self) -> AsyncKubernetesHook:
-        # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
+    @cached_property
+    def hook(self) -> AsyncKubernetesHook:
         return AsyncKubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
         )
-
-    @cached_property
-    def hook(self) -> AsyncKubernetesHook:
-        return self._get_async_hook()
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses

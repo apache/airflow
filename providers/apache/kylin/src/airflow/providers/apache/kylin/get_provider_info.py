@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Kylin",
         "description": "`Apache Kylin <https://kylin.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508276,
+        "source-date-epoch": 1743477779,
         "versions": [
+            "3.8.2",
             "3.8.1",
             "3.8.0",
             "3.7.0",
@@ -76,6 +77,6 @@ def get_provider_info():
                 "connection-type": "kylin",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "kylinpy>=2.7.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "kylinpy>2.7.0"],
         "devel-dependencies": [],
     }

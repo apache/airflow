@@ -33,7 +33,7 @@ Edge Executor
     cannot be downloaded.
 
     While it is in a not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
+    via ``breeze release-management prepare-provider-distributions --include-not-ready-providers edge``
     and then installed via pip or uv from the generated wheel file. like:
     ``pip install apache_airflow_providers_edge-<version>-py3-none-any.whl``.
 

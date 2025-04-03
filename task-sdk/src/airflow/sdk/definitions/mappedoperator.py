@@ -69,8 +69,8 @@ if TYPE_CHECKING:
         OperatorExpandKwargsArgument,
     )
     from airflow.models.xcom_arg import XComArg
-    from airflow.sdk.definitions.baseoperator import BaseOperator
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.types import Operator
@@ -204,6 +204,7 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.providers.standard.utils.skipmixin import SkipMixin
         from airflow.sensors.base import BaseSensorOperator
 
         self._expand_called = True
@@ -235,6 +236,7 @@ class OperatorPartial:
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
+            can_skip_downstream=issubclass(self.operator_class, SkipMixin),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -290,6 +292,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty")
+    _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
     _task_type: str
@@ -317,8 +320,6 @@ class MappedOperator(AbstractOperator):
 
     This should be a name to call ``getattr()`` on.
     """
-
-    supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
@@ -362,7 +363,6 @@ class MappedOperator(AbstractOperator):
             "expand_input",  # This is needed to be able to accept XComArg.
             "task_group",
             "upstream_task_ids",
-            "supports_lineage",
             "_is_setup",
             "_is_teardown",
             "_on_failure_fail_dagrun",
@@ -379,7 +379,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def inherits_from_empty_operator(self) -> bool:
-        """Implementing Operator."""
+        """Implementing an empty Operator."""
         return self._is_empty
 
     @property
@@ -576,43 +576,43 @@ class MappedOperator(AbstractOperator):
 
     @property
     def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_execute_callback")
+        return self.partial_kwargs.get("on_execute_callback") or []
 
     @on_execute_callback.setter
     def on_execute_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_execute_callback"] = value
+        self.partial_kwargs["on_execute_callback"] = value or []
 
     @property
     def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_failure_callback")
+        return self.partial_kwargs.get("on_failure_callback") or []
 
     @on_failure_callback.setter
     def on_failure_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_failure_callback"] = value
+        self.partial_kwargs["on_failure_callback"] = value or []
 
     @property
     def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_retry_callback")
+        return self.partial_kwargs.get("on_retry_callback") or []
 
     @on_retry_callback.setter
     def on_retry_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_retry_callback"] = value
+        self.partial_kwargs["on_retry_callback"] = value or []
 
     @property
     def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_success_callback")
+        return self.partial_kwargs.get("on_success_callback") or []
 
     @on_success_callback.setter
     def on_success_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_success_callback"] = value
+        self.partial_kwargs["on_success_callback"] = value or []
 
     @property
     def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_skipped_callback")
+        return self.partial_kwargs.get("on_skipped_callback") or []
 
     @on_skipped_callback.setter
     def on_skipped_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_skipped_callback"] = value
+        self.partial_kwargs["on_skipped_callback"] = value or []
 
     @property
     def run_as_user(self) -> str | None:
@@ -749,6 +749,8 @@ class MappedOperator(AbstractOperator):
             op.is_setup = is_setup
             op.is_teardown = is_teardown
             op.on_failure_fail_dagrun = on_failure_fail_dagrun
+            op.downstream_task_ids = self.downstream_task_ids
+            op.upstream_task_ids = self.upstream_task_ids
             return op
 
         # TODO: TaskSDK: This probably doesn't need to live in definition time as the next section of code is

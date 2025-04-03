@@ -23,7 +23,7 @@ from typing import Any
 import pytest
 
 from airflow.exceptions import DuplicateTaskIdFound
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 
@@ -31,6 +31,35 @@ DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
 class TestDag:
+    @pytest.mark.parametrize(
+        "dag_id, exc_type, exc_value",
+        [
+            pytest.param(
+                123,
+                TypeError,
+                "The key has to be a string and is <class 'int'>:123",
+                id="type",
+            ),
+            pytest.param(
+                "a" * 1000,
+                ValueError,
+                "The key has to be less than 250 characters, not 1000",
+                id="long",
+            ),
+            pytest.param(
+                "something*invalid",
+                ValueError,
+                "The key 'something*invalid' has to be made of alphanumeric characters, dashes, "
+                "dots, and underscores exclusively",
+                id="illegal",
+            ),
+        ],
+    )
+    def test_dag_id_validation(self, dag_id, exc_type, exc_value):
+        with pytest.raises(exc_type) as ctx:
+            DAG(dag_id)
+        assert str(ctx.value) == exc_value
+
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
@@ -366,6 +395,15 @@ class TestDagDecorator:
         "retry_delay": timedelta(minutes=1),
     }
     VALUE = 42
+
+    def test_dag_decorator_without_args(self):
+        """Test that @dag can be used without any arguments."""
+
+        @dag_decorator
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert dag.dag_id == "noop_pipeline"
 
     def test_fileloc(self):
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)

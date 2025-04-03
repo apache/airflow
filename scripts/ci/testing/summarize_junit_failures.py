@@ -98,11 +98,11 @@ def summarize_file(input, test_type, backend):
     for testcase in testsuite.findall(".//testcase[error]"):
         case_name = translate_name(testcase)
         for err in testcase.iterfind("error"):
-            print(f'{case_name}: {TEXT_YELLOW}{err.get("message")}{TEXT_RESET}')
+            print(f"{case_name}: {TEXT_YELLOW}{err.get('message')}{TEXT_RESET}")
     for testcase in testsuite.findall(".//testcase[failure]"):
         case_name = translate_name(testcase)
         for failure in testcase.iterfind("failure"):
-            print(f'{case_name}: {TEXT_YELLOW}{failure.get("message")}{TEXT_RESET}')
+            print(f"{case_name}: {TEXT_YELLOW}{failure.get('message')}{TEXT_RESET}")
 
 
 if __name__ == "__main__":

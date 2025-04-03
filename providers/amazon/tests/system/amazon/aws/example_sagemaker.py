@@ -53,6 +53,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         dockerfile.write(
             f"""
             FROM public.ecr.aws/amazonlinux/amazonlinux
-            COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
+            COPY {preprocessing_script.name.split("/")[2]} /preprocessing.py
             RUN yum install python3 pip -y
             RUN pip3 install boto3 pandas requests
             CMD [ "python3", "/preprocessing.py"]
@@ -181,7 +182,7 @@ def generate_data() -> str:
     """generates a very simple csv dataset with headers"""
     content = "class,x,y\n"  # headers
     for i in range(SAMPLE_SIZE):
-        content += f"{i%100},{i},{SAMPLE_SIZE-i}\n"
+        content += f"{i % 100},{i},{SAMPLE_SIZE - i}\n"
     return content
 
 

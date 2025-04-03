@@ -30,6 +30,8 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
+
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
@@ -100,7 +102,15 @@ def auth_manager():
 
 @pytest.fixture
 def flask_app():
-    return Flask(__name__)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        yield Flask(__name__)
 
 
 @pytest.fixture
@@ -555,7 +565,7 @@ class TestFabAuthManager:
             ),
         ],
     )
-    def test_get_permitted_dag_ids(
+    def test_get_authorized_dag_ids(
         self, method, user_permissions, expected_results, auth_manager_with_appbuilder, dag_maker, flask_app
     ):
         with dag_maker("test_dag1"):
@@ -573,7 +583,7 @@ class TestFabAuthManager:
             permissions=user_permissions,
         )
 
-        results = auth_manager_with_appbuilder.get_permitted_dag_ids(user=user, method=method)
+        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
         assert results == expected_results
 
         delete_user(flask_app, "username")
@@ -619,3 +629,7 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
         assert len(result) == 5
         assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
+
+    def test_get_db_manager(self, auth_manager):
+        result = auth_manager.get_db_manager()
+        assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"

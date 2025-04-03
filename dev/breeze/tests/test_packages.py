@@ -25,16 +25,16 @@ from airflow_breeze.utils.packages import (
     PipRequirements,
     convert_cross_package_dependencies_to_table,
     convert_pip_requirements_to_table,
-    expand_all_provider_packages,
+    expand_all_provider_distributions,
     find_matching_long_package_names,
-    get_available_packages,
+    get_available_distributions,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
     get_long_package_name,
     get_min_airflow_version,
     get_pip_package_name,
-    get_previous_documentation_package_path,
-    get_previous_source_providers_package_path,
+    get_previous_documentation_distribution_path,
+    get_previous_source_providers_distribution_path,
     get_provider_info_dict,
     get_provider_requirements,
     get_removed_provider_ids,
@@ -43,39 +43,39 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCS_ROOT
 
 
 def test_get_available_packages():
-    assert len(get_available_packages()) > 70
-    assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_packages())
+    assert len(get_available_distributions()) > 70
+    assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_distributions())
 
 
 def test_get_source_package_path():
-    assert get_previous_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+    assert get_previous_source_providers_distribution_path("apache.hdfs") == AIRFLOW_ROOT_PATH.joinpath(
         "providers", "src", "airflow", "providers", "apache", "hdfs"
     )
 
 
 def test_get_old_documentation_package_path():
     assert (
-        get_previous_documentation_package_path("apache.hdfs")
+        get_previous_documentation_distribution_path("apache.hdfs")
         == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
     )
 
 
-def test_expand_all_provider_packages():
-    assert len(expand_all_provider_packages(("all-providers",))) > 70
+def test_expand_all_provider_distributions():
+    assert len(expand_all_provider_distributions(("all-providers",))) > 70
 
 
-def test_expand_all_provider_packages_deduplicate_with_other_packages():
-    assert len(expand_all_provider_packages(("all-providers",))) == len(
-        expand_all_provider_packages(("all-providers", "amazon", "google"))
+def test_expand_all_provider_distributions_deduplicate_with_other_packages():
+    assert len(expand_all_provider_distributions(("all-providers",))) == len(
+        expand_all_provider_distributions(("all-providers", "amazon", "google"))
     )
 
 
 def test_get_available_packages_include_non_provider_doc_packages():
-    all_packages_including_regular_docs = get_available_packages(include_non_provider_doc_packages=True)
+    all_packages_including_regular_docs = get_available_distributions(include_non_provider_doc_packages=True)
     for package in REGULAR_DOC_PACKAGES:
         assert package in all_packages_including_regular_docs
 
@@ -83,7 +83,7 @@ def test_get_available_packages_include_non_provider_doc_packages():
 
 
 def test_get_available_packages_include_non_provider_doc_packages_and_all_providers():
-    all_packages_including_regular_docs = get_available_packages(
+    all_packages_including_regular_docs = get_available_distributions(
         include_non_provider_doc_packages=True, include_all_providers=True
     )
     for package in REGULAR_DOC_PACKAGES:
@@ -253,7 +253,7 @@ def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown
 
 
 def test_validate_provider_info_with_schema():
-    for provider in get_available_packages():
+    for provider in get_available_distributions():
         validate_provider_info_with_runtime_schema(get_provider_info_dict(provider))
 
 

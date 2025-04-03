@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apprise",
         "description": "`Apprise <https://github.com/caronc/apprise>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508431,
+        "source-date-epoch": 1743477787,
         "versions": [
+            "2.0.2",
             "2.0.1",
             "2.0.0",
             "1.4.1",
@@ -61,6 +62,10 @@ def get_provider_info():
             }
         ],
         "notifications": ["airflow.providers.apprise.notifications.apprise.AppriseNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0", "apprise>=1.8.0"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
+            "apprise>=1.8.0",
+        ],
         "devel-dependencies": [],
     }
