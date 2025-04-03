@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import shutil
 from io import StringIO
 from unittest import mock
 
@@ -27,6 +28,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from airflow.cli.commands.config_command import ConfigChange, ConfigParameter
+from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
 
@@ -491,3 +493,77 @@ class TestConfigLint:
         normalized_output = re.sub(r"\s+", " ", output.strip())
 
         assert "Invalid value" not in normalized_output
+
+
+class TestCliConfigUpdate:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @pytest.fixture(autouse=True)
+    def setup_fake_airflow_cfg(self, tmp_path, monkeypatch):
+        fake_config = tmp_path / "airflow.cfg"
+        fake_config.write_text(
+            """
+            [test_admin]
+            rename_key = legacy_value
+            remove_key = to_be_removed
+            [test_core]
+            dags_folder = /some/path/to/dags
+            default_key = OldDefault"""
+        )
+        monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config))
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config))
+        conf.read(str(fake_config))
+        return fake_config
+
+    def test_update_renamed_option(self, monkeypatch, setup_fake_airflow_cfg):
+        fake_config = setup_fake_airflow_cfg
+        renamed_change = ConfigChange(
+            config=ConfigParameter("test_admin", "rename_key"),
+            renamed_to=ConfigParameter("test_core", "renamed_key"),
+        )
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [renamed_change])
+        assert conf.has_option("test_admin", "rename_key")
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        content = fake_config.read_text()
+        admin_section = content.split("[test_admin]")[-1]
+        assert "rename_key" not in admin_section
+        core_section = content.split("[test_core]")[-1]
+        assert "renamed_key" in core_section
+        assert "# Renamed from test_admin.rename_key" in content
+
+    def test_update_removed_option(self, monkeypatch, setup_fake_airflow_cfg):
+        fake_config = setup_fake_airflow_cfg
+        removed_change = ConfigChange(
+            config=ConfigParameter("test_admin", "remove_key"),
+            suggestion="Option removed in Airflow 3.0.",
+        )
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
+        assert conf.has_option("test_admin", "remove_key")
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        content = fake_config.read_text()
+        assert "remove_key" not in content
+
+    def test_update_no_changes(self, monkeypatch, capsys):
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [])
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        captured = capsys.readouterr().out
+        assert "No updates needed" in captured
+
+    def test_update_backup_creation(self, monkeypatch):
+        removed_change = ConfigChange(
+            config=ConfigParameter("test_admin", "remove_key"),
+            suggestion="Option removed.",
+        )
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
+        assert conf.has_option("test_admin", "remove_key")
+        args = self.parser.parse_args(["config", "update"])
+        mock_copy = mock.MagicMock()
+        monkeypatch.setattr(shutil, "copy2", mock_copy)
+        config_command.update_config(args)
+        backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
+        mock_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
