@@ -171,6 +171,7 @@ class TestExternalPythonDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="serializer support came in after 2.10")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -191,6 +192,7 @@ class TestExternalPythonDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="serializer support came in after 2.10")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -211,6 +213,7 @@ class TestExternalPythonDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="serializer support came in after 2.10")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -237,6 +240,7 @@ class TestExternalPythonDecorator:
         assert setup_task.is_setup
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="serializer support came in after 2.10")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -263,6 +267,7 @@ class TestExternalPythonDecorator:
         assert teardown_task.is_teardown
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="serializer support came in after 2.10")
     @pytest.mark.parametrize(
         "serializer",
         [

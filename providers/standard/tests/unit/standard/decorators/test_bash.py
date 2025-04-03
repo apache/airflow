@@ -95,7 +95,10 @@ class TestBashDecorator:
         assert bash_task.operator.output_encoding == "utf-8"
         assert bash_task.operator.skip_on_exit_code == [99]
         assert bash_task.operator.cwd is None
-        assert bash_task.operator._is_inline_cmd is None
+        if AIRFLOW_V_3_0_PLUS:
+            assert bash_task.operator._is_inline_cmd is None
+        else:
+            assert bash_task.operator._init_bash_command_not_set is True
 
     @pytest.mark.parametrize(
         argnames=["command", "expected_command", "expected_return_val"],
