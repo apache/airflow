@@ -114,4 +114,4 @@ add your DBManager to the ``[core] external_db_managers`` configuration.
 
 --------
 
-You can also learn how to setup your `Node environment <14_node_environment_setup.rst>`__ if you want to develop Airflow UI.
+You can also learn how to setup your `Node environment <15_node_environment_setup.rst>`__ if you want to develop Airflow UI.

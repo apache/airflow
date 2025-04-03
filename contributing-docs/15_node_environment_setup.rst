@@ -172,4 +172,4 @@ that lives inside of the main app.
 
 ------
 
-If you happen to change architecture of Airflow, you can learn how we create our `Architecture diagrams <15_architecture_diagrams.rst>`__.
+If you happen to add API endpoints you can head to `Adding API endpoints <16_adding_api_endpoints.rst>`__.

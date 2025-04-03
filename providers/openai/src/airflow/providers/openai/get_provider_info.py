@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "OpenAI",
         "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477857,
+        "source-date-epoch": 1743647406,
         "versions": [
             "1.5.3",
             "1.5.2",

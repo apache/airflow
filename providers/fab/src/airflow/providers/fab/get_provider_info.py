@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Fab",
         "description": "`Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__\n",
         "state": "not-ready",
-        "source-date-epoch": 1741121873,
+        "source-date-epoch": 1743647361,
         "versions": [
             "2.0.0",
             "1.5.2",

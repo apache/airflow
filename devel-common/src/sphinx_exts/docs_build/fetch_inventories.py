@@ -164,3 +164,12 @@ def fetch_inventories():
             raise SystemExit(1)
 
     return [pkg_name for pkg_name, status in failed]
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "clean":
+        shutil.rmtree(CACHE_PATH)
+        print()
+        print("[yellow]Inventory Cache cleaned!")
+        print()
+    fetch_inventories()

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Oracle",
         "description": "`Oracle <https://www.oracle.com/en/database/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477864,
+        "source-date-epoch": 1743647414,
         "versions": [
             "4.0.2",
             "4.0.1",

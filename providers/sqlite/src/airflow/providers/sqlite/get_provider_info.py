@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "SQLite",
         "description": "`SQLite <https://www.sqlite.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477896,
+        "source-date-epoch": 1743647447,
         "versions": [
             "4.0.1",
             "4.0.0",

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Jenkins",
         "description": "`Jenkins <https://jenkins.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477840,
+        "source-date-epoch": 1743647386,
         "versions": [
             "4.0.3",
             "4.0.2",

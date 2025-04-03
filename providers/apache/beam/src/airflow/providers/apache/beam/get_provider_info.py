@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Beam",
         "description": "`Apache Beam <https://beam.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1743477763,
+        "source-date-epoch": 1743647300,
         "versions": [
             "6.0.3",
             "6.0.2",

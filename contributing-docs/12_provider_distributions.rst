@@ -370,4 +370,4 @@ with latest version of the provider.
 
 ------
 
-You can read about airflow `dependencies and extras <12_airflow_dependencies_and_extras.rst>`_ .
+You can read about airflow `dependencies and extras <13_airflow_dependencies_and_extras.rst>`_ .

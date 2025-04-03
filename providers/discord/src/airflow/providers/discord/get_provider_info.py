@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Discord",
         "description": "`Discord <https://discord.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477813,
+        "source-date-epoch": 1743647353,
         "versions": [
             "3.9.4",
             "3.9.3",
