@@ -634,7 +634,6 @@ CHICKEN_EGG_PROVIDERS = " ".join(
         "common.messaging",
         "fab",
         "openlineage",
-        "standard",
     ]
 )
 
