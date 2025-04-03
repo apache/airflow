@@ -20,6 +20,7 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 import time_machine
@@ -197,6 +198,38 @@ class TestDagRunOperator:
         )
 
         assert task.failed_states == []
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+        context = MagicMock()
+        context["ti"].get_dagrun_state.return_value = "success"
+
+        try:
+            operator.execute_complete(context, ("event", {"run_ids": ["run_id_1"]}))
+        except Exception as e:
+            pytest.fail(f"Error: {e}")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete_should_fail(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=["failed"],
+        )
+        context = MagicMock()
+        context["ti"].get_dagrun_state.return_value = "failed"
+
+        with pytest.raises(AirflowException, match="failed with failed state"):
+            operator.execute_complete(context, ("event", {"run_ids": ["run_id_1"]}))
 
 
 # TODO: To be removed once the provider drops support for Airflow 2

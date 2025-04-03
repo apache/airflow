@@ -305,14 +305,33 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.exceptions import DagRunTriggerExecuteCompleteException
+            ti = context["ti"]
+            run_ids = event[1]["run_ids"]
 
-            raise DagRunTriggerExecuteCompleteException(
-                trigger_dag_id=self.trigger_dag_id,
-                run_ids=event[1]["run_ids"],
-                allowed_states=self.allowed_states,  # type: ignore[arg-type]
-                failed_states=self.failed_states,  # type: ignore[arg-type]
-            )
+            failed_run_id_conditions = []
+
+            for run_id in run_ids:
+                state = ti.get_dagrun_state(
+                    dag_id=self.trigger_dag_id,
+                    run_id=run_id,
+                )
+
+                if state in self.failed_states:
+                    failed_run_id_conditions.append(run_id)
+                    continue
+                if state in self.allowed_states:
+                    self.log.info(
+                        "%s finished with allowed state %s for run_id %s",
+                        self.trigger_dag_id,
+                        state,
+                        run_id,
+                    )
+
+            if failed_run_id_conditions:
+                raise AirflowException(
+                    f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
+                    f" {failed_run_id_conditions}"
+                )
         else:
             self._trigger_dag_run_af_2_execute_complete(event=event)
 

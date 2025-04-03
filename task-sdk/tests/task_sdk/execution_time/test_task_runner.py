@@ -1452,6 +1452,24 @@ class TestRuntimeTaskInstance:
         )
         assert count == 2
 
+    def test_get_dagrun_state(self, mock_supervisor_comms):
+        """Test that get_dr_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = DagRunStateResult(state="success")
+
+        state = RuntimeTaskInstance.get_dagrun_state(
+            dag_id="test_dag",
+            run_id="run1",
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDagRunState(
+                dag_id="test_dag",
+                run_id="run1",
+            ),
+        )
+        assert state == "success"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
