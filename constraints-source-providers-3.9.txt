@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-03T13:50:29.861817
+# This constraints file was automatically generated on 2025-04-03T20:54:54.832472
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -169,7 +169,7 @@ db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==0.25.4
+deltalake==0.25.5
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -203,7 +203,7 @@ flower==2.0.1
 frozenlist==1.5.0
 fsspec==2025.3.2
 future==1.0.0
-gcloud-aio-auth==5.4.0
+gcloud-aio-auth==5.4.1
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
@@ -409,7 +409,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.0.0
+oracledb==3.1.0
 ordered-set==4.1.0
 orjson==3.10.16
 oss2==2.19.1

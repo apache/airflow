@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-03T14:01:21.898240
+# This constraints file was automatically generated on 2025-04-03T21:06:10.341954
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -131,7 +131,7 @@ apache-airflow-providers-discord==3.9.4
 apache-airflow-providers-docker==4.3.0
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.3
-apache-airflow-providers-fab==2.0.0b1
+apache-airflow-providers-fab==2.0.0rc2
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
 apache-airflow-providers-github==2.8.3
@@ -280,7 +280,7 @@ db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==0.25.4
+deltalake==0.25.5
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -314,7 +314,7 @@ flower==2.0.1
 frozenlist==1.5.0
 fsspec==2025.3.2
 future==1.0.0
-gcloud-aio-auth==5.4.0
+gcloud-aio-auth==5.4.1
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
@@ -482,7 +482,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.2.0
+multidict==6.3.2
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.21
 mypy-boto3-redshift-data==1.37.8
@@ -520,7 +520,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.0.0
+oracledb==3.1.0
 ordered-set==4.1.0
 orjson==3.10.16
 oss2==2.19.1

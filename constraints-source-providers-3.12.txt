@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-03T13:50:29.895483
+# This constraints file was automatically generated on 2025-04-03T20:54:53.667844
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -165,7 +165,7 @@ db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
 defusedxml==0.7.1
-deltalake==0.25.4
+deltalake==0.25.5
 diagrams==0.24.4
 dill==0.3.1.1
 distlib==0.3.9
@@ -197,7 +197,7 @@ flower==2.0.1
 frozenlist==1.5.0
 fsspec==2025.3.2
 future==1.0.0
-gcloud-aio-auth==5.4.0
+gcloud-aio-auth==5.4.1
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
@@ -335,7 +335,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.4.1
+limits==4.6
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -405,7 +405,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==3.0.0
+oracledb==3.1.0
 ordered-set==4.1.0
 orjson==3.10.16
 oss2==2.19.1
@@ -629,7 +629,7 @@ types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing-inspection==0.4.0
-typing_extensions==4.13.0
+typing_extensions==4.13.1
 tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
