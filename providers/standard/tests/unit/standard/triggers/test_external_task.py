@@ -236,6 +236,7 @@ class TestDagStateTrigger:
     DAG_ID = "test_dag_state_trigger"
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
+    EXECUTION_DATE = timezone.datetime(2022, 1, 1)
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -288,7 +289,7 @@ class TestDagStateTrigger:
         """
 
         # Mock the get_dag_run_count_by_run_ids_and_states function to return 0 first time
-        mock_get_dag_run_count.return_value = mock.Mock(count=0)
+        mock_get_dag_run_count.return_value = 0
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
 
         dag_run = DagRun(
@@ -319,7 +320,7 @@ class TestDagStateTrigger:
         session.commit()
 
         # Mock the get_dag_run_count_by_run_ids_and_states function to return 1 second time
-        mock_get_dag_run_count.return_value = mock.Mock(count=1)
+        mock_get_dag_run_count.return_value = 1
         await asyncio.sleep(0.5)
         assert task.done() is True
 
@@ -331,7 +332,8 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            **_DATES,
+            run_ids=[TestDagStateTrigger.RUN_ID],
+            execution_dates=[TestDagStateTrigger.EXECUTION_DATE],
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
@@ -339,7 +341,8 @@ class TestDagStateTrigger:
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            **_DATES,
+            "run_ids": [TestDagStateTrigger.RUN_ID],
+            "execution_dates": [TestDagStateTrigger.EXECUTION_DATE],
             "poll_interval": 5,
         }
 
