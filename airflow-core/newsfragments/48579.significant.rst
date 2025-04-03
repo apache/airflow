@@ -14,3 +14,9 @@ Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [ ] Convert all ``DebugExecutor`` to ``LocalExecutor`` in ``[core] executor``
