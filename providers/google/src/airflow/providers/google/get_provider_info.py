@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1742980830,
+        "source-date-epoch": 1743477827,
         "versions": [
             "14.1.0",
             "14.0.0",
@@ -1652,6 +1652,7 @@ def get_provider_info():
             "sqlalchemy-spanner>=1.6.2",
             "tenacity>=8.1.0",
             "immutabledict>=4.2.0",
+            "types-protobuf!=5.29.1.20250402",
         ],
         "optional-dependencies": {
             "apache.beam": [

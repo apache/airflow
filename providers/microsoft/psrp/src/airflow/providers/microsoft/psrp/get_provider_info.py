@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "PowerShell Remoting Protocol (PSRP)",
         "description": "This package provides remote execution capabilities via the\n`PowerShell Remoting Protocol (PSRP)\n<https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1741509033,
+        "source-date-epoch": 1743477846,
         "versions": [
             "3.0.1",
             "3.0.0",

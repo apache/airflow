@@ -22,7 +22,7 @@ description: |
     `Neo4j <https://neo4j.com/>`__
 
 state: ready
-source-date-epoch: 1741509262
+source-date-epoch: 1743477853
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.8.2

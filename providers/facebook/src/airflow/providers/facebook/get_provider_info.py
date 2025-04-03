@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Facebook",
         "description": "`Facebook Ads <https://www.facebook.com/about/ads>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508826,
+        "source-date-epoch": 1743477821,
         "versions": [
             "3.7.1",
             "3.7.0",

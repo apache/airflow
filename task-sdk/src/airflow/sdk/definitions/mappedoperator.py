@@ -576,43 +576,43 @@ class MappedOperator(AbstractOperator):
 
     @property
     def on_execute_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_execute_callback")
+        return self.partial_kwargs.get("on_execute_callback") or []
 
     @on_execute_callback.setter
     def on_execute_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_execute_callback"] = value
+        self.partial_kwargs["on_execute_callback"] = value or []
 
     @property
     def on_failure_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_failure_callback")
+        return self.partial_kwargs.get("on_failure_callback") or []
 
     @on_failure_callback.setter
     def on_failure_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_failure_callback"] = value
+        self.partial_kwargs["on_failure_callback"] = value or []
 
     @property
     def on_retry_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_retry_callback")
+        return self.partial_kwargs.get("on_retry_callback") or []
 
     @on_retry_callback.setter
     def on_retry_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_retry_callback"] = value
+        self.partial_kwargs["on_retry_callback"] = value or []
 
     @property
     def on_success_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_success_callback")
+        return self.partial_kwargs.get("on_success_callback") or []
 
     @on_success_callback.setter
     def on_success_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_success_callback"] = value
+        self.partial_kwargs["on_success_callback"] = value or []
 
     @property
     def on_skipped_callback(self) -> TaskStateChangeCallbackAttrType:
-        return self.partial_kwargs.get("on_skipped_callback")
+        return self.partial_kwargs.get("on_skipped_callback") or []
 
     @on_skipped_callback.setter
     def on_skipped_callback(self, value: TaskStateChangeCallbackAttrType) -> None:
-        self.partial_kwargs["on_skipped_callback"] = value
+        self.partial_kwargs["on_skipped_callback"] = value or []
 
     @property
     def run_as_user(self) -> str | None:

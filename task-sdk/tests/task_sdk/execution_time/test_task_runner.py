@@ -67,9 +67,12 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DRCount,
     ErrorResponse,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
+    GetTICount,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -81,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TICount,
     TriggerDagRun,
     VariableResult,
     XComResult,
@@ -90,6 +94,7 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TriggeringAssetEventsAccessor,
     VariableAccessor,
 )
 from airflow.sdk.execution_time.task_runner import (
@@ -140,9 +145,11 @@ class TestCommsDecoder:
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
-            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
+            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
+            b'"logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
-            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
+            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,'
+            b'"run_type":"manual","conf":null,"consumed_asset_events":[]},'
             b'"max_tries":0,"should_retry":false,"variables":null,"connections":null},"file": "/dev/null",'
             b'"start_date":"2024-12-01T01:00:00Z", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
             b'"any-name", "version": "any-version"}, "requests_fd": '
@@ -816,7 +823,7 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     asset_event_resp = AssetEventResponse(
         id=1,
         created_dagruns=[],
-        timestamp=datetime.now(),
+        timestamp=timezone.utcnow(),
         asset=AssetResponse(name="test", uri="test", group="asset"),
     )
     events_result = AssetEventsResult(asset_events=[asset_event_resp])
@@ -979,6 +986,7 @@ class TestRuntimeTaskInstance:
             "data_interval_start": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "task_reschedule_count": 0,
+            "triggering_asset_events": TriggeringAssetEventsAccessor.build(dr.consumed_asset_events),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
             "task_instance_key_str": "basic_task__hello__20241201",
@@ -1395,6 +1403,54 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_get_ti_count(self, mock_supervisor_comms):
+        """Test that get_ti_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = TICount(count=2)
+
+        count = RuntimeTaskInstance.get_ti_count(
+            dag_id="test_dag",
+            task_ids=["task1", "task2"],
+            task_group_id="group1",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetTICount(
+                dag_id="test_dag",
+                task_ids=["task1", "task2"],
+                task_group_id="group1",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
+
+    def test_get_dr_count(self, mock_supervisor_comms):
+        """Test that get_dr_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = DRCount(count=2)
+
+        count = RuntimeTaskInstance.get_dr_count(
+            dag_id="test_dag",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDRCount(
+                dag_id="test_dag",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
 
 
 class TestXComAfterTaskExecution:

@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from fastapi import HTTPException, Query, status
+from sqlalchemy import func, select
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
@@ -150,3 +152,27 @@ def get_dagrun_state(
         )
 
     return DagRunStateResponse(state=dag_run.state)
+
+
+@router.get("/count", status_code=status.HTTP_200_OK)
+def get_dr_count(
+    dag_id: str,
+    session: SessionDep,
+    logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
+    run_ids: Annotated[list[str] | None, Query()] = None,
+    states: Annotated[list[str] | None, Query()] = None,
+) -> int:
+    """Get the count of DAG runs matching the given criteria."""
+    query = select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)
+
+    if logical_dates:
+        query = query.where(DagRun.logical_date.in_(logical_dates))
+
+    if run_ids:
+        query = query.where(DagRun.run_id.in_(run_ids))
+
+    if states:
+        query = query.where(DagRun.state.in_(states))
+
+    count = session.scalar(query)
+    return count or 0

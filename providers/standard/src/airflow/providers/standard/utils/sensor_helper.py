@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import func, select, tuple_
 
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -88,8 +89,10 @@ def _count_stmt(model, states, dttm_filter, external_dag_id) -> Executable:
     :param dttm_filter: date time filter for logical date
     :param external_dag_id: The ID of the external DAG.
     """
+    date_field = model.logical_date if AIRFLOW_V_3_0_PLUS else model.execution_date
+
     return select(func.count()).where(
-        model.dag_id == external_dag_id, model.state.in_(states), model.logical_date.in_(dttm_filter)
+        model.dag_id == external_dag_id, model.state.in_(states), date_field.in_(dttm_filter)
     )
 
 
@@ -106,11 +109,13 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     task_group = refreshed_dag_info.task_group_dict.get(external_task_group_id)
 
     if task_group:
+        date_field = TaskInstance.logical_date if AIRFLOW_V_3_0_PLUS else TaskInstance.execution_date
+
         group_tasks = session.scalars(
             select(TaskInstance).filter(
                 TaskInstance.dag_id == external_dag_id,
                 TaskInstance.task_id.in_(task.task_id for task in task_group),
-                TaskInstance.logical_date.in_(dttm_filter),
+                date_field.in_(dttm_filter),
             )
         )
 

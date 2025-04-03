@@ -44,7 +44,7 @@ Example
 The following example shows how to use the ``@task.pyspark`` decorator. Note
 that the ``spark`` and ``sc`` objects are injected into the function.
 
-.. exampleinclude:: /../../providers/apache/spark/tests/system/apache/spark/example_pyspark.py
+.. exampleinclude:: /../tests/system/apache/spark/example_pyspark.py
     :language: python
     :dedent: 4
     :start-after: [START task_pyspark]

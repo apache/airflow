@@ -33,7 +33,7 @@ To create a Google VertexAI dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`.
 The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_dataset_operator]
@@ -42,7 +42,7 @@ The operator returns dataset id in :ref:`XCom <concepts:xcom>` under ``dataset_i
 After creating a dataset you can use it to import some data using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_import_data_operator]
@@ -51,7 +51,7 @@ After creating a dataset you can use it to import some data using
 To export dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ExportDataOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_export_data_operator]
@@ -60,7 +60,7 @@ To export dataset you can use
 To delete dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.DeleteDatasetOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_dataset_operator]
@@ -69,7 +69,7 @@ To delete dataset you can use
 To get dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.GetDatasetOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_get_dataset_operator]
@@ -78,7 +78,7 @@ To get dataset you can use
 To get a dataset list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ListDatasetsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_dataset_operator]
@@ -87,7 +87,7 @@ To get a dataset list you can use
 To update dataset you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_dataset.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_update_dataset_operator]
@@ -115,7 +115,7 @@ create image you can find by this link: https://cloud.google.com/vertex-ai/docs/
 After that you should put link to the image in ``container_uri`` parameter. Also you can type executing command
 for container which will be created from this image in ``command`` parameter.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
@@ -124,7 +124,7 @@ for container which will be created from this image in ``command`` parameter.
 The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`
 also provides the deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
@@ -138,7 +138,7 @@ create you can find by this link: https://cloud.google.com/vertex-ai/docs/traini
 Next you should put link to the package in ``python_package_gcs_uri`` parameter, also ``python_module_name``
 parameter should has the name of script which will run your training task.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
@@ -147,7 +147,7 @@ parameter should has the name of script which will run your training task.
 The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 also provides the deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
@@ -158,7 +158,7 @@ How to run a Custom Training Job
 
 To create and run a Custom Training Job you should put the path to your local training script inside the ``script_path`` parameter.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator]
@@ -166,7 +166,7 @@ To create and run a Custom Training Job you should put the path to your local tr
 
 The same operation can be performed in the deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
@@ -176,7 +176,7 @@ Additionally, you can create a new version of an existing Custom Training Job. I
 Model with another version, instead of creating a new Model in the Model Registry.
 This can be done by specifying the ``parent_model`` parameter when running a Custom Training Job.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
@@ -184,7 +184,7 @@ This can be done by specifying the ``parent_model`` parameter when running a Cus
 
 The same operation can be performed in the deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
@@ -194,7 +194,7 @@ The same operation can be performed in the deferrable mode:
 You can get a list of Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.ListCustomTrainingJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_list_custom_jobs.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_list_custom_jobs.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_custom_training_job_operator]
@@ -203,7 +203,7 @@ You can get a list of Training Jobs using
 If you wish to delete a Custom Training Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.DeleteCustomTrainingJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
@@ -227,7 +227,7 @@ How to run AutoML Forecasting Training Job
 Before start running this Job you must prepare and create ``TimeSeries`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_forecasting_training_job_operator]
@@ -239,7 +239,7 @@ How to run AutoML Image Training Job
 Before start running this Job you must prepare and create ``Image`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
@@ -247,7 +247,7 @@ put dataset id to ``dataset_id`` parameter in operator.
 
 To run AutoML image detection training job:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_object_detection.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_object_detection.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
@@ -259,7 +259,7 @@ How to run AutoML Tabular Training Job
 Before start running this Job you must prepare and create ``Tabular`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_tabular_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_tabular_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
@@ -271,7 +271,7 @@ How to run AutoML Video Training Job
 Before start running this Job you must prepare and create ``Video`` dataset. After that you should
 put dataset id to ``dataset_id`` parameter in operator.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_operator]
@@ -281,7 +281,7 @@ Additionally, you can create new version of existing AutoML Video Training Job. 
 version of existing Model instead of new Model created in Model Registry. This can be done by specifying
 ``parent_model`` parameter when running  AutoML Video Training Job.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
@@ -289,7 +289,7 @@ version of existing Model instead of new Model created in Model Registry. This c
 
 Also you can use vertex_ai AutoML model for video tracking.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
@@ -299,7 +299,7 @@ Also you can use vertex_ai AutoML model for video tracking.
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_list_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_list_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_auto_ml_training_job_operator]
@@ -308,7 +308,7 @@ You can get a list of AutoML Training Jobs using
 If you wish to delete a Auto ML Training Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.DeleteAutoMLTrainingJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_forecasting_training.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
@@ -321,7 +321,7 @@ To create a Google VertexAI Batch Prediction Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`.
 The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` under ``batch_prediction_job_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
@@ -330,7 +330,7 @@ The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` unde
 The :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
 also provides deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
@@ -340,7 +340,7 @@ also provides deferrable mode:
 To delete batch prediction job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
@@ -349,7 +349,7 @@ To delete batch prediction job you can use
 To get a batch prediction job list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
@@ -362,7 +362,7 @@ To create a Google VertexAI endpoint you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.CreateEndpointOperator`.
 The operator returns endpoint id in :ref:`XCom <concepts:xcom>` under ``endpoint_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_endpoint_operator]
@@ -371,7 +371,7 @@ The operator returns endpoint id in :ref:`XCom <concepts:xcom>` under ``endpoint
 After creating an endpoint you can use it to deploy some model using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_deploy_model_operator]
@@ -380,7 +380,7 @@ After creating an endpoint you can use it to deploy some model using
 To un deploy model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UndeployModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_undeploy_model_operator]
@@ -389,7 +389,7 @@ To un deploy model you can use
 To delete endpoint you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeleteEndpointOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_endpoint_operator]
@@ -398,7 +398,7 @@ To delete endpoint you can use
 To get an endpoint list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.ListEndpointsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_endpoint.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_endpoints_operator]
@@ -411,7 +411,7 @@ To create a Google VertexAI hyperparameter tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator`.
 The operator returns hyperparameter tuning job id in :ref:`XCom <concepts:xcom>` under ``hyperparameter_tuning_job_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
@@ -420,7 +420,7 @@ The operator returns hyperparameter tuning job id in :ref:`XCom <concepts:xcom>`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator`
 also supports deferrable mode:
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
@@ -429,7 +429,7 @@ also supports deferrable mode:
 To delete hyperparameter tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.DeleteHyperparameterTuningJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
@@ -438,7 +438,7 @@ To delete hyperparameter tuning job you can use
 To get hyperparameter tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.GetHyperparameterTuningJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
@@ -447,7 +447,7 @@ To get hyperparameter tuning job you can use
 To get a hyperparameter tuning job list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job.ListHyperparameterTuningJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_hyperparameter_tuning_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
@@ -460,7 +460,7 @@ To upload a Google VertexAI model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.UploadModelOperator`.
 The operator returns model id in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_upload_model_operator]
@@ -469,7 +469,7 @@ The operator returns model id in :ref:`XCom <concepts:xcom>` under ``model_id`` 
 To export model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ExportModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_export_model_operator]
@@ -478,7 +478,7 @@ To export model you can use
 To delete model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_model_operator]
@@ -487,7 +487,7 @@ To delete model you can use
 To get a model list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_models_operator]
@@ -496,7 +496,7 @@ To get a model list you can use
 To retrieve model by its ID you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_get_model_operator]
@@ -505,7 +505,7 @@ To retrieve model by its ID you can use
 To list all model versions you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_model_versions_operator]
@@ -514,7 +514,7 @@ To list all model versions you can use
 To set a specific version of model as a default one you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_set_version_as_default_operator]
@@ -523,7 +523,7 @@ To set a specific version of model as a default one you can use
 To add aliases to specific version of model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.AddVersionAliasesOnModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_add_version_aliases_operator]
@@ -532,7 +532,7 @@ To add aliases to specific version of model you can use
 To delete aliases from specific version of model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteVersionAliasesOnModelOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_version_aliases_operator]
@@ -541,7 +541,7 @@ To delete aliases from specific version of model you can use
 To delete specific version of model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_model_service.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_version_operator]
@@ -554,7 +554,7 @@ To run a Google VertexAI Pipeline Job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator`.
 The operator returns pipeline job id in :ref:`XCom <concepts:xcom>` under ``pipeline_job_id`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_pipeline_job_operator]
@@ -563,7 +563,7 @@ The operator returns pipeline job id in :ref:`XCom <concepts:xcom>` under ``pipe
 To delete pipeline job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.DeletePipelineJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_delete_pipeline_job_operator]
@@ -572,7 +572,7 @@ To delete pipeline job you can use
 To get pipeline job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.GetPipelineJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_get_pipeline_job_operator]
@@ -581,7 +581,7 @@ To get pipeline job you can use
 To get a pipeline job list you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.ListPipelineJobOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
@@ -594,7 +594,7 @@ To generate text embeddings you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
@@ -604,7 +604,7 @@ To generate content with a generative model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
@@ -614,7 +614,7 @@ To run a supervised fine tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
@@ -625,7 +625,7 @@ To calculates the number of input tokens before sending a request to the Gemini 
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.
 The operator returns the total tokens in :ref:`XCom <concepts:xcom>` under ``total_tokens`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_count_tokens_operator]
@@ -635,7 +635,7 @@ To evaluate a model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
 The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
@@ -645,7 +645,7 @@ To create cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`.
 The operator returns the cached content resource name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_cached_content_operator]
@@ -655,7 +655,7 @@ To generate a response from cached content you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`.
 The operator returns the cached content response in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
@@ -668,7 +668,7 @@ To get a feature view sync job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.GetFeatureViewSyncOperator`.
 The operator returns sync job results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
@@ -678,7 +678,7 @@ To sync a feature view you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.SyncFeatureViewOperator`.
 The operator returns the sync job name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_feature_store_sync_feature_view_operator]
@@ -687,7 +687,7 @@ The operator returns the sync job name in :ref:`XCom <concepts:xcom>` under ``re
 To check if Feature View Sync succeeded you can use
 :class:`~airflow.providers.google.cloud.sensors.vertex_ai.FeatureViewSyncSensor`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]

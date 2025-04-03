@@ -30,11 +30,12 @@ os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
 os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import datetime
 
     from structlog.typing import EventDict, WrappedLogger
 
-    from airflow.sdk.api.datamodels._generated import TIRunContext
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
 
 
 @pytest.hookimpl()
@@ -165,6 +166,7 @@ class MakeTIContextCallable(Protocol):
         conf: dict[str, Any] | None = ...,
         should_retry: bool = ...,
         max_tries: int = ...,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
     ) -> TIRunContext: ...
 
 
@@ -182,6 +184,7 @@ class MakeTIContextDictCallable(Protocol):
         run_type: str = ...,
         task_reschedule_count: int = ...,
         conf=None,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
     ) -> dict[str, Any]: ...
 
 
@@ -204,6 +207,7 @@ def make_ti_context() -> MakeTIContextCallable:
         conf: dict[str, Any] | None = None,
         should_retry: bool = False,
         max_tries: int = 0,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -217,6 +221,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,  # type: ignore
+                consumed_asset_events=list(consumed_asset_events),
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,
@@ -242,6 +247,7 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         run_type: str = "manual",
         task_reschedule_count: int = 0,
         conf=None,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
     ) -> dict[str, Any]:
         context = make_ti_context(
             dag_id=dag_id,
@@ -255,6 +261,7 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
             run_type=run_type,
             conf=conf,
             task_reschedule_count=task_reschedule_count,
+            consumed_asset_events=consumed_asset_events,
         )
         return context.model_dump(exclude_unset=True, mode="json")
 

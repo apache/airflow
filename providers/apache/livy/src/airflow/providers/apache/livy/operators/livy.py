@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -163,12 +163,12 @@ class LivyOperator(BaseOperator):
         if self.openlineage_inject_parent_job_info:
             self.log.debug("Injecting parent job information into Spark properties")
             self.spark_params["conf"] = inject_parent_job_information_into_spark_properties(
-                self.spark_params["conf"], context
+                cast("dict", self.spark_params["conf"]), context
             )
         if self.openlineage_inject_transport_info:
             self.log.debug("Injecting transport information into Spark properties")
             self.spark_params["conf"] = inject_transport_information_into_spark_properties(
-                self.spark_params["conf"], context
+                cast("dict", self.spark_params["conf"]), context
             )
 
         _batch_id: int | str = self.hook.post_batch(**self.spark_params)

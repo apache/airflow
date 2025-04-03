@@ -1,14 +1,10 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2
+import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  UseMutationOptions,
-  UseQueryOptions,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
 import { SimpleAuthManagerLoginService } from "../requests/services.gen";
 import { LoginBody } from "../requests/types.gen";
 import * as Common from "./common";
+
 export const useSimpleAuthManagerLoginServiceCreateTokenAllAdmins = <
   TData = Common.SimpleAuthManagerLoginServiceCreateTokenAllAdminsDefaultResponse,
   TError = unknown,
@@ -18,12 +14,8 @@ export const useSimpleAuthManagerLoginServiceCreateTokenAllAdmins = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey:
-      Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(
-        queryKey,
-      ),
-    queryFn: () =>
-      SimpleAuthManagerLoginService.createTokenAllAdmins() as TData,
+    queryKey: Common.UseSimpleAuthManagerLoginServiceCreateTokenAllAdminsKeyFn(queryKey),
+    queryFn: () => SimpleAuthManagerLoginService.createTokenAllAdmins() as TData,
     ...options,
   });
 export const useSimpleAuthManagerLoginServiceLoginAllAdmins = <
@@ -35,8 +27,7 @@ export const useSimpleAuthManagerLoginServiceLoginAllAdmins = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey:
-      Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(queryKey),
+    queryKey: Common.UseSimpleAuthManagerLoginServiceLoginAllAdminsKeyFn(queryKey),
     queryFn: () => SimpleAuthManagerLoginService.loginAllAdmins() as TData,
     ...options,
   });
@@ -66,9 +57,7 @@ export const useSimpleAuthManagerLoginServiceCreateToken = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      SimpleAuthManagerLoginService.createToken({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      SimpleAuthManagerLoginService.createToken({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 export const useSimpleAuthManagerLoginServiceCreateTokenCli = <
@@ -97,8 +86,6 @@ export const useSimpleAuthManagerLoginServiceCreateTokenCli = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      SimpleAuthManagerLoginService.createTokenCli({
-        requestBody,
-      }) as unknown as Promise<TData>,
+      SimpleAuthManagerLoginService.createTokenCli({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });

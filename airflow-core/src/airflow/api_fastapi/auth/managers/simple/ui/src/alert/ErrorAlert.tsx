@@ -18,10 +18,7 @@
  */
 import { HStack } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
-import type {
-  HTTPExceptionResponse,
-  HTTPValidationError,
-} from "openapi-gen/requests/types.gen";
+import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
 
 import { Alert } from "./Alert";
 
@@ -52,9 +49,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
           ${detail.loc.join(".")} ${detail.msg}`,
       );
     } else {
-      detailMessage = Object.keys(details).map(
-        (key) => `${key}: ${details[key] as string}`,
-      );
+      detailMessage = Object.keys(details).map((key) => `${key}: ${details[key] as string}`);
     }
   }
 
@@ -62,9 +57,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
     <Alert status="error">
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
         {error.status} {error.message}
-        {detailMessage === error.message ? undefined : (
-          <span>{detailMessage}</span>
-        )}
+        {detailMessage === error.message ? undefined : <span>{detailMessage}</span>}
       </HStack>
     </Alert>
   );

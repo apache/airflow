@@ -55,7 +55,7 @@ PIP package                            Version required
 =====================================  ==================
 ``apache-airflow``                     ``>=2.9.0``
 ``apache-airflow-providers-postgres``  ``>=5.7.1``
-``pgvector``                           ``!=0.3.0``
+``pgvector``                           ``>=0.3.1``
 =====================================  ==================
 
 Cross provider package dependencies

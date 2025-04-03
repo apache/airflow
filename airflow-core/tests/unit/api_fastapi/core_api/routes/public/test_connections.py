@@ -27,6 +27,7 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -842,6 +843,7 @@ class TestConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 403
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
         "body",

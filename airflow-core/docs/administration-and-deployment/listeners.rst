@@ -43,21 +43,21 @@ DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` c
 
 - ``on_dag_run_running``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_dagrun_running_task]
     :end-before: [END howto_listen_dagrun_running_task]
 
 - ``on_dag_run_success``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_dagrun_success_task]
     :end-before: [END howto_listen_dagrun_success_task]
 
 - ``on_dag_run_failed``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_dagrun_failure_task]
     :end-before: [END howto_listen_dagrun_failure_task]
@@ -71,21 +71,21 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 
 - ``on_task_instance_running``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_running_task]
     :end-before: [END howto_listen_ti_running_task]
 
 - ``on_task_instance_success``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_success_task]
     :end-before: [END howto_listen_ti_success_task]
 
 - ``on_task_instance_failed``
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_failure_task]
     :end-before: [END howto_listen_ti_failure_task]

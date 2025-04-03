@@ -22,7 +22,7 @@ description: |
     `SQLite <https://www.sqlite.org/>`__
 
 state: ready
-source-date-epoch: 1741509822
+source-date-epoch: 1743477896
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 4.0.1

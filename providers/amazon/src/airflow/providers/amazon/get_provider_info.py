@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Amazon",
         "description": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1741507721,
+        "source-date-epoch": 1743477760,
         "versions": [
             "9.5.0",
             "9.4.0",

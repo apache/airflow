@@ -42,7 +42,6 @@ export const Header = ({
     });
   }
   const stats = [
-    { label: "Task Count", value: taskInstance.task_count },
     ...entries,
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
@@ -59,7 +58,7 @@ export const Header = ({
         state={taskInstance.state}
         stats={stats}
         subTitle={<Time datetime={taskInstance.start_date} />}
-        title={`${taskInstance.task_id} [ ]`}
+        title={`${taskInstance.task_id} [${taskInstance.task_count}]`}
       />
     </Box>
   );

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Pinot",
         "description": "`Apache Pinot <https://pinot.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508351,
+        "source-date-epoch": 1743477784,
         "versions": [
             "4.7.0",
             "4.6.0",

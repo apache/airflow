@@ -34,8 +34,11 @@ from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+pytestmark = skip_if_force_lowest_dependencies_marker
 
 
 @pytest.fixture

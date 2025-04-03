@@ -265,7 +265,7 @@ Operator has extra-parameters.
       The NewProviderOperator requires a ``connection_id`` and this other awesome parameter.
       You can see an example below:
 
-      .. exampleinclude:: /../../providers/<PROVIDER>/example_dags/example_<PROVIDER>.py
+      .. exampleinclude:: /../../<PROVIDER>/example_dags/example_<PROVIDER>.py
           :language: python
           :start-after: [START howto_operator_<PROVIDER>]
           :end-before: [END howto_operator_<PROVIDER>]
@@ -416,7 +416,7 @@ The fix for that is to turn the feature into an optional provider feature (in th
 
 
 * In case we suspend an important provider, which is part of the default Dockerfile you might want to
-  update the tests for PROD docker image in ``docker_tests/test_prod_image.py``.
+  update the tests for PROD docker image in ``docker-tests/tests/docker_tests/test_prod_image.py``.
 
 * Some of the suspended providers might also fail ``breeze`` unit tests that expect a fixed set of providers.
   Those tests should be adjusted (but this is not very likely to happen, because the tests are using only

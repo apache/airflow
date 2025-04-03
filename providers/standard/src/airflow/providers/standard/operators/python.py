@@ -56,7 +56,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
     from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BranchMixIn
+    from airflow.operators.branch import BranchMixIn  # type: ignore[no-redef]
 
 
 log = logging.getLogger(__name__)

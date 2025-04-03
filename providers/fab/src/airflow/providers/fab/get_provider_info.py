@@ -97,5 +97,5 @@ def get_provider_info():
             "werkzeug>=2.2,<4",
         ],
         "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},
-        "devel-dependencies": ["kerberos>=1.3.0"],
+        "devel-dependencies": ["kerberos>=1.3.0", "requests_kerberos>=0.14.0"],
     }

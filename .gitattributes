@@ -1,21 +1,21 @@
 clients export-ignore
-clients export-ignore
+chart/charts/** export-ignore
 dev export-ignore
+devel-common export-ignore
 docker-context-files export-ignore
-docker_tests export-ignore
+docker-tests export-ignore
 empty export-ignore
-kubernetes_tests export-ignore
+helm-tests export-ignore
+kubernetes-tests export-ignore
 manifests export-ignore
 newsfragments export-ignore
 scripts export-ignore
-tests export-ignore
-chart/charts/** export-ignore
 
 Dockerfile.ci export-ignore
 
 ISSUE_TRIAGE_PROCESS.rst export-ignore
 CONTRIBUTING.rst export-ignore
-contributing_docs/ export-ignore
+contributing-docs/ export-ignore
 
 .devcontainer export-ignore
 .github export-ignore

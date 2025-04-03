@@ -25,7 +25,7 @@ TimeDeltaSensor
 Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` to end sensing after specific time.
 
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor]
@@ -41,7 +41,7 @@ Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAs
 It is an async version of the operator and requires Triggerer to run.
 
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor_async]
@@ -58,7 +58,7 @@ Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to e
 
 Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_sensors]
@@ -75,7 +75,7 @@ It is an async version of the operator and requires Triggerer to run.
 
 Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_sensors_async]
@@ -88,7 +88,7 @@ DayOfWeekSensor
 
 Use the :class:`~airflow.sensors.weekday.DayOfWeekSensor` to sense for day of week.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_day_of_week_sensor]

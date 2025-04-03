@@ -22,7 +22,7 @@ description: |
     `DingTalk <https://www.dingtalk.com/>`__
 
 state: ready
-source-date-epoch: 1741508741
+source-date-epoch: 1743477811
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.3

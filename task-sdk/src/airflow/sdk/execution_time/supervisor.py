@@ -77,8 +77,10 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -850,6 +852,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
+                    ti_id=self.id,
                 )
                 self.kill(signal.SIGTERM, force=True)
             else:
@@ -987,6 +990,24 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskRescheduleStartDate):
             tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
             resp = tr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetTICount):
+            ti_count = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = ti_count.model_dump_json().encode()
+        elif isinstance(msg, GetDRCount):
+            dr_count = self.client.dag_runs.get_count(
+                dag_id=msg.dag_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = dr_count.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

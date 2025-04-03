@@ -21,7 +21,7 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1742480519
+source-date-epoch: 1743477899
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 0.2.0

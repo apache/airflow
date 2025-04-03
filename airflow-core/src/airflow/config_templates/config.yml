@@ -701,8 +701,8 @@ database:
         from BaseDBManager
       version_added: 3.0.0
       type: string
-      example: ~
-      default: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+      example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+      default: ~
 logging:
   description: ~
   options:

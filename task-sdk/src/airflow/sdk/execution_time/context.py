@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 import contextlib
-from collections.abc import Generator, Iterator, Mapping
+from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -280,61 +282,8 @@ class MacrosAccessor:
         return True
 
 
-@attrs.define
-class OutletEventAccessor:
-    """Wrapper to access an outlet asset event in template."""
-
-    key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
-    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
-
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
-        """Add an AssetEvent to an existing Asset."""
-        if not isinstance(self.key, AssetAliasUniqueKey):
-            return
-
-        asset_alias_name = self.key.name
-        event = AssetAliasEvent(
-            source_alias_name=asset_alias_name,
-            dest_asset_key=AssetUniqueKey.from_asset(asset),
-            extra=extra or {},
-        )
-        self.asset_alias_events.append(event)
-
-
-class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
-    """Lazy mapping of outlet asset event accessors."""
-
+class _AssetRefResolutionMixin:
     _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
-
-    def __init__(self) -> None:
-        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
-
-    def __str__(self) -> str:
-        return f"OutletEventAccessors(_dict={self._dict})"
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return (
-            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
-        )
-
-    def __len__(self) -> int:
-        return len(self._dict)
-
-    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
-        hashable_key: BaseAssetUniqueKey
-        if isinstance(key, Asset):
-            hashable_key = AssetUniqueKey.from_asset(key)
-        elif isinstance(key, AssetAlias):
-            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-        elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
-        else:
-            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
-
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
 
     def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
         with contextlib.suppress(KeyError):
@@ -375,6 +324,105 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         if TYPE_CHECKING:
             assert isinstance(msg, AssetResult)
         return Asset(**msg.model_dump(exclude={"type"}))
+
+
+@attrs.define
+class TriggeringAssetEventsAccessor(
+    _AssetRefResolutionMixin,
+    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReference"]],
+):
+    """Lazy mapping of triggering asset events."""
+
+    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReference]]
+
+    @classmethod
+    def build(cls, events: Iterable[AssetEventDagRunReference]) -> TriggeringAssetEventsAccessor:
+        collected: dict[BaseAssetUniqueKey, list[AssetEventDagRunReference]] = collections.defaultdict(list)
+        for event in events:
+            collected[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
+            for alias in event.source_aliases:
+                collected[AssetAliasUniqueKey(name=alias.name)].append(event)
+        return cls(collected)
+
+    def __str__(self) -> str:
+        return f"TriggeringAssetEventAccessor(_events={self._events})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias()
+            for key in self._events
+        )
+
+    def __len__(self) -> int:
+        return len(self._events)
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReference]:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        return self._events[hashable_key]
+
+
+@attrs.define
+class OutletEventAccessor:
+    """Wrapper to access an outlet asset event in template."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, Any] = attrs.Factory(dict)
+    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
+        """Add an AssetEvent to an existing Asset."""
+        if not isinstance(self.key, AssetAliasUniqueKey):
+            return
+
+        asset_alias_name = self.key.name
+        event = AssetAliasEvent(
+            source_alias_name=asset_alias_name,
+            dest_asset_key=AssetUniqueKey.from_asset(asset),
+            extra=extra or {},
+        )
+        self.asset_alias_events.append(event)
+
+
+class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+    """Lazy mapping of outlet asset event accessors."""
+
+    def __init__(self) -> None:
+        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
+        )
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        if hashable_key not in self._dict:
+            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
+        return self._dict[hashable_key]
 
 
 @attrs.define(init=False)

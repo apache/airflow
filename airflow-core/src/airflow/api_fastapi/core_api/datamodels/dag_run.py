@@ -72,7 +72,7 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    triggered_by: DagRunTriggeredByType
+    triggered_by: DagRunTriggeredByType | None
     conf: dict
     note: str | None
     dag_versions: list[DagVersionResponse]

@@ -226,6 +226,7 @@ function determine_airflow_to_use() {
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
         # Use uv run to install necessary dependencies automatically
+        # in the future we will be able to use uv sync when `uv.lock` is supported
         uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
@@ -317,28 +318,28 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
+        local provider_id
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
-        export EXTRA
+        provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
         echo
-        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo
-        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py "${provider_id}"; then
             echo
-            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo "S${COLOR_YELLOW}Skipping ${provider_id} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!${COLOR_RESET}"
             echo
             exit 0
         fi
+        cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
+        uv sync --resolution lowest-direct
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
+        cd "${AIRFLOW_SOURCES}/airflow-core"
+        uv sync --resolution lowest-direct
     fi
-    set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./airflow-core" --editable "./task-sdk" --editable "./devel-common" --editable "./airflow-ctl"
-    set +x
 }
 
 function check_airflow_python_client_installation() {

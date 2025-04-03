@@ -129,7 +129,7 @@ DAG policies
 
 This policy checks if each DAG has at least one tag defined:
 
-.. literalinclude:: /../../airflow-core/tests/unit/cluster_policies/__init__.py
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
       :language: python
       :start-after: [START example_dag_cluster_policy]
       :end-before: [END example_dag_cluster_policy]
@@ -147,14 +147,14 @@ Task policies
 
 Here's an example of enforcing a maximum timeout policy on every task:
 
-.. literalinclude:: /../../airflow-core/tests/unit/cluster_policies/__init__.py
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python
         :start-after: [START example_task_cluster_policy]
         :end-before: [END example_task_cluster_policy]
 
 You could also implement to protect against common errors, rather than as technical security controls. For example, don't run tasks without airflow owners:
 
-.. literalinclude:: /../../airflow-core/tests/unit/cluster_policies/__init__.py
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python
         :start-after: [START example_cluster_policy_rule]
         :end-before: [END example_cluster_policy_rule]
@@ -163,7 +163,7 @@ If you have multiple checks to apply, it is best practice to curate these rules 
 
 For example, your ``airflow_local_settings.py`` might follow this pattern:
 
-.. literalinclude:: /../../airflow-core/tests/unit/cluster_policies/__init__.py
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python
         :start-after: [START example_list_of_cluster_policy_rules]
         :end-before: [END example_list_of_cluster_policy_rules]
@@ -177,7 +177,7 @@ Task instance mutation
 
 Here's an example of re-routing tasks that are on their second (or greater) retry to a different queue:
 
-.. literalinclude:: /../../airflow-core/tests/unit/cluster_policies/__init__.py
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python
         :start-after: [START example_task_mutation_hook]
         :end-before: [END example_task_mutation_hook]

@@ -22,7 +22,7 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1741507721
+source-date-epoch: 1743477760
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 9.5.0

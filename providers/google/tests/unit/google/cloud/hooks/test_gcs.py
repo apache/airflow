@@ -584,6 +584,14 @@ class TestGCSHook:
         )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_get_bucket(self, mock_service):
+        test_bucket = "test bucket"
+
+        self.gcs_hook.get_bucket(bucket_name=test_bucket)
+
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_bucket(self, mock_service):
         test_bucket = "test bucket"
 

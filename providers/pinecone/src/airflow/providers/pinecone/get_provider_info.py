@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Pinecone",
         "description": "`Pinecone <https://docs.pinecone.io/docs/overview>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741509442,
+        "source-date-epoch": 1743477870,
         "versions": [
             "2.2.2",
             "2.2.1",

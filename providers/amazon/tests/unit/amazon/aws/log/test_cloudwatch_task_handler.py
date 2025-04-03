@@ -18,19 +18,24 @@
 from __future__ import annotations
 
 import logging
+import textwrap
 import time
 from datetime import datetime as dt, timedelta, timezone
 from unittest import mock
-from unittest.mock import ANY, Mock, call
+from unittest.mock import ANY, call
 
 import boto3
 import pytest
+import time_machine
 from moto import mock_aws
+from pydantic import TypeAdapter
+from pydantic_core import TzInfo
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
+    CloudWatchRemoteLogIO,
     CloudwatchTaskHandler,
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
@@ -39,7 +44,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 
 def get_time_str(time_in_milliseconds):
@@ -51,6 +56,110 @@ def get_time_str(time_in_milliseconds):
 def logmock():
     with mock_aws():
         yield
+
+
+# We only test this directly on Airflow 3
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
+class TestCloudRemoteLogIO:
+    # We use the cap_structlog so that our changes get reverted for us
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti, tmp_path, monkeypatch):
+        import structlog
+
+        import airflow.logging_config
+        import airflow.sdk.log
+        from airflow.sdk import BaseOperator
+
+        task = BaseOperator(task_id="task_1")
+        self.ti = create_runtime_ti(task)
+
+        self.remote_log_group = "log_group_name"
+        self.region_name = "us-west-2"
+        self.local_log_location = tmp_path / "local-cloudwatch-log-location"
+        self.local_log_location.mkdir()
+
+        # The subject under test
+        self.subject = CloudWatchRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            log_group_arn=f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+            log_stream_name="dag_id=a/0.log",
+        )
+
+        conn = boto3.client("logs", region_name=self.region_name)
+        conn.create_log_group(logGroupName=self.remote_log_group)
+        conn.create_log_stream(logGroupName=self.remote_log_group, logStreamName=self.subject.log_stream_name)
+
+        processors = structlog.get_config()["processors"]
+        old_processors = processors.copy()
+
+        try:
+            # Modify `_Configuration.default_processors` set via `configure` but always
+            # keep the list instance intact to not break references held by bound
+            # loggers.
+
+            # Set up the right chain of processors so the event looks like we want for our full test
+            monkeypatch.setattr(airflow.logging_config, "REMOTE_TASK_LOG", self.subject)
+            procs, _ = airflow.sdk.log.logging_processors(enable_pretty_log=False)
+            processors.clear()
+            processors.extend(procs)
+
+            # Replace the last "output" one with a DropEvent one instead - else we get the output on stdout
+            def drop(*args):
+                raise structlog.DropEvent()
+
+            processors[-1] = drop
+            structlog.configure(processors=processors)
+            yield
+        finally:
+            # remove LogCapture and restore original processors
+            processors.clear()
+            processors.extend(old_processors)
+            structlog.configure(processors=old_processors)
+
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_log_message(self):
+        import structlog
+
+        log = structlog.get_logger()
+        log.info("Hi", foo="bar")
+        # We need to close in order to flush the logs etc.
+        self.subject.close()
+
+        logs = self.subject.read("dag_id=a/0.log", self.ti)
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+            metadata, logs = logs
+
+            results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
+            assert metadata == [
+                "Reading remote log from Cloudwatch log_group: log_group_name log_stream: dag_id=a/0.log"
+            ]
+            assert results == [
+                {
+                    "event": "Hi",
+                    "foo": "bar",
+                    "level": "info",
+                    "timestamp": datetime(2025, 3, 27, 21, 58, 1, 2000, tzinfo=TzInfo(0)),
+                },
+            ]
+
+    def test_event_to_str(self):
+        handler = self.subject
+        current_time = int(time.time()) * 1000
+        events = [
+            {"timestamp": current_time - 2000, "message": "First"},
+            {"timestamp": current_time - 1000, "message": "Second"},
+            {"timestamp": current_time, "message": "Third"},
+        ]
+        assert [handler._event_to_str(event) for event in events] == (
+            [
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
+                f"[{get_time_str(current_time)}] Third",
+            ]
+        )
 
 
 @pytest.mark.db_test
@@ -108,6 +217,7 @@ class TestCloudwatchTaskHandler:
         yield
 
         self.cloudwatch_task_handler.handler = None
+        del self.cloudwatch_task_handler
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
@@ -126,23 +236,8 @@ class TestCloudwatchTaskHandler:
                 handler.handle(message)
             mock_emit.assert_has_calls([call(message) for message in messages])
 
-    def test_event_to_str(self):
-        handler = self.cloudwatch_task_handler
-        current_time = int(time.time()) * 1000
-        events = [
-            {"timestamp": current_time - 2000, "message": "First"},
-            {"timestamp": current_time - 1000, "message": "Second"},
-            {"timestamp": current_time, "message": "Third"},
-        ]
-        assert [handler._event_to_str(event) for event in events] == (
-            [
-                f"[{get_time_str(current_time - 2000)}] First",
-                f"[{get_time_str(current_time - 1000)}] Second",
-                f"[{get_time_str(current_time)}] Third",
-            ]
-        )
-
-    def test_read(self):
+    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    def test_read(self, monkeypatch):
         # Confirmed via AWS Support call:
         # CloudWatch events must be ordered chronologically otherwise
         # boto3 put_log_event API throws InvalidParameterException
@@ -158,32 +253,48 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-
-        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
-        events = "\n".join(
-            [
-                f"[{get_time_str(current_time - 2000)}] First",
-                f"[{get_time_str(current_time - 1000)}] Second",
-                f"[{get_time_str(current_time)}] Third",
-            ]
-        )
-        if AIRFLOW_V_3_0_PLUS:
-            assert self.cloudwatch_task_handler.read(self.ti) == (
-                msg_template.format(self.remote_log_group, self.remote_log_stream, events),
-                {"end_of_log": True},
-            )
+        if AIRFLOW_V_2_10_PLUS:
+            monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
+            msg_template = textwrap.dedent("""
+                 INFO - ::group::Log message source details
+                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
+                 INFO - ::endgroup::
+                {}
+            """)[1:][:-1]  # Strip off leading and trailing new lines, but not spaces
         else:
-            assert self.cloudwatch_task_handler.read(self.ti) == (
+            msg_template = textwrap.dedent("""
+                *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
+                {}
+            """).strip()
+
+        logs, metadata = self.cloudwatch_task_handler.read(self.ti)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+            results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
+            assert results[-4:] == [
+                {"event": "::endgroup::", "timestamp": None},
+                {"event": "First", "timestamp": datetime(2025, 3, 27, 21, 57, 59)},
+                {"event": "Second", "timestamp": datetime(2025, 3, 27, 21, 58, 0)},
+                {"event": "Third", "timestamp": datetime(2025, 3, 27, 21, 58, 1)},
+            ]
+            assert metadata["log_pos"] == 3
+        else:
+            events = "\n".join(
                 [
-                    [
-                        (
-                            "",
-                            msg_template.format(self.remote_log_group, self.remote_log_stream, events),
-                        )
-                    ]
-                ],
-                [{"end_of_log": True}],
+                    f"[{get_time_str(current_time - 2000)}] First",
+                    f"[{get_time_str(current_time - 1000)}] Second",
+                    f"[{get_time_str(current_time)}] Third",
+                ]
             )
+            assert logs == [
+                [
+                    (
+                        "",
+                        msg_template.format(self.remote_log_group, self.remote_log_stream, events),
+                    )
+                ]
+            ]
 
     @pytest.mark.parametrize(
         "end_date, expected_end_time",
@@ -198,7 +309,7 @@ class TestCloudwatchTaskHandler:
     @mock.patch.object(AwsLogsHook, "get_log_events")
     def test_get_cloudwatch_logs(self, mock_get_log_events, end_date, expected_end_time):
         self.ti.end_date = end_date
-        self.cloudwatch_task_handler.get_cloudwatch_logs(self.remote_log_stream, self.ti)
+        self.cloudwatch_task_handler.io.get_cloudwatch_logs(self.remote_log_stream, self.ti)
         mock_get_log_events.assert_called_once_with(
             log_group=self.remote_log_group,
             log_stream_name=self.remote_log_stream,
@@ -253,10 +364,8 @@ class TestCloudwatchTaskHandler:
                 mock.patch("watchtower.threading.Thread"),
                 mock.patch("watchtower.queue.Queue") as mq,
             ):
-                mock_queue = Mock()
-                mq.return_value = mock_queue
                 handler.handle(message)
-                mock_queue.put.assert_called_once_with(
+                mq.return_value.put.assert_called_once_with(
                     {"message": expected_serialized_output, "timestamp": ANY}
                 )
 

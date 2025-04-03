@@ -26,8 +26,6 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
@@ -68,6 +66,8 @@ class TestMySql:
     def test_mysql_to_mysql(self, client):
         class MySqlContext:
             def __init__(self, client):
+                from airflow.providers.mysql.hooks.mysql import MySqlHook
+
                 self.client = client
                 self.connection = MySqlHook.get_connection(MySqlHook.default_conn_name)
                 self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
@@ -119,6 +119,8 @@ class TestMySql:
 @pytest.mark.backend("postgres")
 class TestPostgres:
     def teardown_method(self):
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
+
         tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:

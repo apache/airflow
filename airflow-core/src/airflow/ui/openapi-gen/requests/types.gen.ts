@@ -415,6 +415,7 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  dashboard_alert: Array<UIAlert>;
 };
 
 /**
@@ -666,7 +667,7 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  triggered_by: DagRunTriggeredByType;
+  triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
   };
@@ -1564,6 +1565,16 @@ export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
 };
+
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category: "info" | "warning" | "error";
+};
+
+export type category = "info" | "warning" | "error";
 
 export type ValidationError = {
   loc: Array<string | number>;

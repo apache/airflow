@@ -22,7 +22,7 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 python -m docs.build_docs "${@}"
 
 
-if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/docs/_build/docs/" ]]; then
+if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/generated/_build/docs/" ]]; then
     rm -rf "/files/documentation"
-    cp -r "${AIRFLOW_SOURCES}/docs/_build" "/files/documentation"
+    cp -r "${AIRFLOW_SOURCES}/generated/_build" "/files/documentation"
 fi

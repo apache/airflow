@@ -629,7 +629,6 @@ explicit
 exportingmultiple
 extensibility
 externalbrowser
-exts
 faas
 facebook
 Failover
@@ -1591,6 +1590,7 @@ SparkSQL
 sparksql
 SpeechClient
 spegno
+sphinx_exts
 Splunk
 spotahome
 Sql

@@ -15,4 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../exts/includes/security.rst
+.. include:: /../../../../devel-common/src/sphinx_exts/includes/security.rst

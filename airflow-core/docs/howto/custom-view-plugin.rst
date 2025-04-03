@@ -47,7 +47,7 @@ and be registered as a part of a :doc:`plugin </administration-and-deployment/pl
 
 The following is a skeleton for us to implement a new custom view:
 
-.. exampleinclude:: ../empty_plugin/empty_plugin.py
+.. exampleinclude:: /empty_plugin/empty_plugin.py
     :language: python
 
 

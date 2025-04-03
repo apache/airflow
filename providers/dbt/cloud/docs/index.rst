@@ -101,14 +101,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.9.0``
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-http``
-``asgiref``                        ``>=2.3.0``
-``aiohttp``                        ``>=3.9.2``
-=================================  ==================
+``asgiref``                                 ``>=2.3.0``
+``aiohttp``                                 ``>=3.9.2``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------

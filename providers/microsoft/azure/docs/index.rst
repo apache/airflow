@@ -131,7 +131,7 @@ PIP package                             Version required
 ``microsoft-kiota-http``                ``>=1.3.0,!=1.3.4``
 ``microsoft-kiota-serialization-json``  ``==1.0.0``
 ``microsoft-kiota-serialization-text``  ``==1.0.0``
-``microsoft-kiota-abstractions``        ``<1.4.0``
+``microsoft-kiota-abstractions``        ``>=1.0.0,<1.4.0``
 ``msal-extensions``                     ``>=1.1.0``
 ======================================  ===================
 

@@ -53,10 +53,12 @@ POSSIBLE_TEST_FOLDERS = [
     "jobs",
     "lineage",
     "listeners",
+    "logging",
     "macros",
     "models",
     "notifications",
     "operators",
+    "otel",
     "plugins",
     "providers",
     "secrets",
@@ -107,7 +109,7 @@ if __name__ == "__main__":
         ):
             console.print(
                 "[red]The file is in a wrong folder. Make sure to move it to the right folder "
-                "listed in `./script/ci/pre_commit/check_tests_in_right_folders.py` "
+                "listed in `./scripts/ci/pre_commit/check_tests_in_right_folders.py` "
                 "or create new folder and add it to the script if you know what you are doing.[/]"
             )
             console.print(file)

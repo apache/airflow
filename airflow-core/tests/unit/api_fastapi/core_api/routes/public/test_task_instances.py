@@ -42,6 +42,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_fastapi import _check_task_instance_note
 from tests_common.test_utils.db import (
     clear_db_runs,
     clear_rendered_ti_fields,
@@ -3355,13 +3356,21 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @pytest.mark.parametrize(
-        "new_note_value",
+        "new_note_value,ti_note_data",
         [
-            "My super cool TaskInstance note.",
-            None,
+            (
+                "My super cool TaskInstance note.",
+                {"content": "My super cool TaskInstance note.", "user_id": "test"},
+            ),
+            (
+                None,
+                {"content": None, "user_id": "test"},
+            ),
         ],
     )
-    def test_update_mask_set_note_should_respond_200(self, test_client, session, new_note_value):
+    def test_update_mask_set_note_should_respond_200(
+        self, test_client, session, new_note_value, ti_note_data
+    ):
         self.create_task_instances(session)
         response = test_client.patch(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -3369,7 +3378,53 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             json={"note": new_note_value},
         )
         assert response.status_code == 200, response.text
-        assert response.json() == {
+        response_data = response.json()
+        assert response_data == {
+            "dag_id": self.DAG_ID,
+            "dag_version": None,
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "logical_date": "2020-01-01T00:00:00Z",
+            "id": mock.ANY,
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "note": new_note_value,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "scheduled_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "running",
+            "task_id": self.TASK_ID,
+            "task_display_name": self.TASK_ID,
+            "try_number": 0,
+            "unixname": getuser(),
+            "dag_run_id": self.RUN_ID,
+            "rendered_fields": {},
+            "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
+            "trigger": None,
+            "triggerer_job": None,
+        }
+        _check_task_instance_note(session, response_data["id"], ti_note_data)
+
+    def test_set_note_should_respond_200(self, test_client, session):
+        self.create_task_instances(session)
+        new_note_value = "My super cool TaskInstance note."
+        response = test_client.patch(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            json={"note": new_note_value},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data == {
             "dag_id": self.DAG_ID,
             "dag_version": None,
             "duration": 10000.0,
@@ -3404,48 +3459,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
-    def test_set_note_should_respond_200(self, test_client, session):
-        self.create_task_instances(session)
-        new_note_value = "My super cool TaskInstance note."
-        response = test_client.patch(
-            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            json={"note": new_note_value},
+        _check_task_instance_note(
+            session, response_data["id"], {"content": new_note_value, "user_id": "test"}
         )
-        assert response.status_code == 200, response.text
-        assert response.json() == {
-            "dag_id": self.DAG_ID,
-            "dag_version": None,
-            "duration": 10000.0,
-            "end_date": "2020-01-03T00:00:00Z",
-            "logical_date": "2020-01-01T00:00:00Z",
-            "id": mock.ANY,
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "note": new_note_value,
-            "operator": "PythonOperator",
-            "pid": 100,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 9,
-            "queue": "default_queue",
-            "queued_when": None,
-            "scheduled_when": None,
-            "start_date": "2020-01-02T00:00:00Z",
-            "state": "running",
-            "task_id": self.TASK_ID,
-            "task_display_name": self.TASK_ID,
-            "try_number": 0,
-            "unixname": getuser(),
-            "dag_run_id": self.RUN_ID,
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "run_after": "2020-01-01T00:00:00Z",
-            "trigger": None,
-            "triggerer_job": None,
-        }
 
     def test_set_note_should_respond_200_mapped_task_instance_with_rtif(self, test_client, session):
         """Verify we don't duplicate rows through join to RTIF"""
@@ -3468,8 +3484,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 json={"note": new_note_value},
             )
             assert response.status_code == 200, response.text
+            response_data = response.json()
 
-            assert response.json() == {
+            assert response_data == {
                 "dag_id": self.DAG_ID,
                 "dag_version": None,
                 "duration": 10000.0,
@@ -3504,6 +3521,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "triggerer_job": None,
             }
 
+            _check_task_instance_note(
+                session, response_data["id"], {"content": new_note_value, "user_id": "test"}
+            )
+
     def test_set_note_should_respond_200_when_note_is_empty(self, test_client, session):
         tis = self.create_task_instances(session)
         for ti in tis:
@@ -3516,7 +3537,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             json={"note": new_note_value},
         )
         assert response.status_code == 200, response.text
-        assert response.json()["note"] == new_note_value
+        response_data = response.json()
+        assert response_data["note"] == new_note_value
+        _check_task_instance_note(
+            session, response_data["id"], {"content": new_note_value, "user_id": "test"}
+        )
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_raise_409_for_updating_same_task_instance_state(
@@ -3650,6 +3675,8 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
 
         assert task_before == task_after
 
+        _check_task_instance_note(session, task_after["id"], {"content": "placeholder-note", "user_id": None})
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
             f"{self.ENDPOINT_URL}/dry_run",
@@ -3687,6 +3714,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         task_after = test_client.get(f"{self.ENDPOINT_URL}/{map_index}").json()
 
         assert task_before == task_after
+        _check_task_instance_note(session, task_after["id"], None)
 
     @pytest.mark.parametrize(
         "error, code, payload",

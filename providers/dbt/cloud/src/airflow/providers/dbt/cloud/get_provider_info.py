@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "dbt Cloud",
         "description": "`dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1742980047,
+        "source-date-epoch": 1743477809,
         "versions": [
             "4.3.1",
             "4.2.1",

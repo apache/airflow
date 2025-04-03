@@ -86,6 +86,10 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-mysql",
+    "apache-airflow-providers-postgres",
+    "apache-airflow-providers-odbc",
 ]
 
 [tool.uv.sources]
