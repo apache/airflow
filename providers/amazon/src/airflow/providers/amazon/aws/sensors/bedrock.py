@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.utils.context import Context
 
 
@@ -443,15 +444,20 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         base_success_states: tuple[str, ...] = ("Completed",)
         base_intermediate_states: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating")
         scheduled_state = ("Scheduled",)
+        self.trigger_class: type[BedrockBaseBatchInferenceTrigger]
 
         if self.success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
             intermediate_states = base_intermediate_states + scheduled_state
             success_states = base_success_states
-            self.trigger = BedrockBatchInferenceCompletedTrigger
+            self.trigger_class = BedrockBatchInferenceCompletedTrigger
         elif self.success_state == BedrockBatchInferenceSensor.SuccessState.SCHEDULED:
             intermediate_states = base_intermediate_states
             success_states = base_success_states + scheduled_state
-            self.trigger = BedrockBatchInferenceScheduledTrigger
+            self.trigger_class = BedrockBatchInferenceScheduledTrigger
+        else:
+            raise ValueError(
+                "Success states for BedrockBatchInferenceSensor must be set using a BedrockBatchInferenceSensor.SuccessState"
+            )
 
         BedrockBatchInferenceSensor.INTERMEDIATE_STATES = intermediate_states or base_intermediate_states
         BedrockBatchInferenceSensor.SUCCESS_STATES = success_states or base_success_states
@@ -462,7 +468,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
     def execute(self, context: Context) -> Any:
         if self.deferrable:
             self.defer(
-                trigger=self.trigger(
+                trigger=self.trigger_class(
                     job_arn=self.job_arn,
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
