@@ -55,6 +55,7 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
 )
 from airflow.models import DagRun, TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.state import TaskInstanceState
 
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
@@ -162,8 +163,10 @@ def grid_data(
         run_dag = tis[0].dag_version.serialized_dag.dag
         task_node_map = get_task_group_map(dag=run_dag)
         for ti in tis:
-            # Skip the Task Instances if upstream/downstream filtering is applied
-            if task_node_map_exclude and ti.task_id not in task_node_map_exclude:
+            # Skip the Task Instances if upstream/downstream filtering is applied or if the task was removed.
+            if (
+                task_node_map_exclude and ti.task_id not in task_node_map_exclude
+            ) or ti.state == TaskInstanceState.REMOVED:
                 continue
 
             # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
