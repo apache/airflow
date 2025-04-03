@@ -27,6 +27,8 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      - root-airflow-volume:/root/airflow/
+      - airflow-cache-volume:/root/.cache
       # START automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
@@ -119,3 +121,6 @@ services:
         source: ../../../chart
         target: /opt/airflow/chart
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
+volumes:
+  root-airflow-volume:
+  airflow-cache-volume:
