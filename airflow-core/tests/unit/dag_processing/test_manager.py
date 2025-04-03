@@ -51,6 +51,7 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -64,10 +65,12 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
     clear_db_dag_bundles,
+    clear_db_dag_parsing_requests,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_runs,
     clear_db_serialized_dags,
+    parse_and_sync_to_db,
 )
 from unit.models import TEST_DAGS_FOLDER
 
@@ -1150,3 +1153,76 @@ class TestDagFileProcessorManager:
 
         bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
         assert bundle_names_being_parsed == expected
+
+
+class TestDagProcessorReserializeAll:
+    @pytest.fixture
+    def test_bundles_config(self):
+        """Fixture providing test bundle configuration"""
+        return {
+            "bundle1": TEST_DAGS_FOLDER / "test_example_bash_operator.py",  # Single file bundle
+            "bundle2": TEST_DAGS_FOLDER / "test_sensor.py",  # Single file bundle
+            "bundle3": TEST_DAGS_FOLDER.parent / "dags_with_system_exit",  # Directory with multiple DAGs
+        }
+
+    @pytest.fixture(autouse=True)
+    def setup_and_teardown(self, test_bundles_config, configure_dag_bundles):
+        """Setup and teardown for each test."""
+        clear_db_dag_parsing_requests()
+        with configure_dag_bundles(test_bundles_config):
+            for key, value in test_bundles_config.items():
+                parse_and_sync_to_db(value, bundle_name=key)
+            yield
+        clear_db_dags()
+        clear_db_dag_bundles()
+
+    @pytest.mark.parametrize(
+        "bundle_names,expected_count",
+        [
+            (["bundle1"], 1),  # Single file bundle
+            (["bundle2"], 1),  # Single file bundle
+            (["bundle3"], 1),  # Directory bundle with multiple DAGs
+            (["bundle1", "bundle2"], 2),  # Multiple single file bundles
+        ],
+    )
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_reserialize_bundles_success(self, session, bundle_names, expected_count, test_bundles_config):
+        """Test successful bundle reserialize operations with various inputs."""
+        # Create parsing requests for each bundle
+        for bundle_name in bundle_names:
+            parsing_request = DagPriorityParsingRequest(relative_fileloc="", bundle_name=bundle_name)
+            session.add(parsing_request)
+        session.commit()
+
+        # Create the manager and process the requests
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        manager._queue_requested_files_for_parsing()
+
+        # Verify that all files from the requested bundles are in the queue
+        expected_files = set()
+        for bundle_name in bundle_names:
+            # Get files from DagModel instead of filesystem
+            dag_files = (
+                session.query(DagModel.relative_fileloc)
+                .filter(DagModel.bundle_name == bundle_name, DagModel.is_active)
+                .distinct()
+                .all()
+            )
+            bundle_path = test_bundles_config[bundle_name]
+            for (relative_fileloc,) in dag_files:
+                expected_files.add(
+                    DagFileInfo(
+                        bundle_name=bundle_name,
+                        rel_path=Path(relative_fileloc),
+                        bundle_path=bundle_path if bundle_path.is_dir() else bundle_path.parent,
+                    )
+                )
+
+        assert len(manager._file_queue) == expected_count
+        assert set(manager._file_queue) == expected_files
+
+        # Verify that all parsing requests were processed and deleted
+        with create_session() as session:
+            remaining_requests = session.query(DagPriorityParsingRequest).all()
+            assert len(remaining_requests) == 0
