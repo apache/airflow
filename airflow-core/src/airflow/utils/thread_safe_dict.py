@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,26 +16,34 @@
 # under the License.
 from __future__ import annotations
 
-import calendar
-
-cron_presets: dict[str, str] = {
-    "@hourly": "0 * * * *",
-    "@daily": "0 0 * * *",
-    "@weekly": "0 0 * * 0",
-    "@monthly": "0 0 1 * *",
-    "@quarterly": "0 0 1 */3 *",
-    "@yearly": "0 0 1 1 *",
-}
+import threading
 
 
-def datetime_to_nano(datetime) -> int | None:
-    """Convert datetime to nanoseconds."""
-    if datetime:
-        if datetime.tzinfo is None:
-            # There is no timezone info, handle it the same as UTC.
-            timestamp = calendar.timegm(datetime.timetuple()) + datetime.microsecond / 1e6
-        else:
-            # The datetime is timezone-aware. Use timestamp directly.
-            timestamp = datetime.timestamp()
-        return int(timestamp * 1e9)
-    return None
+class ThreadSafeDict:
+    """Dictionary that uses a lock during operations, to ensure thread safety."""
+
+    def __init__(self):
+        self.sync_dict = {}
+        self.thread_lock = threading.Lock()
+
+    def set(self, key, value):
+        with self.thread_lock:
+            self.sync_dict[key] = value
+
+    def get(self, key):
+        with self.thread_lock:
+            return self.sync_dict.get(key)
+
+    def delete(self, key):
+        with self.thread_lock:
+            if key in self.sync_dict:
+                del self.sync_dict[key]
+
+    def clear(self):
+        with self.thread_lock:
+            self.sync_dict.clear()
+
+    def get_all(self):
+        with self.thread_lock:
+            # Return a copy to avoid exposing the internal dictionary.
+            return self.sync_dict.copy()

@@ -47,7 +47,9 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -461,6 +463,166 @@ class TestDagRun:
         assert task.state == TaskInstanceState.SKIPPED
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
+
+    def test_start_dr_spans_if_needed_new_span(self, testing_dag_bundle, dag_maker, session):
+        with dag_maker(
+            dag_id="test_start_dr_spans_if_needed_new_span",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+        ) as dag:
+            ...
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+
+        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_task1": TaskInstanceState.QUEUED,
+            "test_task2": TaskInstanceState.QUEUED,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+
+        active_spans = ThreadSafeDict()
+        dag_run.set_active_spans(active_spans)
+
+        tis = dag_run.get_task_instances()
+
+        assert dag_run.active_spans is not None
+        assert dag_run.active_spans.get(dag_run.run_id) is None
+        assert dag_run.span_status == SpanStatus.NOT_STARTED
+
+        dag_run.start_dr_spans_if_needed(tis=tis)
+
+        assert dag_run.span_status == SpanStatus.ACTIVE
+        assert dag_run.active_spans.get(dag_run.run_id) is not None
+
+    def test_start_dr_spans_if_needed_span_with_continuance(self, testing_dag_bundle, dag_maker, session):
+        with dag_maker(
+            dag_id="test_start_dr_spans_if_needed_span_with_continuance",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+        ) as dag:
+            ...
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+
+        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_task1": TaskInstanceState.RUNNING,
+            "test_task2": TaskInstanceState.QUEUED,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+
+        active_spans = ThreadSafeDict()
+        dag_run.set_active_spans(active_spans)
+
+        dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
+
+        tis = dag_run.get_task_instances()
+
+        first_ti = tis[0]
+        first_ti.span_status = SpanStatus.NEEDS_CONTINUANCE
+
+        assert dag_run.active_spans is not None
+        assert dag_run.active_spans.get(dag_run.run_id) is None
+        assert dag_run.active_spans.get(first_ti.key) is None
+        assert dag_run.span_status == SpanStatus.NEEDS_CONTINUANCE
+        assert first_ti.span_status == SpanStatus.NEEDS_CONTINUANCE
+
+        dag_run.start_dr_spans_if_needed(tis=tis)
+
+        assert dag_run.span_status == SpanStatus.ACTIVE
+        assert first_ti.span_status == SpanStatus.ACTIVE
+        assert dag_run.active_spans.get(dag_run.run_id) is not None
+        assert dag_run.active_spans.get(first_ti.key) is not None
+
+    def test_end_dr_span_if_needed(self, testing_dag_bundle, dag_maker, session):
+        with dag_maker(
+            dag_id="test_end_dr_span_if_needed",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+        ) as dag:
+            ...
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+
+        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_task1": TaskInstanceState.SUCCESS,
+            "test_task2": TaskInstanceState.SUCCESS,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+
+        active_spans = ThreadSafeDict()
+        dag_run.set_active_spans(active_spans)
+
+        from airflow.traces.tracer import Trace
+
+        dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
+
+        active_spans.set(dag_run.run_id, dr_span)
+
+        assert dag_run.active_spans is not None
+        assert dag_run.active_spans.get(dag_run.run_id) is not None
+
+        dag_run.end_dr_span_if_needed()
+
+        assert dag_run.span_status == SpanStatus.ENDED
+        assert dag_run.active_spans.get(dag_run.run_id) is None
+
+    def test_end_dr_span_if_needed_with_span_from_another_scheduler(
+        self, testing_dag_bundle, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="test_end_dr_span_if_needed_with_span_from_another_scheduler",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+        ) as dag:
+            ...
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+
+        dag_task1 = EmptyOperator(task_id="test_task1", dag=dag)
+        dag_task2 = EmptyOperator(task_id="test_task2", dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            "test_task1": TaskInstanceState.SUCCESS,
+            "test_task2": TaskInstanceState.SUCCESS,
+        }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+
+        active_spans = ThreadSafeDict()
+        dag_run.set_active_spans(active_spans)
+
+        dag_run.span_status = SpanStatus.ACTIVE
+
+        assert dag_run.active_spans is not None
+        assert dag_run.active_spans.get(dag_run.run_id) is None
+
+        dag_run.end_dr_span_if_needed()
+
+        assert dag_run.span_status == SpanStatus.SHOULD_END
 
     def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
         def on_success_callable(context):

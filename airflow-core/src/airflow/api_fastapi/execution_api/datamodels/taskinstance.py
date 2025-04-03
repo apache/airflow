@@ -241,6 +241,7 @@ class TaskInstance(StrictBaseModel):
     try_number: int
     map_index: int = -1
     hostname: str | None = None
+    context_carrier: dict | None = None
 
 
 class DagRun(StrictBaseModel):
