@@ -17,16 +17,7 @@
 ---
 services:
   airflow:
-    image: ${AIRFLOW_CI_IMAGE}
-    pull_policy: never
-    environment:
-      - USER=root
-      - ADDITIONAL_PATH=~/.local/bin
-      - KUBECONFIG=/files/.kube/config
-    env_file:
-      - _generated_docker_compose.env
     volumes:
-      # Required to get non-blocking entropy source
-      - /dev/urandom:/dev/random
-    cap_add:
-      - SYS_PTRACE
+      # We should be ok with sharing the cache between the builds - now that we are using uv
+      # The cache should be safe to share between parallel builds as UV is build to support it.
+      - /mnt/.cache:/root/.cache
