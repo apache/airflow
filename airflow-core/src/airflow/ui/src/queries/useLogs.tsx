@@ -25,7 +25,7 @@ import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import { renderStructuredLog, returnLogMessage } from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -227,6 +227,48 @@ export const useLogs = (
   });
 
   return { data: parsedData, ...rest };
+};
+
+const fullLogContent = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) =>
+  data;
+
+// const currentLogContent = ()=>{}
+
+export const useLogContent = (
+  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
+) => {
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, ...rest } = useTaskInstanceServiceGetLog(
+    {
+      dagId,
+      dagRunId: taskInstance?.dag_run_id ?? "",
+      mapIndex: taskInstance?.map_index ?? -1,
+      taskId: taskInstance?.task_id ?? "",
+      tryNumber,
+    },
+    undefined,
+    {
+      enabled: Boolean(taskInstance),
+      refetchInterval: (query) =>
+        isStatePending(taskInstance?.state) ||
+        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
+          ? refetchInterval
+          : false,
+      ...options,
+    },
+  );
+
+  const logs = fullLogContent({
+    data: data?.content ?? [],
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber,
+  });
+
+  return logs;
 };
 
 type LineObject = {

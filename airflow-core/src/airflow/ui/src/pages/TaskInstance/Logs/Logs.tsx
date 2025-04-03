@@ -27,6 +27,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
+import { useLogs, useLogContent } from "src/queries/useLogs";
 import { useLogs, useLogDownload } from "src/queries/useLogs";
 
 import { ExternalLogLink } from "./ExternalLogLink";
@@ -88,9 +89,14 @@ export const Logs = () => {
   useHotkeys("t", toggleTimestamp);
   useHotkeys("s", toggleSource);
 
-  const onOpenChange = () => {
-    setFullscreen(false);
-  };
+  /* const downloadCurrentLog = () => {
+    const file; // get log file
+    const element = document.createElement("a");
+    element.href = URL.createObjectURL(file);
+    element.download = "currLog.txt";
+    document.body.appendChild(element);
+    element.click();
+    }*/
 
   const {
     data,
@@ -133,9 +139,32 @@ export const Logs = () => {
   const externalLogName = useConfig("external_log_name") as string;
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
+  const { datum } = useLogContent({
+    dagId,
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber: tryNumber === 0 ? 1 : tryNumber,
+  });
+
+  const downloadLog = () => {
+    const texts = datum;
+    const file = new Blob(texts, { type: "text/plain" });
+    const element = document.createElement("a");
+    element.href = URL.createObjectURL(file);
+    element.download = `fullLogs.txt`;
+    document.body.append(element);
+    element.click();
+  };
+
+  const onOpenChange = () => {
+    setFullscreen(false);
+  };
+
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
+        downloadLog={downloadLog}
         expanded={expanded}
         downloadLog={downloadLog}
         onSelectTryNumber={onSelectTryNumber}
@@ -175,6 +204,7 @@ export const Logs = () => {
             <VStack gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
+                downloadLog={downloadLog}
                 expanded={expanded}
                 downloadLog={downloadLog}
                 isFullscreen
