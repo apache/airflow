@@ -28,6 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 
 from __future__ import annotations
 
+import base64
 import json
 from enum import Enum
 from typing import Any
@@ -61,6 +62,8 @@ LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
+WORKSPACE_IMPORT_NOTEBOOK_ENDPOINT = ("POST", "/api/2.0/workspace/import")
+WORKSPACE_MKDIR_ENDPOINT = ("POST", "/api/2.0/workspace/mkdirs")
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
@@ -721,3 +724,57 @@ class DatabricksHook(BaseDatabricksHook):
             message = str(e)
 
         return status, message
+
+    def import_notebook(
+        self,
+        workspace_path: str,
+        notebook_name: str,
+        content: str,
+        format: str = "SOURCE",
+        overwrite: bool = False,
+    ) -> str:
+        # encode notebook content into base64-encoded string
+        encoded_bytes = base64.b64encode(content.encode("utf-8"))
+        encoded_str = str(encoded_bytes, "utf-8")
+
+        directories = [directory for directory in workspace_path.split("/") if directory]
+
+        path = "/"
+        for directory in directories:
+            path += f"{directory}/"
+
+        # create parent directories if not exists
+        try:
+            self._do_api_call(WORKSPACE_MKDIR_ENDPOINT, {"path": path})
+        except Exception as e:
+            if "RESOURCE_ALREADY_EXISTS" in e.__str__():
+                raise ValueError(
+                    f"{workspace_path}. A file (or object) exists at part of the specified path. Please choose a different path or remove the file (or object)."
+                )
+            else:
+                raise ValueError(e.__str__())
+
+        # request json
+        json = {
+            "format": format,
+            "path": path + notebook_name,
+            "content": encoded_str,
+            "overwrite": overwrite,
+        }
+
+        try:
+            self._do_api_call(WORKSPACE_IMPORT_NOTEBOOK_ENDPOINT, json)
+            return "Notebook imported successfully"
+        except Exception as e:
+            if "RESOURCE_ALREADY_EXISTS" in e.__str__():
+                raise ValueError(
+                    f"{notebook_name} already exist, Set overwrite to True to overwrite the existing file"
+                )
+            elif "INVALID_PARAMETER_VALUE" in e.__str__():
+                raise ValueError(
+                    "Invalid value passed as parameters. See valid parameters here: https://docs.databricks.com/api/workspace/workspace/import#content"
+                )
+            elif "MAX_NOTEBOOK_SIZE_EXCEEDED" in e.__str__():
+                raise ValueError("The content size exceeds the 10 MB limit.")
+            else:
+                raise ValueError(e.__str__())
