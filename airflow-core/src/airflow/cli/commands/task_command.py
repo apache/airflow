@@ -255,7 +255,7 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(args.subdir, args.dag_id, from_db=True)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.current_state())
@@ -366,6 +366,8 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         os.environ.update(env_vars)
 
     dag = dag or get_dag(args.subdir, args.dag_id)
+
+    dag = DAG.from_sdk_dag(dag)
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
