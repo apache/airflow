@@ -25,28 +25,21 @@ from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.settings import json
 
 
-def serialize_template_field(
-    template_field: Any, name: str, allow_tuple_conversion: bool = False
-) -> str | dict | list | int | float:
+def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
     """
     Return a serializable representation of the templated field.
 
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
     """
-    print("template_field:", template_field)
 
     def is_jsonable(x):
-        if isinstance(x, tuple) and not allow_tuple_conversion:
-            # Tuple is converted to list in json.dumps
-            # so while it is jsonable, it changes the type which might be a surprise
-            # for the user, so instead we return False here -- which will convert it to string
-            return False
         try:
             json.dumps(x)
-            return True
         except (TypeError, OverflowError):
             return False
+        else:
+            return True
 
     def translate_tuples_to_lists(obj: Any):
         """Recursively convert tuples to lists."""
