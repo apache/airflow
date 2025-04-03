@@ -43,7 +43,7 @@ export const useDependencyGraph = (
     const key = UseDependenciesServiceGetDependenciesKeyFn({ nodeId: node.id });
     const queryData = queryClient.getQueryData(key);
 
-    if (!Boolean(queryData) && Boolean(query.data)) {
+    if (!Boolean(queryData)) {
       queryClient.setQueryData(key, query.data);
     }
   });
