@@ -1122,6 +1122,7 @@ ARG DEV_APT_DEPS="\
      lsb-release \
      nodejs \
      openssh-client \
+     python3-dev \
      sasl2-bin \
      software-properties-common \
      sqlite3 \
@@ -1229,6 +1230,9 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C \ 
+    && gpg --export "B7B3B788A8D3785C" > "/etc/apt/trusted.gpg.d/mysql.gpg"
 
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh && \
@@ -1469,6 +1473,9 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+# Add the MySQL GPG key using curl and gpg as requested
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C \ 
+    && gpg --export "B7B3B788A8D3785C" > "/etc/apt/trusted.gpg.d/mysql.gpg"
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
