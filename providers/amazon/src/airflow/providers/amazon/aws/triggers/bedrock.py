@@ -243,7 +243,10 @@ class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
     ) -> None:
         super().__init__(
             waiter_name="batch_inference_complete",
-            job_arn="job_arn",
+            job_arn=job_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
         )
 
 
@@ -268,5 +271,8 @@ class BedrockBatchInferenceScheduledTrigger(BedrockBaseBatchInferenceTrigger):
     ) -> None:
         super().__init__(
             waiter_name="batch_inference_scheduled",
-            job_arn="job_arn",
+            job_arn=job_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
         )
