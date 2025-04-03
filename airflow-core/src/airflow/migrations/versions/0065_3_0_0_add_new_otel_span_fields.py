@@ -49,7 +49,7 @@ def upgrade():
     op.add_column("task_instance", sa.Column("context_carrier", ExtendedJSON, nullable=True))
     op.add_column(
         "task_instance", sa.Column("span_status", sa.String(250), nullable=False, default="not_started")
-    )    
+    )
 
 
 def downgrade():
