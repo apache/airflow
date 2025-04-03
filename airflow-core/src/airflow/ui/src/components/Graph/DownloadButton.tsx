@@ -24,7 +24,7 @@ import { FiDownload } from "react-icons/fi";
 import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
-  const { getNodes } = useReactFlow();
+  const { getNodes, getZoom } = useReactFlow();
 
   const onClick = () => {
     const nodesBounds = getNodesBounds(getNodes());
@@ -34,7 +34,8 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
 
     if (container instanceof HTMLElement) {
       const dimensions = { height: container.clientHeight, width: container.clientWidth };
-      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, 0.5, 2, 0.25);
+      const zoom = getZoom();
+      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, zoom, zoom, 2);
 
       toPng(container, {
         height: dimensions.height,
