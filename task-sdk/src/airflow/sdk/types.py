@@ -66,6 +66,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     max_tries: int
     hostname: str | None = None
     start_date: AwareDatetime
+    end_date: AwareDatetime | None = None
 
     def xcom_pull(
         self,
@@ -85,6 +86,24 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_template_context(self) -> Context: ...
 
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+
+    @staticmethod
+    def get_ti_count(
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
+
+    @staticmethod
+    def get_dr_count(
+        dag_id: str,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
 
 
 class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):

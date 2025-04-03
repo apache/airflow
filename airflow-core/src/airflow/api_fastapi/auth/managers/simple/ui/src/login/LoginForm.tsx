@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import React from "react";
 import { Button, Field, Input, Stack } from "@chakra-ui/react";
+import React from "react";
 import { Controller, useForm } from "react-hook-form";
+
 import type { LoginBody } from "./Login";
 
 type LoginFormProps = {
@@ -71,11 +71,7 @@ export const LoginForm = ({ isPending, onLogin }: LoginFormProps) => {
           rules={{ required: true }}
         />
 
-        <Button
-          colorPalette="blue"
-          disabled={!isValid || isPending}
-          type="submit"
-        >
+        <Button colorPalette="blue" disabled={!isValid || isPending} type="submit">
           Sign in
         </Button>
       </Stack>

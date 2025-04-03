@@ -944,7 +944,7 @@ explicit_package_bases = true
 exclude = [
     ".*/node_modules/.*",
     # Exclude hidden files and directories
-    ".*\\..*"
+    ".*/\\..*"
 ]
 mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-core/src",
