@@ -511,6 +511,7 @@ COMMITTERS = [
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
+    "vatsrahul1001",
     "vikramkoka",
     "vincbeck",
     "xinbinhuang",
