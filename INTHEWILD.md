@@ -319,6 +319,7 @@ Currently, **officially** using Airflow:
 1. [LetsBonus](http://www.letsbonus.com) [[@jesusfcr](https://github.com/jesusfcr) & [@OpringaoDoTurno](https://github.com/OpringaoDoTurno)]
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
+1. [LINE](https://www.line.me/) [[@uplsh580](https://github.com/uplsh580)]
 1. [Lineas](https://lineas.net/) [[@lineashub](https://github.com/lineashub), [@kobethuwis](https://github.com/kobethuwis)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [LinkedIn](http://linkedin.com/) [[@csm10495](https://github.com/csm10495)]
