@@ -108,7 +108,7 @@ looks like:
         flask_blueprints = []
         # A list of dictionaries containing FastAPI app objects and some metadata. See the example below.
         fastapi_apps = []
-        # A list of dictionaries contanning FastAPI middlwerare factory object and some metadata. See example below.
+        # A list of dictionaries containing FastAPI middleware factory objects and some metadata. See the example below.
         fastapi_root_middlewares = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_views = []
