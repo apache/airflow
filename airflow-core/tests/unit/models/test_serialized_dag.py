@@ -28,14 +28,14 @@ from sqlalchemy import func, select, update
 import airflow.example_dags as example_dags_module
 from airflow.decorators import task as task_decorator
 from airflow.models.asset import AssetModel
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG as SchedulerDAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk import DAG, Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -44,7 +44,6 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
 
 pytestmark = pytest.mark.db_test
 
@@ -61,7 +60,7 @@ def make_example_dags(module):
             session.add(testing)
 
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
+    SchedulerDAG.bulk_write_to_db("testing", None, dagbag.dags.values())
     return dagbag.dags
 
 
@@ -205,18 +204,6 @@ class TestSerializedDagModel:
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
-
-    def test_bulk_sync_to_db(self, testing_dag_bundle):
-        dags = [
-            DAG("dag_1", schedule=None),
-            DAG("dag_2", schedule=None),
-            DAG("dag_3", schedule=None),
-        ]
-        DAG.bulk_write_to_db("testing", None, dags)
-        # we also write to dag_version and dag_code tables
-        # in dag_version.
-        with assert_queries_count(24):
-            SDM.bulk_sync_to_db(dags, bundle_name="testing")
 
     def test_order_of_dag_params_is_stable(self):
         """
