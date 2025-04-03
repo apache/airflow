@@ -896,6 +896,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         span.set_attributes(
             {
                 "airflow.category": "scheduler",
+                "airflow.task.id": ti.id,
                 "airflow.task.task_id": ti.task_id,
                 "airflow.task.dag_id": ti.dag_id,
                 "airflow.task.state": ti.state,
