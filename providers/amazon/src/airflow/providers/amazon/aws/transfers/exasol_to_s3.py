@@ -109,4 +109,3 @@ class ExasolToS3Operator(BaseOperator):
                 acl_policy=self.acl_policy,
             )
         self.log.info("Data uploaded")
-        return self.key
