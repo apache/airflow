@@ -32,17 +32,17 @@ const columns: Array<ColumnDef<ConfigColums>> = [
   {
     accessorKey: "section",
     enableSorting: false,
-    header: () => "section",
+    header: "Section",
   },
   {
     accessorKey: "key",
     enableSorting: false,
-    header: () => "key",
+    header: "Key",
   },
   {
     accessorKey: "value",
     enableSorting: false,
-    header: () => "value",
+    header: "Value",
   },
 ];
 
@@ -62,7 +62,7 @@ export const Configs = () => {
       <Heading mb={4}>Airflow Configuration</Heading>
       <Separator />
       {error === null ? (
-        <DataTable columns={columns} data={render} displayMode="table" modelName="Config" />
+        <DataTable columns={columns} data={render} modelName="Config" />
       ) : (
         <ErrorAlert error={error} />
       )}
