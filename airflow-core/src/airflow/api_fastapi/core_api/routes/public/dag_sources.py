@@ -65,11 +65,14 @@ def get_dag_source(
             f"The source code of the DAG {dag_id}, version_number {version_number} was not found",
         )
     if dag_code := dag_version.dag_code:
-        dag_source = dag_code.source_code
+        content = dag_code.source_code
     else:
-        dag_source = None
+        content = f"# Code not found for dag '{dag_id}'"
+        if version_number:
+            content += f" and version '{version_number}'"
+        content += "."
     version_number = dag_version.version_number
-    dag_source_model = DAGSourceResponse(dag_id=dag_id, content=dag_source, version_number=version_number)
+    dag_source_model = DAGSourceResponse(dag_id=dag_id, content=content, version_number=version_number)
 
     if accept == Mimetype.TEXT:
         return Response(dag_source_model.content, media_type=Mimetype.TEXT)
