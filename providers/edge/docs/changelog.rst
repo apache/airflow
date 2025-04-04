@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.21.0b1
+..........
+
+Misc
+~~~~
+
+* ``Removed state from metrics and added connected and maintenance metrics.``
+
 0.20.2b1
 ..........
 
