@@ -71,11 +71,11 @@ export const Dag = () => {
 
   let dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
 
-  if (dagWithRuns === undefined && Boolean(dag)) {
+  if (dagWithRuns === undefined && dag !== undefined) {
     dagWithRuns = {
       latest_dag_runs: [],
       ...dag,
-    } as DAGWithLatestDagRunsResponse;
+    } satisfies DAGWithLatestDagRunsResponse;
   }
 
   return (
