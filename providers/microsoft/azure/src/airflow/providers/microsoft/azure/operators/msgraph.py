@@ -36,9 +36,10 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 try:
-    from airflow.providers.openlineage.utils import AirflowContextDeprecationWarning
-except ImportError:
     from airflow.utils.context import AirflowContextDeprecationWarning
+except ImportError:
+    from airflow.providers.openlineage.utils import AirflowContextDeprecationWarning
+
 
 if TYPE_CHECKING:
     from io import BytesIO
