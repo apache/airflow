@@ -38,7 +38,8 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 try:
     from airflow.utils.context import AirflowContextDeprecationWarning
 except ImportError:
-    from airflow.providers.openlineage.utils import AirflowContextDeprecationWarning
+    class AirflowContextDeprecationWarning(UserWarning):
+        pass
 
 
 if TYPE_CHECKING:
