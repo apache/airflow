@@ -265,8 +265,8 @@ Rename ``Dataset`` as ``Asset``
 
       * [ ] context key ``triggering_dataset_events`` → ``triggering_asset_events``
       * [x] ``airflow.api_connexion.security.requires_access_dataset`` → ``airflow.api_connexion.security.requires_access_asset``
-      * [ ] ``airflow.auth.managers.base_auth_manager.is_authorized_dataset`` → ``airflow.api_fastapi.auth.managers.base_auth_manager.is_authorized_asset``
-      * [ ] ``airflow.auth.managers.models.resource_details.DatasetDetails`` → ``airflow.api_fastapi.auth.managers.models.resource_details.AssetDetails``
+      * [x] ``airflow.auth.managers.base_auth_manager.is_authorized_dataset`` → ``airflow.api_fastapi.auth.managers.base_auth_manager.is_authorized_asset``
+      * [x] ``airflow.auth.managers.models.resource_details.DatasetDetails`` → ``airflow.api_fastapi.auth.managers.models.resource_details.AssetDetails``
       * [x] ``airflow.lineage.hook.DatasetLineageInfo`` → ``airflow.lineage.hook.AssetLineageInfo``
       * [x] ``airflow.security.permissions.RESOURCE_DATASET`` → ``airflow.security.permissions.RESOURCE_ASSET``
       * [x] ``airflow.www.auth.has_access_dataset`` → ``airflow.www.auth.has_access_dataset.has_access_asset``
