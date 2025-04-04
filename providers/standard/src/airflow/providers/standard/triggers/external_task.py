@@ -89,19 +89,77 @@ class WorkflowTrigger(BaseTrigger):
             "allowed_states": self.allowed_states,
             "poke_interval": self.poke_interval,
             "soft_fail": self.soft_fail,
+            "execution_dates": self.execution_dates,
         }
         if AIRFLOW_V_3_0_PLUS:
             data["run_ids"] = self.run_ids
-        else:
-            data["execution_dates"] = self.execution_dates
+        # else:
+        #     data["execution_dates"] = self.execution_dates
 
         return "airflow.providers.standard.triggers.external_task.WorkflowTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
+        yield TriggerEvent({"status": "success"})
+        if AIRFLOW_V_3_0_PLUS:
+            self._validate_count_af_3()
+        else:
+            while True:
+                if self.failed_states:
+                    failed_count = await self._get_count(self.failed_states)
+                    if failed_count > 0:
+                        yield TriggerEvent({"status": "failed"})
+                        return
+                    else:
+                        yield TriggerEvent({"status": "success"})
+                        return
+                if self.skipped_states:
+                    skipped_count = await self._get_count(self.skipped_states)
+                    if skipped_count > 0:
+                        yield TriggerEvent({"status": "skipped"})
+                        return
+                allowed_count = await self._get_count(self.allowed_states)
+                _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
+                if allowed_count == len(_dates):  # type: ignore[arg-type]
+                    yield TriggerEvent({"status": "success"})
+                    return
+                self.log.info("Sleeping for %s seconds", self.poke_interval)
+                await asyncio.sleep(self.poke_interval)
+
+
+    async def _validate_count_af_3(self):
+        from airflow.sdk.execution_time.context import get_ti_count, get_dr_count
+        run_id_or_dates = self.run_ids or self.execution_dates or []
+        print(f"run_id_or_dates: {run_id_or_dates}")
+
+        async def get_count(states):
+            if self.external_task_ids or self.external_task_group_id:
+                count = await sync_to_async(get_ti_count)(
+                    dag_id=self.external_dag_id,
+                    task_ids=self.external_task_ids,
+                    task_group_id=self.external_task_group_id,
+                    logical_dates=self.execution_dates,
+                    run_ids=self.run_ids,
+                    states=states,
+                )
+            else:
+                count = await sync_to_async(get_dr_count)(
+                    dag_id=self.external_dag_id,
+                    logical_dates=self.execution_dates,
+                    run_ids=self.run_ids,
+                    states=states,
+                )
+
+            if self.external_task_ids:
+                return count / len(self.external_task_ids)
+            elif self.external_task_group_id:
+                return count / len(run_id_or_dates)
+            else:
+                return count
+
         while True:
             if self.failed_states:
-                failed_count = await self._get_count(self.failed_states)
+                failed_count = await get_count(self.failed_states)
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
@@ -109,17 +167,18 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "success"})
                     return
             if self.skipped_states:
-                skipped_count = await self._get_count(self.skipped_states)
+                skipped_count = await get_count(self.skipped_states)
                 if skipped_count > 0:
                     yield TriggerEvent({"status": "skipped"})
                     return
-            allowed_count = await self._get_count(self.allowed_states)
-            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if allowed_count == len(_dates):  # type: ignore[arg-type]
+            allowed_count = await get_count(self.allowed_states)
+            if allowed_count == len(run_id_or_dates):  # type: ignore[arg-type]
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
+
+
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:
