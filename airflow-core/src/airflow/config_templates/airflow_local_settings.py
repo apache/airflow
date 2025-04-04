@@ -129,16 +129,7 @@ if EXTRA_LOGGER_NAMES:
 ##################
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
-REMOTE_TASK_LOG: (
-    RemoteLogIO
-    | S3RemoteLogIO
-    | CloudWatchRemoteLogIO
-    | GCSRemoteLogIO
-    | WasbRemoteLogIO
-    | OSSRemoteLogIO
-    | HdfsRemoteLogIO
-    | None
-) = None
+REMOTE_TASK_LOG: RemoteLogIO | None = None
 
 if REMOTE_LOGGING:
     ELASTICSEARCH_HOST: str | None = conf.get("elasticsearch", "HOST")
