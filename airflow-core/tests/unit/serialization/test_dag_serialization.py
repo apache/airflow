@@ -89,6 +89,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -442,6 +443,7 @@ class TestStringifiedDAGs:
         os.environ.get("UPGRADE_BOTO", "") == "true",
         reason="This test is skipped when latest botocore is installed",
     )
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -600,6 +602,7 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
         dags, _ = collect_dags(
@@ -2787,7 +2790,7 @@ def test_taskflow_expand_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_can_skip_downstream": False,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "downstream_task_ids": [],
@@ -2902,7 +2905,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_can_skip_downstream": False,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "python_callable_name": qualname(x),

@@ -681,7 +681,7 @@ with airflow.DAG(
         """
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
             dag_bag = DagBag(read_dags_from_db=True)
@@ -699,7 +699,7 @@ with airflow.DAG(
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -723,7 +723,7 @@ with airflow.DAG(
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # deserialize the DAG
@@ -749,7 +749,7 @@ with airflow.DAG(
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
-            example_bash_op_dag.sync_to_db()
+            DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -769,7 +769,7 @@ with airflow.DAG(
 
         example_dags = dagbag.dags
         for dag in example_dags.values():
-            dag.sync_to_db()
+            DAG.from_sdk_dag(dag).sync_to_db()
             SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
         new_dagbag = DagBag(read_dags_from_db=True)

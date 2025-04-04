@@ -354,6 +354,7 @@ class TestDagOperations:
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
         fileloc="fileloc",
+        relative_fileloc="relative_fileloc",
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
@@ -369,6 +370,7 @@ class TestDagOperations:
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
         file_token="file_token",
+        bundle_name="bundle_name",
     )
 
     dag_details_response = DAGDetailsResponse(
@@ -379,6 +381,7 @@ class TestDagOperations:
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
         fileloc="fileloc",
+        relative_fileloc="relative_fileloc",
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
@@ -407,6 +410,7 @@ class TestDagOperations:
         last_parsed=datetime.datetime(2024, 12, 31, 23, 59, 59),
         file_token="file_token",
         concurrency=1,
+        bundle_name="bundle_name",
     )
 
     def test_get(self):

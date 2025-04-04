@@ -156,6 +156,11 @@ def _write_pid_to_pidfile(pid_file_path: str):
     write_pid_to_pidfile(pid_file_path)
 
 
+def _edge_hostname() -> str:
+    """Get the hostname of the edge worker that should be reported by tasks."""
+    return os.environ.get("HOSTNAME", _hostname())
+
+
 class _EdgeWorkerCli:
     """Runner instance which executes the Edge Worker."""
 
@@ -341,6 +346,8 @@ class _EdgeWorkerCli:
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(SIG_STATUS, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
+        os.environ["HOSTNAME"] = self.hostname
+        os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
         try:
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()

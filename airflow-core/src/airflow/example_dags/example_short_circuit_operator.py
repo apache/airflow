@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import ShortCircuitOperator
-from airflow.sdk import chain
+from airflow.sdk import DAG, chain
 from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(

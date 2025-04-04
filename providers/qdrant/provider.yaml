@@ -24,7 +24,7 @@ description: |
     `Qdrant <https://qdrant.tech/documentation>`__
 
 state: ready
-source-date-epoch: 1741509478
+source-date-epoch: 1743477876
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:

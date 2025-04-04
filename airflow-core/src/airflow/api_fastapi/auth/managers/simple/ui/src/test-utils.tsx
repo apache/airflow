@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import type { PropsWithChildren } from "react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { PropsWithChildren } from "react";
 import { CookiesProvider } from "react-cookie";
+import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
 
 type WrapperProps = {
   readonly initialEntries?: MemoryRouterProps["initialEntries"];
@@ -40,9 +39,7 @@ export const Wrapper = ({ children, initialEntries }: WrapperProps) => {
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={queryClient}>
         <CookiesProvider>
-          <MemoryRouter initialEntries={initialEntries}>
-            {children}
-          </MemoryRouter>
+          <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
         </CookiesProvider>
       </QueryClientProvider>
     </ChakraProvider>

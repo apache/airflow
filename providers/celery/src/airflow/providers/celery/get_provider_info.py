@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Celery",
         "description": "`Celery <https://docs.celeryq.dev/en/stable/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1742480263,
+        "source-date-epoch": 1743477793,
         "versions": [
             "3.10.4",
             "3.10.3",

@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
@@ -31,7 +31,6 @@ from airflow.api_fastapi.core_api.app import (
     init_error_handlers,
     init_flask_plugins,
     init_middlewares,
-    init_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
@@ -160,3 +159,38 @@ def get_auth_manager() -> BaseAuthManager:
             "The `init_auth_manager` method needs to be called first."
         )
     return auth_manager
+
+
+def init_plugins(app: FastAPI) -> None:
+    """Integrate FastAPI app and middleware plugins."""
+    from airflow import plugins_manager
+
+    plugins_manager.initialize_fastapi_plugins()
+
+    # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
+    for subapp_dict in cast("list", plugins_manager.fastapi_apps):
+        name = subapp_dict.get("name")
+        subapp = subapp_dict.get("app")
+        if subapp is None:
+            log.error("'app' key is missing for the fastapi app: %s", name)
+            continue
+        url_prefix = subapp_dict.get("url_prefix")
+        if url_prefix is None:
+            log.error("'url_prefix' key is missing for the fastapi app: %s", name)
+            continue
+
+        log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
+        app.mount(url_prefix, subapp)
+
+    for middleware_dict in cast("list", plugins_manager.fastapi_root_middlewares):
+        name = middleware_dict.get("name")
+        middleware = middleware_dict.get("middleware")
+        args = middleware_dict.get("args", [])
+        kwargs = middleware_dict.get("kwargs", {})
+
+        if middleware is None:
+            log.error("'middleware' key is missing for the fastapi middleware: %s", name)
+            continue
+
+        log.debug("Adding root middleware %s", name)
+        app.add_middleware(middleware, *args, **kwargs)

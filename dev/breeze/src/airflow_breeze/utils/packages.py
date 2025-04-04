@@ -905,10 +905,9 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = "\n" + "\n".join(cross_provider_dependencies)
     else:  # If there are no cross-provider dependencies, we need to remove the line
         formatted_cross_provider_dependencies = ""
-
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
-    get_pyproject_toml_content = render_template(
+    pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
         extension=".toml",
@@ -917,7 +916,7 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
-    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_pyproject_toml_path.write_text(pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
     )

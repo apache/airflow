@@ -195,11 +195,11 @@ def _serialize_dag_capturing_errors(
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
-        if dag_was_updated:
-            _sync_dag_perms(dag, session=session)
-        else:
+        if not dag_was_updated:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
+        elif "FabAuthManager" in conf.get("core", "auth_manager"):
+            _sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
