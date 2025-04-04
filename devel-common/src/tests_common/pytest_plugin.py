@@ -222,13 +222,13 @@ def pytest_addoption(parser: pytest.Parser):
         "--with-db-init",
         action="store_true",
         dest="db_init",
-        help="Forces database initialization before tests",
+        help="Forces database initialization before tests, if false it a DB reset still may occur.",
     )
     group.addoption(
         "--without-db-init",
         action="store_true",
         dest="no_db_init",
-        help="Forces NO database initialization before tests",
+        help="Forces NO database initialization before tests, takes precedent over --with-db-init.",
     )
     group.addoption(
         "--integration",
