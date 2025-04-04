@@ -190,7 +190,7 @@ class DagRun(Base, LoggingMixin):
     scheduled_by_job_id = Column(Integer)
     # Span context carrier, used for context propagation.
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
-    span_status = Column(String(250), default=SpanStatus.NOT_STARTED, nullable=False)
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
