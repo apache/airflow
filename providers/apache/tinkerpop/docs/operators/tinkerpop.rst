@@ -33,7 +33,7 @@ Using the operator
 
 An example usage of the GremlinOperator to query from gremlin server is as follows:
 
-.. exampleinclude:: /../../tests/system/apache/tinkerpop/example_gremlin_dag.py
+.. exampleinclude:: /../tests/system/apache/tinkerpop/example_gremlin_dag.py
     :language: python
     :dedent: 4
     :start-after: [START run_query_gremlin_operator]
