@@ -116,3 +116,22 @@ class TestElasticsearchSecret:
             assert connection == "http://elastichostname:8080"
         else:
             assert f"http://{expected_user_info}@elastichostname:8080" == connection
+
+    def test_should_add_annotations_to_elasticsearch_secret(self):
+        docs = render_chart(
+            values={
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {
+                        "user": "username",
+                        "pass": "password",
+                        "host": "elastichostname",
+                    },
+                    "secretAnnotations": {"test_annotation": "test_annotation_value"},
+                }
+            },
+            show_only=["templates/secrets/elasticsearch-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"

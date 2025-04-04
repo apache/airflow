@@ -2508,6 +2508,8 @@ elasticsearch:
   enabled: false
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the elasticsearch secret
+  secretAnnotations: {}
   # Or an object representing the connection
   # Example:
   # connection:

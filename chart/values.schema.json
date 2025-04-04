@@ -8080,6 +8080,14 @@
                     ],
                     "default": null
                 },
+                "secretAnnotations": {
+                    "description": "Extra annotations to apply to the elasticsearch secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",
                     "type": "object",
