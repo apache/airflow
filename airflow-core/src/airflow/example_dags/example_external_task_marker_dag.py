@@ -42,9 +42,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.sdk import DAG
 
 start_date = pendulum.datetime(2021, 1, 1, tz="UTC")
 

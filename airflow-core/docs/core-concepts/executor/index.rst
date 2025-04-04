@@ -278,7 +278,6 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
 
-* ``change_sensor_mode_to_reschedule``: Running Airflow sensors in poke mode can block the thread of executors and in some cases Airflow.
 * ``serve_logs``: Whether or not the executor supports serving logs, see :doc:`/administration-and-deployment/logging-monitoring/logging-tasks`.
 
 CLI

@@ -33,8 +33,7 @@ export const prettierNamespace = "prettier";
  * ESLint Prettier rules.
  * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
  */
-export const prettierRules =
-  /** @type {const} @satisfies {FlatConfig.Config} */ ({
-    plugins: { [prettierNamespace]: prettier },
-    rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
-  });
+export const prettierRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
+  plugins: { [prettierNamespace]: prettier },
+  rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
+});

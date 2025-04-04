@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Slack",
         "description": "`Slack <https://slack.com/>`__ services integration including:\n\n  - `Slack API <https://api.slack.com/>`__\n  - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__\n",
         "state": "ready",
-        "source-date-epoch": 1742981183,
+        "source-date-epoch": 1743477889,
         "versions": [
             "9.0.3",
             "9.0.2",

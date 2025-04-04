@@ -199,13 +199,74 @@ When your operator resumes, Airflow adds a ``context`` object and an ``event`` o
 
 If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
 
-You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
-
 Let's take a deeper look into the ``WaitOneHourSensor`` example above. This sensor is just a thin wrapper around the trigger. It defers to the trigger, and specifies a different method to come back to when the trigger fires.  When it returns immediately, it marks the sensor as successful.
 
 The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work anywhere inside your operator's code, even when nested many calls deep inside ``execute()``. You can also raise ``TaskDeferred`` manually, which uses the same arguments as ``self.defer``.
 
 ``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
+
+Deferring multiple times
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Imagine a scenario where you would like your operator to iterate over a list of items that could vary in length, and defer processing of each item.
+
+For example, submitting multiple queries to a database, or processing multiple files.
+
+You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
+
+Below is an outline of how you can achieve this.
+
+.. code-block:: python
+
+    import asyncio
+
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+
+    class MyItemTrigger(BaseTrigger):
+        def __init__(self, item):
+            super().__init__()
+            self.item = item
+
+        def serialize(self):
+            return (self.__class__.__module__ + "." + self.__class__.__name__, {"item": self.item})
+
+        async def run(self):
+            result = None
+            try:
+                # Somehow process the item to calculate the result
+                ...
+                yield TriggerEvent({"result": result})
+            except Exception as e:
+                yield TriggerEvent({"error": str(e)})
+
+
+    class MyItemsOperator(BaseOperator):
+        def __init__(self, items, **kwargs):
+            super().__init__(**kwargs)
+            self.items = items
+
+        def execute(self, context, current_item_index=0, event=None):
+            last_result = None
+            if event is not None:
+                # execute method was deferred
+                if "error" in event:
+                    raise Exception(event["error"])
+                last_result = event["result"]
+                current_item_index += 1
+
+            try:
+                current_item = self.items[current_item_index]
+            except IndexError:
+                return last_result
+
+            self.defer(
+                trigger=MyItemTrigger(item),
+                method_name="execute",  # The trigger will call this same method again
+                kwargs={"current_item_index": current_item_index},
+            )
+
 
 Triggering Deferral from Task Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

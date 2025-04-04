@@ -27,7 +27,7 @@ Using the Operator
 ^^^^^^^^^^^^^^^^^^
 Send an alert to Opsgenie with a specific message.
 
-.. exampleinclude:: /../../providers/opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
+.. exampleinclude:: /../../opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
     :language: python
     :start-after: [START howto_opsgenie_create_alert_operator]
     :end-before: [END howto_opsgenie_create_alert_operator]
@@ -44,7 +44,7 @@ Using the Operator
 ^^^^^^^^^^^^^^^^^^
 Close alert in Opsgenie.
 
-.. exampleinclude:: /../../providers/opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
+.. exampleinclude:: /../../opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
     :language: python
     :start-after: [START howto_opsgenie_close_alert_operator]
     :end-before: [END howto_opsgenie_close_alert_operator]
@@ -61,7 +61,7 @@ Using the Operator
 ^^^^^^^^^^^^^^^^^^
 Delete alert in Opsgenie.
 
-.. exampleinclude:: /../../providers/opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
+.. exampleinclude:: /../../opsgenie/tests/system/opsgenie/example_opsgenie_alert.py
     :language: python
     :dedent: 4
     :start-after: [START howto_opsgenie_delete_alert_operator]

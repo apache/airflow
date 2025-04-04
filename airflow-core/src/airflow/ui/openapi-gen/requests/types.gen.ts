@@ -415,6 +415,7 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  dashboard_alert: Array<UIAlert>;
 };
 
 /**
@@ -534,8 +535,8 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -598,8 +599,8 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -666,7 +667,7 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  triggered_by: DagRunTriggeredByType;
+  triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
   };
@@ -774,8 +775,8 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -981,6 +982,15 @@ export type FastAPIAppResponse = {
 };
 
 /**
+ * Serializer for Plugin FastAPI root middleware responses.
+ */
+export type FastAPIRootMiddlewareResponse = {
+  middleware: string;
+  name: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * DAG Run model for the Grid UI.
  */
 export type GridDAGRunwithTIs = {
@@ -1159,6 +1169,7 @@ export type PluginResponse = {
   macros: Array<string>;
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
+  fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
@@ -1564,6 +1575,16 @@ export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
 };
+
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category: "info" | "warning" | "error";
+};
+
+export type category = "info" | "warning" | "error";
 
 export type ValidationError = {
   loc: Array<string | number>;

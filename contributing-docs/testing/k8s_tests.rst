@@ -34,7 +34,7 @@ Before running ``breeze k8s`` cluster commands you need to setup the environment
 by ``breeze k8s setup-env`` command. Breeze in this command makes sure to download tools that
 are needed to run k8s tests: Helm, Kind, Kubectl in the right versions and sets up a
 Python virtualenv that is needed to run the tests. All those tools and env are setup in
-``.build/k8s-env`` folder. You can activate this environment yourselves as usual by sourcing
+``kubernetes-tests/.venv`` folder. You can activate this environment yourselves as usual by sourcing
 ``bin/activate`` script, but since we are supporting multiple clusters in the same installation
 it is best if you use ``breeze k8s shell`` with the right parameters specifying which cluster
 to use.
@@ -148,8 +148,8 @@ Entering shell with Kubernetes Cluster
 This shell is prepared to run Kubernetes tests interactively. It has ``kubectl`` and ``kind`` cli tools
 available in the path, it has also activated virtualenv environment that allows you to run tests via pytest.
 
-The virtualenv is available in ./.build/k8s-env/
-The binaries are available in ``.build/k8s-env/bin`` path.
+The virtualenv is available in ./kubernetes-tests/.venv/
+The binaries are available in ``kubernetes-tests/.venv/bin`` path.
 
 .. code-block:: bash
 
@@ -208,17 +208,17 @@ sub-folder of it).
 
 .. code-block:: text
 
-    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
-    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
-    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
+    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
     The ``kind`` tool is not downloaded yet. Downloading 0.14.0 version.
     Downloading from: https://github.com/kubernetes-sigs/kind/releases/download/v0.14.0/kind-darwin-arm64
     The ``kubectl`` tool is not downloaded yet. Downloading 1.24.3 version.
     Downloading from: https://storage.googleapis.com/kubernetes-release/release/v1.24.3/bin/darwin/arm64/kubectl
     The ``helm`` tool is not downloaded yet. Downloading 3.9.2 version.
     Downloading from: https://get.helm.sh/helm-v3.9.2-darwin-arm64.tar.gz
-    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
-    Moving the helm to /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin/helm
+    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Moving the helm to /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin/helm
 
 
 This prepares the virtual environment for tests and downloads the right versions of the tools
@@ -236,23 +236,6 @@ Should result in KinD creating the K8S cluster.
 
     Config created in /Users/jarek/IdeaProjects/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.24.2/.kindconfig.yaml:
 
-    # Licensed to the Apache Software Foundation (ASF) under one
-    # or more contributor license agreements.  See the NOTICE file
-    # distributed with this work for additional information
-    # regarding copyright ownership.  The ASF licenses this file
-    # to you under the Apache License, Version 2.0 (the
-    # "License"); you may not use this file except in compliance
-    # with the License.  You may obtain a copy of the License at
-    #
-    #   http://www.apache.org/licenses/LICENSE-2.0
-    #
-    # Unless required by applicable law or agreed to in writing,
-    # software distributed under the License is distributed on an
-    # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    # KIND, either express or implied.  See the License for the
-    # specific language governing permissions and limitations
-    # under the License.
-    ---
     kind: Cluster
     apiVersion: kind.x-k8s.io/v1alpha4
     networking:
@@ -267,8 +250,6 @@ Should result in KinD creating the K8S cluster.
             hostPort: 18150
             listenAddress: "127.0.0.1"
             protocol: TCP
-
-
 
     Creating cluster "airflow-python-3.9-v1.24.2" ...
      ✓ Ensuring node image (kindest/node:v1.24.2) 🖼
@@ -296,6 +277,7 @@ Should result in KinD creating the K8S cluster.
     NEXT STEP: You might now configure your cluster by:
 
     breeze k8s configure-cluster
+
 
 3. Configure cluster for Airflow - this will recreate namespace and upload test resources for Airflow.
 
@@ -423,10 +405,10 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
-    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
-    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
-    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
+    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv
+    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
     Stable repo is already added
     Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.9-kubernetes to cluster airflow-python-3.9-v1.24.2
     Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-worker", loading...
@@ -527,24 +509,39 @@ The virtualenv required will be created automatically when the scripts are run.
 
 .. code-block:: text
 
-    Running tests with kind-airflow-python-3.9-v1.24.2 cluster.
-     Command to run: pytest kubernetes_tests
-    ========================================================================================= test session starts ==========================================================================================
-    platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin/python
-    cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
-    plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
-    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
-    collected 55 items
+    Using CPython 3.12.7
+    Creating virtual environment at: .venv
+    Activate with: source .venv/bin/activate
+    Resolved 775 packages in 84ms
+    Audited 190 packages in 1ms
+    Good version of kind installed: 0.26.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of kubectl installed: 1.31.0 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Good version of helm installed: 3.16.4 in /Users/jarek/IdeaProjects/airflow/kubernetes-tests/.venv/bin
+    Stable repo is already added
 
-    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    Running tests with kind-airflow-python-3.9-v1.29.12 cluster.
+     Command to run: uv run pytest kubernetes-tests/tests/
+    Installed 74 packages in 179ms
+    /Users/jarek/IdeaProjects/airflow/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+    The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+      warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+    ======================================================================================================================================= test session starts ========================================================================================================================================
+    platform darwin -- Python 3.12.7, pytest-8.3.3, pluggy-1.5.0 -- /Users/jarek/IdeaProjects/airflow/.venv/bin/python3
+    cachedir: .pytest_cache
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes-tests
+    configfile: pyproject.toml
+    plugins: asyncio-0.24.0, cov-6.0.0, instafail-0.5.0, timeouts-1.2.1, time-machine-2.16.0, custom-exit-code-0.3.0, icdiff-0.9, kgb-7.2, rerunfailures-15.0, mock-3.14.0, unordered-0.6.1, anyio-4.6.2.post1, xdist-3.6.1, requests-mock-1.12.1
+    asyncio: mode=Mode.STRICT, default_loop_scope=None
+    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
+    collected 52 items
+
+    kubernetes-tests/tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED
+    ...                                                                                                                                                     [  1%]
 
 8b) You can enter an interactive shell to run tests one-by-one
 
-This enters the virtualenv in ``.build/k8s-env`` folder:
+This enters the virtualenv in ``kubernetes-tests/.venv`` folder:
 
 .. code-block:: bash
 
@@ -580,7 +577,7 @@ tests using the standard IntelliJ Run/Debug feature. You just need a few steps:
     :alt: Kubernetes testing virtualenv
 
 The virtualenv is created in your "Airflow" source directory in the
-``.build/k8s-env`` folder and you have to find ``python`` binary and choose
+``kubernetes-tests/.venv`` folder and you have to find ``python`` binary and choose
 it when selecting interpreter.
 
 9b) Choose pytest as test runner:
@@ -595,6 +592,7 @@ it when selecting interpreter.
     :align: center
     :alt: Run/Debug tests
 
+Make sure to select the ``kubernetes-tests/.venv`` as venv for your project.
 
 NOTE! The first time you run it, it will likely fail with
 ``kubernetes.config.config_exception.ConfigException``:
@@ -605,15 +603,15 @@ environment variable copying it from the result of "breeze k8s tests":
 
     echo ${KUBECONFIG}
 
-    /home/jarek/code/airflow/.build/.kube/config
+    /home/jarek/code/airflow/.build/.k8s-clusters/airflow-python-3.9-v1.28.13/.kube/config
 
 .. image:: images/kubeconfig-env.png
     :align: center
     :alt: Run/Debug tests
 
-
-The configuration for Kubernetes is stored in your "Airflow" source directory in ".build/.kube/config" file
-and this is where KUBECONFIG env should point to.
+The .env file with the KUBECONFIG variable is also set in ``kubernetes-tests/.env`` file - pointing
+to the file above - so you can also use it to set the KUBECONFIG variable in your IDE by settings the
+``kubernetes-tests/`` folder as the folder where your IDE should look for the .env file (if the IDE supports it)
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
@@ -622,7 +620,14 @@ kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+
+You can also run the tests with ``uv``
+
+.. code-block:: bash
+
+    uv run --env .env pytest tests/kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.

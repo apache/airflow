@@ -1694,6 +1694,11 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
+        if "dag_id" not in encoded_dag:
+            raise RuntimeError(
+                "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
+            )
+
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
@@ -1956,7 +1961,9 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     @property
     def has_task_concurrency_limits(self) -> bool:
-        return any(task.get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"])
+        return any(
+            task[Encoding.VAR].get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"]
+        )
 
     @property
     def owner(self) -> str:

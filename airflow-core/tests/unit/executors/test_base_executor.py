@@ -34,6 +34,8 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
@@ -341,6 +343,7 @@ def test_base_executor_cannot_send_callback():
         executor.send_callback(mock.Mock())
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_parser_and_formatter_class():
     executor = BaseExecutor(42)
     parser = executor._get_parser()
