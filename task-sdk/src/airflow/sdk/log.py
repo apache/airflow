@@ -496,26 +496,32 @@ def load_remote_log_handler() -> RemoteLogIO | None:
     return airflow.logging_config.REMOTE_TASK_LOG
 
 
-def upload_to_remote(logger: FilteringBoundLogger):
-    from airflow.configuration import conf
-
-    raw_logger = getattr(logger, "_logger")
-
-    if not raw_logger or not hasattr(raw_logger, "_file"):
+def relative_path_from_logger(logger) -> Path | None:
+    if not logger:
+        return None
+    if not hasattr(logger, "_file"):
         logger.warning("Unable to find log file, logger was of unexpected type", type=type(logger))
-        return
+        return None
 
-    fh = raw_logger._file
+    fh = logger._file
     fname = fh.name
 
     if fh.fileno() == 1 or not isinstance(fname, str):
         # Logging to stdout, or something odd about this logger, don't try to upload!
-        return
+        return None
+    from airflow.configuration import conf
+
     base_log_folder = conf.get("logging", "base_log_folder")
-    relative_path = Path(fname).relative_to(base_log_folder)
+    return Path(fname).relative_to(base_log_folder)
+
+
+def upload_to_remote(logger: FilteringBoundLogger):
+    raw_logger = getattr(logger, "_logger")
+
+    relative_path = relative_path_from_logger(raw_logger)
 
     handler = load_remote_log_handler()
-    if not handler:
+    if not handler or not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()
