@@ -77,11 +77,11 @@ export const Pools = () => {
   };
 
   const handleSortChange = (value: string) => {
-    setTableURLState((prev) => ({
-      ...prev,
+    setTableURLState({
+      ...tableURLState,
       sorting: [{ id: value.replace("-", ""), desc: value.startsWith("-") }],
-    }));
-  };
+    });
+  };  
 
 
   return (
