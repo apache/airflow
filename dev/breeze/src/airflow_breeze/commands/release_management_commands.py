@@ -401,6 +401,8 @@ def set_package_version(version: str, init_file_path: Path, extra_text: str) -> 
 
 
 def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_path: Path):
+    if not version_suffix:
+        return
     get_console().print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
     lines = pyproject_toml_path.read_text().splitlines()
     updated_lines = []
@@ -428,9 +430,11 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
         updated_lines.append(line)
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
-    # Format the content to make it more readable with rich
-    syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
-    get_console().print(syntax)
+    if get_verbose() or get_dry_run():
+        with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
+            # Format the content to make it more readable with rich
+            syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
+            get_console().print(syntax)
     pyproject_toml_path.write_text(new_content)
 
 
@@ -438,34 +442,33 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
 def package_version(
     version_suffix: str, package_path: Path, init_file_path: Path, pyproject_toml_paths: list[Path]
 ) -> Generator:
-    from packaging.version import Version
-
     release_version_matcher = re.compile(r"^\d+\.\d+\.\d+$")
     original_package_version = get_current_package_version(package_path)
     original_contents = []
     for pyproject_toml_path in pyproject_toml_paths:
         original_contents.append(pyproject_toml_path.read_text())
     update_version_in__init_py = False
+    base_package_version = original_package_version
     if version_suffix:
         if original_package_version.endswith(f".{version_suffix}"):
             get_console().print(
                 f"[info]The {original_package_version} already has suffix {version_suffix}. Not updating it.\n"
             )
-            package_version = original_package_version
         elif not release_version_matcher.match(original_package_version):
             get_console().print(
                 f"[warning]Normally you should only pass version suffix if package version "
                 f"does not have suffix in code (it is  {original_package_version} now).\n"
                 f"Overriding the version in code with the {version_suffix}."
             )
-            package_version = Version(original_package_version).base_version
             update_version_in__init_py = True
         else:
-            package_version = original_package_version
+            base_package_version = original_package_version
             update_version_in__init_py = True
     if update_version_in__init_py:
         set_package_version(
-            f"{package_version}.{version_suffix}", init_file_path=init_file_path, extra_text="temporarily"
+            f"{base_package_version}.{version_suffix}",
+            init_file_path=init_file_path,
+            extra_text="temporarily",
         )
     for pyproject_toml_path in pyproject_toml_paths:
         update_version_suffix_in_pyproject_toml(

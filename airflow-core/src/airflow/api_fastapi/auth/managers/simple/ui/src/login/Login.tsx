@@ -16,23 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { useState } from "react";
-import {
-  Alert,
-  CloseButton,
-  Container,
-  Heading,
-  Span,
-  Text,
-} from "@chakra-ui/react";
-
-import { useCreateToken } from "src/queries/useCreateToken";
-import { LoginForm } from "src/login/LoginForm";
+import { Alert, CloseButton, Container, Heading, Span, Text } from "@chakra-ui/react";
 import type { LoginResponse } from "openapi-gen/requests/types.gen";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useCookies } from "react-cookie";
+import { useSearchParams } from "react-router-dom";
+
 import { ErrorAlert } from "src/alert/ErrorAlert";
+import { LoginForm } from "src/login/LoginForm";
+import { useCreateToken } from "src/queries/useCreateToken";
 
 export type LoginBody = {
   password: string;
@@ -76,9 +68,8 @@ export const Login = () => {
           <Alert.Content>
             <Alert.Title>Simple auth manager enabled</Alert.Title>
             <Alert.Description>
-              The Simple auth manager is intended for development and testing.
-              If you&apos;re using it in production, ensure that access is
-              controlled through other means. Please read{" "}
+              The Simple auth manager is intended for development and testing. If you&apos;re using it in
+              production, ensure that access is controlled through other means. Please read{" "}
               <Span textDecoration="underline">
                 <a
                   href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/auth-manager/simple/index.html"

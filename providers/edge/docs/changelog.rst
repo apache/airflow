@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.20.2b1
+..........
+
+Fix
+~~~
+
+* ``Fix hostname reporting - worker will consistently report defined hostname as task runner.``
+
+
 0.20.1pre0
 ..........
 

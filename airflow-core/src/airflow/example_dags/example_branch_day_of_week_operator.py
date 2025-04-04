@@ -23,10 +23,10 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
 from airflow.providers.standard.utils.weekday import WeekDay
+from airflow.sdk import DAG
 
 with DAG(
     dag_id="example_weekday_branch_operator",

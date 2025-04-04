@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.decorators import task
-from airflow.models.dag import DAG
+from airflow.sdk import DAG
 
 with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=datetime(2022, 3, 4)) as dag:
 
