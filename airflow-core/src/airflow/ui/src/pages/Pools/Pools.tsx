@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, Spacer } from "@chakra-ui/react";
+import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -44,8 +44,8 @@ const cardDef = (): CardDef<PoolResponse> => ({
 
 const poolSortOptions = createListCollection({
   items: [
-    { label: "Name (A-Z)", value: "name"},
-    { label: "Name (Z-A)", value: "-name"}
+    { label: "Name (A-Z)", value: "name" },
+    { label: "Name (Z-A)", value: "-name" }
   ]
 });
 
@@ -54,7 +54,7 @@ export const Pools = () => {
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
 
-  const { setTableURLState,tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
@@ -76,13 +76,14 @@ export const Pools = () => {
     setPoolNamePattern(value);
   };
 
-  const handleSortChange = (value: string, setTableURLState: any) => { 
-    setTableURLState((prevState) => ({
-      ...prevState,
+  const handleSortChange = (value: string) => {
+    setTableURLState((prev) => ({
+      ...prev,
       sorting: [{ id: value.replace("-", ""), desc: value.startsWith("-") }],
     }));
   };
-  
+
+
   return (
     <>
       <ErrorAlert error={error} />
@@ -97,17 +98,17 @@ export const Pools = () => {
           borderWidth={0}
           collection={poolSortOptions}
           defaultValue={["name"]}
-          onValueChange={(value) => handleSortChange(value, setTableURLState)}
+          onValueChange={handleSortChange}
           width={130}
         >
           <Select.Trigger>
             <Select.ValueText placeHolder="Sort by" />
           </Select.Trigger>
-          
+
           <Select.Content>
             {poolSortOptions.items.map((option) => (
-              <Select.Item item={option} key={option.value[0]}>
-                {option.label}  
+              <Select.Item item={option} key={option.value}>
+                {option.label}
               </Select.Item>
             ))}
           </Select.Content>
@@ -119,12 +120,12 @@ export const Pools = () => {
           cardDef={cardDef()}
           displayMode="card"
           onStateChange={setTableURLState}
-          initialState={tableURLState}  
+          initialState={tableURLState}
           isLoading={isLoading}
           columns={[]}
           modelName="Pools"
-          total={data ? data.total_entries : 0} 
-          data={data ? data.pools :[]}        />  
+          total={data ? data.total_entries : 0}
+          data={data ? data.pools : []} />
       </Box>
     </>
   );
