@@ -263,7 +263,7 @@ def _run_raw_task(
                     session=session,
                 )
             if not test_mode:
-                ti.refresh_from_db(lock_for_update=True, session=session)
+                ti.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
             ti.state = TaskInstanceState.SUCCESS
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
@@ -286,7 +286,7 @@ def _run_raw_task(
             if e.args:
                 ti.log.info(e)
             if not test_mode:
-                ti.refresh_from_db(lock_for_update=True, session=session)
+                ti.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
             ti.state = TaskInstanceState.SKIPPED
             _run_finished_callback(callbacks=ti.task.on_skipped_callback, context=context)
             TaskInstance.save_to_db(ti=ti, session=session)
@@ -623,15 +623,14 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
-        if task_instance.next_method == "execute":
-            if not task_instance.next_kwargs:
-                task_instance.next_kwargs = {}
-            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
-                ExecutorSafeguard.sentinel_value
-            )
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
-        execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
+        # We don't want modifictions we make here to be tracked by SQLA
+        execute_callable_kwargs["next_kwargs"] = {**(task_instance.next_kwargs or {})}
+        if task_instance.next_method == "execute":
+            execute_callable_kwargs["next_kwargs"][f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
     else:
         execute_callable = task_to_execute.execute
         if execute_callable.__name__ == "execute":
@@ -714,118 +713,6 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
             session=session_or_null,
         )
     return result
-
-
-def _set_ti_attrs(target, source, include_dag_run=False):
-    # Fields ordered per model definition
-    target.id = source.id
-    target.start_date = source.start_date
-    target.end_date = source.end_date
-    target.duration = source.duration
-    target.state = source.state
-    target.try_id = source.try_id
-    target.try_number = source.try_number
-    target.max_tries = source.max_tries
-    target.hostname = source.hostname
-    target.unixname = source.unixname
-    target.pool = source.pool
-    target.pool_slots = source.pool_slots or 1
-    target.queue = source.queue
-    target.priority_weight = source.priority_weight
-    target.operator = source.operator
-    target.custom_operator_name = source.custom_operator_name
-    target.queued_dttm = source.queued_dttm
-    target.scheduled_dttm = source.scheduled_dttm
-    target.queued_by_job_id = source.queued_by_job_id
-    target.last_heartbeat_at = source.last_heartbeat_at
-    target.pid = source.pid
-    target.executor = source.executor
-    target.executor_config = source.executor_config
-    target.external_executor_id = source.external_executor_id
-    target.trigger_id = source.trigger_id
-    target.next_method = source.next_method
-    target.next_kwargs = source.next_kwargs
-    target.dag_version_id = source.dag_version_id
-    target.context_carrier = source.context_carrier
-    target.span_status = source.span_status
-
-    if include_dag_run:
-        target.logical_date = source.logical_date
-        target.dag_run.id = source.dag_run.id
-        target.dag_run.dag_id = source.dag_run.dag_id
-        target.dag_run.queued_at = source.dag_run.queued_at
-        target.dag_run.logical_date = source.dag_run.logical_date
-        target.dag_run.start_date = source.dag_run.start_date
-        target.dag_run.end_date = source.dag_run.end_date
-        target.dag_run.state = source.dag_run.state
-        target.dag_run.run_id = source.dag_run.run_id
-        target.dag_run.creating_job_id = source.dag_run.creating_job_id
-        target.dag_run.run_type = source.dag_run.run_type
-        target.dag_run.conf = source.dag_run.conf
-        target.dag_run.data_interval_start = source.dag_run.data_interval_start
-        target.dag_run.data_interval_end = source.dag_run.data_interval_end
-        target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.updated_at = source.dag_run.updated_at
-        target.dag_run.log_template_id = source.dag_run.log_template_id
-        target.dag_run.scheduled_by_job_id = source.dag_run.scheduled_by_job_id
-        target.dag_run.context_carrier = source.dag_run.context_carrier
-        target.dag_run.span_status = source.dag_run.span_status
-
-
-def _refresh_from_db(
-    *,
-    task_instance: TaskInstance,
-    session: Session | None = None,
-    lock_for_update: bool = False,
-) -> None:
-    """
-    Refresh the task instance from the database based on the primary key.
-
-    :param task_instance: the task instance
-    :param session: SQLAlchemy ORM Session
-    :param lock_for_update: if True, indicates that the database should
-        lock the TaskInstance (issuing a FOR UPDATE clause) until the
-        session is committed.
-
-    :meta private:
-    """
-    ti = TaskInstance.get_task_instance(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task_id,
-        run_id=task_instance.run_id,
-        map_index=task_instance.map_index,
-        lock_for_update=lock_for_update,
-        session=session,
-    )
-
-    if ti:
-        # Check if the ti is detached or the dag_run relationship isn't loaded.
-        # If the scheduler that started the dag_run has exited (gracefully or forcefully),
-        # there will be changes to the dag_run span context_carrier.
-        # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
-        task_instance_inspector = inspect(task_instance)
-        is_task_instance_bound_to_session = task_instance_inspector.session is not None
-
-        # If the check is false, then it will try load the dag_run relationship from the task_instance
-        # and it will fail with this error:
-        #
-        # sqlalchemy.orm.exc.DetachedInstanceError: Parent instance <TaskInstance at 0xffff86f245c0>
-        # is not bound to a Session; lazy load operation of attribute 'dag_run' cannot proceed
-        if is_task_instance_bound_to_session:
-            ti_inspector = inspect(ti)
-            dr_inspector = inspect(ti.dag_run)
-
-            is_ti_attached = not ti_inspector.detached
-            is_dr_attached = not dr_inspector.detached
-            is_dr_loaded = "dag_run" not in ti_inspector.unloaded
-
-            include_dag_run = is_ti_attached and is_dr_attached and is_dr_loaded
-        else:
-            include_dag_run = False
-
-        _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
-    else:
-        task_instance.state = None
 
 
 def _set_duration(*, task_instance: TaskInstance) -> None:
@@ -1678,8 +1565,6 @@ class TaskInstance(Base, LoggingMixin):
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="task_instances")
-    # If adding new fields here then remember to add them to
-    # _set_ti_attrs() or they won't display in the UI correctly
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -2122,7 +2007,9 @@ class TaskInstance(Base, LoggingMixin):
         return None
 
     @provide_session
-    def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
+    def refresh_from_db(
+        self, session: Session = NEW_SESSION, lock_for_update: bool = False, keep_local_changes: bool = False
+    ) -> None:
         """
         Refresh the task instance from the database based on the primary key.
 
@@ -2130,8 +2017,38 @@ class TaskInstance(Base, LoggingMixin):
         :param lock_for_update: if True, indicates that the database should
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
+        :param keep_local_changes: Force all attributes to the values from the database if False (the default),
+            or if True don't overwrite locally set attributes
         """
-        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+        source = TaskInstance.get_task_instance(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            lock_for_update=lock_for_update,
+            session=session,
+        )
+        if source:
+            from sqlalchemy.orm import attributes
+
+            source_state = inspect(source)
+            if source_state is None:
+                raise RuntimeError(f"Unable to inspect SQLAlchemy state of {type(source)}: {source}")
+            target_state = inspect(self)
+            if target_state is None:
+                raise RuntimeError(f"Unable to inspect SQLAlchemy state of {type(self)}: {self}")
+            for name, attr in source_state.attrs.items():
+                if keep_local_changes and target_state.attrs[name].history.has_changes():
+                    continue
+
+                val = attr.loaded_value
+
+                if val is not attributes.NO_VALUE:
+                    set_committed_value(self, name, val)
+
+            target_state.key = source_state.key
+        else:
+            self.state = None
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
