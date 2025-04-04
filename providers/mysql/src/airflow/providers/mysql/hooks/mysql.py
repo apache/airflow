@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Union
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlencode
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -397,11 +397,8 @@ class MySqlHook(DbApiHook):
         if "client" in extra:
             extra.pop("client")
 
-        params = []
-        for k, v in extra.items():
-            if v:
-                params.append(f"{k}={quote_plus(str(v))}")
-        if params:
-            uri += "?" + "&".join(params)
+        query_params = {k: str(v) for k, v in extra.items() if v}
+        if query_params:
+            uri = f"{uri}?{urlencode(query_params)}"
 
         return uri
