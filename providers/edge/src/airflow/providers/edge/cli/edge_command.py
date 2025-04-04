@@ -327,7 +327,7 @@ class _EdgeWorkerCli:
         try:
             self.last_hb = worker_register(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            )
+            ).last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
