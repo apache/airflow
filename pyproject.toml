@@ -63,7 +63,7 @@ version = "3.0.0.dev0"
 
 dependencies = [
     "apache-airflow-task-sdk",
-    "apache-airflow-core==3.0.0.dev0",
+    "apache-airflow-core==3.0.0rc1",
 ]
 
 packages = []
