@@ -494,7 +494,6 @@ def get_provider_info():
             "common.compat": ["apache-airflow-providers-common-compat"],
             "oracle": ["apache-airflow-providers-oracle"],
             "sftp": ["apache-airflow-providers-sftp"],
-            "openlineage": ["apache-airflow-providers-openlineage"],
         },
         "devel-dependencies": ["pywinrm>=0.5.0", "moto>=5.1.2"],
     }
