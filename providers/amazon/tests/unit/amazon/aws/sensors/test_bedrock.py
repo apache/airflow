@@ -250,10 +250,12 @@ class TestBedrockIngestionJobSensor:
 class TestBedrockBatchInferenceSensor:
     SENSOR = BedrockBatchInferenceSensor
 
-    @pytest.fixture(params=[
-        BedrockBatchInferenceSensor.SuccessState.COMPLETED,
-        BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
-    ])
+    @pytest.fixture(
+        params=[
+            BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+            BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
+        ]
+    )
     def success_state(self, request):
         return request.param
 
@@ -335,4 +337,3 @@ class TestBedrockBatchInferenceSensor:
             else:
                 with pytest.raises(TaskDeferred):
                     op.execute({})
-
