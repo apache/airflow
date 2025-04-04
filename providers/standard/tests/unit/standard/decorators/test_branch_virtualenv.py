@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.decorators import task
@@ -74,7 +76,11 @@ class TestBranchPythonVirtualenvDecoratedOperator:
                 return "task_2"
 
         with dag_maker(template_searchpath=tmp_path.as_posix()):
-            branchoperator = branch_operator()
+            if not AIRFLOW_V_3_0_PLUS:
+                with mock.patch("airflow.operators.python.is_venv_installed", return_value=True):
+                    branchoperator = branch_operator()
+            else:
+                branchoperator = branch_operator()
             df = dummy_f()
             task_1 = task_1()
             task_2 = task_2()
