@@ -75,7 +75,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
       # See above for supported versions.
-      PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+      PYTHON_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
       # For example this would install 2.10.5 with python 3.9: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt
