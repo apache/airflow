@@ -212,7 +212,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         if not self.upload_on_close:
             return
 
-        self.io.upload(self.log_relative_path, self.ti)
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
