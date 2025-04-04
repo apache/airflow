@@ -152,3 +152,4 @@ class TaskInstanceHistory(Base):
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
+        session.commit()
