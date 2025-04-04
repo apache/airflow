@@ -36,7 +36,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
@@ -60,7 +60,9 @@ def make_example_dags(module):
             session.add(testing)
 
     dagbag = DagBag(module.__path__[0])
-    SchedulerDAG.bulk_write_to_db("testing", None, dagbag.dags.values())
+
+    dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
+    SchedulerDAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
 
@@ -143,7 +145,10 @@ class TestSerializedDagModel:
         example_bash_op_dag = example_dags.get("example_bash_operator")
         dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
         assert dag_updated is True
-        example_bash_op_dag.create_dagrun(
+
+        # SchedulerDAG is created to create dagrun
+        dag = SchedulerDAG.from_sdk_dag(dag=example_bash_op_dag)
+        dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
@@ -191,7 +196,10 @@ class TestSerializedDagModel:
         assert len(example_dags) == len(serialized_dags)
 
         dag = example_dags.get("example_bash_operator")
-        dag.create_dagrun(
+
+        # DAGs are serialized and deserialized to access create_dagrun object
+        sdag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag))
+        sdag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,

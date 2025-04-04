@@ -310,7 +310,7 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
         valid_cols = [c for c in dag_command.DAGSchema().fields]
-        dagbag = DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True, read_dags_from_db=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
         assert list(dag_details.keys()) == valid_cols
 

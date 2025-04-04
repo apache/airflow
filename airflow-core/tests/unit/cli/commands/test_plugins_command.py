@@ -84,6 +84,12 @@ class TestPluginsCommand:
                         "name": "Name of the App",
                     }
                 ],
+                "fastapi_root_middlewares": [
+                    {
+                        "middleware": "unit.plugins.test_plugin.DummyMiddleware",
+                        "name": "Name of the Middleware",
+                    }
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",

@@ -94,7 +94,7 @@ class TaskInstanceHistory(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
-    span_status = Column(String(250), default=SpanStatus.NOT_STARTED, nullable=False)
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
     external_executor_id = Column(StringID())
     trigger_id = Column(Integer)

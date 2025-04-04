@@ -116,8 +116,18 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         import structlog.stdlib
 
         logRecordFactory = getLogRecordFactory()
+        # The handler MUST be initted here, before the processor is actually used to log anything.
+        # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
+        _handler = self.handler
+        from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
+            if not logger or not (stream_name := relative_path_from_logger(logger)):
+                return event
+            # Only init the handler stream_name once. We cannot do it above when we init the handler because
+            # we don't yet know the log path at that point.
+            if not _handler.log_stream_name:
+                _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -134,7 +144,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            self.handler.handle(record)
+            _handler.handle(record)
             return event
 
         return (proc,)
@@ -177,6 +187,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         :param task_instance: the task instance to get logs about
         :return: string of all logs from the given log stream
         """
+        stream_name = stream_name.replace(":", "_")
         # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
         # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
         end_time = (
