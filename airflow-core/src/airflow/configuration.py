@@ -388,6 +388,9 @@ class AirflowConfigParser(ConfigParser):
                 "XX-set-after-default-config-loaded-XX",
             ),
         },
+        "core": {
+            "executor": (re.compile(re.escape("SequentialExecutor")), "LocalExecutor"),
+        },
     }
 
     _available_logging_levels = ["CRITICAL", "FATAL", "ERROR", "WARN", "WARNING", "INFO", "DEBUG"]
