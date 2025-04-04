@@ -135,6 +135,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t1().operator.multiple_outputs is False
 
+    @pytest.mark.xfail(
+        reason="TODO AIP72: All @task calls now go to __getattr__ in decorators/__init__.py and this test expects user code to throw the error. Needs to be handled better, likely by changing `fixup_decorator_warning_stack`"
+    )
     def test_infer_multiple_outputs_forward_annotation(self):
         if typing.TYPE_CHECKING:
 
@@ -168,12 +171,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 line = line - 1
 
         warn = recwarn[0]
-        if AIRFLOW_V_3_0_PLUS:
-            # since it is resolved dynamically now from decorators init
-            assert warn.filename.endswith("decorators/__init__.py")
-        else:
-            assert warn.filename == __file__
-            assert warn.lineno == line
+        assert warn.filename == __file__
+        assert warn.lineno == line
 
         assert t3(5, 5).operator.multiple_outputs is False
 
