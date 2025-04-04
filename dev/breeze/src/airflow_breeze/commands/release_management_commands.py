@@ -2908,7 +2908,7 @@ def modify_single_file_constraints(
 def modify_all_constraint_files(
     constraints_repo: Path,
     updated_constraint: tuple[str, ...] | None,
-    comit_file: Path | None,
+    commit_file: Path | None,
     airflow_constrains_mode: str | None,
 ) -> bool:
     get_console().print("[info]Updating constraints files:[/]")
@@ -2924,7 +2924,7 @@ def modify_all_constraint_files(
         raise RuntimeError(f"Invalid airflow-constraints-mode: {airflow_constrains_mode}")
     for constraints_file in constraints_repo.glob(select_glob):
         get_console().print(f"[info]Updating {constraints_file.name}")
-        if modify_single_file_constraints(constraints_file, updated_constraint, comit_file):
+        if modify_single_file_constraints(constraints_file, updated_constraint, commit_file):
             modified = True
     return modified
 
@@ -3098,8 +3098,8 @@ def _get_python_client_version(version_suffix_for_pypi):
     version = Version(python_client_version)
     if version_suffix_for_pypi:
         if version.pre:
-            currrent_suffix = version.pre[0] + str(version.pre[1])
-            if currrent_suffix != version_suffix_for_pypi:
+            current_suffix = version.pre[0] + str(version.pre[1])
+            if current_suffix != version_suffix_for_pypi:
                 get_console().print(
                     f"[error]The version suffix for PyPI ({version_suffix_for_pypi}) does not match the "
                     f"suffix in the version ({version})[/]"
