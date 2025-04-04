@@ -64,7 +64,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
@@ -5805,12 +5805,17 @@ class TestSchedulerJob:
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
-        DAG.bulk_write_to_db("testing", None, [dag])
+        dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        scheduler_dag = DAG.from_sdk_dag(dag)
+
+        DAG.bulk_write_to_db("testing", None, [dm])
         SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
         dag_v = DagVersion.get_latest_version(dag.dag_id)
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+
+        data_interval = scheduler_dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+
         dag_run = create_dagrun(
-            dag,
+            scheduler_dag,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             data_interval=data_interval,
@@ -5866,13 +5871,16 @@ class TestSchedulerJob:
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
-        DAG.bulk_write_to_db("testing", None, [dag])
+        dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        scheduler_dag = DAG.from_sdk_dag(dag)
+
+        DAG.bulk_write_to_db("testing", None, [dm])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         session.query(Job).delete()
 
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        data_interval = scheduler_dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
-            dag,
+            scheduler_dag,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             data_interval=data_interval,
