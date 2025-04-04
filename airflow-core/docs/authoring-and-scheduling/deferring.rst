@@ -220,7 +220,7 @@ Below is an outline of how you can achieve this.
 
     import asyncio
 
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk import BaseOperator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 

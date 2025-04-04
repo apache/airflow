@@ -204,7 +204,7 @@ This approach disables the rendering of both macros and files and can be applied
 
 .. code-block:: python
 
-    from airflow.utils.template import literal
+    from airflow.sdk import literal
 
 
     fixed_print_script = BashOperator(
