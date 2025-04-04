@@ -188,7 +188,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
     make_sure_builder_configured(params=params)
 
 
-def build_timout_handler(build_process_group_id: int, signum, frame):
+def build_timeout_handler(build_process_group_id: int, signum, frame):
     # Kill the forked process group - it will kill the build even if it is running in parallel
     # with multiple processes and docker build sessions
     os.killpg(build_process_group_id, signal.SIGTERM)
@@ -389,7 +389,7 @@ def build(
         pid = os.fork()
         if pid:
             # Parent process - send signal to process group of the child process
-            handler: Callable[..., tuple[Any, Any]] = partial(build_timout_handler, pid)
+            handler: Callable[..., tuple[Any, Any]] = partial(build_timeout_handler, pid)
             # kill the child process group when we exit before - for example when we are Ctrl-C-ed
             atexit.register(kill_process_group, pid)
             signal.signal(signal.SIGALRM, handler)

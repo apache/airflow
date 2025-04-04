@@ -18,7 +18,7 @@
 */}}
 
 {{- /*
-The sole purpose of this yaml file is it to check the values file is consistent for some complexe combinations.
+The sole purpose of this YAML file is it to check the values file is consistent for some complex combinations.
 */ -}}
 
 {{- /*

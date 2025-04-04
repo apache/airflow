@@ -46,11 +46,11 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
     else:
         width_int = int(width)
 
-    def save_ouput_as_svg():
+    def save_output_as_svg():
         if help_console:
             help_console.save_svg(path=path, title=title, unique_id=unique_id)
 
-    atexit.register(save_ouput_as_svg)
+    atexit.register(save_output_as_svg)
     click.rich_click.MAX_WIDTH = width_int
     click.formatting.FORCED_WIDTH = width_int - 2  # type: ignore[attr-defined]
     click.rich_click.COLOR_SYSTEM = "standard"

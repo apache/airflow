@@ -136,7 +136,7 @@ def retag_constraints(release_candidate, version):
             dry_run_override=RUNNING_IN_CI,
             check=True,
         )
-    if confirm_action(f"Push contraints-{version} tag to GitHub?"):
+    if confirm_action(f"Push constraints-{version} tag to GitHub?"):
         run_command(
             ["git", "push", "origin", "tag", f"constraints-{version}"],
             dry_run_override=RUNNING_IN_CI,
