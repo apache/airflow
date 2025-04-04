@@ -19,7 +19,6 @@ from __future__ import annotations
 import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
-from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
@@ -570,6 +569,8 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
     :return: task_instance context as dict.
     """
+    from datetime import datetime
+
     from airflow import settings
 
     params = {}
