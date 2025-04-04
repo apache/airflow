@@ -39,7 +39,213 @@ _DATES = (
 key, value = next(iter(_DATES.items()))
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
 class TestWorkflowTrigger:
+    DAG_ID = "external_task"
+    TASK_ID = "external_task_op"
+    RUN_ID = "external_task_run_id"
+    STATES = ["success", "fail"]
+    EXECUTION_DATE = timezone.datetime(2022, 1, 1)
+
+    @pytest.mark.flaky(reruns=5)
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_success(self, mock_get_count):
+        """check the db count get called correctly."""
+        mock_get_count.side_effect = mocked_get_count
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            external_task_ids=[self.TASK_ID],
+            allowed_states=self.STATES,
+            poke_interval=0.2,
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        fake_task = asyncio.create_task(fake_async_fun())
+        await trigger_task
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert result.payload == {"status": "success"}
+
+        mock_get_count.assert_called_once_with(
+            dag_id="external_task",
+            task_ids=["external_task_op"],
+            task_group_id=None,
+            logical_dates=[self.EXECUTION_DATE],
+            run_ids=None,
+            states=["success", "fail"],
+        )
+        # test that it returns after yielding
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+    @pytest.mark.flaky(reruns=5)
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_failed(self, mock_get_count):
+        mock_get_count.side_effect = mocked_get_count
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            run_ids=[self.RUN_ID],
+            external_task_ids=[self.TASK_ID],
+            failed_states=self.STATES,
+            poke_interval=0.2,
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        fake_task = asyncio.create_task(fake_async_fun())
+        await trigger_task
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == {"status": "failed"}
+        mock_get_count.assert_called_once_with(
+            dag_id="external_task",
+            task_ids=["external_task_op"],
+            task_group_id=None,
+            logical_dates=[self.EXECUTION_DATE],
+            run_ids=[self.RUN_ID],
+            states=["success", "fail"],
+        )
+        # test that it returns after yielding
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
+        mock_get_count.return_value = 0
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            run_ids=[self.RUN_ID],
+            external_task_ids=[self.TASK_ID],
+            failed_states=self.STATES,
+            poke_interval=0.2,
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        await trigger_task
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == {"status": "success"}
+        mock_get_count.assert_called_once_with(
+            dag_id="external_task",
+            task_ids=["external_task_op"],
+            task_group_id=None,
+            logical_dates=[self.EXECUTION_DATE],
+            run_ids=[self.RUN_ID],
+            states=["success", "fail"],
+        )
+        # test that it returns after yielding
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+    @pytest.mark.flaky(reruns=5)
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_skipped(self, mock_get_count):
+        mock_get_count.side_effect = mocked_get_count
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            external_task_ids=[self.TASK_ID],
+            skipped_states=self.STATES,
+            poke_interval=0.2,
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        fake_task = asyncio.create_task(fake_async_fun())
+        await trigger_task
+        assert fake_task.done()  # confirm that get_count is done in an async fashion
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == {"status": "skipped"}
+        mock_get_count.assert_called_once_with(
+            dag_id="external_task",
+            task_ids=["external_task_op"],
+            task_group_id=None,
+            logical_dates=[self.EXECUTION_DATE],
+            run_ids=None,
+            states=["success", "fail"],
+        )
+
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("asyncio.sleep")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_sleep_success(self, mock_sleep, mock_get_count):
+        mock_get_count.side_effect = [0, 1]
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            external_task_ids=[self.TASK_ID],
+            poke_interval=0.2,
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        await trigger_task
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == {"status": "success"}
+        mock_get_count.assert_called()
+        assert mock_get_count.call_count == 2
+
+        # test that it returns after yielding
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
+        mock_sleep.assert_awaited()
+        assert mock_sleep.await_count == 1
+
+    def test_serialization(self):
+        """
+        Asserts that the WorkflowTrigger correctly serializes its arguments and classpath.
+        """
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            execution_dates=[self.EXECUTION_DATE],
+            run_ids=[self.RUN_ID],
+            failed_states=["failed"],
+            skipped_states=["skipped"],
+            external_task_ids=[self.TASK_ID],
+            allowed_states=self.STATES,
+            poke_interval=5,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.standard.triggers.external_task.WorkflowTrigger"
+        assert kwargs == {
+            "external_dag_id": self.DAG_ID,
+            "execution_dates": [self.EXECUTION_DATE],
+            "run_ids": [self.RUN_ID],
+            "external_task_ids": [self.TASK_ID],
+            "external_task_group_id": None,
+            "failed_states": ["failed"],
+            "skipped_states": ["skipped"],
+            "allowed_states": self.STATES,
+            "poke_interval": 5,
+            "soft_fail": False,
+        }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
+class TestWorkflowTriggerAF2:
     DAG_ID = "external_task"
     TASK_ID = "external_task_op"
     RUN_ID = "external_task_run_id"

@@ -54,8 +54,8 @@ if TYPE_CHECKING:
         AssetResult,
         ConnectionResult,
         PrevSuccessfulDagRunResponse,
-        VariableResult, TICount, GetDRCount, DRCount, GetTICount,
-)
+        VariableResult,
+    )
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -599,8 +599,6 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
     :return: task_instance context as dict.
     """
-    from datetime import datetime
-
     from airflow import settings
 
     params = {}
@@ -661,61 +659,3 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
-
-
-def get_ti_count(
-    dag_id: str,
-    task_ids: list[str] | None = None,
-    task_group_id: str | None = None,
-    logical_dates: list[datetime] | None = None,
-    run_ids: list[str] | None = None,
-    states: list[str] | None = None,
-) -> int:
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-    """Return the number of task instances matching the given criteria."""
-    log = structlog.get_logger(logger_name="task")
-
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=GetTICount(
-            dag_id=dag_id,
-            task_ids=task_ids,
-            task_group_id=task_group_id,
-            logical_dates=logical_dates,
-            run_ids=run_ids,
-            states=states,
-        ),
-    )
-    response = SUPERVISOR_COMMS.get_message()
-
-    if TYPE_CHECKING:
-        assert isinstance(response, TICount)
-
-    return response.count
-
-
-def get_dr_count(
-    dag_id: str,
-    logical_dates: list[datetime] | None = None,
-    run_ids: list[str] | None = None,
-    states: list[str] | None = None,
-) -> int:
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-    """Return the number of DAG runs matching the given criteria."""
-    log = structlog.get_logger(logger_name="task")
-
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=GetDRCount(
-            dag_id=dag_id,
-            logical_dates=logical_dates,
-            run_ids=run_ids,
-            states=states,
-        ),
-    )
-    response = SUPERVISOR_COMMS.get_message()
-
-    if TYPE_CHECKING:
-        assert isinstance(response, DRCount)
-
-    return response.count
