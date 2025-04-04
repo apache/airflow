@@ -1945,7 +1945,7 @@ def test_expected_output_push(
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
-                            "dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
+                            "dbt.cloud,ftp,microsoft.azure,microsoft.mssql,mysql,openlineage,"
                             "postgres,sftp,snowflake,trino] Providers[google]",
                         }
                     ]
