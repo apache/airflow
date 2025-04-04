@@ -175,6 +175,7 @@ class TestTIRunState:
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
+                "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
             "max_tries": max_tries,

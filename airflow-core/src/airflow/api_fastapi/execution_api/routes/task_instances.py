@@ -27,6 +27,7 @@ from fastapi import Body, Depends, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -177,21 +178,15 @@ def ti_run(
         result = session.execute(query)
         log.info("TI %s state updated: %s row(s) affected", ti_id_str, result.rowcount)
 
-        dr = session.execute(
-            select(
-                DR.run_id,
-                DR.dag_id,
-                DR.data_interval_start,
-                DR.data_interval_end,
-                DR.run_after,
-                DR.start_date,
-                DR.end_date,
-                DR.clear_number,
-                DR.run_type,
-                DR.conf,
-                DR.logical_date,
-            ).filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-        ).one_or_none()
+        dr = (
+            session.scalars(
+                select(DR)
+                .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
+                .options(joinedload(DR.consumed_asset_events))
+            )
+            .unique()
+            .one_or_none()
+        )
 
         if not dr:
             raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
@@ -240,8 +235,8 @@ def ti_run(
             context.next_kwargs = ti.next_kwargs
 
         return context
-    except SQLAlchemyError as e:
-        log.error("Error marking Task Instance state as running: %s", e)
+    except SQLAlchemyError:
+        log.exception("Error marking Task Instance state as running")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )

@@ -427,6 +427,17 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
                     f"{version_suffix} suffix."
                 )
+        if line.strip().startswith('"apache-airflow-core') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
         updated_lines.append(line)
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")

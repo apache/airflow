@@ -21,9 +21,12 @@ from datetime import timedelta
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.decorators import task_group
 from airflow.models import DagBag
+from airflow.models.dag import DagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -1144,7 +1147,16 @@ class TestGetGridDataEndpoint:
             },
         }
 
-    def test_should_response_200_with_deleted_task_and_taskgroup(self, test_client):
+    def test_should_response_200_with_deleted_task_and_taskgroup(self, session, test_client):
+        # Mark one of the TI of the previous runs as "REMOVED" to simulate clearing an older DagRun.
+        # https://github.com/apache/airflow/issues/48670
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.run_id == "run_3", TaskInstance.task_id == TASK_ID_4)
+        )
+        ti.state = TaskInstanceState.REMOVED
+        ti.dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_3)).dag_versions[-1]
+        session.commit()
+
         response = test_client.get(f"/grid/{DAG_ID_3}")
         assert response.status_code == 200
         assert response.json() == {
@@ -1260,31 +1272,6 @@ class TestGetGridDataEndpoint:
                             "state": "success",
                             "task_count": 1,
                             "task_id": "task3",
-                            "try_number": 0,
-                        },
-                        {
-                            "child_states": {
-                                "deferred": 0,
-                                "failed": 0,
-                                "no_status": 0,
-                                "queued": 0,
-                                "removed": 0,
-                                "restarting": 0,
-                                "running": 0,
-                                "scheduled": 0,
-                                "skipped": 0,
-                                "success": 1,
-                                "up_for_reschedule": 0,
-                                "up_for_retry": 0,
-                                "upstream_failed": 0,
-                            },
-                            "end_date": None,
-                            "note": None,
-                            "queued_dttm": None,
-                            "start_date": None,
-                            "state": "success",
-                            "task_count": 1,
-                            "task_id": "task4",
                             "try_number": 0,
                         },
                         {
