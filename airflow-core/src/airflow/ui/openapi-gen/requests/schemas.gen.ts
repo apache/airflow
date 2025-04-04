@@ -1722,11 +1722,25 @@ export const $DAGDetailsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -2109,11 +2123,25 @@ export const $DAGResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -2915,11 +2943,25 @@ export const $DAGWithLatestDagRunsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
