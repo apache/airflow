@@ -7,7 +7,7 @@ Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
 * Types of change
 
   * [ ] Dag changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
