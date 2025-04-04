@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-03T21:01:02.833756
+# This constraints file was automatically generated on 2025-04-04T02:24:35.147210
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -85,7 +85,7 @@ atlassian-python-api==4.0.3
 attrs==25.3.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.32.0
+azure-core==1.33.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
 azure-identity==1.21.0
@@ -342,7 +342,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.2.0
+multidict==6.3.2
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
