@@ -122,7 +122,7 @@ class EventsTimetable(Timetable):
 
     def serialize(self):
         return {
-            "event_dates": [str(x) for x in self.event_dates],
+            "event_dates": [x.isoformat(sep="T") for x in self.event_dates],
             "restrict_to_events": self.restrict_to_events,
         }
 
