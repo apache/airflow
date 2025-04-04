@@ -20,7 +20,7 @@
 Remove SubDAGs: ``is_subdag`` & ``root_dag_id`` columns from DAG table.
 
 Revision ID: d0f1c55954fa
-Revises: 044f740568ec
+Revises: 5f2621c13b39
 Create Date: 2024-08-11 21:32:40.576172
 
 """
@@ -34,7 +34,7 @@ from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = "d0f1c55954fa"
-down_revision = "044f740568ec"
+down_revision = "5f2621c13b39"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
