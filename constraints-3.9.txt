@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-04T02:29:48.704476
+# This constraints file was automatically generated on 2025-04-04T14:01:05.329746
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -616,7 +616,7 @@ python-telegram-bot==22.0
 python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
-pyzmq==26.3.0
+pyzmq==26.4.0
 qdrant-client==1.13.3
 reactivex==4.0.4
 readme_renderer==44.0
@@ -778,7 +778,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.11
-ydb==3.20.0
+ydb==3.20.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
