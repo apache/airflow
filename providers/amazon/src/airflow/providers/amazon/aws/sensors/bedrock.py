@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.src.airflow.providers.amazon.aws.triggers.bedrock import (
+    from airflow.providers.amazon.aws.triggers.bedrock import (
         BedrockBaseBatchInferenceTrigger,
     )
     from airflow.utils.context import Context
