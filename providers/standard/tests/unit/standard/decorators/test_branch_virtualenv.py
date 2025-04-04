@@ -31,6 +31,10 @@ else:
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS,
+    reason="Decorators were part of core not providers, so this test doesnt make sense for < AF3.",
+)
 class TestBranchPythonVirtualenvDecoratedOperator:
     # when run in "Parallel" test run environment, sometimes this test runs for a long time
     # because creating virtualenv and starting new Python interpreter creates a lot of IO/contention
