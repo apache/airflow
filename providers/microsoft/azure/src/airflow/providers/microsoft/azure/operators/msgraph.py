@@ -37,7 +37,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 try:
     from airflow.utils.context import AirflowContextDeprecationWarning
-except ImportError:
+except AttributeError:
     class AirflowContextDeprecationWarning(UserWarning):
         pass
 
