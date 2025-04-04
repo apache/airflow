@@ -70,6 +70,7 @@ def execute_callable(
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
             warnings.simplefilter("ignore", category=DeprecationWarning)
+            warnings.simplefilter("ignore", category=UserWarning)
             return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
