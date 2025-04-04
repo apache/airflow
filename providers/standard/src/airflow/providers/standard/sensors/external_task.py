@@ -429,6 +429,8 @@ class ExternalTaskSensor(BaseSensorOperator):
                     external_task_ids=self.external_task_ids,
                     execution_dates=self._get_dttm_filter(context),
                     allowed_states=self.allowed_states,
+                    failed_states=self.failed_states,
+                    skipped_states=self.skipped_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,
                 ),
