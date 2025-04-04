@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -199,14 +200,17 @@ class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
         self,
         *,
         job_arn: str,
-        waiter_name: str,
+        waiter_name: str | ArgNotSet = NOTSET,  # This must be defined in the child class.
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
     ) -> None:
+        if waiter_name == NOTSET:
+            raise NotImplementedError("Triggers must provide a waiter name.")
+
         super().__init__(
             serialized_fields={"job_arn": job_arn},
-            waiter_name=waiter_name,
+            waiter_name=str(waiter_name),  # Cast a string to a string to make mypy happy
             waiter_args={"jobIdentifier": job_arn},
             failure_message="Bedrock batch inference job failed.",
             status_message="Status of Bedrock batch inference job is",

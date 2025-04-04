@@ -36,9 +36,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.triggers.bedrock import (
-        BedrockBaseBatchInferenceTrigger,
-    )
+    from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.utils.context import Context
 
 
@@ -446,7 +444,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         base_success_states: tuple[str, ...] = ("Completed",)
         base_intermediate_states: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating")
         scheduled_state = ("Scheduled",)
-        self.trigger_class: BedrockBaseBatchInferenceTrigger
+        self.trigger_class: type[BedrockBaseBatchInferenceTrigger]
 
         if self.success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
             intermediate_states = base_intermediate_states + scheduled_state
