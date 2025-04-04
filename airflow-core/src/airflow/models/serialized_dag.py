@@ -177,48 +177,71 @@ class _DagDependenciesResolver:
     def resolve_asset_name_ref_dag_dep(self, dep_data) -> Sequence[DagDependency]:
         dep_id = dep_data["dependency_id"]
         is_source_ref = dep_data["source"] == "asest-name-ref"
-        asset_id, asset_name = self.asset_ref_name_to_asset_id_name[dep_id]
-        return [
-            # asset
-            DagDependency(
-                source="asset" if is_source_ref else f"asset-name-ref:{dep_id}",
-                target=f"asset-name-ref:{dep_id}" if is_source_ref else "asset",
-                label=asset_name,
-                dependency_type="asset",
-                dependency_id=str(asset_id),
-            ),
+        dag_deps = []
+        if dep_id in self.asset_ref_name_to_asset_id_name:
+            asset_id, asset_name = self.asset_ref_name_to_asset_id_name[dep_id]
+            dag_deps.append(
+                # asset
+                DagDependency(
+                    source="asset" if is_source_ref else f"asset-name-ref:{dep_id}",
+                    target=f"asset-name-ref:{dep_id}" if is_source_ref else "asset",
+                    label=asset_name,
+                    dependency_type="asset",
+                    dependency_id=str(asset_id),
+                )
+            )
+            asset_ref_source = f"asset:{asset_id}" if is_source_ref else dep_data["source"]
+            asset_ref_target = dep_data["target"] if is_source_ref else f"asset:{asset_id}"
+        else:
+            asset_ref_source = "asset-name-ref" if is_source_ref else dep_data["source"]
+            asset_ref_target = dep_data["target"] if is_source_ref else "asset-name-ref"
+
+        dag_deps.append(
             # asset ref
             DagDependency(
-                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
-                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
+                source=asset_ref_source,
+                target=asset_ref_target,
                 label=dep_id,
                 dependency_type="asset-name-ref",
                 dependency_id=dep_id,
-            ),
-        ]
+            )
+        )
+        return dag_deps
 
     def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Sequence[DagDependency]:
         dep_id = dep_data["dependency_id"]
         is_source_ref = dep_data["source"] == "asest-uri-ref"
-        asset_id, asset_name = self.asset_ref_uri_to_asset_id_name[dep_id]
-        return [
-            # asset
-            DagDependency(
-                source="asset" if is_source_ref else f"asset-uri-ref:{dep_id}",
-                target=f"asset-uri-ref:{dep_id}" if is_source_ref else "asset",
-                label=asset_name,
-                dependency_type="asset",
-                dependency_id=str(asset_id),
-            ),
+        dag_deps = []
+        if dep_id in self.asset_ref_uri_to_asset_id_name:
+            asset_id, asset_name = self.asset_ref_uri_to_asset_id_name[dep_id]
+            dag_deps.append(
+                # asset
+                DagDependency(
+                    source="asset" if is_source_ref else f"asset-uri-ref:{dep_id}",
+                    target=f"asset-uri-ref:{dep_id}" if is_source_ref else "asset",
+                    label=asset_name,
+                    dependency_type="asset",
+                    dependency_id=str(asset_id),
+                )
+            )
+
+            asset_ref_source = f"asset:{asset_id}" if is_source_ref else dep_data["source"]
+            asset_ref_target = dep_data["target"] if is_source_ref else f"asset:{asset_id}"
+        else:
+            asset_ref_source = "asset-name-ref" if is_source_ref else dep_data["source"]
+            asset_ref_target = dep_data["target"] if is_source_ref else "asset-name-ref"
+
+        dag_deps.append(
             # asset ref
             DagDependency(
-                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
-                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
+                source=asset_ref_source,
+                target=asset_ref_target,
                 label=dep_id,
                 dependency_type="asset-uri-ref",
                 dependency_id=dep_id,
-            ),
-        ]
+            )
+        )
+        return dag_deps
 
     def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         dep_id = dep_data["dependency_id"]
@@ -289,7 +312,10 @@ class SerializedDagModel(Base):
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
     dag_version_id = Column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
     dag_version = relationship("DagVersion", back_populates="serialized_dag")
 
@@ -642,7 +668,10 @@ class SerializedDagModel(Base):
             iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
         else:
             iterator = session.execute(
-                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+                select(
+                    cls.dag_id,
+                    func.json_extract_path(cls._data, "dag", "dag_dependencies"),
+                )
                 .join(
                     latest_sdag_subquery,
                     (cls.dag_id == latest_sdag_subquery.c.dag_id)
