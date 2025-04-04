@@ -24,8 +24,12 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
-      test-groups:
-        description: "The json representing list of test test groups to run"
+      test-group:
+        description: "Test group to run: ('core', 'providers')"
+        required: true
+        type: string
+      test-types-as-strings-in-json:
+        description: "The list of list of test types to run (types in item are separated by spaces) as json"
         required: true
         type: string
       backend:
@@ -59,14 +63,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       excludes:
         description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
-        required: true
-        type: string
-      core-test-types-list-as-string:
-        description: "The list of core test types to run separated by spaces"
-        required: true
-        type: string
-      providers-test-types-list-as-string:
-        description: "The list of providers test types to run separated by spaces"
         required: true
         type: string
       run-migration-tests:
@@ -112,6 +108,10 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: 20
         type: number
+      skip-providers-tests:
+        description: "Whether to skip providers tests or not (true/false)"
+        required: true
+        type: string
       use-uv:
         description: "Whether to use uv"
         required: true
@@ -122,17 +122,17 @@ jobs:
   tests:
     timeout-minutes: 120
     name: "\
-      ${{ inputs.test-scope }}-${{ matrix.test-group }}:\
+      ${{ inputs.test-scope }}-${{ inputs.test-group }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
-      ${{matrix.python-version}}"
+      ${{ matrix.python-version}}:${{ matrix.test-types.description }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
         python-version: "${{fromJSON(inputs.python-versions)}}"
         backend-version: "${{fromJSON(inputs.backend-versions)}}"
+        test-types: ${{ fromJSON(inputs.test-types-as-strings-in-json) }}
         exclude: "${{fromJSON(inputs.excludes)}}"
-        test-group: "${{fromJSON(inputs.test-groups)}}"
     env:
       BACKEND: "${{ inputs.backend }}"
       BACKEND_VERSION: "${{ matrix.backend-version }}"
@@ -148,14 +148,15 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       # yamllint disable rule:line-length
-      JOB_ID: "${{ matrix.test-group }}-${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
+      JOB_ID: "${{ inputs.test-group }}-${{ matrix.test-types.description }}-${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
       # yamllint disable rule:line-length
-      PARALLEL_TEST_TYPES: ${{ matrix.test-group == 'core' && inputs.core-test-types-list-as-string || inputs.providers-test-types-list-as-string }}
+      PARALLEL_TEST_TYPES: ${{ matrix.test-types.test_types }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
+    if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -173,12 +174,12 @@ jobs:
       - name: >
           Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         uses: ./.github/actions/migration_tests
-        if: inputs.run-migration-tests == 'true' && matrix.test-group == 'core'
+        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core'
       - name: >
-          ${{ matrix.test-group}}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
+          ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         env:
-          TEST_GROUP: "${{ matrix.test-group }}"
+          TEST_GROUP: "${{ inputs.test-group }}"
           TEST_SCOPE: "${{ inputs.test-scope }}"
         run: ./scripts/ci/testing/run_unit_tests.sh "${TEST_GROUP}" "${TEST_SCOPE}"
       - name: "Post Tests success"

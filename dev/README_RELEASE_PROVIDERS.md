@@ -296,7 +296,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+  breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:

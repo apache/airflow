@@ -1253,7 +1253,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine
-            object.__setattr__(result, k, v)
+            result.__dict__[k] = v
         return result
 
     def __getstate__(self):

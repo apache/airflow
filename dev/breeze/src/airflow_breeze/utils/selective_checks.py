@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import difflib
+import itertools
 import json
 import os
 import re
@@ -368,6 +369,41 @@ def _matching_files(
     return matched_files
 
 
+# TODO: In Python 3.12 we will be able to use itertools.batched
+def _split_list(input_list, n) -> list[list[str]]:
+    """Splits input_list into n sub-lists."""
+    it = iter(input_list)
+    return [
+        list(itertools.islice(it, i))
+        for i in [len(input_list) // n + (1 if x < len(input_list) % n else 0) for x in range(n)]
+    ]
+
+
+def _get_test_type_description(provider_test_types: list[str]) -> str:
+    if not provider_test_types:
+        return ""
+    first_provider = provider_test_types[0]
+    last_provider = provider_test_types[-1]
+    if first_provider.startswith("Providers["):
+        first_provider = first_provider.replace("Providers[", "").replace("]", "")
+    if last_provider.startswith("Providers["):
+        last_provider = last_provider.replace("Providers[", "").replace("]", "")
+    return (
+        f"{first_provider[:13]}...{last_provider[:13]}"
+        if first_provider != last_provider
+        else (first_provider[:29])
+    )
+
+
+def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[str, str]] | None:
+    if len(list_of_list_of_types) == 1 and len(list_of_list_of_types[0]) == 0:
+        return None
+    return [
+        {"description": _get_test_type_description(list_of_types), "test_types": " ".join(list_of_types)}
+        for list_of_types in list_of_list_of_types
+    ]
+
+
 class SelectiveChecks:
     __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
 
@@ -700,11 +736,11 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        if self.providers_test_types_list_as_string is None:
+        if self.providers_test_types_list_as_strings_in_json is None:
             return False
         return (
-            "amazon" in self.providers_test_types_list_as_string
-            or "Providers" in self.providers_test_types_list_as_string.split(" ")
+            "amazon" in self.providers_test_types_list_as_strings_in_json
+            or "Providers" in self.providers_test_types_list_as_strings_in_json.split(" ")
         )
 
     @cached_property
@@ -908,14 +944,14 @@ class SelectiveChecks:
                     current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
 
     @cached_property
-    def core_test_types_list_as_string(self) -> str | None:
+    def core_test_types_list_as_strings_in_json(self) -> str | None:
         if not self.run_tests:
             return None
-        current_test_types = set(self._get_core_test_types_to_run())
-        return " ".join(sorted(current_test_types))
+        current_test_types = sorted(set(self._get_core_test_types_to_run()))
+        return json.dumps(_get_test_list_as_json([current_test_types]))
 
     @cached_property
-    def providers_test_types_list_as_string(self) -> str | None:
+    def providers_test_types_list_as_strings_in_json(self) -> str | None:
         if not self.run_tests:
             return None
         current_test_types = set(self._get_providers_test_types_to_run())
@@ -930,19 +966,32 @@ class SelectiveChecks:
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
         self._extract_long_provider_tests(current_test_types)
-        return " ".join(sorted(current_test_types))
+        return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
-    @cached_property
-    def individual_providers_test_types_list_as_string(self) -> str | None:
-        if not self.run_tests:
-            return None
+    def _get_individual_providers_list(self):
         current_test_types = set(self._get_providers_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update(
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
-        return " ".join(sorted(current_test_types))
+        return current_test_types
+
+    @cached_property
+    def individual_providers_test_types_list_as_strings_in_json(self) -> str | None:
+        """Splits the list of test types into several lists of strings (to run them in parallel)."""
+        if not self.run_tests:
+            return None
+        current_test_types = sorted(self._get_individual_providers_list())
+        if not current_test_types:
+            return None
+        # We are hard-coding the number of lists as reasonable starting point to split the
+        # list of test types - and we can modify it in the future
+        # TODO: In Python 3.12 we will be able to use itertools.batched
+        if len(current_test_types) < 5:
+            return json.dumps(_get_test_list_as_json([current_test_types]))
+        list_of_list_of_types = _split_list(current_test_types, 5)
+        return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
     def include_success_outputs(

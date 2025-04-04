@@ -241,6 +241,34 @@ class TaskInstance(StrictBaseModel):
     try_number: int
     map_index: int = -1
     hostname: str | None = None
+    context_carrier: dict | None = None
+
+
+class AssetReferenceAssetEventDagRun(StrictBaseModel):
+    """Schema for AssetModel used in AssetEventDagRunReference."""
+
+    name: str
+    uri: str
+    extra: dict
+
+
+class AssetAliasReferenceAssetEventDagRun(StrictBaseModel):
+    """Schema for AssetAliasModel used in AssetEventDagRunReference."""
+
+    name: str
+
+
+class AssetEventDagRunReference(StrictBaseModel):
+    """Schema for AssetEvent model used in DagRun."""
+
+    asset: AssetReferenceAssetEventDagRun
+    extra: dict
+    source_task_id: str | None
+    source_dag_id: str | None
+    source_run_id: str | None
+    source_map_index: int | None
+    source_aliases: list[AssetAliasReferenceAssetEventDagRun]
+    timestamp: UtcDateTime
 
 
 class DagRun(StrictBaseModel):
@@ -261,6 +289,7 @@ class DagRun(StrictBaseModel):
     clear_number: int = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    consumed_asset_events: list[AssetEventDagRunReference]
 
 
 class TIRunContext(BaseModel):

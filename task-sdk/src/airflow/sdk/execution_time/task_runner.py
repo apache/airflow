@@ -82,6 +82,7 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
     context_to_airflow_vars,
@@ -145,13 +146,9 @@ class RuntimeTaskInstance(TaskInstance):
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
-        dag_run_conf = None
-        if (
-            self._ti_context_from_server
-            and self._ti_context_from_server.dag_run
-            and self._ti_context_from_server.dag_run.conf
-        ):
-            dag_run_conf = self._ti_context_from_server.dag_run.conf
+        dag_run_conf: dict[str, Any] | None = None
+        if from_server := self._ti_context_from_server:
+            dag_run_conf = from_server.dag_run.conf or dag_run_conf
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
@@ -180,14 +177,14 @@ class RuntimeTaskInstance(TaskInstance):
             },
             "conn": ConnectionAccessor(),
         }
-        if from_server := self._ti_context_from_server:
+        if from_server:
             dag_run = from_server.dag_run
-
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
+                "triggering_asset_events": TriggeringAssetEventsAccessor.build(dag_run.consumed_asset_events),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
-                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count or 0,
+                "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).start_date)
                 ),

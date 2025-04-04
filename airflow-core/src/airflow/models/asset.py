@@ -739,16 +739,16 @@ class AssetEvent(Base):
     )
 
     @property
-    def uri(self):
+    def name(self) -> str:
+        return self.asset.name
+
+    @property
+    def uri(self) -> str:
         return self.asset.uri
 
     @property
-    def group(self):
+    def group(self) -> str:
         return self.asset.group
-
-    @property
-    def name(self):
-        return self.asset.name
 
     def __repr__(self) -> str:
         args = []

@@ -34,8 +34,9 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
-    ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
+    _get_test_list_as_json,
+    _split_list,
 )
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -43,8 +44,29 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
-LIST_OF_ALL_PROVIDER_TESTS = " ".join(
+
+ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
+    [
+        {"description": "API...Serialization", "test_types": ALL_CI_SELECTIVE_TEST_TYPES},
+    ]
+)
+
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
+    [
+        {
+            "description": "-amazon,googl...standard",
+            "test_types": "Providers[-amazon,google,standard] "
+            "Providers[amazon] Providers[google] Providers[standard]",
+        }
+    ]
+)
+
+LIST_OF_ALL_PROVIDER_TESTS = [
     f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)
+]
+
+LIST_OF_ALL_PROVIDER_TESTS_AS_JSON = json.dumps(
+    _get_test_list_as_json(_split_list(sorted(LIST_OF_ALL_PROVIDER_TESTS), 5))
 )
 
 ALL_MYPY_CHECKS_ARRAY = [
@@ -139,9 +161,13 @@ def print_in_color(s: Any = ""):
     get_rich_console().print(s)
 
 
-def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
+def get_outputs_from_stderr(stderr: str) -> dict[str, str]:
     escaped_stderr = escape_ansi_colors(stderr)
-    received_output_as_dict = dict(line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line)
+    return dict(line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line)
+
+
+def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
+    received_output_as_dict = get_outputs_from_stderr(stderr)
     for expected_key, expected_value in expected_outputs.items():
         if expected_value is None:
             if expected_key in received_output_as_dict:
@@ -196,9 +222,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": None,
-                    "providers-test-types-list-as-string": None,
-                    "individual-providers-test-types-list-as-string": None,
+                    "core-test-types-list-as-strings-in-json": None,
+                    "providers-test-types-list-as-strings-in-json": None,
+                    "individual-providers-test-types-list-as-strings-in-json": None,
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
                 },
@@ -230,9 +256,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -255,9 +281,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -280,9 +306,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -306,9 +332,25 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
-                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...standard",
+                                "test_types": "Providers[common.compat] Providers[standard]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "common.compat...standard",
+                                "test_types": "Providers[common.compat] Providers[standard]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -332,11 +374,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always Serialization",
-                    "providers-test-types-list-as-string": "",
-                    "individual-providers-test-types-list-as-string": "",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always...Serialization", "test_types": "Always Serialization"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": None,
+                    "individual-providers-test-types-list-as-strings-in-json": None,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow-core']",
+                    "skip-providers-tests": "true",
                 },
                 id="Only Serialization tests",
             )
@@ -361,9 +406,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -388,9 +433,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -415,9 +477,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
@@ -446,9 +525,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
@@ -477,14 +573,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam,c...google",
+                                "test_types": "Providers[apache.beam,common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "apache.beam...google",
+                                "test_types": "Providers[apache.beam] "
+                                "Providers[common.compat] Providers[google]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
                 },
-                id="Selected Providers and docs should run when both system tests and tests are modified for more than one provider",
+                id="Selected Providers and docs should run when both system "
+                "tests and tests are modified for more than one provider",
             )
         ),
         (
@@ -505,8 +619,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": None,
-                    "providers-test-types-list-as-string": None,
+                    "core-test-types-list-as-strings-in-json": None,
+                    "providers-test-types-list-as-strings-in-json": None,
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
                 },
@@ -533,8 +647,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ("API Always CLI Core Other Serialization"),
-                    "providers-test-types-list-as-string": "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
                 },
@@ -548,7 +662,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google openlineage pgvector postgres",
+                    "selected-providers-list-as-string": "amazon common.sql google "
+                    "openlineage pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -562,9 +677,19 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "amazon...google",
+                                "test_types": "Providers[amazon] "
+                                "Providers[common.sql,openlineage,pgvector,postgres] "
+                                "Providers[google]",
+                            }
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -594,11 +719,29 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
-                    "individual-providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[apache.livy] Providers[dbt.cloud] "
-                    "Providers[dingding] Providers[discord] Providers[http]",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "amazon...apache.livy,d",
+                                "test_types": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                            }
+                        ]
+                    ),
+                    "individual-providers-test-types-list-as-strings-in-json": json.dumps(
+                        [
+                            {
+                                "description": "amazon...apache.livy",
+                                "test_types": "Providers[amazon] Providers[apache.livy]",
+                            },
+                            {"description": "dbt.cloud", "test_types": "Providers[dbt.cloud]"},
+                            {"description": "dingding", "test_types": "Providers[dingding]"},
+                            {"description": "discord", "test_types": "Providers[discord]"},
+                            {"description": "http", "test_types": "Providers[http]"},
+                        ]
+                    ),
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -628,10 +771,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[airbyte]",
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-providers']",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                    ),
                 },
                 id="Helm tests, airbyte providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -659,8 +804,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "",
+                    "core-test-types-list-as-strings-in-json": json.dumps(
+                        [{"description": "Always", "test_types": "Always"}]
+                    ),
+                    "providers-test-types-list-as-strings-in-json": None,
                     "needs-mypy": "false",
                     "mypy-checks": "[]",
                 },
@@ -686,8 +833,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "true",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -713,8 +860,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "true",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -740,8 +887,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
-                "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
+                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -764,8 +923,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[airbyte]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "airbyte", "test_types": "Providers[airbyte]"}]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -790,8 +953,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
+                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
+                            "Providers[google]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -818,8 +993,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[common.compat,common.io,openlineage]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "common.compat,common.io,openl",
+                            "test_types": "Providers[common.compat,common.io,openlineage]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core', 'mypy-providers']",
             },
@@ -842,8 +1026,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always Core Serialization",
-                "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "common.compat...standard",
+                            "test_types": "Providers[common.compat] Providers[standard]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -866,8 +1059,17 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always Core Serialization",
-                "providers-test-types-list-as-string": "Providers[common.compat] Providers[standard]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "common.compat...standard",
+                            "test_types": "Providers[common.compat] Providers[standard]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -891,8 +1093,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -917,10 +1119,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['celery', 'kerberos']",
-                    "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
+                    "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', "
+                    "'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1008,18 +1211,22 @@ def test_full_test_needed_when_pyproject_toml_changes(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-def test_hatch_build_py_changes():
+def test_list_splitting():
     stderr = SelectiveChecks(
-        files=("hatch_build.py",),
-        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=("full tests needed",),
         default_branch="main",
     )
-    assert_outputs_are_printed(
-        {
-            "full-tests-needed": "true",
-            "all-versions": "true",
-        },
-        str(stderr),
+    output_dict = get_outputs_from_stderr(str(stderr))
+    individual_providers_test_types_list_as_string = json.loads(
+        output_dict["individual-providers-test-types-list-as-strings-in-json"]
+    )
+    all_providers_in_sub_lists = [
+        list_of_types["test_types"].split(" ")
+        for list_of_types in individual_providers_test_types_list_as_string
+    ]
+    assert len(all_providers_in_sub_lists) == 5
+    assert sum([len(list_of_types) for list_of_types in all_providers_in_sub_lists]) == len(
+        LIST_OF_ALL_PROVIDER_TESTS
     )
 
 
@@ -1118,8 +1325,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1154,8 +1361,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1190,8 +1397,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1227,8 +1434,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1264,8 +1471,8 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1298,9 +1505,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
-                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "individual-providers-test-types-list-as-strings-in-json": LIST_OF_ALL_PROVIDER_TESTS_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
@@ -1332,7 +1539,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
                 },
@@ -1376,7 +1583,7 @@ def test_expected_output_full_tests_needed(
                 "docs-list-as-string": None,
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": None,
+                "core-test-types-list-as-strings-in-json": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1401,7 +1608,9 @@ def test_expected_output_full_tests_needed(
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1428,7 +1637,9 @@ def test_expected_output_full_tests_needed(
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always CLI",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always...CLI", "test_types": "Always CLI"}]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core']",
             },
@@ -1453,7 +1664,7 @@ def test_expected_output_full_tests_needed(
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core']",
             },
@@ -1495,7 +1706,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "upgrade-to-newer-dependencies": "true",
-                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
             },
@@ -1516,7 +1727,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-pre-commits": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
             },
@@ -1539,7 +1750,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
             },
@@ -1581,7 +1792,7 @@ def test_expected_output_push(
                 "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED,
-                "core-test-types-list-as-string": None,
+                "core-test-types-list-as-strings-in-json": None,
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1603,7 +1814,9 @@ def test_expected_output_push(
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always", "test_types": "Always"}]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core']",
             },
@@ -1636,10 +1849,21 @@ def test_expected_output_push(
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_UI,
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "Always CLI",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
-                "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,samba,sftp,ssh,trino] Providers[google]",
+                "core-test-types-list-as-strings-in-json": json.dumps(
+                    [{"description": "Always...CLI", "test_types": "Always CLI"}]
+                ),
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
+                            "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
+                            "hashicorp,microsoft.azure,microsoft.mssql,mysql,"
+                            "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
+                            "Providers[google]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core', 'mypy-providers']",
             },
@@ -1662,7 +1886,7 @@ def test_expected_output_push(
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow-core']",
             },
@@ -1683,7 +1907,7 @@ def test_expected_output_push(
                 "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "needs-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
             },
@@ -1697,7 +1921,9 @@ def test_expected_output_push(
                 "airflow-core/src/airflow/datasets/",
             ),
             {
-                "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
+                "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
+                "dbt.cloud ftp google microsoft.mssql mysql "
+                "openlineage postgres sftp snowflake trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1707,12 +1933,23 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
+                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql "
+                "dbt.cloud ftp google microsoft.mssql mysql "
+                "openlineage postgres sftp snowflake trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,common.io,common.sql,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,postgres,sftp,snowflake,trino] Providers[google]",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                "providers-test-types-list-as-strings-in-json": json.dumps(
+                    [
+                        {
+                            "description": "amazon...google",
+                            "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
+                            "dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,"
+                            "postgres,sftp,snowflake,trino] Providers[google]",
+                        }
+                    ]
+                ),
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1765,7 +2002,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
-            "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+            "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "needs-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,
         },
@@ -1804,7 +2041,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": (
                 "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
             ),
-            "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+            "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "needs-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,
         },
