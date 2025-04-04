@@ -1336,6 +1336,14 @@
                             "description": "The database SSL parameter.",
                             "type": "string",
                             "default": "disable"
+                        },
+                        "secretAnnotations": {
+                            "description": "Annotations to add to the metadata connection secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
