@@ -31,10 +31,6 @@ There might be some Operators that you can not modify (f.e. third party provider
 To handle this situation, OpenLineage allows you to provide custom Extractor for any Operator.
 See :ref:`custom_extractors:openlineage` for more details.
 
-If all of the above can not be implemented, as a fallback, there is a way to manually annotate lineage.
-Airflow allows Operators to track lineage by specifying the input and outputs of the Operators via inlets and outlets.
-See :ref:`inlets_outlets:openlineage` for more details.
-
 .. _extraction_precedence:openlineage:
 
 Extraction precedence
@@ -192,12 +188,17 @@ Interface
 Custom Extractors have to derive from :class:`BaseExtractor <airflow.providers.openlineage.extractors.base.BaseExtractor>`
 and implement at least two methods: ``_execute_extraction`` and ``get_operator_classnames``.
 
-BaseExtractor defines two methods: ``extract`` and ``extract_on_complete``, that are called and used to provide actual lineage data.
-The difference is that ``extract`` is called before Operator's ``execute`` method, while ``extract_on_complete`` is called after.
-By default, ``extract`` calls ``_execute_extraction`` method implemented in custom Extractor, and ``extract_on_complete``
-calls the ``extract`` method. If you want to provide some additional information available after the task execution, you can
-override ``extract_on_complete`` method. This can be used to extract any additional information that the Operator
-sets on it's own properties. Good example is ``SnowflakeOperator`` that sets ``query_ids`` after execution.
+BaseExtractor defines three more methods: ``extract``, ``extract_on_complete`` and ``extract_on_failure``,
+that are called and used to provide actual lineage data.
+The difference is that ``extract`` is called before Operator's ``execute`` method, while ``extract_on_complete`` and
+``extract_on_failure`` are called after - when the task either succeeds or fails, respectively.
+By default, ``extract`` calls ``_execute_extraction`` method implemented in custom Extractor.
+When the task succeeds, ``extract_on_complete`` is called and if not overwritten, by default, it delegates to ``extract``.
+When the task fails, ``extract_on_failure`` is called and if not overwritten, by default, it delegates to ``extract_on_complete``.
+If you want to provide some additional information available after the task execution, you can
+override ``extract_on_complete`` and ``extract_on_failure`` methods.
+This is useful for extracting data the Operator sets as it's own properties during or after execution.
+Good example is an SQL operator that sets ``query_ids`` after execution.
 
 The ``get_operator_classnames`` is a classmethod that is used to provide list of Operators that your Extractor can get lineage from.
 
@@ -207,10 +208,10 @@ For example:
 
     @classmethod
     def get_operator_classnames(cls) -> List[str]:
-      return ['PostgresOperator']
+      return ['CustomPostgresOperator']
 
 If the name of the Operator matches one of the names on the list, the Extractor will be instantiated - with Operator
-provided in the Extractor's ``self.operator`` property - and both ``extract`` and ``extract_on_complete`` methods will be called.
+provided in the Extractor's ``self.operator`` property - and both ``extract`` and ``extract_on_complete``/``extract_on_failure`` methods will be called.
 
 Both methods return ``OperatorLineage`` structure:
 
@@ -274,7 +275,7 @@ If the path is wrong or non-importable from worker, plugin will fail to load the
 Second one, and maybe more insidious, are imports from Airflow. Due to the fact that OpenLineage code gets instantiated when Airflow worker itself starts,
 any import from Airflow can be unnoticeably cyclical. This causes OpenLineage extraction to fail.
 
-To avoid this issue, import from Airflow only locally - in ``_execute_extraction`` or ``extract_on_complete`` methods.
+To avoid this issue, import from Airflow only locally - in ``_execute_extraction`` or ``extract_on_complete``/``extract_on_failure`` methods.
 If you need imports for type checking, guard them behind typing.TYPE_CHECKING.
 
 
@@ -304,7 +305,8 @@ Example
 This is an example of a simple Extractor for an Operator that executes export Query in BigQuery and saves the result to S3 file.
 Some information is known before Operator's ``execute`` method is called, and we can already extract some lineage in ``_execute_extraction`` method.
 After Operator's ``execute`` method is called, in ``extract_on_complete``, we can simply attach some additional Facets
-f.e. with Bigquery Job ID to what we've prepared earlier. This way, we get all possible information from the Operator.
+f.e. with Bigquery Job ID to what we've prepared earlier. We can also implement ``extract_on_failure`` method, if there is
+a need to include some information only when task fails. This way, we get all possible information from the Operator.
 
 Please note that this is just an example. There are some OpenLineage built-in features that can facilitate different processes,
 like extracting column level lineage and inputs/outputs from SQL query with SQL parser.
@@ -316,6 +318,7 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
     from airflow.providers.common.compat.openlineage.facet import (
         Dataset,
         ExternalQueryRunFacet,
+        ErrorMessageRunFacet,
         SQLJobFacet,
     )
 
@@ -328,7 +331,7 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             self._job_id = None
 
         def execute(self, context) -> Any:
-            self._job_id = run_query(query=self.query)
+            self._job_id, self._error_message = run_query(query=self.query)
 
 
     class ExampleExtractor(BaseExtractor):
@@ -356,102 +359,19 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             }
             return lineage_metadata
 
+        def extract_on_failure(self, task_instance) -> OperatorLineage:
+            """Add any failure-specific information."""
+            lineage_metadata = self.extract_on_complete(task_instance)
+            lineage_metadata.run_facets = {
+                "error": ErrorMessageRunFacet(
+                    message=task_instance.task._error_message, programmingLanguage="python"
+                )
+            }
+            return lineage_metadata
+
 For more examples of OpenLineage Extractors, check out the source code of
 `BashExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/bash.py>`_ or
 `PythonExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/python.py>`_.
-
-.. _inlets_outlets:openlineage:
-
-Manually annotated lineage
-==========================
-
-This approach is rarely recommended, only in very specific cases, when it's impossible to extract some lineage information from the Operator itself.
-If you want to extract lineage from your own Operators, you may prefer directly implementing OpenLineage methods as described in :ref:`openlineage_methods:openlineage`.
-When dealing with Operators that you can not modify (f.e. third party providers), but still want the lineage to be extracted from them, see :ref:`custom_extractors:openlineage`.
-
-Airflow allows Operators to track lineage by specifying the input and outputs of the Operators via
-`inlets and outlets <https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/lineage.html#lineage>`_.
-OpenLineage will, by default, use inlets and outlets as input/output datasets if it cannot find any successful extraction from the OpenLineage methods or the Extractors.
-
-Airflow supports inlets and outlets to be either a Table, Column, File or User entity and so does OpenLineage.
-
-Example
-^^^^^^^
-
-An Operator inside the Airflow DAG can be annotated with inlets and outlets like in the below example:
-
-.. code-block:: python
-
-    """Example DAG demonstrating the usage of the extraction via Inlets and Outlets."""
-
-    import pendulum
-
-    from airflow import DAG
-    from airflow.providers.common.compat.lineage.entities import Table, File, Column, User
-    from airflow.providers.standard.operators.bash import BashOperator
-
-
-    t1 = Table(
-        cluster="c1",
-        database="d1",
-        name="t1",
-        owners=[User(email="jdoe@ok.com", first_name="Joe", last_name="Doe")],
-    )
-    t2 = Table(
-        cluster="c1",
-        database="d1",
-        name="t2",
-        columns=[
-            Column(name="col1", description="desc1", data_type="type1"),
-            Column(name="col2", description="desc2", data_type="type2"),
-        ],
-        owners=[
-            User(email="mike@company.com", first_name="Mike", last_name="Smith"),
-            User(email="theo@company.com", first_name="Theo"),
-            User(email="smith@company.com", last_name="Smith"),
-            User(email="jane@company.com"),
-        ],
-    )
-    t3 = Table(
-        cluster="c1",
-        database="d1",
-        name="t3",
-        columns=[
-            Column(name="col3", description="desc3", data_type="type3"),
-            Column(name="col4", description="desc4", data_type="type4"),
-        ],
-    )
-    t4 = Table(cluster="c1", database="d1", name="t4")
-    f1 = File(url="s3://bucket/dir/file1")
-
-
-    with DAG(
-        dag_id="example_operator",
-        schedule="@once",
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    ) as dag:
-        task1 = BashOperator(
-            task_id="task_1_with_inlet_outlet",
-            bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
-            inlets=[t1, t2],
-            outlets=[t3],
-        )
-
-        task2 = BashOperator(
-            task_id="task_2_with_inlet_outlet",
-            bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
-            inlets=[t3, f1],
-            outlets=[t4],
-        )
-
-        task1 >> task2
-
-    if __name__ == "__main__":
-        dag.cli()
-
-Conversion from Airflow Table entity to OpenLineage Dataset is made in the following way:
-- ``CLUSTER`` of the table entity becomes the namespace of OpenLineage's Dataset
-- The name of the dataset is formed by ``{{DATABASE}}.{{NAME}}`` where ``DATABASE`` and ``NAME`` are attributes specified by Airflow's Table entity.
 
 .. _custom_facets:openlineage:
 

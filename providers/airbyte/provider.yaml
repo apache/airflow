@@ -22,7 +22,7 @@ description: |
   `Airbyte <https://airbyte.com/>`__
 
 state: ready
-source-date-epoch: 1741507267
+source-date-epoch: 1743477757
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.0.1

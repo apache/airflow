@@ -83,7 +83,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
 }
 BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
-OTEL_NAME_MAX_LENGTH = 63
+OTEL_NAME_MAX_LENGTH = 255
 DEFAULT_VALIDATOR_TYPE = "allow"
 
 
@@ -125,7 +125,7 @@ def validate_stat(fn: Callable) -> Callable:
             log.exception("Invalid stat name: %s.", stat)
             return None
 
-    return cast(Callable, wrapper)
+    return cast("Callable", wrapper)
 
 
 def stat_name_otel_handler(

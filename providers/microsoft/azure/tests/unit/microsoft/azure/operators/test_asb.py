@@ -131,52 +131,80 @@ class TestAzureServiceBusDeleteQueueOperator:
 
 class TestAzureServiceBusSendMessageOperator:
     @pytest.mark.parametrize(
-        "mock_message, mock_batch_flag",
+        "mock_message, mock_batch_flag, mock_message_id, mock_reply_to, mock_headers",
         [
-            (MESSAGE, True),
-            (MESSAGE, False),
-            (MESSAGE_LIST, True),
-            (MESSAGE_LIST, False),
+            (MESSAGE, True, None, None, None),
+            (MESSAGE, False, "test_message_id", "test_reply_to", {"test_header": "test_value"}),
+            (MESSAGE_LIST, True, None, None, None),
+            (MESSAGE_LIST, False, None, None, None),
         ],
     )
-    def test_init(self, mock_message, mock_batch_flag):
+    def test_init(self, mock_message, mock_batch_flag, mock_message_id, mock_reply_to, mock_headers):
         """
         Test init by creating AzureServiceBusSendMessageOperator with task id, queue_name, message,
-        batch and asserting with values
+        batch, message_id, reply_to, and message headers and asserting with values
         """
         asb_send_message_queue_operator = AzureServiceBusSendMessageOperator(
             task_id="asb_send_message_queue_without_batch",
             queue_name=QUEUE_NAME,
             message=mock_message,
             batch=mock_batch_flag,
+            message_id=mock_message_id,
+            reply_to=mock_reply_to,
+            message_headers=mock_headers,
         )
         assert asb_send_message_queue_operator.task_id == "asb_send_message_queue_without_batch"
         assert asb_send_message_queue_operator.queue_name == QUEUE_NAME
         assert asb_send_message_queue_operator.message == mock_message
         assert asb_send_message_queue_operator.batch is mock_batch_flag
+        assert asb_send_message_queue_operator.message_id == mock_message_id
+        assert asb_send_message_queue_operator.reply_to == mock_reply_to
+        assert asb_send_message_queue_operator.message_headers == mock_headers
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
-    def test_send_message_queue(self, mock_get_conn):
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.send_message")
+    def test_send_message_queue(self, mock_send_message):
         """
         Test AzureServiceBusSendMessageOperator with queue name, batch boolean flag, mock
         the send_messages of azure service bus function
         """
+        TASK_ID = "task-id"
+        MSG_BODY = "test message body"
+        MSG_ID = None
+        REPLY_TO = None
+        HDRS = None
         asb_send_message_queue_operator = AzureServiceBusSendMessageOperator(
-            task_id="asb_send_message_queue",
+            task_id=TASK_ID,
             queue_name=QUEUE_NAME,
-            message="Test message",
+            message=MSG_BODY,
             batch=False,
         )
         asb_send_message_queue_operator.execute(None)
-        expected_calls = [
-            mock.call()
-            .__enter__()
-            .get_queue_sender(QUEUE_NAME)
-            .__enter__()
-            .send_messages(ServiceBusMessage("Test message"))
-            .__exit__()
-        ]
-        mock_get_conn.assert_has_calls(expected_calls, any_order=False)
+        expected_calls = [mock.call(QUEUE_NAME, MSG_BODY, False, MSG_ID, REPLY_TO, HDRS)]
+        mock_send_message.assert_has_calls(expected_calls, any_order=False)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.send_message")
+    def test_send_message_queue_with_id_hdrs_and_reply_to(self, mock_send_message):
+        """
+        Test AzureServiceBusSendMessageOperator with queue name, batch boolean flag, mock
+        the send_messages of azure service bus function
+        """
+        TASK_ID = "task-id"
+        MSG_ID = "test_message_id"
+        MSG_BODY = "test message body"
+        REPLY_TO = "test_reply_to"
+        HDRS = {"test_header": "test_value"}
+        asb_send_message_queue_operator = AzureServiceBusSendMessageOperator(
+            task_id=TASK_ID,
+            queue_name=QUEUE_NAME,
+            message=MSG_BODY,
+            batch=False,
+            message_id=MSG_ID,
+            reply_to=REPLY_TO,
+            message_headers=HDRS,
+        )
+        asb_send_message_queue_operator.execute(None)
+        expected_calls = [mock.call(QUEUE_NAME, MSG_BODY, False, MSG_ID, REPLY_TO, HDRS)]
+        mock_send_message.assert_has_calls(expected_calls, any_order=False)
 
 
 class TestAzureServiceBusReceiveMessageOperator:

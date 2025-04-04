@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, NamedTuple
@@ -26,7 +27,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.configuration import AIRFLOW_CONFIG, ConfigModifications, conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
@@ -666,14 +667,14 @@ def lint_config(args) -> None:
         1. Lint all sections and options:
             airflow config lint
 
-        2. Lint a specific sections:
+        2. Lint a specific section:
             airflow config lint --section core,webserver
 
-        3. Lint a specific sections and options:
+        3. Lint specific sections and options:
             airflow config lint --section smtp --option smtp_user
 
-        4. Ignore a sections:
-            irflow config lint --ignore-section webserver,api
+        4. Ignore a section:
+            airflow config lint --ignore-section webserver,api
 
         5. Ignore an options:
             airflow config lint --ignore-option smtp_user,session_lifetime_days
@@ -719,3 +720,146 @@ def lint_config(args) -> None:
         console.print("\n[red]Please update your configuration file accordingly.[/red]")
     else:
         console.print("[green]No issues found in your airflow.cfg. It is ready for Airflow 3![/green]")
+
+
+@providers_configuration_loaded
+def update_config(args) -> None:
+    """
+    Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3.
+
+    This command scans the current configuration file for parameters that have been renamed,
+    removed, or had their default values changed in Airflow 3.0, and automatically updates
+    the configuration file. This command cleans up the existing comments in airflow.cfg
+
+    CLI Arguments:
+        --dry-run: flag (optional)
+            Dry-run mode (print the changes without modifying airflow.cfg)
+            Example: --dry-run
+
+        --section: str (optional)
+            Comma-separated list of configuration sections to update.
+            Example: --section core,database
+
+        --option: str (optional)
+            Comma-separated list of configuration options to update.
+            Example: --option sql_alchemy_conn,dag_concurrency
+
+        --ignore-section: str (optional)
+            Comma-separated list of configuration sections to ignore during update.
+            Example: --ignore-section webserver
+
+        --ignore-option: str (optional)
+            Comma-separated list of configuration options to ignore during update.
+            Example: --ignore-option check_slas
+
+    Examples:
+        1. Dry-run mode (print the changes in modified airflow.cfg):
+            airflow config update --dry-run
+
+        2. Update the entire configuration file:
+            airflow config update
+
+        3. Update only the 'core' and 'database' sections:
+            airflow config update --section core,database
+
+        4. Update only specific options:
+            airflow config update --option sql_alchemy_conn,dag_concurrency
+
+        5. Ignore updates for a specific section:
+            airflow config update --ignore-section webserver
+
+    :param args: The CLI arguments for updating configuration.
+    """
+    console = AirflowConsole()
+    changes_applied: list[str] = []
+    modifications = ConfigModifications()
+
+    update_sections = args.section if args.section else None
+    update_options = args.option if args.option else None
+    ignore_sections = args.ignore_section if args.ignore_section else []
+    ignore_options = args.ignore_option if args.ignore_option else []
+
+    config_dict = conf.as_dict(
+        display_source=True,
+        include_env=True,
+        include_cmds=True,
+        include_secret=True,
+    )
+    for change in CONFIGS_CHANGES:
+        conf_section = change.config.section.lower()
+        conf_option = change.config.option.lower()
+        full_key = f"{conf_section}.{conf_option}"
+
+        if update_sections is not None and conf_section not in [s.lower() for s in update_sections]:
+            continue
+        if update_options is not None and full_key not in [opt.lower() for opt in update_options]:
+            continue
+        if conf_section in [s.lower() for s in ignore_sections] or full_key in [
+            opt.lower() for opt in ignore_options
+        ]:
+            continue
+
+        if conf_section not in config_dict or conf_option not in config_dict[conf_section]:
+            continue
+        value_data = config_dict[conf_section][conf_option]
+        if not (isinstance(value_data, tuple) and value_data[1] == "airflow.cfg"):
+            continue
+
+        current_value = value_data[0]
+
+        if change.default_change:
+            if str(current_value) != str(change.new_default):
+                modifications.add_default_update(conf_section, conf_option, str(change.new_default))
+                changes_applied.append(
+                    f"Updated default value of '{conf_section}/{conf_option}' from "
+                    f"'{current_value}' to '{change.new_default}'."
+                )
+        if change.renamed_to:
+            modifications.add_rename(
+                conf_section, conf_option, change.renamed_to.section, change.renamed_to.option
+            )
+            changes_applied.append(
+                f"Renamed '{conf_section}/{conf_option}' to "
+                f"'{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
+            )
+        elif change.was_removed:
+            modifications.add_remove(conf_section, conf_option)
+            changes_applied.append(f"Removed '{conf_section}/{conf_option}' from configuration.")
+
+    backup_path = f"{AIRFLOW_CONFIG}.bak"
+    try:
+        shutil.copy2(AIRFLOW_CONFIG, backup_path)
+        console.print(f"Backup saved as '{backup_path}'.")
+    except Exception as e:
+        console.print(f"Failed to create backup: {e}")
+        raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
+
+    if args.dry_run:
+        console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
+        with StringIO() as config_output:
+            conf.write_custom_config(
+                file=config_output,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
+            new_config = config_output.getvalue()
+        console.print(new_config)
+    else:
+        with open(AIRFLOW_CONFIG, "w") as config_file:
+            conf.write_custom_config(
+                file=config_file,
+                comment_out_defaults=True,
+                include_descriptions=True,
+                modifications=modifications,
+            )
+
+    if changes_applied:
+        console.print("[green]The following updates were applied:[/green]")
+        for change_msg in changes_applied:
+            console.print(f"  - {change_msg}")
+    else:
+        console.print("[green]No updates needed. Your configuration is already up-to-date.[/green]")
+
+    if args.verbose:
+        console.print("[blue]Configuration update completed with verbose output enabled.[/blue]")

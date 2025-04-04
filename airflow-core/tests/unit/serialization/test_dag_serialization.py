@@ -89,6 +89,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -442,6 +443,7 @@ class TestStringifiedDAGs:
         os.environ.get("UPGRADE_BOTO", "") == "true",
         reason="This test is skipped when latest botocore is installed",
     )
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -600,6 +602,7 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
         dags, _ = collect_dags(
@@ -662,9 +665,9 @@ class TestStringifiedDAGs:
                     # Check we stored _something_.
                     assert k in serialized_dag.default_args
                 else:
-                    assert (
-                        v == serialized_dag.default_args[k]
-                    ), f"{dag.dag_id}.default_args[{k}] does not match"
+                    assert v == serialized_dag.default_args[k], (
+                        f"{dag.dag_id}.default_args[{k}] does not match"
+                    )
 
         assert serialized_dag.timetable.summary == dag.timetable.summary
         assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
@@ -739,9 +742,9 @@ class TestStringifiedDAGs:
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(
-                task, field
-            ), f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
+            assert getattr(serialized_task, field) == getattr(task, field), (
+                f"{task.dag.dag_id}.{task.task_id}.{field} does not match"
+            )
 
         if serialized_task.resources is None:
             assert task.resources is None or task.resources == []
@@ -1320,9 +1323,9 @@ class TestStringifiedDAGs:
         assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):
-        assert (
-            BaseOperator(task_id="dummy").do_xcom_push is True
-        ), "Precondition check! If this fails the test won't make sense"
+        assert BaseOperator(task_id="dummy").do_xcom_push is True, (
+            "Precondition check! If this fails the test won't make sense"
+        )
 
         class MyOperator(BaseOperator):
             def __init__(self, do_xcom_push=False, **kwargs):

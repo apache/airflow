@@ -24,11 +24,11 @@ import datetime
 import pendulum
 
 from airflow.example_dags.plugins.decreasing_priority_weight_strategy import DecreasingPriorityStrategy
-
-# [START example_custom_weight_dag]
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG
+
+# [START example_custom_weight_dag]
 
 with DAG(
     dag_id="example_custom_weight",

@@ -20,7 +20,6 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -83,28 +82,6 @@ def init_views(app: FastAPI) -> None:
             {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
             media_type="text/html",
         )
-
-
-def init_plugins(app: FastAPI) -> None:
-    """Integrate FastAPI app plugins."""
-    from airflow import plugins_manager
-
-    plugins_manager.initialize_fastapi_plugins()
-
-    # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
-    for subapp_dict in cast(list, plugins_manager.fastapi_apps):
-        name = subapp_dict.get("name")
-        subapp = subapp_dict.get("app")
-        if subapp is None:
-            log.error("'app' key is missing for the fastapi app: %s", name)
-            continue
-        url_prefix = subapp_dict.get("url_prefix")
-        if url_prefix is None:
-            log.error("'url_prefix' key is missing for the fastapi app: %s", name)
-            continue
-
-        log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
-        app.mount(url_prefix, subapp)
 
 
 def init_flask_plugins(app: FastAPI) -> None:

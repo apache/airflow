@@ -104,9 +104,9 @@ def test_asset_logical_conditions_evaluation_and_serialization(evaluator, inputs
     condition = class_(*assets)
 
     statuses = {AssetUniqueKey.from_asset(asset): status for asset, status in zip(assets, inputs)}
-    assert (
-        evaluator.run(condition, statuses) == expected
-    ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
+    assert evaluator.run(condition, statuses) == expected, (
+        f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
+    )
 
     # Serialize and deserialize the condition to test persistence
     serialized = BaseSerialization.serialize(condition)
@@ -159,9 +159,9 @@ def test_nested_asset_conditions_with_serialization(evaluator, status_values, ex
     serialized_condition = BaseSerialization.serialize(nested_condition)
     deserialized_condition = BaseSerialization.deserialize(serialized_condition)
 
-    assert (
-        evaluator.run(deserialized_condition, statuses) == expected_evaluation
-    ), "Post-serialization evaluation mismatch"
+    assert evaluator.run(deserialized_condition, statuses) == expected_evaluation, (
+        "Post-serialization evaluation mismatch"
+    )
 
 
 class TestAssetAlias:

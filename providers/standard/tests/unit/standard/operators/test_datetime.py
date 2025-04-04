@@ -99,9 +99,9 @@ class TestBranchDateTimeOperator:
             except KeyError:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
-                assert ti.state == (
-                    expected_state
-                ), f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
+                assert ti.state == (expected_state), (
+                    f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
+                )
 
     def test_no_target_time(self):
         """Check if BranchDateTimeOperator raises exception on missing target"""

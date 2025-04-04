@@ -253,7 +253,7 @@ class BashOperator(BaseOperator):
         """
         with working_directory(cwd=self.cwd) as cwd:
             with tempfile.NamedTemporaryFile(mode="w", dir=cwd, suffix=".sh") as file:
-                file.write(cast(str, self.bash_command))
+                file.write(cast("str", self.bash_command))
                 file.flush()
 
                 bash_script = os.path.basename(file.name)

@@ -24,7 +24,8 @@ You can read more about pre-commit hooks [here](/contributing-docs/08_static_cod
 
 * `provider_dependencies.json` - is generated based on `provider.yaml` files in `airflow/providers` and
   based on the imports in the provider code. If you want to add new dependency to a provider, you
-  need to modify the corresponding `provider.yaml` file
+  need to modify the corresponding `provider.yaml` file. This file is git-ignored (used to be committed)
+  and it is generated automatically / dynamically when needed by either breeze or pre-commit hooks.
 
 * `provider_metadata.json` - is generated based on `provider.yaml` files, airflow constraints and tags for
   the providers. It contains historical metadata in providers that were released - it is useful to generate

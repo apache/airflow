@@ -338,7 +338,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     return {
         "key": BaseSerialization.serialize(key),
         "extra": var.extra,
-        "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
+        "asset_alias_events": [attrs.asdict(cast("attrs.AttrsInstance", e)) for e in var.asset_alias_events],
     }
 
 
@@ -1076,7 +1076,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), TriggerDagRunOperator)
             and "trigger_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1100,7 +1100,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), ExternalTaskSensor)
             and "external_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1471,7 +1471,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
-            encoded_start_trigger_args = cast(dict, encoded_start_trigger_args)
+            encoded_start_trigger_args = cast("dict", encoded_start_trigger_args)
             start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
@@ -1694,6 +1694,11 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
+        if "dag_id" not in encoded_dag:
+            raise RuntimeError(
+                "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
+            )
+
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
@@ -1865,7 +1870,7 @@ class TaskGroupSerialization(BaseSerialization):
                 if _type == DAT.OP
                 else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             )
-            for label, (_type, val) in encoded_group["children"].items()
+            for label, (_type, val) in sorted(encoded_group["children"].items())
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
         group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))
@@ -1956,7 +1961,9 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     @property
     def has_task_concurrency_limits(self) -> bool:
-        return any(task.get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"])
+        return any(
+            task[Encoding.VAR].get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"]
+        )
 
     @property
     def owner(self) -> str:

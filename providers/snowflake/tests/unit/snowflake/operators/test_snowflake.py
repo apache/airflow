@@ -289,9 +289,9 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(create_context(operator))
 
-        assert isinstance(
-            exc.value.trigger, SnowflakeSqlApiTrigger
-        ), "Trigger is not a SnowflakeSqlApiTrigger"
+        assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger), (
+            "Trigger is not a SnowflakeSqlApiTrigger"
+        )
 
     def test_snowflake_sql_api_execute_complete_failure(self):
         """Test SnowflakeSqlApiOperator raise AirflowException of error event"""

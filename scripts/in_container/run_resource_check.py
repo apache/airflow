@@ -43,7 +43,7 @@ def get_size(bytes):
     return value_gb
 
 
-def resoure_check():
+def resource_check():
     """
     Use gsutil to get resources in bytes for memory and disk
     """
@@ -71,8 +71,8 @@ def resoure_check():
     return resources
 
 
-def resoure_validate():
-    resources = resoure_check()
+def resource_validate():
+    resources = resource_check()
     warning_resources = False
     check = "OK"
 
@@ -101,4 +101,4 @@ def resoure_validate():
 
 
 if __name__ == "__main__":
-    resoure_validate()
+    resource_validate()

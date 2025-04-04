@@ -61,7 +61,8 @@ dependencies = [
     # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
     # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
     # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
-    "celery[redis]>=5.4.0,<6",
+    # Updating min version to 5.5.0 to avoid redis import bug https://github.com/apache/airflow/issues/41359
+    "celery[redis]>=5.5.0,<6",
     "flower>=1.0.0",
 ]
 

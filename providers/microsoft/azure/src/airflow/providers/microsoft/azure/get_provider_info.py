@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Microsoft Azure",
         "description": "`Microsoft Azure <https://azure.microsoft.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1742980868,
+        "source-date-epoch": 1743477842,
         "versions": [
             "12.2.2",
             "12.2.1",
@@ -486,7 +486,7 @@ def get_provider_info():
             "microsoft-kiota-http>=1.3.0,!=1.3.4",
             "microsoft-kiota-serialization-json==1.0.0",
             "microsoft-kiota-serialization-text==1.0.0",
-            "microsoft-kiota-abstractions<1.4.0",
+            "microsoft-kiota-abstractions<1.4.0,>=1.0.0",
             "msal-extensions>=1.1.0",
         ],
         "optional-dependencies": {
@@ -495,5 +495,5 @@ def get_provider_info():
             "oracle": ["apache-airflow-providers-oracle"],
             "sftp": ["apache-airflow-providers-sftp"],
         },
-        "devel-dependencies": ["pywinrm>=0.5.0"],
+        "devel-dependencies": ["pywinrm>=0.5.0", "moto>=5.1.2"],
     }

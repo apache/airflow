@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Livy",
         "description": "`Apache Livy <https://livy.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508288,
+        "source-date-epoch": 1743477781,
         "versions": [
             "4.2.1",
             "4.2.0",
@@ -104,6 +104,7 @@ def get_provider_info():
         "dependencies": [
             "apache-airflow>=2.9.0",
             "apache-airflow-providers-http>=5.1.0",
+            "apache-airflow-providers-common-compat>=1.5.0",
             "aiohttp>=3.9.2",
             "asgiref>=2.3.0",
         ],

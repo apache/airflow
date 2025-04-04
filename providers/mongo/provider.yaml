@@ -22,7 +22,7 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 state: ready
-source-date-epoch: 1741509082
+source-date-epoch: 1743477850
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.0.2

@@ -110,6 +110,11 @@ jobs:
           --distribution-format wheel --version-suffix-for-pypi dev0
           ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
+      - name: "Prepare airflow distributions"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-distributions
+          --distribution-format wheel --version-suffix-for-pypi dev0
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
