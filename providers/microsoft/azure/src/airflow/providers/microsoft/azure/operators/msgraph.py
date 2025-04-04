@@ -35,13 +35,6 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
 )
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-try:
-    from airflow.utils.context import AirflowContextDeprecationWarning
-except AttributeError:
-    class AirflowContextDeprecationWarning(UserWarning):
-        pass
-
-
 if TYPE_CHECKING:
     from io import BytesIO
 
@@ -50,6 +43,17 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
+
+    try:
+        from airflow.utils.context import AirflowContextDeprecationWarning
+    except ImportError:
+        AirflowContextDeprecationWarning = object
+else:
+    try:
+        from airflow.utils.context import AirflowContextDeprecationWarning
+    except (ImportError, AttributeError):
+        class AirflowContextDeprecationWarning(UserWarning):
+            pass
 
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
