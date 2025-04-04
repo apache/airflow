@@ -494,6 +494,8 @@ data:
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
+# Add custom annotations to the fernet key secret
+fernetKeySecretAnnotations: {}
 
 # Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
@@ -2047,6 +2049,8 @@ flower:
 
   # A secret containing the connection
   secretName: ~
+  # Add custom annotations to the flower secret
+  secretAnnotations: {}
 
   # Else, if username and password are set, create secret from username and password
   username: ~

@@ -1426,6 +1426,15 @@
             "x-docsSection": "Airflow",
             "default": null
         },
+        "fernetKeySecretAnnotations": {
+            "description": "Annotations to add to the Fernet Key secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
@@ -6402,6 +6411,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "secretAnnotations": {
+                    "description": "Annotations to add to the flower secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "username": {
                     "description": "Username use to access Flower.",
