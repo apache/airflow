@@ -89,7 +89,7 @@ class TestMySqlHookConn:
     @pytest.mark.parametrize(
         "connection_params, expected_uri",
         [
-            (
+            pytest.param(
                 {
                     "login": "login",
                     "password": "password",
@@ -99,8 +99,9 @@ class TestMySqlHookConn:
                     "extra": json.dumps({"charset": "utf-8"}),
                 },
                 "mysql://login:password@host/schema?charset=utf-8",
+                id="basic_connection_with_charset",
             ),
-            (
+            pytest.param(
                 {
                     "login": "user@domain",
                     "password": "pass/word!",
@@ -110,8 +111,9 @@ class TestMySqlHookConn:
                     "extra": json.dumps({"charset": "utf-8"}),
                 },
                 "mysql://user%40domain:pass%2Fword%21@host/schema?charset=utf-8",
+                id="special_chars_in_credentials",
             ),
-            (
+            pytest.param(
                 {
                     "login": "user@domain",
                     "password": "password",
@@ -121,8 +123,9 @@ class TestMySqlHookConn:
                     "extra": json.dumps({"client": "mysql-connector-python"}),
                 },
                 "mysql+mysqlconnector://user%40domain:password@host/schema",
+                id="mysql_connector_python",
             ),
-            (
+            pytest.param(
                 {
                     "login": "user@domain",
                     "password": "password",
@@ -132,8 +135,9 @@ class TestMySqlHookConn:
                     "extra": json.dumps({"client": "mysql-connector-python"}),
                 },
                 "mysql+mysqlconnector://user%40domain:password@host:3307/schema",
+                id="mysql_connector_with_port",
             ),
-            (
+            pytest.param(
                 {
                     "login": "user@domain",
                     "password": "password",
@@ -143,8 +147,9 @@ class TestMySqlHookConn:
                     "extra": json.dumps({"client": "mysql-connector-python"}),
                 },
                 "mysql+mysqlconnector://user%40domain:password@host:3307/db%2Fname",
+                id="special_chars_in_schema",
             ),
-            (
+            pytest.param(
                 {
                     "login": "user@domain",
                     "password": "password",
@@ -160,10 +165,11 @@ class TestMySqlHookConn:
                     ),
                 },
                 "mysql+mysqlconnector://user%40domain:password@host:3307/schema?ssl_ca=%2Fpath%2Fto%2Fca&ssl_cert=%2Fpath%2Fto%2Fcert+with+space",
+                id="ssl_parameters",
             ),
         ],
     )
-    def test_get_uri_parametrized(self, mock_connect, connection_params, expected_uri):
+    def test_get_uri(self, mock_connect, connection_params, expected_uri):
         """Test get_uri method with various connection parameters."""
         for key, value in connection_params.items():
             setattr(self.connection, key, value)
