@@ -431,9 +431,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda ti: ti.bundle_instance.version
         if hasattr(ti, "bundle_instance")
         else None,
-        "dag_bundle_name": lambda ti: ti.bundle_instance.name
-        if hasattr(ti, "bundle_instance")
-        else None,
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
 
