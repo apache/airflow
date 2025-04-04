@@ -1934,7 +1934,7 @@ def test_expected_output_push(
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql "
-                "dbt.cloud ftp google microsoft.azure microsoft.mssql mysql "
+                "dbt.cloud ftp google microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
