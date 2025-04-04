@@ -67,6 +67,8 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         return serialized
     else:
         if not template_field and not isinstance(template_field, tuple):
+            # Avoid unnecessary serialization steps for empty fields unless they are tuples
+            # and need to be converted to lists
             return template_field
         template_field = translate_tuples_to_lists(template_field)
         serialized = str(template_field)
