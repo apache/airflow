@@ -35,6 +35,11 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
 )
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
+try:
+    from airflow.providers.openlineage.utils import AirflowContextDeprecationWarning
+except ImportError:
+    from airflow.utils.context import AirflowContextDeprecationWarning
+
 if TYPE_CHECKING:
     from io import BytesIO
 
@@ -61,8 +66,8 @@ def execute_callable(
 ) -> Any:
     try:
         with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
             warnings.simplefilter("ignore", category=DeprecationWarning)
-            warnings.filterwarnings("ignore", category=UserWarning)
             return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
