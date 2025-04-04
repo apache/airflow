@@ -44,6 +44,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, DagTag, TaskInstance
+from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -59,7 +60,6 @@ if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
 log = logging.getLogger(__name__)
 
@@ -656,6 +656,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
 
+    dag = DAG.from_sdk_dag(dag)
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,

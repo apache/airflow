@@ -61,6 +61,7 @@ class TestClient:
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",
                         "run_after": "2021-01-01T00:00:00Z",
+                        "consumed_asset_events": [],
                     },
                     "max_tries": 0,
                     "should_retry": False,

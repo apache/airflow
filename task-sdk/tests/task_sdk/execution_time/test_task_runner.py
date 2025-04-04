@@ -94,6 +94,7 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TriggeringAssetEventsAccessor,
     VariableAccessor,
 )
 from airflow.sdk.execution_time.task_runner import (
@@ -144,9 +145,11 @@ class TestCommsDecoder:
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
-            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
+            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
+            b'"logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
-            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
+            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,'
+            b'"run_type":"manual","conf":null,"consumed_asset_events":[]},'
             b'"max_tries":0,"should_retry":false,"variables":null,"connections":null},"file": "/dev/null",'
             b'"start_date":"2024-12-01T01:00:00Z", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
             b'"any-name", "version": "any-version"}, "requests_fd": '
@@ -983,6 +986,7 @@ class TestRuntimeTaskInstance:
             "data_interval_start": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "task_reschedule_count": 0,
+            "triggering_asset_events": TriggeringAssetEventsAccessor.build(dr.consumed_asset_events),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
             "task_instance_key_str": "basic_task__hello__20241201",

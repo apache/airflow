@@ -30,6 +30,17 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
 API_VERSION: Final[str] = "2025-03-26"
 
 
+class AssetAliasReferenceAssetEventDagRun(BaseModel):
+    """
+    Schema for AssetAliasModel used in AssetEventDagRunReference.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+
+
 class AssetProfile(BaseModel):
     """
     Profile of an asset-like object.
@@ -50,6 +61,19 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
+
+
+class AssetReferenceAssetEventDagRun(BaseModel):
+    """
+    Schema for AssetModel used in AssetEventDagRunReference.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    extra: Annotated[dict[str, Any], Field(title="Extra")]
 
 
 class AssetResponse(BaseModel):
@@ -336,6 +360,7 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
 
 
 class BundleInfo(BaseModel):
@@ -352,6 +377,24 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
+
+
+class AssetEventDagRunReference(BaseModel):
+    """
+    Schema for AssetEvent model used in DagRun.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    asset: AssetReferenceAssetEventDagRun
+    extra: Annotated[dict[str, Any], Field(title="Extra")]
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
+    source_aliases: Annotated[list[AssetAliasReferenceAssetEventDagRun], Field(title="Source Aliases")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
 
 
 class AssetEventResponse(BaseModel):
@@ -397,6 +440,7 @@ class DagRun(BaseModel):
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
 
 
 class HTTPValidationError(BaseModel):

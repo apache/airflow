@@ -1694,6 +1694,11 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
+        if "dag_id" not in encoded_dag:
+            raise RuntimeError(
+                "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
+            )
+
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
