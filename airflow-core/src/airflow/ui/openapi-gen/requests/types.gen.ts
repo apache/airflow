@@ -982,6 +982,15 @@ export type FastAPIAppResponse = {
 };
 
 /**
+ * Serializer for Plugin FastAPI root middleware responses.
+ */
+export type FastAPIRootMiddlewareResponse = {
+  middleware: string;
+  name: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * DAG Run model for the Grid UI.
  */
 export type GridDAGRunwithTIs = {
@@ -1160,6 +1169,7 @@ export type PluginResponse = {
   macros: Array<string>;
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
+  fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
