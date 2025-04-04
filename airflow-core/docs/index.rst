@@ -46,7 +46,7 @@ Take a look at the following snippet of code:
 
     from datetime import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.providers.standard.operators.bash import BashOperator
 
