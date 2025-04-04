@@ -29,13 +29,17 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteTask
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(workload) -> None:
+def execute_workload(workload: ExecuteTask) -> None:
     from airflow.configuration import conf
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise

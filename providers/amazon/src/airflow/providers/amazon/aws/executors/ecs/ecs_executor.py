@@ -139,7 +139,6 @@ class AwsEcsExecutor(BaseExecutor):
             if not isinstance(w, ExecuteTask):
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
 
-            # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
             command = [w]
             key = w.ti.key
             queue = w.ti.queue
