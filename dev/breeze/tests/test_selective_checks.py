@@ -1922,7 +1922,7 @@ def test_expected_output_push(
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
-                "dbt.cloud ftp google microsoft.mssql mysql "
+                "dbt.cloud ftp google microsoft.azure microsoft.mssql mysql "
                 "openlineage postgres sftp snowflake trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
