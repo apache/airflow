@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 import attrs
 import methodtools
 
-from airflow.models.abstractoperator import NotMapped
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -41,6 +40,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    NotMapped,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,

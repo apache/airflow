@@ -2294,7 +2294,7 @@ class TaskInstance(Base, LoggingMixin):
 
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
-        from airflow.models.abstractoperator import MAX_RETRY_DELAY
+        from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
