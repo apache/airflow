@@ -22,19 +22,13 @@ import functools
 import json
 import logging
 import os
+import platform
 import sys
 import warnings
-from contextlib import suppress
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
-from packaging.version import Version
-from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.pool import NullPool
-
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import AirflowInternalRuntimeError
@@ -43,6 +37,11 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
+from packaging.version import Version
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -404,7 +403,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
-    with suppress(AttributeError):
+    if not platform.system() == "Windows":
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
         def clean_in_fork():
             _globals = globals()
