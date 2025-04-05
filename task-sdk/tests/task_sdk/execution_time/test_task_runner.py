@@ -2381,3 +2381,40 @@ class TestTriggerDagRunOperator:
             ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["allowed_states", "failed_states", "intermediate_state"],
+        [
+            ([DagRunState.SUCCESS], None, IntermediateTIState.DEFERRED),
+        ],
+    )
+    def test_handle_trigger_dag_run_deferred(
+        self,
+        allowed_states,
+        failed_states,
+        intermediate_state,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=False,
+            allowed_states=allowed_states,
+            failed_states=failed_states,
+            deferrable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_deferred", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == intermediate_state

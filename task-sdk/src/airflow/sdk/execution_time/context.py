@@ -19,6 +19,7 @@ from __future__ import annotations
 import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
@@ -631,3 +632,46 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+def get_dr_count(
+    dag_id: str,
+    logical_dates: list[datetime] | None = None,
+    run_ids: list[str] | None = None,
+    states: list[str] | None = None,
+) -> int:
+    """Return the number of DAG runs matching the given criteria."""
+    from airflow.sdk.execution_time.comms import DRCount, GetDRCount
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetDRCount(
+                dag_id=dag_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
+
+    if TYPE_CHECKING:
+        assert isinstance(response, DRCount)
+
+    return response.count
+
+
+def get_dagrun_state(dag_id: str, run_id: str) -> str:
+    """Return the state of the DAG run with the given Run ID."""
+    from airflow.sdk.execution_time.comms import DagRunStateResult, GetDagRunState
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
+        response = SUPERVISOR_COMMS.get_message()
+
+    if TYPE_CHECKING:
+        assert isinstance(response, DagRunStateResult)
+
+    return response.state
