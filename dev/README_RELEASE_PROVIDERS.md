@@ -79,7 +79,7 @@ print the command that you should run.
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
 You can read more about the command line tools used to generate the packages in the
-[Provider details](PROVIDER_PACKAGE_DETAILS.md).
+[Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
 
 # Bump min Airflow version for providers
 
