@@ -96,10 +96,6 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
-def _format_airflow_moved_table_name(source_table, version, category):
-    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), category, source_table])
-
-
 @provide_session
 def merge_conn(conn: Connection, session: Session = NEW_SESSION):
     """Add new Connection."""

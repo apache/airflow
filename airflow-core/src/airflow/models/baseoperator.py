@@ -39,10 +39,6 @@ from airflow.exceptions import AirflowException
 
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
-from airflow.models.abstractoperator import (
-    AbstractOperator,
-    NotMapped,
-)
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.sdk.bases.operator import (
     BaseOperator as TaskSDKBaseOperator,
@@ -52,7 +48,10 @@ from airflow.sdk.bases.operator import (
     cross_downstream as cross_downstream,
     get_merged_defaults as get_merged_defaults,
 )
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import (
+    AbstractOperator as TaskSDKAbstractOperator,
+    NotMapped,
+)
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.enums import DagAttributeTypes
@@ -109,7 +108,7 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
-class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
+class BaseOperator(TaskSDKBaseOperator):
     r"""
     Abstract base class for all operators.
 
