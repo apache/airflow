@@ -99,6 +99,7 @@ from airflow.sdk.execution_time.comms import (
     XComCountResponse,
     XComResult,
 )
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -915,6 +916,10 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
@@ -922,6 +927,8 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result.model_dump_json(exclude_unset=True).encode()
             else:

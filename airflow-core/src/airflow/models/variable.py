@@ -154,11 +154,15 @@ class Variable(Base, LoggingMixin):
             from airflow.sdk import Variable as TaskSDKVariable
             from airflow.sdk.definitions._internal.types import NOTSET
 
-            return TaskSDKVariable.get(
+            var_val = TaskSDKVariable.get(
                 key,
                 default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
                 deserialize_json=deserialize_json,
             )
+            if isinstance(var_val, str):
+                mask_secret(var_val, key)
+
+            return var_val
 
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
