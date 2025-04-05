@@ -1248,7 +1248,7 @@ running the tests from there:
 
 .. code-block:: bash
 
-    breeze shell --force-lowest-dependencies --test-type "Core"
+    breeze shell --force-lowest-dependencies
 
 
 The way it works - when you run the breeze with ``--force-lowest-dependencies`` flag, breeze will use
@@ -1283,7 +1283,7 @@ running the tests from there:
 
 .. code-block:: bash
 
-    breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
+    breeze shell --force-lowest-dependencies
 
 Similarly as in case of "Core" tests, the dependencies will be downgraded to the lowest version that is
 compatible with the dependencies specified in the provider dependencies and you will see the list of
