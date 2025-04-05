@@ -20,4 +20,4 @@ The ability to create session from ``utils/db.py`` is removed.
 
     * AIR302
 
-      * [ ] ``airflow.utils.db.create_session``
+      * [x] ``airflow.utils.db.create_session``
