@@ -34,14 +34,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.3.0
+.....
+
+Latest change: 2025-04-03
+
+==================================================================================================  ===========  =========================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =========================================================================================
+`6775bf7bae <https://github.com/apache/airflow/commit/6775bf7bae13f4291e18d4118179c14e4444de0d>`__  2025-04-03   ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`e7daa6794c <https://github.com/apache/airflow/commit/e7daa6794c3375cceb6372748c757510cde3eaa8>`__  2025-04-01   ``Make datetime objects in Context as Pendulum objects (#48592)``
+`ce3da2f46d <https://github.com/apache/airflow/commit/ce3da2f46dcd752560e790a1b25428f7e9c6685f>`__  2025-04-01   ``Fix _get_count in sensor_helper.py (#40795)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`5479d0b387 <https://github.com/apache/airflow/commit/5479d0b387577a8c5a4b325968b56ebd52a985f3>`__  2025-03-29   ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+==================================================================================================  ===========  =========================================================================================
+
 0.2.0
 .....
 
-Latest change: 2025-03-25
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  =============================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =============================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `bafa787a05 <https://github.com/apache/airflow/commit/bafa787a05cae7563b0479cacac72bed5b45db28>`__  2025-03-25   ``Implement pre- and post-execute hooks in sdk (#48230)``
 `23260e4121 <https://github.com/apache/airflow/commit/23260e412171b7ccace7519efa4d1e6c58a7b9d6>`__  2025-03-21   ``Fix python operators errors when initialising plugins in virtualenv jinja script (#48035)``

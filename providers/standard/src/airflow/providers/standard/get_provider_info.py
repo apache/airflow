@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "Airflow Standard Provider\n",
         "state": "ready",
         "source-date-epoch": 1743477899,
-        "versions": ["0.2.0", "0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
+        "versions": ["0.3.0", "0.2.0", "0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
                 "integration-name": "Standard",
@@ -106,6 +106,35 @@ def get_provider_info():
                 },
             }
         },
+        "task-decorators": [
+            {"class-name": "airflow.providers.standard.decorators.python.python_task", "name": "python"},
+            {"class-name": "airflow.providers.standard.decorators.bash.bash_task", "name": "bash"},
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_external_python.branch_external_python_task",
+                "name": "branch_external_python",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_python.branch_task",
+                "name": "branch",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_virtualenv.branch_virtualenv_task",
+                "name": "branch_virtualenv",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.external_python.external_python_task",
+                "name": "external_python",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.python_virtualenv.virtualenv_task",
+                "name": "virtualenv",
+            },
+            {"class-name": "airflow.providers.standard.decorators.sensor.sensor_task", "name": "sensor"},
+            {
+                "class-name": "airflow.providers.standard.decorators.short_circuit.short_circuit_task",
+                "name": "short_circuit",
+            },
+        ],
         "dependencies": ["apache-airflow>=2.9.0"],
         "devel-dependencies": [],
     }

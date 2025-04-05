@@ -632,7 +632,8 @@ repos:
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
-          .*/dist/.*
+          .*/dist/.*|
+          package-lock\.json$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python

@@ -2084,6 +2084,7 @@ def create_runtime_ti(mocked_parse):
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,
+                consumed_asset_events=[],
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
@@ -2318,3 +2319,14 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 def mock_xcom_backend():
     with mock.patch("airflow.sdk.execution_time.task_runner.XCom", create=True) as xcom_backend:
         yield xcom_backend
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)

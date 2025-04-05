@@ -38,7 +38,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definiti
 .. code-block::
    :emphasize-lines: 7-10
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.sdk import Param
 

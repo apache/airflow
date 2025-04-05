@@ -62,7 +62,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
       conf,
       dagRunId: "",
       // Default logical date to now
-      logicalDate: dayjs().format("YYYY-MM-DDThh:mm"),
+      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
       note: "",
     },
   });

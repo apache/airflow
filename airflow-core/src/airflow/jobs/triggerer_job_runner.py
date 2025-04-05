@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -235,6 +236,8 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
+    ti: RuntimeTI
+
     bound_logger: WrappedLogger = attrs.field(init=False)
 
     def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
@@ -261,7 +264,7 @@ class TriggerLoggingFactory:
             # Never actually called, nothing to do
             return
 
-        upload_to_remote(self.bound_logger)
+        upload_to_remote(self.bound_logger, self.ti)
 
 
 def in_process_api_server() -> InProcessExecutionAPI:
@@ -515,14 +518,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log"
-                )
 
                 ser_ti = workloads.TaskInstance.model_validate(
                     new_trigger_orm.task_instance, from_attributes=True
                 )
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
                 workload.ti = ser_ti
                 workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
 

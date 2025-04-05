@@ -78,17 +78,6 @@ def clear_all_logger_handlers():
     remove_all_non_pytest_log_handlers()
 
 
-@pytest.fixture
-def testing_dag_bundle():
-    from airflow.models.dagbundle import DagBundleModel
-    from airflow.utils.session import create_session
-
-    with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
-            testing = DagBundleModel(name="testing")
-            session.add(testing)
-
-
 @contextmanager
 def _config_bundles(bundles: dict[str, Path | str]):
     from tests_common.test_utils.config import conf_vars
