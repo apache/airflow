@@ -385,6 +385,9 @@ class WatchedSubprocess:
     _requests_fd: int
     """File descriptor for request handling."""
 
+    _trigger_requests_fd: int | None = None
+    trigger_stdin: BinaryIO | None = None
+
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
 
@@ -413,10 +416,14 @@ class WatchedSubprocess:
         child_comms, read_msgs = mkpipe()
         child_logs, read_logs = mkpipe()
 
+        trigger_child_stdin, trigger_feed_stdin = mkpipe(remote_read=True)
+
         pid = os.fork()
         if pid == 0:
             # Close and delete of the parent end of the sockets.
-            cls._close_unused_sockets(feed_stdin, read_stdout, read_stderr, read_msgs, read_logs)
+            cls._close_unused_sockets(
+                feed_stdin, read_stdout, read_stderr, read_msgs, read_logs, trigger_feed_stdin
+            )
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
@@ -438,10 +445,13 @@ class WatchedSubprocess:
             os._exit(124)
 
         requests_fd = child_comms.fileno()
+        trigger_child_stdin_fd = trigger_child_stdin.fileno()
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
-        cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
+        cls._close_unused_sockets(
+            child_stdin, child_stdout, child_stderr, child_comms, child_logs, trigger_child_stdin
+        )
 
         logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc = cls(
@@ -449,6 +459,8 @@ class WatchedSubprocess:
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
+            trigger_stdin=trigger_feed_stdin,
+            trigger_requests_fd=trigger_child_stdin_fd,
             process_log=logger,
             **constructor_kwargs,
         )

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import io
 import logging
 import os
 import selectors
@@ -182,6 +183,7 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         requests_fd: int
+        trigger_requests_fd: int
         type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class CancelTriggers(BaseModel):
@@ -322,8 +324,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
-        msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc._send(msg)
+        msg = messages.StartTriggerer(
+            requests_fd=proc._requests_fd,
+            trigger_requests_fd=proc._trigger_requests_fd,  # type: ignore[arg-type]
+        )
+        proc._send_first_message(msg)
         return proc
 
     @functools.cached_property
@@ -463,6 +468,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         )
 
     def _send(self, msg: BaseModel):
+        self.trigger_stdin.write(msg.model_dump_json().encode("utf-8") + b"\n")  # type: ignore[union-attr]
+
+    def _send_first_message(self, msg: BaseModel):
         self.stdin.write(msg.model_dump_json().encode("utf-8") + b"\n")
 
     def update_triggers(self, requested_trigger_ids: set[int]):
@@ -678,8 +686,12 @@ class TriggerRunner:
         msg = comms_decoder.get_message()
         if not isinstance(msg, messages.StartTriggerer):
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
+
         comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
 
+        binary = os.fdopen(msg.trigger_requests_fd, "rb")
+        handle = io.TextIOWrapper(binary, line_buffering=True)
+        comms_decoder.trigger_input = handle
         task_runner.SUPERVISOR_COMMS = comms_decoder
 
     def run(self):
@@ -750,7 +762,7 @@ class TriggerRunner:
         async def connect_stdin() -> asyncio.StreamReader:
             reader = asyncio.StreamReader()
             protocol = asyncio.StreamReaderProtocol(reader)
-            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+            await loop.connect_read_pipe(lambda: protocol, task_runner.SUPERVISOR_COMMS.trigger_input)
             return reader
 
         stdin = await connect_stdin()

@@ -540,6 +540,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     input: TextIO
 
+    trigger_input: TextIO = attrs.field(init=False, default=None)
+
     request_socket: FileIO = attrs.field(init=False, default=None)
 
     # We could be "clever" here and set the default to this based type parameters and a custom
