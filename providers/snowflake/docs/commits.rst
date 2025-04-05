@@ -34,14 +34,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.0
+.....
+
+Latest change: 2025-04-02
+
+==================================================================================================  ===========  ==============================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==============================================================================
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`dce4ab474b <https://github.com/apache/airflow/commit/dce4ab474bf60882d75115433a42c6aa0a1858eb>`__  2025-04-01   ``feat: Send separate OpenLineage event for each Snowflake query_id (#47736)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+==================================================================================================  ===========  ==============================================================================
+
 6.1.1
 .....
 
-Latest change: 2025-03-06
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ==================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `b275e79654 <https://github.com/apache/airflow/commit/b275e79654f54b6373c392d4750811d6373c40d9>`__  2025-03-06   ``SnowflakeSqlApiOperator(without deferable flag) marks Task as Success Before Snowflake Job Completes (#46648): implementation & tests (#46672)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `b599f6dddc <https://github.com/apache/airflow/commit/b599f6dddc8e198666a5df34311d0a4aac4b15ea>`__  2025-03-04   ``[OpenLineage] fixed inputs in OL implementation of CopyFromExternalStageToSnowflakeOperator (#47168)``

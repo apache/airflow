@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
+Initial stable version of the provider.
+
 0.20.3b1
 ..........
 

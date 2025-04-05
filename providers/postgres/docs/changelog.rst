@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.1.2
+.....
+
+Misc
+~~~~
+
+* ``Update minimum version of common.sql provider to 1.23.0 (#48416)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 6.1.1
 .....
 

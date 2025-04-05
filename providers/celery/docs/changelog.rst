@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.10.5
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery Executor on Airflow 2.x again. (#48806)``
+
+Misc
+~~~~
+
+* ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+* ``Update min version of Celery library to 5.5.0 (#43777)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
 3.10.4
 ......
 

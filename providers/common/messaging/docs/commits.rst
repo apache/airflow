@@ -37,10 +37,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.0.0
 .....
 
-Latest change: 2025-03-15
+Latest change: 2025-04-02
 
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  ========================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  ========================================================================
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`96c3563c57 <https://github.com/apache/airflow/commit/96c3563c5757e22cc450fea5ce09a9b4dac508ff>`__  2025-03-28   ``Fix checking if we have proper provider's __init__.py files (#48489)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`a75f87dd4f <https://github.com/apache/airflow/commit/a75f87dd4fcf8ea3ba506238019f9738d1357f41>`__  2025-03-14   ``Fix missing pkgutil namespace package in common provider (#47796)``
+`bef09272f2 <https://github.com/apache/airflow/commit/bef09272f28bea249fb0fc157087d0b8747d098d>`__  2025-03-14   ``Marking fab and common messaging as not ready (#47581)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`cc2c4ce0c9 <https://github.com/apache/airflow/commit/cc2c4ce0c961cba2e3982529208c9f450e0b36b9>`__  2025-03-01   ``Regenerate common.messaging generated documentation/files (#47253)``
+`ccd02336bf <https://github.com/apache/airflow/commit/ccd02336bfcaa33681cc25bc6281e839110da3e9>`__  2025-03-01   ``Fix broken generated provider.toml on main (#47250)``
 `ca4f094c76 <https://github.com/apache/airflow/commit/ca4f094c76cfc5970fe2451b2d3919d6d78bc693>`__  2025-03-01   ``Common Message Queue (#46694)``
-==================================================================================================  ===========  ======================================================================
+==================================================================================================  ===========  ========================================================================

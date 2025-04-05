@@ -26,6 +26,20 @@
 
 Changelog
 
+9.0.5
+.....
+
+Misc
+~~~~
+
+* ``Fix MyPy failing on mssql Cursor (#48686)``
+* ``Tell mypy that pymssql.BINARY, etc have a .value (#48671)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
 9.0.4
 .....
 

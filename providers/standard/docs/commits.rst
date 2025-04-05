@@ -37,11 +37,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 0.3.0
 .....
 
-Latest change: 2025-04-03
+Latest change: 2025-04-04
 
 ==================================================================================================  ===========  =========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =========================================================================================
+`f01e5e2f64 <https://github.com/apache/airflow/commit/f01e5e2f64ddbb6251d1356fdd2b3b3059726191>`__  2025-04-04   ``Migrate standard decorators to standard provider (#48683)``
+`adf19b77ad <https://github.com/apache/airflow/commit/adf19b77ad60c28513c751f785cca21175b80e12>`__  2025-04-04   ``Bump standard provider to 0.3.0 (#48763)``
 `6775bf7bae <https://github.com/apache/airflow/commit/6775bf7bae13f4291e18d4118179c14e4444de0d>`__  2025-04-03   ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `e7daa6794c <https://github.com/apache/airflow/commit/e7daa6794c3375cceb6372748c757510cde3eaa8>`__  2025-04-01   ``Make datetime objects in Context as Pendulum objects (#48592)``

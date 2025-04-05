@@ -26,9 +26,9 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-edge",
         "name": "Edge Executor",
         "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites\n",
-        "state": "not-ready",
+        "state": "ready",
         "source-date-epoch": 1741121867,
-        "versions": ["0.20.3b1"],
+        "versions": ["1.0.0"],
         "plugins": [
             {
                 "name": "edge_executor",

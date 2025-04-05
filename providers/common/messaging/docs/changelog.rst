@@ -32,4 +32,4 @@ Changelog
   This release of provider is only available for Airflow 3.0+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
-Initial version of the provider
+* ``Initial version of the provider (#46694)``
