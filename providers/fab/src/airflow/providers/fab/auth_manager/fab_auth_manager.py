@@ -647,6 +647,9 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :meta private:
         """
+        # If the user gets deleted while being logged in
+        if not user:
+            return []
         return getattr(user, "perms") or []
 
     def _get_root_dag_id(self, dag_id: str) -> str:

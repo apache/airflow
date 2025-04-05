@@ -121,6 +121,7 @@ dev = [
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "pywinrm>=0.5.0",
+    "moto>=5.1.2",
 ]
 
 [tool.uv.sources]

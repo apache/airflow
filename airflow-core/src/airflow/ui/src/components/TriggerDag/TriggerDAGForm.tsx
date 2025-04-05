@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
@@ -60,7 +61,8 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
     defaultValues: {
       conf,
       dagRunId: "",
-      logicalDate: "",
+      // Default logical date to now
+      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
       note: "",
     },
   });
@@ -142,13 +144,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
                       </Field.Label>
                     </Stack>
                     <Stack css={{ flexBasis: "70%" }}>
-                      <Input
-                        {...field}
-                        onBlur={resetDateError}
-                        placeholder="yyyy-mm-ddThh:mm"
-                        size="sm"
-                        type="datetime-local"
-                      />
+                      <Input {...field} onBlur={resetDateError} size="sm" type="datetime-local" />
                     </Stack>
                   </Field.Root>
                 )}

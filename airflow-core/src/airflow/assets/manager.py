@@ -128,6 +128,7 @@ class AssetManager(LoggingMixin):
             select(AssetModel)
             .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
+                joinedload(AssetModel.active),
                 joinedload(AssetModel.aliases),
                 joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
             )
@@ -135,6 +136,9 @@ class AssetManager(LoggingMixin):
         if not asset_model:
             cls.logger().warning("AssetModel %s not found", asset)
             return None
+
+        if not asset_model.active:
+            cls.logger().warning("Emitting event for inactive AssetModel %s", asset)
 
         cls._add_asset_alias_association(
             alias_names=source_alias_names, asset_model=asset_model, session=session

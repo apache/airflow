@@ -21,13 +21,17 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_spark_properties,
+    inject_transport_information_into_spark_properties,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -94,9 +98,18 @@ class LivyOperator(BaseOperator):
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+
+        if conf is None:
+            conf = {}
 
         spark_params = {
             # Prepare spark parameters, it will be templated later.
@@ -128,6 +141,8 @@ class LivyOperator(BaseOperator):
         self._batch_id: int | str | None = None
         self.retry_args = retry_args
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
     @cached_property
     def hook(self) -> LivyHook:
@@ -145,6 +160,17 @@ class LivyOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> Any:
+        if self.openlineage_inject_parent_job_info:
+            self.log.debug("Injecting parent job information into Spark properties")
+            self.spark_params["conf"] = inject_parent_job_information_into_spark_properties(
+                cast("dict", self.spark_params["conf"]), context
+            )
+        if self.openlineage_inject_transport_info:
+            self.log.debug("Injecting transport information into Spark properties")
+            self.spark_params["conf"] = inject_transport_information_into_spark_properties(
+                cast("dict", self.spark_params["conf"]), context
+            )
+
         _batch_id: int | str = self.hook.post_batch(**self.spark_params)
         self._batch_id = _batch_id
         self.log.info("Generated batch-id is %s", self._batch_id)

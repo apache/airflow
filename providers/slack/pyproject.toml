@@ -71,6 +71,9 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-postgres",
+    "apache-airflow-providers-snowflake",
 ]
 
 [tool.uv.sources]

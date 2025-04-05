@@ -112,7 +112,7 @@ class MetastoreHivePartitionSensor(BaseSensorOperator):
 
         # Extract actual query results
         result_base_uri = result_manifest_uri.rsplit("/", 1)[0]
-        results = (f"{result_base_uri}//{filename}" for filename in manifest.get("filenames", []))
+        results = (f"{result_base_uri}/{filename}" for filename in manifest.get("filenames", []))
         found_partitions = sum(
             len(
                 parse_json_from_gcs(

@@ -352,6 +352,8 @@ class ShellParams:
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
+        if os.environ.get("CI", "false") == "true" and self.use_uv:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-uv-tests.yml")
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -521,7 +523,8 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
-        _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+        if self.auth_manager == SIMPLE_AUTH_MANAGER:
+            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",

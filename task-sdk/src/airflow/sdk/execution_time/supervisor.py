@@ -52,6 +52,7 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
+from airflow.configuration import conf
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -61,6 +62,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     VariableResponse,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -68,14 +70,17 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
     DeleteXCom,
+    ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -107,13 +112,10 @@ __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
-# TODO: Pull this from config
-#  (previously `[scheduler] task_instance_heartbeat_sec` with the following as fallback if it is 0:
-#  `[scheduler] task_instance_heartbeat_timeout`)
-HEARTBEAT_TIMEOUT: int = 30
+HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
 # Don't heartbeat more often than this
-MIN_HEARTBEAT_INTERVAL: int = 5
-MAX_FAILED_HEARTBEATS: int = 3
+MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
+MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
@@ -511,7 +513,31 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            self._handle_request(msg, log)
+            try:
+                self._handle_request(msg, log)
+            except ServerResponseError as e:
+                error_details = e.response.json() if e.response else None
+                log.error(
+                    "API server error",
+                    status_code=e.response.status_code,
+                    detail=error_details,
+                    message=str(e),
+                )
+
+                # Send error response back to task so that the error appears in the task logs
+                error_resp = (
+                    ErrorResponse(
+                        error=ErrorType.API_SERVER_ERROR,
+                        detail={
+                            "status_code": e.response.status_code,
+                            "message": str(e),
+                            "detail": error_details,
+                        },
+                    )
+                    .model_dump_json()
+                    .encode()
+                )
+                self.stdin.write(error_resp + b"\n")
 
     def _handle_request(self, msg, log: FilteringBoundLogger) -> None:
         raise NotImplementedError()
@@ -826,6 +852,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
+                    ti_id=self.id,
                 )
                 self.kill(signal.SIGTERM, force=True)
             else:
@@ -963,6 +990,24 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskRescheduleStartDate):
             tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
             resp = tr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetTICount):
+            ti_count = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = ti_count.model_dump_json().encode()
+        elif isinstance(msg, GetDRCount):
+            dr_count = self.client.dag_runs.get_count(
+                dag_id=msg.dag_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = dr_count.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

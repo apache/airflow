@@ -47,7 +47,7 @@ Create an Amazon SageMaker Unified Studio Workflow
 To create an Amazon SageMaker Unified Studio workflow to orchestrate your notebook, querybook, and visual ETL runs you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_unified_studio_notebook]

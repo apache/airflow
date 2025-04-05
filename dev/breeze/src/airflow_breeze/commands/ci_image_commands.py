@@ -245,15 +245,6 @@ option_build_timeout_minutes = click.option(
     help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
 )
 
-option_eager_upgrade_additional_requirements = click.option(
-    "--eager-upgrade-additional-requirements",
-    required=False,
-    type=str,
-    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
-    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
-    "(see `breeze ci find-backtracking-candidates`).",
-)
-
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     "--upgrade-to-newer-dependencies",
@@ -323,7 +314,6 @@ option_ci_image_file_to_load = click.option(
 @option_docker_cache
 @option_docker_host
 @option_dry_run
-@option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
 @option_install_mysql_client_type
@@ -364,7 +354,6 @@ def build(
     disable_airflow_repo_cache: bool,
     docker_cache: str,
     docker_host: str | None,
-    eager_upgrade_additional_requirements: str | None,
     github_repository: str,
     github_token: str | None,
     include_success_outputs,
@@ -437,7 +426,6 @@ def build(
         disable_airflow_repo_cache=disable_airflow_repo_cache,
         docker_cache=docker_cache,
         docker_host=docker_host,
-        eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         force_build=True,
         github_repository=github_repository,
         github_token=github_token,

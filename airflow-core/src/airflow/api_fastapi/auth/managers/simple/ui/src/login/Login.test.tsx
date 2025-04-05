@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import React from "react";
-
 import { render } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 
 import { Login } from "src/login/Login";
-import {Wrapper} from "src/test-utils";
+import { Wrapper } from "src/test-utils";
 
 describe("Login page", () => {
   test("Components renders properly", () => {
@@ -32,9 +29,7 @@ describe("Login page", () => {
     });
 
     expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(
-      1
-    );
+    expect(getAllByText("Enter your login and password below:")).toHaveLength(1);
     expect(getAllByText("Username")).toHaveLength(1);
     expect(getAllByText("Password")).toHaveLength(1);
   });
