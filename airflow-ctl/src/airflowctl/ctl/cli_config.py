@@ -21,10 +21,18 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import inspect
 import os
+from argparse import Namespace
 from collections.abc import Iterable
-from typing import Callable, NamedTuple, Union
+from functools import partial
+from pathlib import Path
+from typing import Any, Callable, NamedTuple, Union
 
+import airflowctl.api.datamodels.generated as generated_datamodels
+from airflowctl.api.client import NEW_CLI_API_CLIENT, Client, provide_api_client
+from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -56,7 +64,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
 
 
-# Used in Arg to enable `None' as a distinct value from "not passed"
+# Used in Arg to enable `None` as a distinct value from "not passed"
 _UNSET = object()
 
 
@@ -168,11 +176,267 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
+    api_operation: dict | None = None
     description: str | None = None
     epilog: str | None = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
+
+
+class CommandFactory:
+    """Factory class that creates 1-1 mapping with airflowctl/api/operations."""
+
+    datamodels_extended_map: dict[str, list[str]]
+    operations: list[dict]
+    args_map: dict[tuple, list[Arg]]
+    func_map: dict[tuple, Callable]
+    commands_map: dict[str, list[ActionCommand]]
+    group_commands_list: list[GroupCommand]
+
+    def __init__(self, file_path: str | Path | None = None):
+        self.datamodels_extended_map = {}
+        self.func_map = {}
+        self.operations = []
+        self.args_map = {}
+        self.commands_map = {}
+        self.group_commands_list = []
+        self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+
+    def _inspect_operations(self) -> None:
+        """Parse file and return matching Operation Method with details."""
+
+        def get_function_details(node: ast.FunctionDef, parent_node: ast.ClassDef) -> dict:
+            """Extract function name, arguments, and return annotation."""
+            func_name = node.name
+            args = []
+            return_annotation: str = ""
+
+            for arg in node.args.args:
+                arg_name = arg.arg
+                arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
+                if arg_name != "self":
+                    args.append({arg_name: arg_type})
+
+            if node.returns:
+                return_annotation = [
+                    t.strip()
+                    # TODO change this while removing Python 3.9 support
+                    for t in ast.unparse(node.returns).split("|")
+                    if t.strip() != ServerResponseError.__name__
+                ].pop()
+
+            return {
+                "name": func_name,
+                "parameters": args,
+                "return_type": return_annotation,
+                "parent": parent_node,
+            }
+
+        with open(self.file_path, encoding="utf-8") as file:
+            tree = ast.parse(file.read(), filename=self.file_path)
+
+        exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
+        ]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and "Operations" in node.name and node.body:
+                for child in node.body:
+                    if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
+                        self.operations.append(get_function_details(node=child, parent_node=node))
+
+    @staticmethod
+    def _sanitize_arg_parameter_key(parameter_key: str) -> str:
+        return parameter_key.replace("_", "-")
+
+    @staticmethod
+    def _sanitize_method_param_key(parameter_key: str) -> str:
+        return parameter_key.replace("-", "_")
+
+    @staticmethod
+    def _is_primitive_type(type_name: str) -> bool:
+        primitive_types = {
+            "int",
+            "float",
+            "bool",
+            "str",
+            "bytes",
+            "list",
+            "dict",
+            "tuple",
+            "set",
+            "datetime.datetime",
+        }
+        return type_name in primitive_types
+
+    @staticmethod
+    def _create_arg(
+        arg_flags: tuple,
+        arg_type: type,
+        arg_help: str,
+        arg_action: argparse.BooleanOptionalAction | None,
+        arg_dest: str | None = None,
+        arg_default: Any | None = None,
+    ) -> Arg:
+        return Arg(
+            flags=arg_flags,
+            type=arg_type,
+            dest=arg_dest,
+            help=arg_help,
+            default=arg_default,
+            action=arg_action,
+        )
+
+    def _create_arg_for_non_primitive_type(
+        self,
+        parameter_type: str,
+        parameter_key: str,
+    ) -> list[Arg]:
+        """Create Arg for non-primitive type Pydantic."""
+        parameter_type_map = getattr(generated_datamodels, parameter_type)
+        commands = []
+        if parameter_type_map not in self.datamodels_extended_map.keys():
+            self.datamodels_extended_map[parameter_type] = []
+        for field, field_type in parameter_type_map.__fields__.items():
+            self.datamodels_extended_map[parameter_type].append(field)
+            if type(field_type.annotation) is type:
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=field_type.annotation,
+                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_help=f"Argument Type: {field_type.annotation}, {field} for {parameter_key} operation",
+                        arg_default=False if field_type.annotation is bool else None,
+                    )
+                )
+            else:
+                annotation = field_type.annotation.__args__[0]
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=annotation,
+                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_help=f"Argument Type: {annotation}, {field} for {parameter_key} operation",
+                        arg_default=False if annotation is bool else None,
+                    )
+                )
+        return commands
+
+    def _create_args_map_from_operation(self):
+        """Create Arg from Operation Method checking for parameters and return types."""
+        for operation in self.operations:
+            args = []
+            for parameter in operation.get("parameters"):
+                for parameter_key, parameter_type in parameter.items():
+                    if self._is_primitive_type(type_name=parameter_type):
+                        args.append(
+                            self._create_arg(
+                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
+                                arg_type=type(parameter_type),
+                                arg_action=argparse.BooleanOptionalAction
+                                if type(parameter_type) is bool
+                                else None,
+                                arg_help=f"Argument Type: {type(parameter_type)}, {parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                arg_default=False if type(parameter_type) is bool else None,
+                            )
+                        )
+                    else:
+                        args.extend(
+                            self._create_arg_for_non_primitive_type(
+                                parameter_type=parameter_type, parameter_key=parameter_key
+                            )
+                        )
+            self.args_map[(operation.get("name"), operation.get("parent").name)] = args
+
+    def _create_func_map_from_operation(self):
+        """Create function map from Operation Method checking for parameters and return types."""
+
+        @provide_api_client
+        def _get_func(
+            args: Namespace, api_operation: dict, cli_api_client: Client = NEW_CLI_API_CLIENT, **kwargs
+        ):
+            import importlib
+
+            imported_operation = importlib.import_module("airflowctl.api.operations")
+            operation_class_object = getattr(imported_operation, api_operation["parent"].name)
+            operation_class = operation_class_object(client=cli_api_client)
+            operation_method_object = getattr(operation_class, api_operation["name"])
+
+            # TODO (bugraoz93) some fields shouldn't be updated or filled, handle this in a generic way
+            excluded_parameters = ["schema_"]
+            # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
+            method_params = {}
+            datamodel = None
+            args_dict = vars(args)
+            for parameter in api_operation["parameters"]:
+                for parameter_key, parameter_type in parameter.items():
+                    if self._is_primitive_type(type_name=parameter_type):
+                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
+                            parameter_key
+                        ]
+                    else:
+                        datamodel = getattr(generated_datamodels, parameter_type)
+                        for expanded_parameter in self.datamodels_extended_map[parameter_type]:
+                            if expanded_parameter in excluded_parameters:
+                                continue
+                            if expanded_parameter in args_dict.keys():
+                                method_params[self._sanitize_method_param_key(expanded_parameter)] = (
+                                    args_dict[expanded_parameter]
+                                )
+
+            if datamodel:
+                method_params = datamodel.model_validate(method_params)
+                print(operation_method_object(method_params))
+            else:
+                print(operation_method_object(**method_params))
+
+        for operation in self.operations:
+            self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
+                _get_func, api_operation=operation
+            )
+
+    def _create_group_commands_from_operation(self):
+        """Create GroupCommand from Operation Methods."""
+        for operation in self.operations:
+            operation_name = operation["name"]
+            operation_group_name = operation["parent"].name
+            if operation_group_name not in self.commands_map:
+                self.commands_map[operation_group_name] = []
+            self.commands_map[operation_group_name].append(
+                ActionCommand(
+                    name=operation["name"].replace("_", "-"),
+                    help=f"Perform {operation_name} operation",
+                    func=self.func_map[(operation_name, operation_group_name)],
+                    args=self.args_map[(operation_name, operation_group_name)],
+                )
+            )
+
+        for group_name, action_commands in self.commands_map.items():
+            self.group_commands_list.append(
+                GroupCommand(
+                    name=group_name.replace("Operations", "").lower(),
+                    help=f"Perform {group_name.replace('Operations', '')} operations",
+                    subcommands=action_commands,
+                )
+            )
+
+    @property
+    def group_commands(self) -> list[GroupCommand]:
+        """List of GroupCommands generated for airflowctl."""
+        self._inspect_operations()
+        self._create_args_map_from_operation()
+        self._create_func_map_from_operation()
+        self._create_group_commands_from_operation()
+
+        return self.group_commands_list
+
+
+command_factory = CommandFactory()
 
 AUTH_COMMANDS = (
     ActionCommand(
@@ -193,3 +457,5 @@ core_commands: list[CLICommand] = [
         subcommands=AUTH_COMMANDS,
     ),
 ]
+# Add generated group commands
+core_commands.extend(command_factory.group_commands)
