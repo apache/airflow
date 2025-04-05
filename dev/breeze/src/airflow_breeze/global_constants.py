@@ -651,6 +651,9 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
 ]
 
+# Number of slices for low dep tests
+NUMBER_OF_LOW_DEP_SLICES = 5
+
 
 class GithubEvents(Enum):
     PULL_REQUEST = "pull_request"
