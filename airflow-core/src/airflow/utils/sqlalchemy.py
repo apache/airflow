@@ -21,12 +21,12 @@ import contextlib
 import copy
 import datetime
 import logging
-from collections.abc import Generator, Iterable
+from collections.abc import Generator
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
 
 from packaging import version
-from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
@@ -39,8 +39,6 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql import ColumnElement, Select
-    from sqlalchemy.sql.expression import ColumnOperators
     from sqlalchemy.types import TypeEngine
 
 
@@ -440,23 +438,6 @@ def is_lock_not_available_error(error: OperationalError):
     if db_err_code in ("55P03", 1205, 3572):
         return True
     return False
-
-
-def tuple_in_condition(
-    columns: tuple[ColumnElement, ...],
-    collection: Iterable[Any] | Select,
-    *,
-    session: Session | None = None,
-) -> ColumnOperators:
-    """
-    Generate a tuple-in-collection operator to use in ``.where()``.
-
-    Kept for backward compatibility. Remove when providers drop support for
-    apache-airflow<3.0.
-
-    :meta private:
-    """
-    return tuple_(*columns).in_(collection)
 
 
 def get_orm_mapper():

@@ -81,7 +81,7 @@ To learn how to setup your environment for development and how to develop and te
 
 * `Testing <09_testing.rst>`__ describes what kind of tests we have and how to run them.
 
-* `Building documentation <../docs/README.rst>`__ describes how to build the documentation locally.
+* `Building documentation <../devel-common/src/docs/README.rst>`__ describes how to build the documentation locally.
 
 * `Working with Git <10_working_with_git.rst>`__ describes the Git branches used in Airflow,
   how to sync your fork and how to rebase your PR.

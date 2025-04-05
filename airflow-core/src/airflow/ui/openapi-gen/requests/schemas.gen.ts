@@ -4098,7 +4098,14 @@ export const $ImportErrorResponse = {
       title: "Filename",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     stack_trace: {
