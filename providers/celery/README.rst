@@ -75,6 +75,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
+`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_                          ``fab``
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the

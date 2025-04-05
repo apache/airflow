@@ -136,12 +136,12 @@ dependencies = [
     # Werkzug 3 breaks Flask-Login 0.6.2
     # we should remove this limitation when FAB supports Flask 2.3
     "werkzeug>=2.0,<4",
+    "wtforms>=3.0,<4",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-io>=1.5.2",
     "apache-airflow-providers-common-sql>=1.24.1",
     "apache-airflow-providers-openlineage>=2.1.2",
-    "apache-airflow-providers-fab>=2.0.0",
     "apache-airflow-providers-smtp>=2.0.1",
     "apache-airflow-providers-standard>=0.2.0",
     "apache-airflow-providers-sqlite>=4.0.1",

@@ -80,6 +80,7 @@ dependencies = [
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
+    "flask-appbuilder>=4.0.0",
     # msgraph-core 1.1.8 has a bug which causes ABCMeta object is not subscriptable error
     # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/781
     "msgraph-core>=1.0.0,!=1.1.8",
