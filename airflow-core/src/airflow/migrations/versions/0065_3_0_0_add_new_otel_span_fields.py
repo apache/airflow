@@ -44,16 +44,19 @@ def upgrade():
     """Apply add new otel span fields."""
     op.add_column("dag_run", sa.Column("scheduled_by_job_id", sa.Integer, nullable=True))
     op.add_column("dag_run", sa.Column("context_carrier", ExtendedJSON, nullable=True))
-    op.add_column("dag_run", sa.Column("span_status", sa.String(250), nullable=False, default="not_started"))
+    op.add_column(
+        "dag_run", sa.Column("span_status", sa.String(250), nullable=False, server_default="not_started")
+    )
 
     op.add_column("task_instance", sa.Column("context_carrier", ExtendedJSON, nullable=True))
     op.add_column(
-        "task_instance", sa.Column("span_status", sa.String(250), nullable=False, default="not_started")
+        "task_instance",
+        sa.Column("span_status", sa.String(250), nullable=False, server_default="not_started"),
     )
     op.add_column("task_instance_history", sa.Column("context_carrier", ExtendedJSON, nullable=True))
     op.add_column(
         "task_instance_history",
-        sa.Column("span_status", sa.String(250), nullable=False, default="not_started"),
+        sa.Column("span_status", sa.String(250), nullable=False, server_default="not_started"),
     )
 
 

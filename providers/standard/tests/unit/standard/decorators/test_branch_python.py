@@ -20,12 +20,17 @@ from __future__ import annotations
 import pytest
 
 from airflow.decorators import task
-from airflow.exceptions import DownstreamTasksSkipped
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import DownstreamTasksSkipped
+else:
+    from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
 
 
-class TestBranchPythonVirtualenvDecoratedOperator:
+class TestBranchPythonDecoratedOperator:
     # when run in "Parallel" test run environment, sometimes this test runs for a long time
     # because creating virtualenv and starting new Python interpreter creates a lot of IO/contention
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
@@ -33,10 +38,7 @@ class TestBranchPythonVirtualenvDecoratedOperator:
     @pytest.mark.parametrize(
         ["branch_task_name", "skipped_task_name"], [("task_1", "task_2"), ("task_2", "task_1")]
     )
-    def test_branch_one(self, dag_maker, branch_task_name, tmp_path, skipped_task_name):
-        requirements_file = tmp_path / "requirements.txt"
-        requirements_file.write_text("funcsigs==0.4")
-
+    def test_branch_one(self, dag_maker, branch_task_name, skipped_task_name):
         @task
         def dummy_f():
             pass
@@ -49,27 +51,11 @@ class TestBranchPythonVirtualenvDecoratedOperator:
         def task_2():
             pass
 
-        if (
-            branch_task_name == "task_1"
-        ):  # Note we manually need to carry the literal value into the venc code :-(
+        @task.branch(task_id="branching")
+        def branch_operator():
+            return branch_task_name
 
-            @task.branch_virtualenv(task_id="branching", requirements=["funcsigs"])
-            def branch_operator():
-                import funcsigs
-
-                print(f"We successfully imported funcsigs version {funcsigs.__version__}")
-                return "task_1"
-
-        else:
-
-            @task.branch_virtualenv(task_id="branching", requirements="requirements.txt")
-            def branch_operator():
-                import funcsigs
-
-                print(f"We successfully imported funcsigs version {funcsigs.__version__}")
-                return "task_2"
-
-        with dag_maker(template_searchpath=tmp_path.as_posix()):
+        with dag_maker():
             branchoperator = branch_operator()
             df = dummy_f()
             task_1 = task_1()
@@ -81,8 +67,32 @@ class TestBranchPythonVirtualenvDecoratedOperator:
 
         dr = dag_maker.create_dagrun()
         df.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branchoperator.operator.run(
+                    start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
+                )
+            assert exc_info.value.tasks == [(skipped_task_name, -1)]
+        else:
             branchoperator.operator.run(
                 start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
             )
-        assert exc_info.value.tasks == [(skipped_task_name, -1)]
+            task_1.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+            task_2.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+            tis = dr.get_task_instances()
+
+            for ti in tis:
+                if ti.task_id == "dummy_f":
+                    assert ti.state == State.SUCCESS
+                if ti.task_id == "branching":
+                    assert ti.state == State.SUCCESS
+
+                if ti.task_id == "task_1" and branch_task_name == "task_1":
+                    assert ti.state == State.SUCCESS
+                elif ti.task_id == "task_1":
+                    assert ti.state == State.SKIPPED
+
+                if ti.task_id == "task_2" and branch_task_name == "task_2":
+                    assert ti.state == State.SUCCESS
+                elif ti.task_id == "task_2":
+                    assert ti.state == State.SKIPPED

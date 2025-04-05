@@ -67,7 +67,7 @@ When writing a deferrable operators these are the main points to consider:
     from typing import Any
 
     from airflow.configuration import conf
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
     from airflow.utils.context import Context
 
@@ -177,7 +177,7 @@ Here's a basic example of how a sensor might trigger deferral:
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
     if TYPE_CHECKING:
@@ -220,7 +220,7 @@ Below is an outline of how you can achieve this.
 
     import asyncio
 
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk import BaseOperator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -290,7 +290,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -321,7 +321,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -360,7 +360,7 @@ After the trigger has finished executing, the task may be sent back to the worke
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:

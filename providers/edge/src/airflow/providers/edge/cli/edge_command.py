@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import platform
 import signal
 import sys
 from dataclasses import asdict
@@ -51,6 +50,7 @@ from airflow.providers.edge.cli.dataclasses import Job, MaintenanceMarker, Worke
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils, timezone
+from airflow.utils.net import getfqdn
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
@@ -93,13 +93,6 @@ def force_use_internal_api_on_edge_worker():
 
 
 force_use_internal_api_on_edge_worker()
-
-
-def _hostname() -> str:
-    if IS_WINDOWS:
-        return platform.uname().node
-    else:
-        return os.uname()[1]
 
 
 def _status_signal() -> signal.Signals:
@@ -158,7 +151,7 @@ def _write_pid_to_pidfile(pid_file_path: str):
 
 def _edge_hostname() -> str:
     """Get the hostname of the edge worker that should be reported by tasks."""
-    return os.environ.get("HOSTNAME", _hostname())
+    return os.environ.get("HOSTNAME", getfqdn())
 
 
 class _EdgeWorkerCli:
@@ -498,7 +491,7 @@ def worker(args):
 
     edge_worker = _EdgeWorkerCli(
         pid_file_path=_pid_file_path(args.pid),
-        hostname=args.edge_hostname or _hostname(),
+        hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
         job_poll_interval=conf.getint("edge", "job_poll_interval"),

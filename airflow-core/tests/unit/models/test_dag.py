@@ -1088,6 +1088,7 @@ class TestDag:
                 run_after=logical_date,
                 dag_version=dag_v,
                 triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
             ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)

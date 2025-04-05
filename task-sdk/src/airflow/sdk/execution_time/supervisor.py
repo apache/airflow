@@ -104,6 +104,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
@@ -697,6 +698,8 @@ class ActivitySubprocess(WatchedSubprocess):
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
+    ti: RuntimeTI | None = None
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -717,6 +720,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
@@ -785,7 +789,7 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log)
+        upload_to_remote(self.process_log, self.ti)
 
     def _monitor_subprocess(self):
         """
