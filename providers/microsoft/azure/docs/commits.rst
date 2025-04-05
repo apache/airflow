@@ -34,14 +34,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+12.3.0
+......
+
+Latest change: 2025-04-05
+
+==================================================================================================  ===========  ====================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================
+`825fa2912a <https://github.com/apache/airflow/commit/825fa2912ae6de1942793da1f0d638d5cc334642>`__  2025-04-05   ``Updated msgraph-core and kiota libraries (#48589)``
+`1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+`c1088b6720 <https://github.com/apache/airflow/commit/c1088b672025aae5706034c601c1d54811448e54>`__  2025-04-02   ``Rework remote task log handling for the structlog era. (#48491)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`88c20aeb5b <https://github.com/apache/airflow/commit/88c20aeb5bbebb0c4363e73aec4085595d72ab25>`__  2025-03-31   ``add message_id, reply_to, and message_headers to send message operator (#47522)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`1e8b62d7fd <https://github.com/apache/airflow/commit/1e8b62d7fd61d15482506ba13bb8918f6d812489>`__  2025-03-29   ``Revert "Remove Upper Pin package microsoft-kiota-abstractions (#48461)" (#48535)``
+`991fb2f17b <https://github.com/apache/airflow/commit/991fb2f17b3cf069af58a9bd8d72964cee4b6a7e>`__  2025-03-29   ``Remove Upper Pin package microsoft-kiota-abstractions (#48461)``
+==================================================================================================  ===========  ====================================================================================
+
 12.2.2
 ......
 
-Latest change: 2025-03-25
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  ==================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
 `8e4cd194eb <https://github.com/apache/airflow/commit/8e4cd194ebb8c5fcf5814c50b41085f52a69b069>`__  2025-03-20   ``Add lower-binding for microsoft azure/winrm providers (#47990)``

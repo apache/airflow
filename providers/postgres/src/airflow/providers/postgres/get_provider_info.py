@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "PostgreSQL",
         "description": "`PostgreSQL <https://www.postgresql.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1743477872,
+        "source-date-epoch": 1743836610,
         "versions": [
+            "6.1.2",
             "6.1.1",
             "6.1.0",
             "6.0.0",
