@@ -172,6 +172,9 @@ spec:
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- include "airflow_config_mount" . | nindent 12 }}

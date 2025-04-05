@@ -170,6 +170,9 @@ spec:
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
