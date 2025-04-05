@@ -25,9 +25,15 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS,
+    reason="Decorators were part of core not providers, so this test doesnt make sense for < AF3.",
+)
 class TestSensorDecorator:
     def test_sensor_fails_on_none_python_callable(self, dag_maker):
         not_callable = {}

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import stat
 import warnings
 from contextlib import nullcontext as no_raise
 from pathlib import Path
@@ -29,7 +28,6 @@ import pytest
 from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
@@ -37,7 +35,13 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
+else:
+    # bad hack but does the job
+    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
@@ -91,7 +95,10 @@ class TestBashDecorator:
         assert bash_task.operator.output_encoding == "utf-8"
         assert bash_task.operator.skip_on_exit_code == [99]
         assert bash_task.operator.cwd is None
-        assert bash_task.operator._is_inline_cmd is None
+        if AIRFLOW_V_3_0_PLUS:
+            assert bash_task.operator._is_inline_cmd is None
+        else:
+            assert bash_task.operator._init_bash_command_not_set is True
 
     @pytest.mark.parametrize(
         argnames=["command", "expected_command", "expected_return_val"],
@@ -289,7 +296,8 @@ class TestBashDecorator:
         """Test the behavior of user-defined env vars when using an external file with a Bash command."""
         cmd_file = tmp_path / "test_file.sh"
         cmd_file.write_text("#!/usr/bin/env bash\necho AIRFLOW_HOME=$AIRFLOW_HOME\necho razz=$razz\n")
-        cmd_file.chmod(stat.S_IEXEC)
+        # setting chmod +x test_file.sh
+        cmd_file.chmod(0o755)
 
         with self.dag:
 

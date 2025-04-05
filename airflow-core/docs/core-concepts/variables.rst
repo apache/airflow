@@ -22,7 +22,7 @@ Variables are Airflow's runtime configuration concept - a general key/value stor
 
 To use them, just import and call ``get`` on the Variable model::
 
-    from airflow.models import Variable
+    from airflow.sdk import Variable
 
     # Normal call style
     foo = Variable.get("foo")

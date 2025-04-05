@@ -75,19 +75,24 @@ class TestCloudRemoteLogIO:
 
         self.remote_log_group = "log_group_name"
         self.region_name = "us-west-2"
+        self.task_log_path = "dag_id=a/0:0.log"
         self.local_log_location = tmp_path / "local-cloudwatch-log-location"
         self.local_log_location.mkdir()
+        # Create the local log file structure
+        task_log_path_parts = self.task_log_path.split("/")
+        dag_dir = self.local_log_location / task_log_path_parts[0]
+        dag_dir.mkdir()
+        task_log_file = dag_dir / task_log_path_parts[1]
+        task_log_file.touch()
 
         # The subject under test
         self.subject = CloudWatchRemoteLogIO(
             base_log_folder=self.local_log_location,
             log_group_arn=f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-            log_stream_name="dag_id=a/0.log",
         )
 
         conn = boto3.client("logs", region_name=self.region_name)
         conn.create_log_group(logGroupName=self.remote_log_group)
-        conn.create_log_stream(logGroupName=self.remote_log_group, logStreamName=self.subject.log_stream_name)
 
         processors = structlog.get_config()["processors"]
         old_processors = processors.copy()
@@ -108,7 +113,13 @@ class TestCloudRemoteLogIO:
                 raise structlog.DropEvent()
 
             processors[-1] = drop
-            structlog.configure(processors=processors)
+            structlog.configure(
+                processors=processors,
+                # Create a logger factory and pass in the file path we want it to use
+                # This is because we use the logger to determine the streamname/filepath
+                # in the CloudWatchRemoteLogIO processor.
+                logger_factory=structlog.PrintLoggerFactory(file=task_log_file.open("w+")),
+            )
             yield
         finally:
             # remove LogCapture and restore original processors
@@ -118,32 +129,38 @@ class TestCloudRemoteLogIO:
 
     @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message(self):
-        import structlog
+        # Use a context instead of a decorator on the test method because we need access to self to
+        # get the path from the setup method.
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            import structlog
 
-        log = structlog.get_logger()
-        log.info("Hi", foo="bar")
-        # We need to close in order to flush the logs etc.
-        self.subject.close()
+            log = structlog.get_logger()
+            log.info("Hi", foo="bar")
+            # We need to close in order to flush the logs etc.
+            self.subject.close()
 
-        logs = self.subject.read("dag_id=a/0.log", self.ti)
+            # Inside the Cloudwatch logger we swap colons for underscores since colons are not allowed in
+            # stream names.
+            stream_name = self.task_log_path.replace(":", "_")
+            logs = self.subject.read(stream_name, self.ti)
 
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.log.file_task_handler import StructuredLogMessage
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-            metadata, logs = logs
+                metadata, logs = logs
 
-            results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
-            assert metadata == [
-                "Reading remote log from Cloudwatch log_group: log_group_name log_stream: dag_id=a/0.log"
-            ]
-            assert results == [
-                {
-                    "event": "Hi",
-                    "foo": "bar",
-                    "level": "info",
-                    "timestamp": datetime(2025, 3, 27, 21, 58, 1, 2000, tzinfo=TzInfo(0)),
-                },
-            ]
+                results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
+                assert metadata == [
+                    f"Reading remote log from Cloudwatch log_group: log_group_name log_stream: {stream_name}"
+                ]
+                assert results == [
+                    {
+                        "event": "Hi",
+                        "foo": "bar",
+                        "level": "info",
+                        "timestamp": datetime(2025, 3, 27, 21, 58, 1, 2000, tzinfo=TzInfo(0)),
+                    },
+                ]
 
     def test_event_to_str(self):
         handler = self.subject

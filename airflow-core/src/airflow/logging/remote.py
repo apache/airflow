@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     import structlog.typing
 
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -39,10 +40,10 @@ class RemoteLogIO(Protocol):
     are being written to a file, or if you want to upload messages as they are generated.
     """
 
-    def upload(self, path: os.PathLike | str) -> None:
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI) -> None:
         """Upload the given log path to the remote storage."""
         ...
 
-    def read(self, relative_path: str) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         """Read logs from the given remote log path."""
         ...
