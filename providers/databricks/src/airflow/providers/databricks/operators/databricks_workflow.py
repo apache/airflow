@@ -190,7 +190,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
                     self.job_name,
                     access_control_list,
                 )
-                self._hook.update_job_permission(job_id, {"access_control_list": access_control_list})
+                self._hook.update_job_permission(
+                    job_id=job_id, json={"access_control_list": access_control_list}
+                )
             self._hook.reset_job(job_id, job_spec)
 
         else:
