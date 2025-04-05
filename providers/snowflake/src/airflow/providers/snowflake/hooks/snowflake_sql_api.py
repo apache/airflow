@@ -120,7 +120,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif private_key_file:
             private_key_pem = Path(private_key_file).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            # BS3PasswordFieldWidget treats input text literally. So, \n is converted to \\n.
+            # We need to convert it back to \n.
+            private_key_pem = private_key_content.replace("\\n", "\n").encode()
 
         if private_key_pem:
             passphrase = None
