@@ -423,14 +423,18 @@ class WatchedSubprocess:
         child_comms, read_msgs = mkpipe()
         child_logs, read_logs = mkpipe()
 
-        trigger_child_stdin, trigger_feed_stdin = mkpipe(remote_read=True)
+        if "TriggerRunnerSupervisor" in cls.__name__:
+            trigger_child_stdin, trigger_feed_stdin = mkpipe(remote_read=True)
+        else:
+            trigger_child_stdin, trigger_feed_stdin = None, None
 
         pid = os.fork()
         if pid == 0:
             # Close and delete of the parent end of the sockets.
-            cls._close_unused_sockets(
-                feed_stdin, read_stdout, read_stderr, read_msgs, read_logs, trigger_feed_stdin
-            )
+            cls._close_unused_sockets(feed_stdin, read_stdout, read_stderr, read_msgs, read_logs)
+
+            if trigger_feed_stdin:
+                cls._close_unused_sockets(trigger_feed_stdin)
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
@@ -452,13 +456,19 @@ class WatchedSubprocess:
             os._exit(124)
 
         requests_fd = child_comms.fileno()
-        trigger_child_stdin_fd = trigger_child_stdin.fileno()
+
+        if "TriggerRunnerSupervisor" in cls.__name__:
+            additional_trigger_fds = {
+                "trigger_stdin": trigger_feed_stdin,
+                "trigger_requests_fd": trigger_child_stdin.fileno(),  # type: ignore[union-attr]
+            }
+            cls._close_unused_sockets(trigger_child_stdin)
+        else:
+            additional_trigger_fds = {}
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
-        cls._close_unused_sockets(
-            child_stdin, child_stdout, child_stderr, child_comms, child_logs, trigger_child_stdin
-        )
+        cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc = cls(
@@ -466,9 +476,8 @@ class WatchedSubprocess:
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
-            trigger_stdin=trigger_feed_stdin,
-            trigger_requests_fd=trigger_child_stdin_fd,
             process_log=logger,
+            **additional_trigger_fds,  # type: ignore[arg-type]
             **constructor_kwargs,
         )
 
@@ -687,6 +696,8 @@ class WatchedSubprocess:
                 self._exit_code = self._process.wait(timeout=0)
                 log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
                 self._close_unused_sockets(self.stdin)
+                if self.trigger_stdin:
+                    self._close_unused_sockets(self.trigger_stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
                     raise
