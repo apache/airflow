@@ -1082,7 +1082,7 @@ export type ImportErrorResponse = {
   import_error_id: number;
   timestamp: string;
   filename: string;
-  bundle_name: string;
+  bundle_name: string | null;
   stack_trace: string;
 };
 
