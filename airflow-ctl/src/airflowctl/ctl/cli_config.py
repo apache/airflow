@@ -149,6 +149,20 @@ ARG_AUTH_ENVIRONMENT = Arg(
     help="The environment to run the command in",
 )
 
+ARG_PROVIDER_LIMIT = Arg(
+    flags=("-l", "--limit"),
+    type=int,
+    default=0,
+    help="The environment to run the command in",
+)
+
+ARG_PROVIDER_OFFSET = Arg(
+    flags=("-o", "--offset"),
+    type=int,
+    default=0,
+    help="The environment to run the command in",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -184,6 +198,16 @@ AUTH_COMMANDS = (
     ),
 )
 
+PROVIDER_COMMANDS = (
+    ActionCommand(
+        name="list",
+        help="list to the metadata database for personal usage. JWT Token must be provided via parameter.",
+        description="list to the metadata database",
+        func=lazy_load_command("airflowctl.ctl.commands.provider_commands.list"),
+        args=(ARG_PROVIDER_LIMIT, ARG_PROVIDER_OFFSET),
+    ),
+)
+
 
 core_commands: list[CLICommand] = [
     GroupCommand(
@@ -191,5 +215,11 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. Please acquire a token from the api-server first. "
         "You need to pass the token to subcommand to use `login`.",
         subcommands=AUTH_COMMANDS,
+    ),
+    GroupCommand(
+        name="provider",
+        help="Manage authentication for CLI. Please acquire a token from the api-server first. "
+        "You need to pass the token to subcommand to use `login`.",
+        subcommands=PROVIDER_COMMANDS,
     ),
 ]

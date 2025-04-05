@@ -406,10 +406,10 @@ class PoolsOperations(BaseOperations):
 class ProvidersOperations(BaseOperations):
     """Provider operations."""
 
-    def list(self) -> ProviderCollectionResponse | ServerResponseError:
+    def list(self, limit: int, offset: int) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         try:
-            self.response = self.client.get("providers")
+            self.response = self.client.get("/api/v2/providers", params={"limit": limit, "offset": offset})
             return ProviderCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
