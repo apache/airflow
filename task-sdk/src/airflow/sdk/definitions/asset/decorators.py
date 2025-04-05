@@ -24,6 +24,7 @@ import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
+from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
     from airflow.io.path import ObjectStoragePath
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
-    from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
@@ -179,8 +180,6 @@ class _DAGFactory:
     tags: Collection[str] = attrs.field(factory=set)
 
     def create_dag(self, *, default_dag_id: str) -> DAG:
-        from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
-
         dag_id = self.dag_id or default_dag_id
         return DAG(
             dag_id=dag_id,
