@@ -1099,7 +1099,9 @@ function check_airflow_python_client_installation() {
 }
 
 function start_api_server_with_examples(){
-    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" ]]; then
+    # check if we should not start the api server with examples by checking if both
+    # START_API_SERVER_WITH_EXAMPLES is false AND the TEST_GROUP env var is not equal to "system"
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True

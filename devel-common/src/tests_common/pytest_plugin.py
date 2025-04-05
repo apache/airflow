@@ -228,7 +228,13 @@ def pytest_addoption(parser: pytest.Parser):
         "--with-db-init",
         action="store_true",
         dest="db_init",
-        help="Forces database initialization before tests",
+        help="Forces database initialization before tests, if false it a DB reset still may occur.",
+    )
+    group.addoption(
+        "--without-db-init",
+        action="store_true",
+        dest="no_db_init",
+        help="Forces NO database initialization before tests, takes precedent over --with-db-init.",
     )
     group.addoption(
         "--integration",
@@ -343,7 +349,7 @@ def initialize_airflow_tests(request):
 
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
-    if not skip_db_tests:
+    if not skip_db_tests and not request.config.option.no_db_init:
         if request.config.option.db_init:
             from tests_common.test_utils.db import initial_db_init
 
