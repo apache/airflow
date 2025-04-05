@@ -187,7 +187,7 @@ class Variable(Base, LoggingMixin):
         """
         Set a value for an Airflow Variable with a given Key.
 
-        This operation overwrites an existing variable.
+        This operation overwrites an existing variable using the session's dialect-specific upsert operation.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
@@ -202,8 +202,61 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value, description=description))
+        new_variable = Variable(key=key, val=stored_value, description=description)
+
+        # Perform dialect-specific upsert operation
+        dialect_name = session.get_bind().dialect.name
+
+        # Use SQLAlchemy Core for supported dialects
+        if dialect_name in ("postgresql", "mysql", "sqlite"):
+            val = new_variable._val
+            is_encrypted = new_variable.is_encrypted
+
+            # Import dialect-specific insert function
+            if dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert
+            elif dialect_name == "mysql":
+                from sqlalchemy.dialects.mysql import insert
+            elif dialect_name == "sqlite":
+                from sqlalchemy.dialects.sqlite import insert
+
+            # Create the insert statement (common for all dialects)
+            stmt = insert(Variable).values(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+
+            # Apply dialect-specific upsert
+            if dialect_name == "mysql":
+                # MySQL: ON DUPLICATE KEY UPDATE
+                stmt = stmt.on_duplicate_key_update(
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+            else:
+                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["key"],
+                    set_=dict(
+                        val=val,
+                        description=description,
+                        is_encrypted=is_encrypted,
+                    ),
+                )
+
+            session.execute(stmt)
+        else:
+            # Default implementation using SQLAlchemy ORM for non-supported dialects
+            existing_var = session.query(Variable).filter(Variable.key == key).first()
+            if existing_var:
+                existing_var.val = stored_value
+                existing_var.description = description
+            else:
+                session.add(new_variable)
+
         session.flush()
         # invalidate key in cache for faster propagation
         # we cannot save the value set because it's possible that it's shadowed by a custom backend
