@@ -385,6 +385,13 @@ class WatchedSubprocess:
     _requests_fd: int
     """File descriptor for request handling."""
 
+    """"
+    It require special case to handle the workloads and api calls to api-server in Triggerer, due to mixing up messages
+    a separate channel is used to send the workloads from parent process to child process the child process.
+    connect_stdin will use this channel to read the workloads in read_workload method.
+    trigger_stdin: trigger parent process uses this to send the workloads to child process.
+    _trigger_requests_fd: trigger child process uses this to read the workloads.
+    """
     _trigger_requests_fd: int | None = None
     trigger_stdin: BinaryIO | None = None
 

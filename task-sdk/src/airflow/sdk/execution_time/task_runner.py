@@ -540,6 +540,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     input: TextIO
 
+    """"
+    It require special case to handle the workloads and api calls to api-server, due to mixing up messages
+    a separate channel is used to send the workloads from parent process to child process the child process.
+    connect_stdin will use this channel to read the workloads in read_workload method.
+    """
     trigger_input: TextIO = attrs.field(init=False, default=None)
 
     request_socket: FileIO = attrs.field(init=False, default=None)
