@@ -127,6 +127,11 @@ class TestVariable:
         initial_var = session.query(Variable).filter(Variable.key == "test_key").one()
         initial_id = initial_var.id
 
+        # Need to expire session cache to fetch fresh data from db on next query
+        # Without this, SQLAlchemy will return the cached object with old values
+        # instead of querying the database again for the updated values
+        session.expire(initial_var)
+
         Variable.set(key="test_key", value="updated_value", session=session)
 
         updated_var = session.query(Variable).filter(Variable.key == "test_key").one()

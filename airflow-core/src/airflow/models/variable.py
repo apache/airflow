@@ -224,6 +224,8 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
+        new_variable = Variable(key=key, val=stored_value, description=description)
+        
         ctx: contextlib.AbstractContextManager
         if session is not None:
             ctx = contextlib.nullcontext(session)
@@ -231,14 +233,40 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            # If the variable for the key exists, update it
-            # Otherwise, insert a new variable
-            existing_variable = session.query(Variable).filter(Variable.key == key).first()
-            if existing_variable:
-                existing_variable.val = stored_value
-                existing_variable.description = description
+            # Perform dialect-specific upsert operation
+            dialect_name = session.get_bind().dialect.name
+            if dialect_name == "postgresql":
+                Variable._postgres_upsert_variable(
+                    key=key,
+                    val=new_variable._val,
+                    is_encrypted=new_variable.is_encrypted,
+                    description=description,
+                    session=session,
+                )
+            elif dialect_name == "mysql":
+                Variable._mysql_upsert_variable(
+                    key=key,
+                    val=new_variable._val,
+                    is_encrypted=new_variable.is_encrypted,
+                    description=description,
+                    session=session,
+                )
+            elif dialect_name == "sqlite":
+                Variable._sqlite_upsert_variable(
+                    key=key,
+                    val=new_variable._val,
+                    is_encrypted=new_variable.is_encrypted,
+                    description=description,
+                    session=session,
+                )
             else:
-                session.add(Variable(key=key, val=stored_value, description=description))
+                # Default implementation using SQLAlchemy ORM upsert
+                existing_var = session.query(Variable).filter(Variable.key == key).first()
+                if existing_var:
+                    existing_var.val = stored_value
+                    existing_var.description = description
+                else:
+                    session.add(new_variable)
 
             session.flush()
             # invalidate key in cache for faster propagation
@@ -247,6 +275,94 @@ class Variable(Base, LoggingMixin):
             SecretCache.invalidate_variable(key)
 
     @staticmethod
+    def _postgres_upsert_variable(
+        key: str,
+        val: str,
+        is_encrypted: bool,
+        description: str | None,
+        session: Session,
+    ) -> None:
+        """PostgreSQL-specific implementation using native INSERT ON CONFLICT."""
+        from sqlalchemy.dialects.postgresql import insert
+
+        stmt = (
+            insert(Variable)
+            .values(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+            .on_conflict_do_update(
+                index_elements=["key"],
+                set_=dict(
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                ),
+            )
+        )
+        session.execute(stmt)
+
+    @staticmethod
+    def _mysql_upsert_variable(
+        key: str,
+        val: str,
+        is_encrypted: bool,
+        description: str | None,
+        session: Session,
+    ) -> None:
+        """MySQL-specific implementation using native INSERT ON DUPLICATE KEY UPDATE."""
+        from sqlalchemy.dialects.mysql import insert
+
+        stmt = (
+            insert(Variable)
+            .values(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+            .on_duplicate_key_update(
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+        )
+        session.execute(stmt)
+
+    @staticmethod
+    def _sqlite_upsert_variable(
+        key: str,
+        val: str,
+        is_encrypted: bool,
+        description: str | None,
+        session: Session,
+    ) -> None:
+        """SQLite-specific implementation using native INSERT ON CONFLICT."""
+        from sqlalchemy.dialects.sqlite import insert
+
+        stmt = (
+            insert(Variable)
+            .values(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+            .on_conflict_do_update(
+                index_elements=["key"],
+                set_=dict(
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                ),
+            )
+        )
+        session.execute(stmt)
+
+    @staticmethod
+    @provide_session
     def update(
         key: str,
         value: Any,
