@@ -176,8 +176,8 @@ class HttpHook(BaseHook):
             self.base_url = host
         else:
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-            if connection.port:
-                self.base_url = f"{self.base_url}:{connection.port}"
+        if connection.port:
+            self.base_url = f"{self.base_url}:{connection.port}"
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
