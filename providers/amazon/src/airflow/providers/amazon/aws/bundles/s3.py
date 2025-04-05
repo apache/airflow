@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
 if TYPE_CHECKING:
     from airflow.utils.types import ArgNotSet
 
