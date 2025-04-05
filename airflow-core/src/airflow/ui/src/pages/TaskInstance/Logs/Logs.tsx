@@ -24,7 +24,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
-import { useLogs } from "src/queries/useLogs";
+import { useLogs, useLogContent } from "src/queries/useLogs";
 
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
@@ -67,9 +67,14 @@ export const Logs = () => {
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
 
-  const onOpenChange = () => {
-    setFullscreen(false);
-  };
+  /* const downloadCurrentLog = () => {
+    const file; // get log file
+    const element = document.createElement("a");
+    element.href = URL.createObjectURL(file);
+    element.download = "currLog.txt";
+    document.body.appendChild(element);
+    element.click();
+    }*/
 
   const {
     data,
@@ -83,9 +88,32 @@ export const Logs = () => {
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
+  const { datum } = useLogContent({
+    dagId,
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber: tryNumber === 0 ? 1 : tryNumber,
+  });
+
+  const downloadLog = () => {
+    const texts = datum;
+    const file = new Blob(texts, { type: "text/plain" });
+    const element = document.createElement("a");
+    element.href = URL.createObjectURL(file);
+    element.download = `fullLogs.txt`;
+    document.body.append(element);
+    element.click();
+  };
+
+  const onOpenChange = () => {
+    setFullscreen(false);
+  };
+
   return (
     <Box p={2}>
       <TaskLogHeader
+        downloadLog={downloadLog}
         onSelectTryNumber={onSelectTryNumber}
         sourceOptions={data.sources}
         taskInstance={taskInstance}
@@ -106,6 +134,7 @@ export const Logs = () => {
           <Dialog.Header>
             <Heading size="xl">{taskId}</Heading>
             <TaskLogHeader
+              downloadLog={downloadLog}
               isFullscreen
               onSelectTryNumber={onSelectTryNumber}
               taskInstance={taskInstance}
