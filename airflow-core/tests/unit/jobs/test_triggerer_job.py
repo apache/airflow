@@ -172,8 +172,10 @@ def supervisor_builder(mocker, session):
             job=job,
             pid=process.pid,
             stdin=mocker.Mock(),
+            trigger_stdin=mocker.Mock(),
             process=process,
             requests_fd=-1,
+            trigger_requests_fd=-1,
             capacity=10,
         )
         # Mock the selector
@@ -447,7 +449,7 @@ def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_ag
         return True
 
     supervisor.run()
-    assert supervisor.stdin.write.call_count == 1
+    assert supervisor.trigger_stdin.write.call_count == 1
 
 
 @pytest.mark.execution_timeout(5)
