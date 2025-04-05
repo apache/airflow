@@ -443,3 +443,30 @@ class OracleHook(DbApiHook):
         )
 
         return result
+
+    def get_uri(self):
+        """Get the URI for the Oracle connection."""
+        conn = self.get_connection(self.oracle_conn_id)
+        login = conn.login
+        password = conn.password
+        host = conn.host
+        port = conn.port or 1521
+        service_name = conn.extra_dejson.get("service_name")
+        sid = conn.extra_dejson.get("sid")
+
+        if sid and not service_name:
+            schema = sid
+        elif service_name and not sid:
+            schema = service_name
+        else:
+            schema = conn.schema
+
+        if not schema:
+            schema = ""
+
+        uri = f"oracle://{login}:{password}@{host}:{port}"
+
+        if schema:
+            uri += f"/{schema}"
+
+        return uri
