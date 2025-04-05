@@ -114,8 +114,8 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.job_clusters = job_clusters or []
         self.max_concurrent_runs = max_concurrent_runs
         self.notebook_params = notebook_params or {}
-        self.tasks_to_convert = tasks_to_convert or []
-        self.relevant_upstreams = [task_id]
+        self.tasks_to_convert = tasks_to_convert or []        
+        self.relevant_upstreams: list[BaseOperator] =  [self]
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
         super().__init__(task_id=task_id, **kwargs)
 
@@ -333,7 +333,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
                 )
 
             task.workflow_run_metadata = create_databricks_workflow_task.output
-            create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
+            create_databricks_workflow_task.relevant_upstreams.append(task)
             create_databricks_workflow_task.add_task(task)
 
         for root_task in roots:
