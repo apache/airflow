@@ -38,16 +38,16 @@ import {
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 
-export type AuthLinksServiceGetAuthLinksDefaultResponse = Awaited<
-  ReturnType<typeof AuthLinksService.getAuthLinks>
+export type AuthLinksServiceGetAuthMenuDefaultResponse = Awaited<
+  ReturnType<typeof AuthLinksService.getAuthMenu>
 >;
-export type AuthLinksServiceGetAuthLinksQueryResult<
-  TData = AuthLinksServiceGetAuthLinksDefaultResponse,
+export type AuthLinksServiceGetAuthMenuQueryResult<
+  TData = AuthLinksServiceGetAuthMenuDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useAuthLinksServiceGetAuthLinksKey = "AuthLinksServiceGetAuthLinks";
-export const UseAuthLinksServiceGetAuthLinksKeyFn = (queryKey?: Array<unknown>) => [
-  useAuthLinksServiceGetAuthLinksKey,
+export const useAuthLinksServiceGetAuthMenuKey = "AuthLinksServiceGetAuthMenu";
+export const UseAuthLinksServiceGetAuthMenuKeyFn = (queryKey?: Array<unknown>) => [
+  useAuthLinksServiceGetAuthMenuKey,
   ...(queryKey ?? []),
 ];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;

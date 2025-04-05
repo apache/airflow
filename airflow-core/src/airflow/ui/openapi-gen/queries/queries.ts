@@ -62,12 +62,12 @@ import {
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menu
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinks = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenu = <
+  TData = Common.AuthLinksServiceGetAuthMenuDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -75,8 +75,8 @@ export const useAuthLinksServiceGetAuthLinks = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenuKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenu() as TData,
     ...options,
   });
 /**

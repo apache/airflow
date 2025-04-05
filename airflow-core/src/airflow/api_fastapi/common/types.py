@@ -87,10 +87,10 @@ class MenuItem(Enum):
     """Define all menu items defined in the menu."""
 
     ASSETS = "Assets"
-    ASSET_EVENTS = "Asset Events"
     CONNECTIONS = "Connections"
     DAGS = "Dags"
     DOCS = "Docs"
+    EVENTS = "Events"
     PLUGINS = "Plugins"
     POOLS = "Pools"
     PROVIDERS = "Providers"
