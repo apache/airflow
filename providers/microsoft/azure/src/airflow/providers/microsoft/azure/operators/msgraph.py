@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from contextlib import suppress
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
@@ -44,17 +45,6 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
-    try:
-        from airflow.utils.context import AirflowContextDeprecationWarning
-    except ImportError:
-        AirflowContextDeprecationWarning = object
-else:
-    try:
-        from airflow.utils.context import AirflowContextDeprecationWarning
-    except (ImportError, AttributeError):
-        class AirflowContextDeprecationWarning(UserWarning):
-            pass
-
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
     if event:
@@ -72,7 +62,10 @@ def execute_callable(
 ) -> Any:
     try:
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
+            with suppress(AttributeError, ImportError):
+                from airflow.utils.context import AirflowContextDeprecationWarning
+
+                warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
             warnings.simplefilter("ignore", category=DeprecationWarning)
             warnings.simplefilter("ignore", category=UserWarning)
             return func(value, **context)  # type: ignore
