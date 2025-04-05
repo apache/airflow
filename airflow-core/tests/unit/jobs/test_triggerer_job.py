@@ -626,10 +626,10 @@ class CustomTrigger(BaseTrigger):
         from airflow.sdk import Variable
         from airflow.sdk.execution_time.xcom import XCom
 
-        conn = await sync_to_async(BaseHook.get_connection)("test_connection")
+        conn = await sync_to_async(BaseHook.get_connection)(f"test_connection_{self.task_id}")
         self.log.info("Loaded conn %s", conn.conn_id)
 
-        variable = await sync_to_async(Variable.get)("test_variable")
+        variable = await sync_to_async(Variable.get)(f"test_variable_{self.task_id}")
         self.log.info("Loaded variable %s", variable)
 
         xcom = await sync_to_async(XCom.get_one)(
@@ -695,8 +695,8 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     task_instance.trigger_id = trigger_orm.id
 
     # Create the appropriate Connection, Variable and XCom
-    connection = Connection(conn_id="test_connection", conn_type="http")
-    variable = Variable(key="test_variable", val="some_variable_value")
+    connection = Connection(conn_id=f"test_connection_{task_instance.task_id}", conn_type="http")
+    variable = Variable(key=f"test_variable_{task_instance.task_id}", val="some_variable_value")
     XComModel.set(
         key="test_xcom",
         value="some_xcom_value",
@@ -722,7 +722,7 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
     assert task_instance.next_kwargs == {
         "event": {
             "connection": {
-                "conn_id": "test_connection",
+                "conn_id": f"test_connection_{task_instance.task_id}",
                 "conn_type": "http",
                 "description": None,
                 "host": None,
@@ -736,3 +736,80 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
             "xcom": '"some_xcom_value"',
         }
     }
+
+
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
+@pytest.mark.asyncio
+def test_trigger_multiple_task_instances_correctly_gets_messages_running_in_trigger(session, dag_maker):
+    """
+    Check that the trigger will successfully access Variables, Connections and XComs.
+
+    Running multiple tasks in triggerer to get the correct messages.
+    Create 3 connections, variables, and XComs for 3 tasks. the key will have task_id to
+    assert the correct message received
+    """
+
+    with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
+        EmptyOperator(task_id="task_one")
+        EmptyOperator(task_id="task_two")
+        EmptyOperator(task_id="task_three")
+    dr = dag_maker.create_dagrun()
+
+    for trigger_id, ti in enumerate(dr.task_instances, start=1):
+        ti.state = TaskInstanceState.DEFERRED
+
+        # Create a Trigger
+        trigger = CustomTrigger(dag_id=dr.dag_id, run_id=dr.run_id, task_id=ti.task_id, map_index=-1)
+        trigger_orm = Trigger(
+            classpath=trigger.serialize()[0],
+            kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": ti.task_id, "map_index": -1},
+        )
+        trigger_orm.id = trigger_id
+        session.add(trigger_orm)
+        session.commit()
+        ti.trigger_id = trigger_orm.id
+
+        # Create the appropriate Connection, Variable and XCom
+        connection = Connection(conn_id=f"test_connection_{ti.task_id}", conn_type="http")
+        variable = Variable(key=f"test_variable_{ti.task_id}", val=f"some_variable_value {trigger_id}")
+        XComModel.set(
+            key="test_xcom",
+            value=f"some_xcom_value {trigger_id}",
+            task_id=ti.task_id,
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            session=session,
+        )
+        session.add(connection)
+        session.add(variable)
+        session.commit()
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=4, logger=None)
+    supervisor.run()
+    for trigger_id, ti in enumerate(dr.task_instances, start=1):
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.SCHEDULED
+        assert ti.next_method != "__fail__"
+        assert ti.next_kwargs == {
+            "event": {
+                "connection": {
+                    "conn_id": f"test_connection_{ti.task_id}",
+                    "conn_type": "http",
+                    "description": None,
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
+                "variable": f"some_variable_value {trigger_id}",
+                "xcom": f'"some_xcom_value {trigger_id}"',
+            }
+        }
