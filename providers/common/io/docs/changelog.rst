@@ -25,6 +25,53 @@
 Changelog
 ---------
 
+1.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix PosixPath not working with file create_asset (#47880)``
+* ``convert non-absolute file path to prevent namespace explosion (#47818)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+1.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add local scheme as alternative to file for using the ObjectStoragePath (#46670)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``refactor(providers/common/io): move common io provider to new structure (#46111)``
+
 1.5.0
 .....
 
@@ -177,7 +224,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 1.0.1 (YANKED)

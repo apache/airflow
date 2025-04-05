@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+0.20.3b1
+..........
+
+Fix
+~~~
+
+* ``Cleanup redundant hostname lookup and migrate to core hostname function.``
+
+
+0.20.2b1
+..........
+
+Fix
+~~~
+
+* ``Fix hostname reporting - worker will consistently report defined hostname as task runner.``
+
+
+0.20.1pre0
+..........
+
+Fix
+~~~
+
+* ``Fix JWT token auth in Airflow 3 beta as JWT mechanism changed.``
+
+
 0.20.0pre0
 ..........
 

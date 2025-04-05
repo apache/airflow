@@ -28,6 +28,7 @@ from dateutil.parser import parse
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
 from airflow.providers.cncf.kubernetes.cli import kubernetes_command
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 from tests_common.test_utils.config import conf_vars
 
@@ -47,6 +48,16 @@ class TestGenerateDagYamlCommand:
         kubernetes_command.generate_pod_yaml(
             self.parser.parse_args(
                 [
+                    "kubernetes",
+                    "generate-dag-yaml",
+                    "miscellaneous_test_dag",
+                    "--logical-date",
+                    "2020-11-03",
+                    "--output-path",
+                    os.fspath(path.parent),
+                ]
+                if AIRFLOW_V_3_0_PLUS
+                else [
                     "kubernetes",
                     "generate-dag-yaml",
                     "miscellaneous_test_dag",

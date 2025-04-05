@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache HDFS",
         "description": "`Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__\nand `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1741121823,
+        "source-date-epoch": 1743477772,
         "versions": [
+            "4.7.1",
             "4.7.0",
             "4.6.0",
             "4.5.1",

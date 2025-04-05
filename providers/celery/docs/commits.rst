@@ -34,6 +34,46 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.10.4
+......
+
+Latest change: 2025-03-25
+
+==================================================================================================  ===========  ====================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`6f76326c26 <https://github.com/apache/airflow/commit/6f76326c2668ac4e748737bab9101ae86b953287>`__  2025-03-25   ``AIP-81: Flatten core CLI commands (#48224)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`e35cf2febb <https://github.com/apache/airflow/commit/e35cf2febb3b2814544cd44d7f331c80c3ed7e99>`__  2025-03-09   ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
+==================================================================================================  ===========  ====================================================================================================
+
+3.10.3
+......
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  ===================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`092cc57f02 <https://github.com/apache/airflow/commit/092cc57f0257c55bfa4e7db9aa91d9c2525bca41>`__  2025-03-07   ``Get rid of google-re2 as dependency (#47493)``
+`58c6a49565 <https://github.com/apache/airflow/commit/58c6a4956512fb35bebc645fbeed2ff79cdbe6ee>`__  2025-03-07   ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+`c440959723 <https://github.com/apache/airflow/commit/c4409597235c3d9858964718a3f6d93ae23f1d80>`__  2025-03-06   ``Disable ORM access from Tasks, DAG processing and Triggers (#47320)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`73627fd661 <https://github.com/apache/airflow/commit/73627fd661380568d296e74a93045184f451a7ad>`__  2025-03-05   ``Avoid scheduler crash with passing executor_config with CeleryExecutor (#47375)``
+`10da1a02f3 <https://github.com/apache/airflow/commit/10da1a02f30713e1a29a34f881334b25f498f017>`__  2025-02-28   ``Implement stale dag bundle cleanup (#46503)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`9a95da58e7 <https://github.com/apache/airflow/commit/9a95da58e766c9525d9de37e33d6a52ab50a448d>`__  2025-02-27   ``bugfix: cannot import name 'workloads' for Airflow v2 (#47152)``
+`aa61371a07 <https://github.com/apache/airflow/commit/aa61371a071c92214bcc1bd29842fc8d4b0e33a2>`__  2025-02-27   ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`2d267ddcad <https://github.com/apache/airflow/commit/2d267ddcad4c48b50cbf12f4ff68f2ec9c8f017a>`__  2025-02-21   ``Move execution_api_server_url config to the core section (#46969)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ===================================================================================
+
 3.10.2
 ......
 
@@ -42,6 +82,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  =========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =========================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `319cf3051b <https://github.com/apache/airflow/commit/319cf3051b76cf776975a376e7835c29052a86b9>`__  2025-02-19   ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
 `c33299d432 <https://github.com/apache/airflow/commit/c33299d432510347dac71d3eabfada2bd8fe2075>`__  2025-02-18   ``Fixing log typos in Local & Celery Executors (#46866)``

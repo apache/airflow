@@ -50,7 +50,7 @@ Copying BigQuery tables
 
 The following Operator copies data from one or more BigQuery tables to another.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_to_bigquery.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_to_bigquery.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_bigquery]

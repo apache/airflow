@@ -34,6 +34,82 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.5.0
+.....
+
+Latest change: 2025-03-26
+
+==================================================================================================  ===========  ======================================================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ======================================================================================================================================
+`6b32358673 <https://github.com/apache/airflow/commit/6b32358673af89f598009dfb3f280c957a5f2da4>`__  2025-03-26   ``Move BaseNotifier to Task SDK (#48008)``
+`82118a964f <https://github.com/apache/airflow/commit/82118a964f2753be591d48bb33e16e2f1b52afb4>`__  2025-03-25   ``Don't expect default conns in s3_to_redshift (#48363)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`d1f4506030 <https://github.com/apache/airflow/commit/d1f45060305acb1ec638c50f5028f1b4c96cb901>`__  2025-03-25   ``Bump minimum boto3 version to 1.37.0 (#48238)``
+`d1b80e4bd9 <https://github.com/apache/airflow/commit/d1b80e4bd9f78d9bdd0f4c300ea9d91100ccfe9c>`__  2025-03-24   ``(Re)move old dependencies from the old FAB UI (#48007)``
+`db10b89189 <https://github.com/apache/airflow/commit/db10b891891b54c7a93dc75ce8aa8add8a840e09>`__  2025-03-21   ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`0d986b2d69 <https://github.com/apache/airflow/commit/0d986b2d695bd36acf28b36b3e665677eb14393a>`__  2025-03-20   ``Don't expect default connections to be present (#47968)``
+`4d6b0df150 <https://github.com/apache/airflow/commit/4d6b0df1501811f2c0892679b973a9d14499f49f>`__  2025-03-19   ``Update example_s3 system test (#47974)``
+`f51b173ddb <https://github.com/apache/airflow/commit/f51b173ddb00ef8493eb5fdefcaccb16eb20b85e>`__  2025-03-19   ``Fix mypy boto3 appflow version (#47912)``
+`0924676ce5 <https://github.com/apache/airflow/commit/0924676ce5df16b61dde44f3f7f35cd2a498784a>`__  2025-03-17   ``Set 'wait_for_completion' to True in example_mwaa system test (#47877)``
+`083c3c8bcc <https://github.com/apache/airflow/commit/083c3c8bccc4e05faf590df05e0c09ce625e8d4f>`__  2025-03-17   ``fix PosixPath not working with file create_asset (#47880)``
+`7605a097b3 <https://github.com/apache/airflow/commit/7605a097b367c36165ffb38e3c4330f702380670>`__  2025-03-17   ``Fix AWS auth manager system test (#47876)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`0d64cde170 <https://github.com/apache/airflow/commit/0d64cde170c16484c94694b8ebbaf071b716ba4d>`__  2025-03-14   ``Test 'MwaaHook''s IAM fallback in system test (#47759)``
+`b6a41a4293 <https://github.com/apache/airflow/commit/b6a41a42938bc403abe4c3be177703be6a309388>`__  2025-03-14   ``Update Dockerfile in aws execs docs (#47799)``
+`ffe2d3bae2 <https://github.com/apache/airflow/commit/ffe2d3bae23ecacfc9b8c3292174f49d3fd5a87e>`__  2025-03-14   ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
+`af2461bc19 <https://github.com/apache/airflow/commit/af2461bc19ab88cd78c6d67624e5ff525c852052>`__  2025-03-14   ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+`4ffb0a6fd3 <https://github.com/apache/airflow/commit/4ffb0a6fd38ae97bd02e1eb4e40d3781318ef9ef>`__  2025-03-14   ``Set JWT token to localStorage from cookies (#47432)``
+`74f4860bb1 <https://github.com/apache/airflow/commit/74f4860bb12571f42e25f77c2f992bd0c7f2a70a>`__  2025-03-14   ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+`d5ea56ae4b <https://github.com/apache/airflow/commit/d5ea56ae4be04ebccb12d13fa2cb2be994cf51ac>`__  2025-03-14   ``AIP-84 Add Auth for DAG Versioning (#47553)``
+`b32257bc82 <https://github.com/apache/airflow/commit/b32257bc827f20acc2e74df1cd2d7be69aafad3b>`__  2025-03-13   ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+`46759a355d <https://github.com/apache/airflow/commit/46759a355d603167535591745c70037d691c866a>`__  2025-03-13   ``AIP-84 Add Auth for backfill (#47482)``
+`839e6fb1b1 <https://github.com/apache/airflow/commit/839e6fb1b1b1a662e7237b3a28d154ffcbed4ffa>`__  2025-03-12   ``Lower bind xmlsec dependency version (#47696)``
+`4acf93a4a6 <https://github.com/apache/airflow/commit/4acf93a4a6b9a79a4fecbeb11a9b2f3bead6febd>`__  2025-03-12   ``test(aws): Fix aws trigger tests, use get_async_conn for mock object (#47667)``
+`b85f14c4cf <https://github.com/apache/airflow/commit/b85f14c4cf20cccd56aa06ce5ba4baf637a7f11c>`__  2025-03-12   ``Adding xmlsec pin in amazon provider (#47656)``
+`8686c893b1 <https://github.com/apache/airflow/commit/8686c893b185d53e087e76f772d2523f2a70c012>`__  2025-03-11   ``Add wait/defer support - MwaaTriggerDagRunOperator (#47528)``
+`0675231060 <https://github.com/apache/airflow/commit/0675231060ce71583df08d36ca42f14e2d821451>`__  2025-03-11   ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+`18324dcf5f <https://github.com/apache/airflow/commit/18324dcf5fa58fe4bbc46f67b908de72fab4c950>`__  2025-03-11   ``Add deferrable support for MwaaDagRunSensor (#47527)``
+`245d26dac1 <https://github.com/apache/airflow/commit/245d26dac17b0b5a5443e26848589b6c66561eea>`__  2025-03-11   ``Use a single http tag to report the server's location to front end, not two (#47572)``
+`1e2660b3fc <https://github.com/apache/airflow/commit/1e2660b3fcab69ae52577e59d1c1bebe95a3f548>`__  2025-03-10   ``AIP 84 - Add auth for asset alias (#47241)``
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`8cc9f1fca9 <https://github.com/apache/airflow/commit/8cc9f1fca9343768e9aa7bb4c802e7d2fc109719>`__  2025-03-07   ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+`b8f2964d0f <https://github.com/apache/airflow/commit/b8f2964d0fb374549f60d5f3e4bcd7dad67b75ee>`__  2025-03-07   ``Fix aws trigger tests, use get_async_conn for mock object (#47515)``
+`b563e35a7a <https://github.com/apache/airflow/commit/b563e35a7a737bf7af49d48f4be8501580cf8964>`__  2025-03-07   ``Add skipimport check for aiobotocore module in aws trigger tests (#47512)``
+`122b20bb0f <https://github.com/apache/airflow/commit/122b20bb0fe63757a4a7807cb7fbd755b38728d2>`__  2025-03-07   ``fix: don't use blocking property access for async purposes (#47326)``
+`aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+`6c6a4a6a29 <https://github.com/apache/airflow/commit/6c6a4a6a29d3c1c6d8ce3715f91bed12c679b284>`__  2025-03-06   ``Add a backup implementation in AWS MwaaHook for calling the MWAA API (#47035)``
+`f10c4314aa <https://github.com/apache/airflow/commit/f10c4314aab2ab98c94e6c277d9c8019eba3a9f6>`__  2025-03-06   ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
+`5cda5bddd6 <https://github.com/apache/airflow/commit/5cda5bddd6ce55f59a71ffef36281d3abfed1def>`__  2025-03-06   ``Add some typing and require kwargs for auth manager (#47455)``
+`50ff8b5434 <https://github.com/apache/airflow/commit/50ff8b5434fb6b338522485350d098b6ab7b5247>`__  2025-03-06   ``AIP-84 - Add Auth for Assets (#47136)``
+`c50541142b <https://github.com/apache/airflow/commit/c50541142b91269c2afc55bd666293500da1102b>`__  2025-03-05   ``Base AWS classes - S3 (#47321)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`9939b1b3d7 <https://github.com/apache/airflow/commit/9939b1b3d76081245afca88c351d3f116bce25dc>`__  2025-03-04   ``Add AWS SageMaker Unified Studio Workflow Operator (#45726)``
+`96c0df6673 <https://github.com/apache/airflow/commit/96c0df667395c4299a9d998b72ddd7948a74a879>`__  2025-03-04   ``Remove unused methods from auth managers (#47316)``
+`9a059124a9 <https://github.com/apache/airflow/commit/9a059124a94e8f944fe178090a6a789c5afc6a03>`__  2025-03-03   ``Move api-server to port 8080 (#47310)``
+`4651ccce78 <https://github.com/apache/airflow/commit/4651ccce787b33af9ea03f43a876538d806ac68a>`__  2025-03-03   ``Add error statuses check in RdsExportTaskExistenceSensor  (#46917)``
+`1447705482 <https://github.com/apache/airflow/commit/144770548242295dc69d5ea7b7e11a748c246262>`__  2025-03-01   ``Fix codespell issues detected by new codespell (#47259)``
+`ca4f094c76 <https://github.com/apache/airflow/commit/ca4f094c76cfc5970fe2451b2d3919d6d78bc693>`__  2025-03-01   ``Common Message Queue (#46694)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`aa61371a07 <https://github.com/apache/airflow/commit/aa61371a071c92214bcc1bd29842fc8d4b0e33a2>`__  2025-02-27   ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+`51415547d6 <https://github.com/apache/airflow/commit/51415547d681942ec389f143125e8f9f163d690c>`__  2025-02-26   ``Remove old UI and webserver (#46942)``
+`d1e2ccba3c <https://github.com/apache/airflow/commit/d1e2ccba3c2edafe44e7c8c5451bdd9594b9960c>`__  2025-02-26   ``Don't remove log groups from example_glue.py (#47128)``
+`9221f797ba <https://github.com/apache/airflow/commit/9221f797ba2a65c3c683b06dfdb3b7cf16e04127>`__  2025-02-26   ``add startTime to paginator.paginate when fetching logs in GlueJobHook (#46950)``
+`3e6a77f364 <https://github.com/apache/airflow/commit/3e6a77f3642233854605bc8ad48e63934a8474ac>`__  2025-02-26   ``Log state for EMR Containers sensor on failure (#47125)``
+`6332afc5dc <https://github.com/apache/airflow/commit/6332afc5dc0b1cc5879bc17a10917866558b67cd>`__  2025-02-25   ``Move 'fastapi-api' command to 'api-server' (#47076)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`c34b73a46e <https://github.com/apache/airflow/commit/c34b73a46ebd438d8c13c3e9066b3d11c21fc2a2>`__  2025-02-25   ``Remove '/webapp' prefix from new UI (#47041)``
+`811fa2b016 <https://github.com/apache/airflow/commit/811fa2b016ca613061e5d4d32fee005e53c1bf1d>`__  2025-02-25   ``Replace 'external_trigger' check with DagRunType (#45961)``
+`137042831a <https://github.com/apache/airflow/commit/137042831a8e9e0d7b9ccc8eb1e18346b114cb10>`__  2025-02-24   ``Add MwaaDagRunSensor to Amazon Provider Package (#46945)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`8d6169430d <https://github.com/apache/airflow/commit/8d6169430da93bb6338140a3b2024c769881e794>`__  2025-02-24   ``Fix TestRdsCopyDbSnapshotOperator tests (#47006)``
+`c6bf166b70 <https://github.com/apache/airflow/commit/c6bf166b7036b8ebc21876381394eae0eb3f1944>`__  2025-02-24   ``Restricting moto 5.1.0 to fix ci (#47005)``
+`54863bd011 <https://github.com/apache/airflow/commit/54863bd011c33341a3a4d9d9fa4f553595ec7c63>`__  2025-02-23   ``Fix new UI when running outside of breeze (#46991)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ======================================================================================================================================
+
 9.4.0
 .....
 
@@ -42,6 +118,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ==========================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==========================================================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `18396ed808 <https://github.com/apache/airflow/commit/18396ed8083f38eebe7db062110d8c569cb4fa3d>`__  2025-02-18   ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

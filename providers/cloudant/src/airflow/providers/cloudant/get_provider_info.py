@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "IBM Cloudant",
         "description": "`IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121846,
+        "source-date-epoch": 1743477795,
         "versions": [
+            "4.1.1",
             "4.1.0",
             "4.0.3",
             "4.0.2",

@@ -17,35 +17,22 @@
 
 from __future__ import annotations
 
-import contextlib
 import sys
-import tempfile
-from collections.abc import Generator
 from pathlib import Path
 
-from airflow_breeze.utils.cache import check_if_cache_exists
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
-def create_pip_command(python: str | Path) -> list[str]:
-    return [python.as_posix() if hasattr(python, "as_posix") else str(python), "-m", "pip"]
-
-
-def create_uv_command(python: str | Path) -> list[str]:
-    return [python.as_posix() if hasattr(python, "as_posix") else str(python), "-m", "uv", "pip"]
-
-
 def create_venv(
     venv_path: str | Path,
-    python: str | None = None,
-    pip_version: str | None = None,
-    uv_version: str | None = None,
+    pip_version: str,
+    uv_version: str,
     requirements_file: str | Path | None = None,
-) -> str:
+) -> Path:
     venv_path = Path(venv_path).resolve().absolute()
     venv_command_result = run_command(
-        [python or sys.executable, "-m", "venv", venv_path.as_posix()],
+        ["uv", "venv", "--seed", venv_path.as_posix()],
         check=False,
         capture_output=True,
     )
@@ -59,40 +46,22 @@ def create_venv(
     if not python_path.exists():
         get_console().print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
         sys.exit(1)
-    if pip_version:
-        result = run_command(
-            [python_path.as_posix(), "-m", "pip", "install", f"pip=={pip_version}", "-q"],
-            check=False,
-            capture_output=False,
-            text=True,
+    result = run_command(
+        [python_path.as_posix(), "-m", "pip", "install", f"pip=={pip_version}", f"uv=={uv_version}", "-q"],
+        check=False,
+        capture_output=False,
+        text=True,
+    )
+    if result.returncode != 0:
+        get_console().print(
+            f"[error]Error when installing pip and uv in {venv_path.as_posix()}[/]\n"
+            f"{result.stdout}\n{result.stderr}"
         )
-        if result.returncode != 0:
-            get_console().print(
-                f"[error]Error when installing pip in {venv_path.as_posix()}[/]\n"
-                f"{result.stdout}\n{result.stderr}"
-            )
-            sys.exit(result.returncode)
-    if uv_version:
-        result = run_command(
-            [python_path.as_posix(), "-m", "pip", "install", f"uv=={uv_version}", "-q"],
-            check=False,
-            capture_output=False,
-            text=True,
-        )
-        if result.returncode != 0:
-            get_console().print(
-                f"[error]Error when installing uv in {venv_path.as_posix()}[/]\n"
-                f"{result.stdout}\n{result.stderr}"
-            )
-            sys.exit(result.returncode)
-    if check_if_cache_exists("use_uv"):
-        command = create_uv_command(python_path)
-    else:
-        command = create_pip_command(python_path)
+        sys.exit(result.returncode)
     if requirements_file:
         requirements_file = Path(requirements_file).absolute().as_posix()
         result = run_command(
-            [*command, "install", "-r", requirements_file, "-q"],
+            [python_path.as_posix(), "-m", "uv", "pip", "install", "-r", requirements_file, "-q"],
             check=True,
             capture_output=False,
             text=True,
@@ -103,22 +72,4 @@ def create_venv(
                 f"{result.stdout}\n{result.stderr}"
             )
             sys.exit(result.returncode)
-    return python_path.as_posix()
-
-
-@contextlib.contextmanager
-def create_temp_venv(
-    python: str | None = None,
-    pip_version: str | None = None,
-    uv_version: str | None = None,
-    requirements_file: str | Path | None = None,
-    prefix: str | None = None,
-) -> Generator[str, None, None]:
-    with tempfile.TemporaryDirectory(prefix=prefix) as tmp_dir_name:
-        yield create_venv(
-            Path(tmp_dir_name) / ".venv",
-            python=python,
-            pip_version=pip_version,
-            uv_version=uv_version,
-            requirements_file=requirements_file,
-        )
+    return python_path

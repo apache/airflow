@@ -27,7 +27,6 @@ from flask_appbuilder import BaseView, expose
 from markupsafe import Markup
 from sqlalchemy import select
 
-from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
@@ -36,9 +35,12 @@ from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import State
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
     from airflow.providers.fab.www.auth import has_access_view
+
 else:
-    from airflow.www.auth import has_access_view  # type: ignore
+    from airflow.auth.managers.models.resource_details import AccessView  # type: ignore[no-redef]
+    from airflow.www.auth import has_access_view  # type: ignore[no-redef]
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -100,17 +102,17 @@ def modify_maintenance_comment_on_update(maintenance_comment: str | None, userna
         ):
             return re.sub(
                 r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
-                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {username} updated maintenance mode\nComment:",
                 maintenance_comment,
             )
         elif re.search(r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment):
             return re.sub(
                 r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
-                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {username} updated maintenance mode\nComment:",
                 maintenance_comment,
             )
-        return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment: {maintenance_comment}'
-    return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:'
+        return f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {username} updated maintenance mode\nComment: {maintenance_comment}"
+    return f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {username} updated maintenance mode\nComment:"
 
 
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder
@@ -162,7 +164,7 @@ class EdgeWorkerHosts(BaseView):
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
         maintenance_comment = request.form.get("maintenance_comment")
-        maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} put node into maintenance mode\nComment: {maintenance_comment}'
+        maintenance_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {current_user.username} put node into maintenance mode\nComment: {maintenance_comment}"
         request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 

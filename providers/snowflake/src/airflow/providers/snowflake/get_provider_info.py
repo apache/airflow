@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Snowflake",
         "description": "`Snowflake <https://www.snowflake.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121946,
+        "source-date-epoch": 1743477893,
         "versions": [
+            "6.1.1",
             "6.1.0",
             "6.0.0",
             "5.8.1",
@@ -153,7 +154,7 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-compat>=1.1.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "pandas>=2.1.2,<2.2",
             "pyarrow>=14.0.1",
@@ -162,5 +163,5 @@ def get_provider_info():
             "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
         ],
         "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage"]},
-        "devel-dependencies": [],
+        "devel-dependencies": ["responses>=0.25.0"],
     }

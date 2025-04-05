@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
     RunPipelineJobTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 TEST_CONN_ID = "test_connection"

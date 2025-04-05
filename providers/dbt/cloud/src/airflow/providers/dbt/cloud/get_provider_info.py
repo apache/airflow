@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "dbt Cloud",
         "description": "`dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121861,
+        "source-date-epoch": 1743477809,
         "versions": [
+            "4.3.1",
+            "4.2.1",
             "4.2.0",
             "4.0.0",
             "3.11.2",
@@ -94,10 +96,11 @@ def get_provider_info():
         "extra-links": ["airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperatorLink"],
         "dependencies": [
             "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
             "apache-airflow-providers-http",
             "asgiref>=2.3.0",
             "aiohttp>=3.9.2",
         ],
-        "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage>=1.7.0"]},
+        "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage>=2.0.0"]},
         "devel-dependencies": [],
     }

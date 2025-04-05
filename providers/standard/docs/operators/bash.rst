@@ -41,7 +41,7 @@ determined by:
     .. tab-item:: @task.bash
         :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_decorator_bash]
@@ -50,7 +50,7 @@ determined by:
     .. tab-item:: BashOperator
         :sync: operator
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_bash]
@@ -67,7 +67,7 @@ You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize t
     .. tab-item:: @task.bash
         :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_decorator_bash_template]
@@ -76,7 +76,7 @@ You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize t
     .. tab-item:: BashOperator
         :sync: operator
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_operator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_operator_bash_template]
@@ -85,7 +85,7 @@ You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize t
 Using the ``@task.bash`` TaskFlow decorator allows you to return a formatted string and take advantage of
 having all :ref:`execution context variables directly accessible to decorated tasks <taskflow/accessing_context_variables>`.
 
-.. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_decorator_bash_context_vars]
@@ -169,7 +169,7 @@ exit code if you pass ``skip_on_exit_code``).
     .. tab-item:: @task.bash
         :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START howto_decorator_bash_skip]
@@ -178,7 +178,7 @@ exit code if you pass ``skip_on_exit_code``).
     .. tab-item:: BashOperator
         :sync: operator
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
+        .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_operator.py
             :language: python
             :start-after: [START howto_operator_bash_skip]
             :end-before: [END howto_operator_bash_skip]
@@ -388,7 +388,7 @@ or even build the Bash command(s) to execute.
 
 For example, use conditional logic to determine task behavior:
 
-.. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_decorator_bash_conditional]
@@ -396,7 +396,7 @@ For example, use conditional logic to determine task behavior:
 
 Or call a function to help build a Bash command:
 
-.. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_bash_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_decorator_bash_build_cmd]

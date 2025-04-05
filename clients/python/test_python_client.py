@@ -29,9 +29,15 @@ from __future__ import annotations
 import sys
 import time
 import uuid
+from typing import cast
 
 import airflow_client.client
 import pytest
+
+from airflow.api_fastapi.app import create_app, get_auth_manager
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -42,35 +48,32 @@ except ImportError:
 from airflow_client.client.api import config_api, dag_api, dag_run_api
 from airflow_client.client.model.dag_run import DAGRun
 
-from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-
 # The client must use the authentication and authorization parameters
 # in accordance with the API server security policy.
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 #
-# In case of the basic authentication below, make sure that Airflow is
-# configured also with the basic_auth as backend additionally to regular session backend needed
-# by the UI. In the `[api]` section of your `airflow.cfg` set:
+# The example below use the default FabAuthManager, in case your airflow api server use a different
+# auth manager for instance AwsAuthManagerUser or SimpleAuthManager make sure to generate the token with
+# appropriate AuthManager.
+# This is defined in the `[api]` section of your `airflow.cfg`:
 #
-# auth_backend = airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+# auth_manager = airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
 #
 # Make sure that your user/name are configured properly - using the user/password that has admin
 # privileges in Airflow
 
-# Configure HTTP basic authorization: Basic
-auth_manager = SimpleAuthManager()
+# Used to initialize FAB and the auth manager, necessary for creating the token.
+
+
+create_app()
+auth_manager = cast("get_auth_manager()", SimpleAuthManager)
+users = auth_manager.get_users()
+passwords = auth_manager.get_passwords(users)
+username, password = next(iter(passwords.items()))
+access_token = SimpleAuthManagerLogin.create_token(LoginBody(username=username, password=password))
 configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/public",
-    api_key={
-        "Authorization": "Bearer "
-        + auth_manager._get_token_signer().generate_signed_token(
-            {
-                **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
-            }
-        )
-    },
+    host="http://localhost:8080/api/v2",
 )
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
@@ -81,7 +84,9 @@ DAG_ID = "example_bash_operator"
 # Enter a context with an instance of the API client
 @pytest.mark.execution_timeout(400)
 def test_python_client():
-    with airflow_client.client.ApiClient(configuration) as api_client:
+    with airflow_client.client.ApiClient(
+        configuration, header_name="Authorization", header_value=f"Bearer {access_token}"
+    ) as api_client:
         errors = False
 
         print("[blue]Getting DAG list")
@@ -90,14 +95,12 @@ def test_python_client():
             try:
                 dag_api_instance = dag_api.DAGApi(api_client)
                 api_response = dag_api_instance.get_dags()
-                print(api_response)
             except airflow_client.client.OpenApiException as e:
                 print(f"[red]Exception when calling DagAPI->get_dags: {e}\n")
                 errors = True
                 time.sleep(6)
                 max_retries -= 1
             else:
-                errors = False
                 print("[green]Getting DAG list successful")
                 break
 
@@ -118,13 +121,13 @@ def test_python_client():
             # dag_run id is generated randomly to allow multiple executions of the script
             dag_run = DAGRun(
                 dag_run_id="some_test_run_" + uuid.uuid4().hex,
+                logical_date=None,
             )
             api_response = dag_run_api_instance.post_dag_run(DAG_ID, dag_run)
             print(api_response)
         except airflow_client.client.exceptions.OpenApiException as e:
             print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")
-            # TODO(pierrejeambrun): We need to fix post_dag_run to not return 422
-            errors = False
+            errors = True
         else:
             print("[green]Posting DAG Run successful")
 
@@ -135,7 +138,7 @@ def test_python_client():
             api_response = conf_api_instance.get_config()
             print(api_response)
         except airflow_client.client.OpenApiException as e:
-            if "FORBIDDEN" in str(e):
+            if "Your Airflow administrator chose" in str(e):
                 print(
                     "[yellow]You need to set `expose_config = True` in Airflow configuration"
                     " in order to retrieve configuration."

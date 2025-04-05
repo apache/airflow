@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "PostgreSQL",
         "description": "`PostgreSQL <https://www.postgresql.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121925,
+        "source-date-epoch": 1743477872,
         "versions": [
+            "6.1.1",
             "6.1.0",
             "6.0.0",
             "5.14.0",
@@ -113,7 +114,7 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-sql>=1.20.0",
+            "apache-airflow-providers-common-sql>=1.23.0",
             "psycopg2-binary>=2.9.9",
             "asyncpg>=0.30.0",
         ],

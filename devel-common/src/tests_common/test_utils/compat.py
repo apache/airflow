@@ -36,7 +36,7 @@ except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
 try:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink
@@ -67,6 +67,7 @@ if TYPE_CHECKING:
         AssetDagRunQueue,
         AssetEvent,
         AssetModel,
+        DagScheduleAssetAliasReference,
         DagScheduleAssetReference,
         TaskOutletAssetReference,
     )
@@ -78,6 +79,7 @@ else:
             AssetDagRunQueue,
             AssetEvent,
             AssetModel,
+            DagScheduleAssetAliasReference,
             DagScheduleAssetReference,
             TaskOutletAssetReference,
         )
@@ -92,7 +94,10 @@ else:
         )
 
         if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import DatasetAliasModel as AssetAliasModel
+            from airflow.models.dataset import (
+                DagScheduleDatasetAliasReference as DagScheduleAssetAliasReference,
+                DatasetAliasModel as AssetAliasModel,
+            )
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
@@ -167,8 +172,7 @@ def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
     except RuntimeError as e:
         if f"needs Apache Airflow {minimum_version}" in str(e):
             pytest.skip(
-                reason=f"Skip module {module_name} as "
-                f"minimum Airflow version is required {minimum_version}.",
+                reason=f"Skip module {module_name} as minimum Airflow version is required {minimum_version}.",
                 allow_module_level=True,
             )
         else:

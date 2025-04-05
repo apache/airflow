@@ -675,6 +675,6 @@ class TestWasbHook:
         wasb_hook = WasbHook(wasb_conn_id=conn_id_str)
         account_name = wasb_hook.get_conn().account_name
 
-        assert (
-            account_name == expected_account_name
-        ), f"Expected account name {expected_account_name} but got {account_name}"
+        assert account_name == expected_account_name, (
+            f"Expected account name {expected_account_name} but got {account_name}"
+        )

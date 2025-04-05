@@ -314,7 +314,7 @@ There are the following consequences (or lack of them) of removing the provider:
   longer maintained by the Apache Airflow community - linking to this page. This information should also
   find its way to the package documentation and consequently - to the description of the package in PyPI.
 * An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
-* The released provider packages remain available on PyPI and in the
+* The released providers remain available on PyPI and in the
    `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
    Software Foundation, while they are removed from the
    `Downloads <https://downloads.apache.org/airflow/providers/>`_ .

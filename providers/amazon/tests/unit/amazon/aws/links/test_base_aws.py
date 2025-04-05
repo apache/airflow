@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
@@ -31,6 +30,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
 
 XCOM_KEY = "test_xcom_key"
 CUSTOM_KEYS = {
@@ -215,13 +219,13 @@ class BaseAwsLinksTestCase:
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_task = deserialized_dag.task_dict[self.task_id]
 
-        assert (
-            ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
-        ), "Operator link should only be added if job id is available in XCom"
+        assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == "", (
+            "Operator link should only be added if job id is available in XCom"
+        )
 
-        assert (
-            deserialized_task.get_extra_links(ti, self.link_class.name) == ""
-        ), "Operator link should be empty for deserialized task with no XCom push"
+        assert deserialized_task.get_extra_links(ti, self.link_class.name) == "", (
+            "Operator link should be empty for deserialized task with no XCom push"
+        )
 
     def test_suppress_error_on_xcom_pull(self):
         """Test ignore any error on XCom pull"""

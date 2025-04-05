@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import enum
-import itertools
 import json
 import math
 import time
@@ -119,9 +118,12 @@ class PodOperatorHookProtocol(Protocol):
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieve container status."""
     if pod and pod.status:
-        container_statuses = itertools.chain(
-            pod.status.container_statuses, pod.status.init_container_statuses
-        )
+        container_statuses = []
+        if pod.status.container_statuses:
+            container_statuses.extend(pod.status.container_statuses)
+        if pod.status.init_container_statuses:
+            container_statuses.extend(pod.status.init_container_statuses)
+
     else:
         container_statuses = None
 
@@ -619,12 +621,14 @@ class PodManager(LoggingMixin):
             pod_logging_statuses.append(status)
         return pod_logging_statuses
 
-    def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
+    def await_container_completion(self, pod: V1Pod, container_name: str, polling_time: float = 1) -> None:
         """
         Wait for the given container in the given pod to be completed.
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
+        :param polling_time: polling time between two container status checks.
+            Defaults to 1s.
         """
         while True:
             remote_pod = self.read_pod(pod)
@@ -632,7 +636,7 @@ class PodManager(LoggingMixin):
             if terminated:
                 break
             self.log.info("Waiting for container '%s' state to be completed", container_name)
-            time.sleep(1)
+            time.sleep(polling_time)
 
     def await_pod_completion(
         self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
@@ -666,7 +670,7 @@ class PodManager(LoggingMixin):
         if not sep:
             return None, line
         try:
-            last_log_time = cast(DateTime, pendulum.parse(timestamp))
+            last_log_time = cast("DateTime", pendulum.parse(timestamp))
         except ParserError:
             return None, line
         return last_log_time, message
@@ -805,26 +809,35 @@ class PodManager(LoggingMixin):
     )
     def extract_xcom_json(self, pod: V1Pod) -> str:
         """Retrieve XCom value and also check if xcom json is valid."""
+        command = (
+            f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+            f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+            f"else echo {EMPTY_XCOM_RESULT}; fi"
+        )
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
                 pod.metadata.name,
                 pod.metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
-                command=["/bin/sh"],
-                stdin=True,
+                command=[
+                    "/bin/sh",
+                    "-c",
+                    command,
+                ],
+                stdin=False,
                 stdout=True,
                 stderr=True,
                 tty=False,
                 _preload_content=False,
             )
-        ) as resp:
-            result = self._exec_pod_command(
-                resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
-                f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
-                f"else echo {EMPTY_XCOM_RESULT}; fi",
-            )
+        ) as client:
+            self.log.info("Running command... %s", command)
+            client.run_forever()
+            if client.peek_stderr():
+                stderr = client.read_stderr()
+                self.log.error("stderr from command: %s", stderr)
+            result = client.read_all()
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.

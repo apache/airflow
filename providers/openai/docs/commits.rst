@@ -34,14 +34,46 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.3
+.....
+
+Latest change: 2025-03-25
+
+==================================================================================================  ===========  =================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`aef44d0513 <https://github.com/apache/airflow/commit/aef44d05138f8506261f8ec793cba9136b51e7e1>`__  2025-03-15   ``Make open ai provider compatible with openai>=1.66.0 (#47726)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`b364cf84f6 <https://github.com/apache/airflow/commit/b364cf84f61d0a62b880832c0a1a1b6e05006f69>`__  2025-03-11   ``Pin OpenAI Python client to <1.66.0 (#47643)``
+==================================================================================================  ===========  =================================================================
+
+1.5.2
+.....
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  =====================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =====================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  =====================================================================
+
 1.5.1
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ==============================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==============================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
 `240a147fcd <https://github.com/apache/airflow/commit/240a147fcd7f4ccec51c22a2f5bccc1fd031f8df>`__  2025-01-26   ``refactor(providers/openai): move openai provider to new structure (#46099)``

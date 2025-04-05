@@ -120,8 +120,9 @@ def on_celery_import_modules(*args, **kwargs):
     """
     import jinja2.ext  # noqa: F401
 
-    import airflow.jobs.local_task_job_runner
-    import airflow.macros
+    if not AIRFLOW_V_3_0_PLUS:
+        import airflow.jobs.local_task_job_runner
+        import airflow.macros
 
     try:
         import airflow.providers.standard.operators.bash
@@ -263,7 +264,9 @@ def send_task_to_executor(
     if AIRFLOW_V_3_0_PLUS:
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
-        args = (args.model_dump_json(exclude={"ti": {"executor_config"}}),)
+        args = (args.model_dump_json(),)
+    else:
+        args = [args]  # type: ignore[list-item]
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)

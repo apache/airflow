@@ -235,6 +235,9 @@
           "type": "string",
           "format": "date-time"
         },
+        "external_trigger": {
+          "type": "boolean"
+        },
         "run_id": {
           "type": "string"
         },

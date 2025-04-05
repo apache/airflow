@@ -27,8 +27,8 @@ def get_provider_info():
         "name": "Qdrant",
         "description": "`Qdrant <https://qdrant.tech/documentation>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121929,
-        "versions": ["1.3.1", "1.3.0", "1.2.0", "1.1.2", "1.1.1", "1.1.0", "1.0.0"],
+        "source-date-epoch": 1743477876,
+        "versions": ["1.3.2", "1.3.1", "1.3.0", "1.2.0", "1.1.2", "1.1.1", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "Qdrant",

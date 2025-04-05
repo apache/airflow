@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 

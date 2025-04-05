@@ -130,13 +130,17 @@ and there are those manual ways to build the assets.
     pnpm install -frozen-lockfile --config.confirmModulesPurge=false
     pnpm run build
 
-Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build:
+Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build for
+the ``airflow-core`` package.
 
-    hatch build -t custom -t wheel -t sdist
+    cd airflow-core
+    hatch build -c -t custom
 
-This will also update `git_version` file in the Airflow package that should contain the git commit hash of the
-build. This is used to display the commit hash in the UI. Result of this command is airflow package built
-in the `dist` folder.
+This will also clean-up the generated files,update `git_version` file in the Airflow package (used to display
+it in the UI) that should contain the git commit hash of the build and it will generate the assets.
+
+The result of this command is airflow sdist package built in the `dist` folder of `airflow-core`
+package as well. It requires ``pre-commit`` to be installed in your system.
 
 Using pip and manually managing your virtualenv
 ===============================================
@@ -160,47 +164,6 @@ Once you have a suitable Python version installed, you can create a virtualenv a
 
     python3 -m venv PATH_TO_YOUR_VENV
     source PATH_TO_YOUR_VENV/bin/activate
-
-Installing Airflow locally with pip
------------------------------------
-
-Installing Airflow locally can be done using pip - note that this will install "development" version of
-Airflow, where no providers are installed.
-
-    pip install .
-
-If you develop Airflow and iterate on it, you should install it in editable mode (with -e) flag, and then
-you do not need to re-install it after each change to sources.
-
-     pip install -e .
-
-Note that for development you need to install also `devel-common` in editable way.
-This distribution contains the set of tools and dependencies needed to run unit tests and perform all
-development tasks.
-
-    pip install -e "./devel-common"
-
-If you want to develop provider, you need to install it in editable mode from "providers" folder. For
-example this will install Amazon provider in editable mode:
-
-    pip install -e "./providers/amazon"
-
-However with pip in order to run tests, in some providers You also (for now) install optional extras that are
-needed to run tests. In case of local installation for example, you can install all prerequisites for
-Google provider, tests, and all Hadoop providers with this command:
-
-    pip install -e ".[google, hadoop]"
-
-This is not needed with `uv` and in the near future, when `pip` will support https://peps.python.org/pep-0735/
-this installation will be simplified.
-
-You can also install ALL possible dependencies of airflow with:
-
-    pip install -e ".[all]"
-
-This is not really recommended usually (it takes a lot of time to resolve and install all dependencies) but
-if you want to replicate the CI environment where "all" extras are installed, you can do it this way.
-
 
 Building airflow packages with Hatch
 ====================================
@@ -235,7 +198,11 @@ Using Hatch to build your packages
 
 You can use Hatch to build installable packages from the Airflow sources. Such package will
 include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and and any other
-PEP-compliant packaging front-end.
+PEP-compliant packaging front-end. You can run those commands in:
+
+* root folder of the repository to build "meta" airflow package that install other packages
+* `airflow-core` folder to build the core airflow package
+* any of the `providers` folders that has a pyproject.toml file to build the provider package
 
 The packages will have pre-installed dependencies for providers that are available when Airflow is i
 onstalled from PyPI. Both `wheel` and `sdist` packages are built by default.
@@ -246,6 +213,11 @@ You can also build only `wheel` or `sdist` packages:
 
     hatch build -t wheel
     hatch build -t sdist
+
+In the `airflow-core` folder, you can also build the package with the `custom` target that will clean
+the build directory, update the `git_version` file, and build the assets:
+
+    hatch build -t custom -t wheel -t sdist
 
 Installing recommended version of dependencies
 ==============================================
@@ -277,51 +249,3 @@ providers, sometimes enable other features where packages are not installed by d
 
 You can read more about those extras in the extras reference:
 https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html
-
-The list of available extras is below.
-
-Core extras
------------
-
-Those extras are available as regular core airflow extras - they install optional features of Airflow.
-
-# START CORE EXTRAS HERE
-
-aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
-
-# END CORE EXTRAS HERE
-
-Provider extras
----------------
-
-Those extras are available as regular Airflow extras; they install provider packages in standard builds
-or dependencies that are necessary to enable the feature in an editable build.
-
-# START PROVIDER EXTRAS HERE
-
-airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
-apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
-apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-cncf.kubernetes, cohere, common.compat, common.io, common.messaging, common.sql, databricks,
-datadog, dbt.cloud, dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp,
-github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas,
-openlineage, opensearch, opsgenie, oracle, pagerduty, papermill, pgvector, pinecone, postgres,
-presto, qdrant, redis, salesforce, samba, segment, sendgrid, sftp, singularity, slack, smtp,
-snowflake, sqlite, ssh, standard, tableau, telegram, teradata, trino, vertica, weaviate, yandex,
-ydb, zendesk
-
-# END PROVIDER EXTRAS HERE
-
-Doc extras
-----------
-
-Doc extras are used to install dependencies that are needed to build documentation. Only available during
-editable install.
-
-# START DOC EXTRAS HERE
-
-doc, doc-gen
-
-# END DOC EXTRAS HERE

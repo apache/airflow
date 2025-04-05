@@ -35,6 +35,78 @@
 Changelog
 ---------
 
+0.3.0
+.....
+
+  * ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
+  * ``Make datetime objects in Context as Pendulum objects (#48592)``
+  * ``Fix _get_count in sensor_helper.py (#40795)``
+  * ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
+  * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle null logical date in TimeDeltaSensorAsync (#47652)``
+* ``Fix deprecation warning for 'BranchMixIn' (#47856)``
+* ``Fix DayOfWeekSensor use_task_logical_date condition (#47825)``
+* ``Fix python operators errors when initialising plugins in virtualenv jinja script (#48035)``
+
+Misc
+~~~~
+
+* ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
+* ``Relocate utils/weekday.py to standard provider (#47892)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Rewrite asset event registration (#47677)``
+* ``Implement pre- and post-execute hooks in sdk (#48230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Support '@task.bash' with Task SDK (#48060)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove fixed comments (#47823)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Fix comment typo in PythonOperator (#47558)``
+
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Relocate SmoothOperator to standard provider and add tests (#47530)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Move tests_common package to devel-common project (#47281)``
+* ``Remove old UI and webserver (#46942)``
+* ``Add deferred pagination mode to GenericTransfer (#44809)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 0.1.0
 .....
 

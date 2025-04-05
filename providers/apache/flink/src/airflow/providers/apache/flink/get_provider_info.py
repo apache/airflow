@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Flink",
         "description": "`Apache Flink <https://flink.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121821,
+        "source-date-epoch": 1743477770,
         "versions": [
+            "1.6.1",
             "1.6.0",
             "1.5.1",
             "1.5.0",

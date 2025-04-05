@@ -113,7 +113,7 @@ Specifying parameters as JSON
 
 An example usage of the DatabricksSubmitRunOperator is as follows:
 
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks.py
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_json]
     :end-before: [END howto_operator_databricks_json]
@@ -123,7 +123,7 @@ Using named parameters
 
 You can also use named parameters to initialize the operator and run the job.
 
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks.py
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]

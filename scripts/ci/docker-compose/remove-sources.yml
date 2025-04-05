@@ -21,9 +21,9 @@ services:
       - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
-      - ../../../empty:/opt/airflow/airflow
-      # Removes task_sdk sources from container
-      - ../../../empty:/opt/airflow/task_sdk/src
+      - ../../../empty:/opt/airflow/airflow-core/src
+      # Removes task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src
@@ -68,6 +68,7 @@ services:
       - ../../../empty:/opt/airflow/providers/fab/src
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src
+      - ../../../empty:/opt/airflow/providers/git/src
       - ../../../empty:/opt/airflow/providers/github/src
       - ../../../empty:/opt/airflow/providers/google/src
       - ../../../empty:/opt/airflow/providers/grpc/src

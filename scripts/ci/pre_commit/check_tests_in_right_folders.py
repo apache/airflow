@@ -31,7 +31,6 @@ POSSIBLE_TEST_FOLDERS = [
     "_internals",
     "always",
     "api",
-    "api_connexion",
     "api_internal",
     "api_fastapi",
     "assets",
@@ -50,22 +49,22 @@ POSSIBLE_TEST_FOLDERS = [
     "decorators",
     "executors",
     "hooks",
-    "integration",
     "io",
     "jobs",
     "lineage",
     "listeners",
+    "logging",
     "macros",
     "models",
     "notifications",
     "operators",
+    "otel",
     "plugins",
     "providers",
     "secrets",
     "security",
     "sensors",
     "serialization",
-    "system",
     "task",
     "template",
     "test_utils",
@@ -77,25 +76,40 @@ POSSIBLE_TEST_FOLDERS = [
     "www",
 ]
 
-EXCEPTIONS = ["tests/__init__.py", "tests/conftest.py"]
+EXCEPTIONS = [
+    "airflow-core/tests/__init__.py",
+    "airflow-core/tests/unit/__init__.py",
+    "airflow-core/tests/system/__init__.py",
+    "airflow-core/tests/system/conftest.py",
+    "airflow-core/tests/system/example_empty.py",
+    "airflow-core/tests/integration/__init__.py",
+    "airflow-core/tests/conftest.py",
+]
 
 if __name__ == "__main__":
     files = sys.argv[1:]
 
-    MATCH_TOP_LEVEL_TEST_FILES = re.compile(r"tests/[^/]+\.py")
+    MATCH_TOP_LEVEL_TEST_FILES = re.compile(r"airflow-core/tests/unit/[^/]+\.py")
     files = [file for file in files if file not in EXCEPTIONS]
 
     errors = False
     top_level_files = [file for file in files if MATCH_TOP_LEVEL_TEST_FILES.match(file)]
     if top_level_files:
-        console.print("[red]There should be no test files directly in the top-level of `tests` folder:[/]")
+        console.print(
+            "[red]There should be no test files directly in the top-level of `tests/unit` folder:[/]"
+        )
         console.print(top_level_files)
         errors = True
     for file in files:
-        if not any(file.startswith(f"tests/{folder}/") for folder in POSSIBLE_TEST_FOLDERS):
+        if not any(
+            file.startswith(f"airflow-core/tests/unit/{folder}/")
+            or file.startswith(f"airflow-core/tests/integration/{folder}/")
+            or file.startswith(f"airflow-core/tests/system/{folder}/")
+            for folder in POSSIBLE_TEST_FOLDERS
+        ):
             console.print(
                 "[red]The file is in a wrong folder. Make sure to move it to the right folder "
-                "listed in `./script/ci/pre_commit/check_tests_in_right_folders.py` "
+                "listed in `./scripts/ci/pre_commit/check_tests_in_right_folders.py` "
                 "or create new folder and add it to the script if you know what you are doing.[/]"
             )
             console.print(file)

@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Papermill",
         "description": "`Papermill <https://github.com/nteract/papermill>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121921,
+        "source-date-epoch": 1743477868,
         "versions": [
+            "3.9.2",
             "3.9.1",
             "3.9.0",
             "3.8.2",
@@ -88,6 +89,7 @@ def get_provider_info():
             "scrapbook[all]>=0.5.0",
             "ipykernel>=6.29.4",
             "pandas>=2.1.2,<2.2",
+            "nbconvert>=7.16.1",
         ],
         "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],

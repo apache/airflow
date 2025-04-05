@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Java Database Connectivity (JDBC)",
         "description": "`Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121891,
+        "source-date-epoch": 1743477838,
         "versions": [
+            "5.0.1",
             "5.0.0",
             "4.5.3",
             "4.5.2",

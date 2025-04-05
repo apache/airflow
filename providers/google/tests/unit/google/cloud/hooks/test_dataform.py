@@ -25,6 +25,7 @@ from google.cloud.dataform_v1beta1.types import WorkflowInvocation
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 pytestmark = pytest.mark.db_test
@@ -287,8 +288,7 @@ class TestDataformHook:
             workspace_id=WORKSPACE_ID,
         )
         name = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.delete_workspace.assert_called_once_with(
@@ -311,8 +311,7 @@ class TestDataformHook:
             contents=FILE_CONTENTS,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.write_file.assert_called_once_with(
@@ -336,8 +335,7 @@ class TestDataformHook:
             path=PATH_TO_FOLDER,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.make_directory.assert_called_once_with(
@@ -360,8 +358,7 @@ class TestDataformHook:
             path=PATH_TO_FOLDER,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.remove_directory.assert_called_once_with(
@@ -384,8 +381,7 @@ class TestDataformHook:
             filepath=FILEPATH,
         )
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.remove_file.assert_called_once_with(
@@ -408,8 +404,7 @@ class TestDataformHook:
         )
 
         workspace_path = (
-            f"projects/{PROJECT_ID}/locations/{REGION}/"
-            f"repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
+            f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
         )
 
         mock_client.return_value.install_npm_packages.assert_called_once_with(

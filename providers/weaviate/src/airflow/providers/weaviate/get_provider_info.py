@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Weaviate",
         "description": "`Weaviate <https://weaviate.io/developers/weaviate>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121963,
+        "source-date-epoch": 1743477909,
         "versions": [
+            "3.0.2",
             "3.0.1",
             "3.0.0",
             "2.1.0",

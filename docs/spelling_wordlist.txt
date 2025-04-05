@@ -171,6 +171,8 @@ BaseHook
 BaseObject
 BaseOperator
 baseOperator
+BaseOperatorLink
+baseoperatorlink
 basestring
 basetaskrunner
 BaseView
@@ -379,6 +381,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+dags
 DagsFolderDagBundle
 Dask
 dask
@@ -561,6 +564,7 @@ ec
 ecb
 ECR
 ecs
+EdDSA
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -625,7 +629,6 @@ explicit
 exportingmultiple
 extensibility
 externalbrowser
-exts
 faas
 facebook
 Failover
@@ -725,6 +728,7 @@ GH
 GiB
 gid
 gif
+GitDagBundle
 Github
 github
 gitignore
@@ -938,6 +942,7 @@ juli
 Jupyter
 jupyter
 jupytercmd
+jwks
 JWT
 jwt
 Kafka
@@ -1585,6 +1590,7 @@ SparkSQL
 sparksql
 SpeechClient
 spegno
+sphinx_exts
 Splunk
 spotahome
 Sql
@@ -1863,6 +1869,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr
@@ -1926,6 +1933,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

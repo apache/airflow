@@ -198,7 +198,8 @@ class AirflowAppBuilder:
         self.session = session
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
-        auth_manager.init()
+        if hasattr(auth_manager, "init_flask_resources"):
+            auth_manager.init_flask_resources()
         if hasattr(auth_manager, "security_manager"):
             self.sm = auth_manager.security_manager
         else:
@@ -545,7 +546,8 @@ class AirflowAppBuilder:
     def _add_permission(self, baseview, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
+                if hasattr(self.sm, "add_permissions_view"):
+                    self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
@@ -559,7 +561,8 @@ class AirflowAppBuilder:
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_menu(name)
+                if hasattr(self.sm, "add_permissions_menu"):
+                    self.sm.add_permissions_menu(name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU, e)
