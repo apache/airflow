@@ -115,7 +115,7 @@ class TestHdfsTaskHandler:
         assert logs == []
 
     @mock.patch("shutil.rmtree")
-    def test_upload_absolute_path(self, mock_rmtree):
+    def test_upload_absolute_path(self, mock_rmtree, ti):
         base_path = Path(self.local_log_location)
         base_path.mkdir(parents=True, exist_ok=True)
         test_file = base_path / "test.log"
@@ -126,12 +126,12 @@ class TestHdfsTaskHandler:
 
         self.hdfs_task_handler.io.hook = mock.MagicMock(spec=WebHDFSHook)
         self.hdfs_task_handler.io.hook.load_file = mock.MagicMock()
-        self.hdfs_task_handler.io.upload(absolute_path)
+        self.hdfs_task_handler.io.upload(absolute_path, ti)
         self.hdfs_task_handler.io.hook.load_file.assert_called_once_with(test_file, expected_remote_loc)
         mock_rmtree.assert_called_once_with(os.path.dirname(str(test_file)))
 
     @mock.patch("shutil.rmtree")
-    def test_upload_relative_path(self, mock_rmtree):
+    def test_upload_relative_path(self, mock_rmtree, ti):
         base_path = Path(self.local_log_location)
         base_path.mkdir(parents=True, exist_ok=True)
         test_file = base_path / "relative.log"
@@ -140,7 +140,7 @@ class TestHdfsTaskHandler:
         expected_remote_loc = os.path.join(self.hdfs_task_handler.io.remote_base, relative_path)
         self.hdfs_task_handler.io.hook = mock.MagicMock(spec=WebHDFSHook)
         self.hdfs_task_handler.io.hook.load_file = mock.MagicMock()
-        self.hdfs_task_handler.io.upload(relative_path)
+        self.hdfs_task_handler.io.upload(relative_path, ti)
         self.hdfs_task_handler.io.hook.load_file.assert_called_once_with(test_file, expected_remote_loc)
         mock_rmtree.assert_called_once_with(os.path.dirname(str(test_file)))
 
@@ -148,7 +148,7 @@ class TestHdfsTaskHandler:
         self.hdfs_task_handler.set_context(ti)
         self.hdfs_task_handler.io.upload = mock.MagicMock()
         self.hdfs_task_handler.close()
-        self.hdfs_task_handler.io.upload.assert_called_once_with(self.hdfs_task_handler.log_relative_path)
+        self.hdfs_task_handler.io.upload.assert_called_once_with(self.hdfs_task_handler.log_relative_path, ti)
 
         self.hdfs_task_handler.io.upload.reset_mock()
         self.hdfs_task_handler.close()

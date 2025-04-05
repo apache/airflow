@@ -34,6 +34,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -45,7 +46,7 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: os.PathLike | str):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
@@ -65,7 +66,7 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
         """Returns WebHDFSHook."""
         return WebHDFSHook(webhdfs_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"))
 
-    def read(self, relative_path: str, ti: TaskInstance) -> tuple[LogSourceInfo, LogMessages]:
+    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         logs = []
         messages = []
         file_path = os.path.join(self.remote_base, relative_path)
@@ -111,6 +112,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
         self.upload_on_close = is_trigger_log_context or not ti.raw
+        self.ti = ti
         # Clear the file first so that duplicate data is not uploaded
         # when reusing the same path (e.g. with rescheduled sensors)
         if self.upload_on_close:
@@ -131,7 +133,8 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         if not self.upload_on_close:
             return
 
-        self.io.upload(self.log_relative_path)
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
