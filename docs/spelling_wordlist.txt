@@ -1761,6 +1761,9 @@ timedeltas
 timeframe
 timespan
 timezones
+TinkerPop
+Tinkerpop
+tinkerpop
 tis
 TLS
 tls
