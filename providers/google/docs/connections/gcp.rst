@@ -293,7 +293,7 @@ For example:
             "sheets": [{"properties": {"title": "Sheet1"}}],
         }
 
-        from airflow.providers.google.suite.operators.sheets import (
+        from airflow.providers.google.workspace.operators.sheets import (
             GoogleSheetsCreateSpreadsheetOperator,
         )
 

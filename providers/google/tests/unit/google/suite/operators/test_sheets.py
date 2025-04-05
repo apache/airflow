@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
+from airflow.providers.google.workspace.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 
 GCP_CONN_ID = "test"
 SPREADSHEET_URL = "https://example/sheets"
@@ -26,9 +26,9 @@ SPREADSHEET_ID = "1234567890"
 
 
 class TestGoogleSheetsCreateSpreadsheet:
-    @mock.patch("airflow.providers.google.suite.operators.sheets.GSheetsHook")
+    @mock.patch("airflow.providers.google.workspace.operators.sheets.GSheetsHook")
     @mock.patch(
-        "airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator.xcom_push"
+        "airflow.providers.google.workspace.operators.sheets.GoogleSheetsCreateSpreadsheetOperator.xcom_push"
     )
     def test_execute(self, mock_xcom, mock_hook):
         context = {}

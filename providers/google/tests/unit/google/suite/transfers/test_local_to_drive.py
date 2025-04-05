@@ -19,7 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 
-from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
+from airflow.providers.google.workspace.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 
 GCP_CONN_ID = "test"
 DRIVE_FOLDER = Path("test_folder")
@@ -28,7 +28,7 @@ REMOTE_FILE_IDS = ["rtest1", "rtest2"]
 
 
 class TestLocalFilesystemToGoogleDriveOperator:
-    @mock.patch("airflow.providers.google.suite.transfers.local_to_drive.GoogleDriveHook")
+    @mock.patch("airflow.providers.google.workspace.transfers.local_to_drive.GoogleDriveHook")
     def test_execute(self, mock_hook):
         context = {}
         mock_hook.return_value.upload_file.return_value = REMOTE_FILE_IDS

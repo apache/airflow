@@ -42,7 +42,7 @@ Create spreadsheet
 ^^^^^^^^^^^^^^^^^^
 
 To create new spreadsheet you can use the
-:class:`~airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
+:class:`~airflow.providers.google.workspace.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_sheets.py
     :language: python
@@ -51,7 +51,7 @@ To create new spreadsheet you can use the
     :end-before: [END create_spreadsheet]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
+:template-fields:`airflow.providers.google.workspace.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
 
 To get the URL of newly created spreadsheet use XCom value:
 

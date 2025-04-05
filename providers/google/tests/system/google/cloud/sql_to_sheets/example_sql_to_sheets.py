@@ -41,8 +41,8 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
     ComputeEngineInsertInstanceOperator,
 )
-from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
-from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
+from airflow.providers.google.workspace.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
+from airflow.providers.google.workspace.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session, json

@@ -33,7 +33,7 @@ Upload data from SQL to Google Sheets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To upload data from and Database using SQL to Google Spreadsheet you can use the
-:class:`~airflow.providers.google.suite.transfers.sql_to_sheets.SQLToGoogleSheetsOperator`.
+:class:`~airflow.providers.google.workspace.transfers.sql_to_sheets.SQLToGoogleSheetsOperator`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/sql_to_sheets/example_sql_to_sheets.py
     :language: python
@@ -42,4 +42,4 @@ To upload data from and Database using SQL to Google Spreadsheet you can use the
     :end-before: [END upload_sql_to_sheets]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.suite.transfers.sql_to_sheets.SQLToGoogleSheetsOperator`.
+:template-fields:`airflow.providers.google.workspace.transfers.sql_to_sheets.SQLToGoogleSheetsOperator`.

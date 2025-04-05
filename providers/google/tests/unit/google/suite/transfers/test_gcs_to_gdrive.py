@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
+from airflow.providers.google.workspace.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 
-MODULE = "airflow.providers.google.suite.transfers.gcs_to_gdrive"
+MODULE = "airflow.providers.google.workspace.transfers.gcs_to_gdrive"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 

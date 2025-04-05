@@ -728,7 +728,7 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google Spreadsheet",
-                "python-modules": ["airflow.providers.google.suite.operators.sheets"],
+                "python-modules": ["airflow.providers.google.workspace.operators.sheets"],
             },
             {
                 "integration-name": "Google LevelDB",
@@ -829,7 +829,7 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google Drive",
-                "python-modules": ["airflow.providers.google.suite.sensors.drive"],
+                "python-modules": ["airflow.providers.google.workspace.sensors.drive"],
             },
             {
                 "integration-name": "Google Campaign Manager",
@@ -1085,15 +1085,15 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google Calendar",
-                "python-modules": ["airflow.providers.google.suite.hooks.calendar"],
+                "python-modules": ["airflow.providers.google.workspace.hooks.calendar"],
             },
             {
                 "integration-name": "Google Drive",
-                "python-modules": ["airflow.providers.google.suite.hooks.drive"],
+                "python-modules": ["airflow.providers.google.workspace.hooks.drive"],
             },
             {
                 "integration-name": "Google Spreadsheet",
-                "python-modules": ["airflow.providers.google.suite.hooks.sheets"],
+                "python-modules": ["airflow.providers.google.workspace.hooks.sheets"],
             },
             {
                 "integration-name": "Google LevelDB",
@@ -1224,7 +1224,7 @@ def get_provider_info():
                 "source-integration-name": "Google Cloud Storage (GCS)",
                 "target-integration-name": "Google Drive",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/gcs_to_gdrive.rst",
-                "python-module": "airflow.providers.google.suite.transfers.gcs_to_gdrive",
+                "python-module": "airflow.providers.google.workspace.transfers.gcs_to_gdrive",
             },
             {
                 "source-integration-name": "Google Drive",
@@ -1347,13 +1347,13 @@ def get_provider_info():
                 "source-integration-name": "Google Cloud Storage (GCS)",
                 "target-integration-name": "Google Spreadsheet",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst",
-                "python-module": "airflow.providers.google.suite.transfers.gcs_to_sheets",
+                "python-module": "airflow.providers.google.workspace.transfers.gcs_to_sheets",
             },
             {
                 "source-integration-name": "Common SQL",
                 "target-integration-name": "Google Spreadsheet",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst",
-                "python-module": "airflow.providers.google.suite.transfers.sql_to_sheets",
+                "python-module": "airflow.providers.google.workspace.transfers.sql_to_sheets",
             },
             {
                 "source-integration-name": "Local",
@@ -1383,7 +1383,7 @@ def get_provider_info():
                 "source-integration-name": "Local",
                 "target-integration-name": "Google Drive",
                 "how-to-guide": "/docs/apache-airflow-providers-google/operators/transfer/local_to_drive.rst",
-                "python-module": "airflow.providers.google.suite.transfers.local_to_drive",
+                "python-module": "airflow.providers.google.workspace.transfers.local_to_drive",
             },
             {
                 "source-integration-name": "Salesforce",

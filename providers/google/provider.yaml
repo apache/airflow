@@ -581,7 +581,7 @@ operators:
       - airflow.providers.google.marketing_platform.operators.search_ads
   - integration-name: Google Spreadsheet
     python-modules:
-      - airflow.providers.google.suite.operators.sheets
+      - airflow.providers.google.workspace.operators.sheets
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.operators.leveldb
@@ -658,7 +658,7 @@ sensors:
       - airflow.providers.google.cloud.sensors.workflows
   - integration-name: Google Drive
     python-modules:
-      - airflow.providers.google.suite.sensors.drive
+      - airflow.providers.google.workspace.sensors.drive
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.campaign_manager
@@ -856,13 +856,13 @@ hooks:
       - airflow.providers.google.marketing_platform.hooks.search_ads
   - integration-name: Google Calendar
     python-modules:
-      - airflow.providers.google.suite.hooks.calendar
+      - airflow.providers.google.workspace.hooks.calendar
   - integration-name: Google Drive
     python-modules:
-      - airflow.providers.google.suite.hooks.drive
+      - airflow.providers.google.workspace.hooks.drive
   - integration-name: Google Spreadsheet
     python-modules:
-      - airflow.providers.google.suite.hooks.sheets
+      - airflow.providers.google.workspace.hooks.sheets
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.hooks.leveldb
@@ -960,7 +960,7 @@ transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Drive
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_gdrive.rst
-    python-module: airflow.providers.google.suite.transfers.gcs_to_gdrive
+    python-module: airflow.providers.google.workspace.transfers.gcs_to_gdrive
   - source-integration-name: Google Drive
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_gcs.rst
@@ -1041,11 +1041,11 @@ transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
-    python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
+    python-module: airflow.providers.google.workspace.transfers.gcs_to_sheets
   - source-integration-name: Common SQL
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
-    python-module: airflow.providers.google.suite.transfers.sql_to_sheets
+    python-module: airflow.providers.google.workspace.transfers.sql_to_sheets
   - source-integration-name: Local
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_gcs.rst
@@ -1065,7 +1065,7 @@ transfers:
   - source-integration-name: Local
     target-integration-name: Google Drive
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_drive.rst
-    python-module: airflow.providers.google.suite.transfers.local_to_drive
+    python-module: airflow.providers.google.workspace.transfers.local_to_drive
   - source-integration-name: Salesforce
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/salesforce_to_gcs.rst

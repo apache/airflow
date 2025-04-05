@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
+from airflow.providers.google.workspace.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 
 
 class TestSQLToGoogleSheets:
@@ -37,7 +37,7 @@ class TestSQLToGoogleSheets:
         self.spreadsheet_id = "1234567890"
         self.values = [[1, 2, 3]]
 
-    @patch("airflow.providers.google.suite.transfers.sql_to_sheets.GSheetsHook")
+    @patch("airflow.providers.google.workspace.transfers.sql_to_sheets.GSheetsHook")
     def test_execute(self, mock_sheet_hook):
         op = SQLToGoogleSheetsOperator(
             task_id="test_task",

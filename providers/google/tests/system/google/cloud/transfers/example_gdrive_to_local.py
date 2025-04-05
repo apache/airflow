@@ -35,9 +35,9 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
-from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
+from airflow.providers.google.workspace.hooks.drive import GoogleDriveHook
+from airflow.providers.google.workspace.sensors.drive import GoogleDriveFileExistenceSensor
+from airflow.providers.google.workspace.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.settings import Session, json
 from airflow.utils.trigger_rule import TriggerRule
 

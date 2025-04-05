@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
+from airflow.providers.google.workspace.sensors.drive import GoogleDriveFileExistenceSensor
 
 TEST_FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "abcd1234")
 TEST_FILE_NAME = os.environ.get("GCP_GDRIVE_DRIVE_ID", "gdrive_to_gcs_file.txt")
@@ -30,7 +30,7 @@ TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleDriveFileSensor:
-    @mock.patch("airflow.providers.google.suite.sensors.drive.GoogleDriveHook")
+    @mock.patch("airflow.providers.google.workspace.sensors.drive.GoogleDriveHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
         task = GoogleDriveFileExistenceSensor(
             task_id="task-id",

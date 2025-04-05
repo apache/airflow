@@ -31,7 +31,7 @@ Prerequisite Tasks
 LocalFilesystemToGoogleDriveOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:class:`~airflow.providers.google.suite.transfers.local_to_drive.LocalFilesystemToGoogleDriveOperator` allows you to upload
+:class:`~airflow.providers.google.workspace.transfers.local_to_drive.LocalFilesystemToGoogleDriveOperator` allows you to upload
 data from local filesystem to GoogleDrive.
 
 When you use this operator, you can upload a list of files.
