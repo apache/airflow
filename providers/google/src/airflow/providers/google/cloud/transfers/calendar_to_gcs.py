@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
+from airflow.providers.google.workspace.hooks.calendar import GoogleCalendarHook
 
 if TYPE_CHECKING:
     from datetime import datetime

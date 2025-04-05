@@ -24,7 +24,7 @@ from contextlib import closing
 from typing import Any
 
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
-from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.providers.google.workspace.hooks.sheets import GSheetsHook
 
 
 class SQLToGoogleSheetsOperator(BaseSQLOperator):

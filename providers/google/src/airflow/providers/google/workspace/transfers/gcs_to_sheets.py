@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.providers.google.workspace.hooks.sheets import GSheetsHook
 
 
 class GCSToGoogleSheetsOperator(BaseOperator):

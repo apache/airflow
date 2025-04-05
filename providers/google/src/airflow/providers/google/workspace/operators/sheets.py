@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Drive sensors."""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import Any
 
-from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.models import BaseOperator
+from airflow.providers.google.workspace.hooks.sheets import GSheetsHook
 
 
-class GoogleDriveFileExistenceSensor(BaseSensorOperator):
+class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
     """
-    Checks for the existence of a file in Google Cloud Storage.
+    Creates a new spreadsheet.
 
-    :param folder_id: The Google drive folder where the file is.
-    :param file_name: The name of the file to check in Google Drive
-    :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-    :param gcp_conn_id: The connection ID to use when
-        connecting to Google Cloud Storage.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSheetsCreateSpreadsheetOperator`
+
+    :param spreadsheet: an instance of Spreadsheet
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -49,34 +45,29 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        "folder_id",
-        "file_name",
-        "drive_id",
+        "spreadsheet",
         "impersonation_chain",
     )
-    ui_color = "#f0eee4"
 
     def __init__(
         self,
         *,
-        folder_id: str,
-        file_name: str,
-        drive_id: str | None = None,
+        spreadsheet: dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.folder_id = folder_id
-        self.file_name = file_name
-        self.drive_id = drive_id
         self.gcp_conn_id = gcp_conn_id
+        self.spreadsheet = spreadsheet
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: Context) -> bool:
-        self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
-        hook = GoogleDriveHook(
+    def execute(self, context: Any) -> dict[str, Any]:
+        hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.exists(folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id)
+        spreadsheet = hook.create_spreadsheet(spreadsheet=self.spreadsheet)
+        self.xcom_push(context, "spreadsheet_id", spreadsheet["spreadsheetId"])
+        self.xcom_push(context, "spreadsheet_url", spreadsheet["spreadsheetUrl"])
+        return spreadsheet

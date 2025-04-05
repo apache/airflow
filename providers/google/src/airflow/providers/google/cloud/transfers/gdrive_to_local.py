@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
-from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+from airflow.providers.google.workspace.hooks.drive import GoogleDriveHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
