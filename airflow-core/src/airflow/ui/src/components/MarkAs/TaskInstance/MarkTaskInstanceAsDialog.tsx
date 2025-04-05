@@ -19,7 +19,7 @@
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -28,19 +28,30 @@ import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 
+import type { TaskActionProps } from "../utils";
+
 type Props = {
   readonly onClose: () => void;
   readonly open: boolean;
   readonly state: TaskInstanceState;
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskActionProps: TaskActionProps;
 };
 
-const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props) => {
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
-
+const MarkTaskInstanceAsDialog = ({
+  onClose,
+  open,
+  state,
+  taskActionProps: {
+    dagId,
+    dagRunId,
+    logicalDate,
+    mapIndex = -1,
+    note: taskNote,
+    startDate,
+    taskDisplayName,
+    taskId,
+  },
+}: Props) => {
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
   const past = selectedOptions.includes("past");
@@ -48,7 +59,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  // eslint-disable-next-line unicorn/no-null
+  const [note, setNote] = useState<string | null>(taskNote ?? null);
 
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,
@@ -86,8 +98,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Mark Task Instance as {state}:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} /> <StateBadge state={state} />
+              <strong>Mark Task Instance as {state}:</strong> {taskDisplayName ?? taskId}{" "}
+              <Time datetime={startDate} /> <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -100,8 +112,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               multiple
               onChange={setSelectedOptions}
               options={[
-                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
-                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
+                { disabled: !Boolean(logicalDate), label: "Past", value: "past" },
+                { disabled: !Boolean(logicalDate), label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
               ]}
