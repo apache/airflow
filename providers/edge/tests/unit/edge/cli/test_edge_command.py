@@ -32,8 +32,8 @@ from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _write_pid_t
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.worker_api.datamodels import (
     EdgeJobFetched,
-    WorkerSetStateReturn,
     WorkerRegistrationReturn,
+    WorkerSetStateReturn,
 )
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
