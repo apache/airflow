@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Utilities for migration legacy endpoints to FastAPI.
-
-This module can be deleted once the AIP-84 is completed and the legacy API is deleted.
-"""
-
-from __future__ import annotations
-
-from typing import Callable, TypeVar
-
-RT = TypeVar("RT")
-
-
-def mark_fastapi_migration_done(function: Callable[..., RT]) -> Callable[..., RT]:
-    """
-    Mark an endpoint as migrated over to the new FastAPI API.
-
-    This will help track what endpoints need to be migrated and the one that can be safely deleted.
-    """
-    return function

@@ -29,6 +29,8 @@ from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -41,6 +43,10 @@ CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`clou
 _Invalid = Any
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS,
+    reason="Decorators were part of core not providers, so this test doesnt make sense for < AF3.",
+)
 @pytest.mark.execution_timeout(120)
 class TestPythonVirtualenvDecorator:
     @CLOUDPICKLE_MARKER

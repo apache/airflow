@@ -206,7 +206,7 @@ of the context are set to ``None``.
 .. code-block:: python
   :emphasize-lines: 4,8,9
 
-  from airflow.models.dag import DAG
+  from airflow.sdk import DAG
   from airflow.sdk import get_parsing_context
 
   current_dag_id = get_parsing_context().dag_id

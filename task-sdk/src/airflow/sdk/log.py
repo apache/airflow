@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 __all__ = [
@@ -515,7 +516,7 @@ def relative_path_from_logger(logger) -> Path | None:
     return Path(fname).relative_to(base_log_folder)
 
 
-def upload_to_remote(logger: FilteringBoundLogger):
+def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     raw_logger = getattr(logger, "_logger")
 
     relative_path = relative_path_from_logger(raw_logger)
@@ -525,4 +526,4 @@ def upload_to_remote(logger: FilteringBoundLogger):
         return
 
     log_relative_path = relative_path.as_posix()
-    handler.upload(log_relative_path)
+    handler.upload(log_relative_path, ti)
