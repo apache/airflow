@@ -32,7 +32,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -44,7 +44,7 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: os.PathLike | str):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
@@ -86,7 +86,7 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
                 remote_conn_id,
             )
 
-    def read(self, relative_path, ti: TaskInstance | None = None) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         logs: list[str] = []
         messages = [relative_path]
 
@@ -191,6 +191,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.raw
 
+        self.ti = ti
         # Clear the file first so that duplicate data is not uploaded
         # when reusing the same path (e.g. with rescheduled sensors)
         if self.upload_on_close:
@@ -211,7 +212,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         if not self.upload_on_close:
             return
 
-        self.io.upload(self.log_relative_path)
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True

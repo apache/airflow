@@ -44,7 +44,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
 
 .. code-block:: python
 
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.sdk import BaseOperator
 
 
         class HelloOperator(BaseOperator):

@@ -19,39 +19,42 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from airflow.decorators.base import task_decorator_factory
-from airflow.decorators.python import _PythonDecoratedOperator
-from airflow.providers.standard.operators.python import BranchPythonOperator
+from airflow.providers.standard.decorators.python import _PythonDecoratedOperator
+from airflow.providers.standard.operators.python import PythonVirtualenvOperator
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
 
 
-class _BranchPythonDecoratedOperator(_PythonDecoratedOperator, BranchPythonOperator):
+class _PythonVirtualenvDecoratedOperator(_PythonDecoratedOperator, PythonVirtualenvOperator):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
-    template_fields = BranchPythonOperator.template_fields
-    custom_operator_name: str = "@task.branch"
+    template_fields = PythonVirtualenvOperator.template_fields
+    custom_operator_name: str = "@task.virtualenv"
 
 
-def branch_task(
-    python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
+def virtualenv_task(
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
+    **kwargs,
 ) -> TaskDecorator:
     """
-    Wrap a python function into a BranchPythonOperator.
-
-    For more information on how to use this operator, take a look at the guide:
-    :ref:`concepts:branching`
+    Wrap a callable into an Airflow operator to run via a Python virtual environment.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
+    This function is only used only used during type checking or auto-completion.
+
+    :meta private:
+
     :param python_callable: Function to decorate
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as XCom keys.
+    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
+        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys.
         Defaults to False.
     """
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_BranchPythonDecoratedOperator,
+        decorated_operator_class=_PythonVirtualenvDecoratedOperator,
         **kwargs,
     )
