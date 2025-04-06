@@ -99,6 +99,7 @@ if not keep_env_variables:
         # Keep per enabled integrations
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
+        "otel": {"otel": {"*"}},
     }
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
