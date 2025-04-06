@@ -42,6 +42,8 @@ Latest change: 2025-04-05
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`ed93c3f697 <https://github.com/apache/airflow/commit/ed93c3f6970eb207c727b2f4a1da295fa4c74cc3>`__  2025-04-05   ``fix: use pydantic model for edge worker registration response (#48821)``
+`1c81120869 <https://github.com/apache/airflow/commit/1c81120869459dfe40708d750dcf740cc9411cdd>`__  2025-04-05   ``Update Edge Provider docs prior 1.0.0 release (#48814)``
 `e391a58c29 <https://github.com/apache/airflow/commit/e391a58c297e7bdd6dd071a563e0d887c2b5b54c>`__  2025-04-05   ``Cleanup redundant hostname lookup and migrate to core hostname function. (#48813)``
 `6105452cb5 <https://github.com/apache/airflow/commit/6105452cb50a8a78c0b7ac52d80ea364b110723a>`__  2025-04-04   ``edge worker reports hostname as task runner (#48783)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
