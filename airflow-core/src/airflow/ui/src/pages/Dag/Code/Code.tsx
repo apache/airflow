@@ -177,8 +177,7 @@ export const Code = () => {
           style={style}
           wrapLongLines={wrap}
         >
-          {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : ""}
-          {code?.content ?? ""}
+          {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
         </SyntaxHighlighter>
       </div>
     </Box>
