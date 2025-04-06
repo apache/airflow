@@ -38,17 +38,18 @@ Changelog
 0.3.0
 .....
 
-  * ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
-  * ``Make datetime objects in Context as Pendulum objects (#48592)``
-  * ``Fix _get_count in sensor_helper.py (#40795)``
-  * ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
-  * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
-
+* ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
+* ``Make datetime objects in Context as Pendulum objects (#48592)``
+* ``Fix _get_count in sensor_helper.py (#40795)``
+* ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+* ``Migrate standard decorators to standard provider (#48683)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Simplify tooling by switching completely to uv (#48223)``
    * ``Upgrade ruff to latest version (#48553)``
+   * ``Bump standard provider to 0.3.0 (#48763)``
 
 0.2.0
 .....

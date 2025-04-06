@@ -37,11 +37,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.2
 .....
 
-Latest change: 2025-03-25
+Latest change: 2025-04-05
 
-==================================================================================================  ===========  ==========================================================================================
+==================================================================================================  ===========  ===========================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ==========================================================================================
+==================================================================================================  ===========  ===========================================================================================
+`e84a745bd9 <https://github.com/apache/airflow/commit/e84a745bd99e2a0d40de68b1c220c43ccf787ed9>`__  2025-04-05   ``Fix OL tests due to decorators move to std provider (#48808)``
+`25cf4145a4 <https://github.com/apache/airflow/commit/25cf4145a485e25e7667d2e2fc6432973388b2e0>`__  2025-04-04   ``fix: remove use of get_inlet_defs and get_outlet_defs from OpenLineage (#48792)``
+`1b98450c0b <https://github.com/apache/airflow/commit/1b98450c0b1aaa171387f0b006f37de7b6bd3d75>`__  2025-04-03   ``Implement triggering_asset_events in task sdk (#48650)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`e7daa6794c <https://github.com/apache/airflow/commit/e7daa6794c3375cceb6372748c757510cde3eaa8>`__  2025-04-01   ``Make datetime objects in Context as Pendulum objects (#48592)``
+`f851c14f6d <https://github.com/apache/airflow/commit/f851c14f6d7b7f234f6057128ac94291513c2039>`__  2025-03-31   ``docs: Update OL docs after BaseExtractor changes (#48585)``
+`cfb08bb3be <https://github.com/apache/airflow/commit/cfb08bb3befee1b1ed642ad8a50a3d0f3a53a100>`__  2025-03-31   ``Remove auto lineage from Airflow (#48421)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`fb67e128cf <https://github.com/apache/airflow/commit/fb67e128cf2bb2ab7df24b0958ed45761c779e7f>`__  2025-03-29   ``Move BaseOperator to 'airflow/sdk/bases/operator.py' (#48529)``
+`fde5051eac <https://github.com/apache/airflow/commit/fde5051eaca10b81364cca43307c30f49bc7e529>`__  2025-03-28   ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+`0063cd7b08 <https://github.com/apache/airflow/commit/0063cd7b08326f50e542be3caa9ffc21f50bf04d>`__  2025-03-28   ``nit: log more details about OpenLineage exceptions being caught (#48459)``
+`fe1be40957 <https://github.com/apache/airflow/commit/fe1be4095736244f2f567ec1cd3c4063fb1e87fd>`__  2025-03-27   ``fix: OpenLineage BaseExtractor's on_failure should call on_complete by default (#48456)``
+`d30dde27ea <https://github.com/apache/airflow/commit/d30dde27eac835473756d754fcd5e87ae4e00f3c>`__  2025-03-26   ``Add backcompat to openlineage provider method (#48406)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `6d0e00c73c <https://github.com/apache/airflow/commit/6d0e00c73c03ace0d0b94174272a3443cd83244a>`__  2025-03-25   ``Implement task-level "on" callbacks in sdk (#48002)``
 `27a3944da6 <https://github.com/apache/airflow/commit/27a3944da6781d8564c5f1d9da7c97ae7173b633>`__  2025-03-24   ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
@@ -55,7 +69,7 @@ Commit                                                                          
 `5e1f39c488 <https://github.com/apache/airflow/commit/5e1f39c488164a2bb77661ad9c7afb3f2241a0bf>`__  2025-03-16   ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
 `935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
 `eb18f87f09 <https://github.com/apache/airflow/commit/eb18f87f091116a9b7db5ae30fdb40f6e0a6377f>`__  2025-03-10   ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
-==================================================================================================  ===========  ==========================================================================================
+==================================================================================================  ===========  ===========================================================================================
 
 2.1.1
 .....

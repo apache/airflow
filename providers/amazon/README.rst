@@ -50,26 +50,26 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==========================================  ======================
+==========================================  =====================
 PIP package                                 Version required
-==========================================  ======================
+==========================================  =====================
 ``apache-airflow``                          ``>=2.9.0``
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.37.0``
-``botocore``                                ``>=1.34.90``
+``botocore``                                ``>=1.37.0``
 ``inflection``                              ``>=0.5.1``
-``watchtower``                              ``>=3.0.0,!=3.3.0,<4``
+``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
-``redshift_connector``                      ``>=2.0.918``
+``redshift_connector``                      ``>=2.1.3``
 ``asgiref``                                 ``>=2.3.0``
-``PyAthena``                                ``>=3.0.10``
+``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
 ``python3-saml``                            ``>=1.16.0``
 ``xmlsec``                                  ``>=1.3.14,!=1.3.15``
 ``sagemaker-studio``                        ``>=1.0.9``
-==========================================  ======================
+==========================================  =====================
 
 Cross provider package dependencies
 -----------------------------------

@@ -37,11 +37,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2025-04-02
+Latest change: 2025-04-03
 
 ==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================================================
+`a32193503c <https://github.com/apache/airflow/commit/a32193503c6ad0a673eca7576b4725d93041f3ac>`__  2025-04-03   ``Handle user deletion while being logged in in FAB auth manager (#48754)``
+`24548e2a36 <https://github.com/apache/airflow/commit/24548e2a3682d710e10594e0b8b7714c4373cd95>`__  2025-04-03   ``Prepare documentation for FAB 2.0.0rc2 release (#48745)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `b9026d399b <https://github.com/apache/airflow/commit/b9026d399b7e9866c1eab4e2b3a148583fdf1575>`__  2025-03-31   ``Update create token apis in simple auth manager (#48498)``
 `6a22981716 <https://github.com/apache/airflow/commit/6a22981716bd0a210d4fa64207c011f1dc8405f6>`__  2025-03-31   ``Add authentication section in FAB auth manager API documentation (#48455)``
