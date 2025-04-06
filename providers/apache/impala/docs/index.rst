@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection Types <connections/impala>
+    Operators <operators>
 
 .. toctree::
     :hidden:
