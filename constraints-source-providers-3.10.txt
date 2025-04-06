@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-06T07:44:55.250328
+# This constraints file was automatically generated on 2025-04-06T19:45:25.094382
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -561,6 +561,7 @@ soupsieve==2.6
 sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.5.2
 sphinx-autoapi==3.6.0
+sphinx-autobuild==2024.10.3
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==3.0.2

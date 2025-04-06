@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-06T07:58:55.111735
+# This constraints file was automatically generated on 2025-04-06T19:59:38.112945
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -184,7 +184,7 @@ apache-airflow-providers-weaviate==3.0.2
 apache-airflow-providers-yandex==4.0.3
 apache-airflow-providers-ydb==2.1.1
 apache-airflow-providers-zendesk==4.9.1
-apache-beam==2.64.0
+apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.3
 argcomplete==3.6.2
@@ -377,7 +377,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.5
+grpcio==1.71.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -668,6 +668,7 @@ soupsieve==2.6
 sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.5.2
 sphinx-autoapi==3.6.0
+sphinx-autobuild==2024.10.3
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==3.0.2
