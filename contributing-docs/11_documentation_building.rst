@@ -50,8 +50,7 @@ Building documentation with uv in local venv
 Prerequisites
 .............
 
-uv
-==
+*  The ``uv`` as mandatory tour
 
 First of all. you need to have ``uv`` installed. You can very easily build the documentation
 in your local virtualenv using ``uv`` command. Because some dependencies are not easy to be installed
@@ -59,9 +58,7 @@ on all OS-es, the ``docs`` group of dependencies is not installed by default whe
 ``uv sync`` or ``uv run`` - so you need to pass ``--group docs`` when you want to run command locally
 that installs the documentation dependencies.
 
-Python 3.11
-===========
-
+* Python 3.11
 
 .. warning::
 
@@ -79,8 +76,7 @@ You should run ``uv python pin 3.11`` to pin to Python 3.11 in order to build do
 
    uv python pin 3.11
 
-Enchant system dependency
-=========================
+* Enchant system dependency
 
 .. warning::
 
@@ -250,7 +246,7 @@ You can also use ``breeze build-docs --help`` to see available options and head 
 command and it's options.
 
 Hints and issues when building documentation
---------------------------------------------
+============================================
 
 We are using Sphinx to build our documentation, and while powerful, Sphinx is known from speaking riddles.
 Sometimes the errors printed by Sphinx build commands are a bit cryptic and do not tell you exactly how to
