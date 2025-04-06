@@ -154,7 +154,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.13.0",
+    "apache-airflow-providers-amazon[aiobotocore]",
 ]
 "async" = [
     "eventlet>=0.37.0",
@@ -165,13 +165,12 @@ dependencies = [
     "atlasclient>=0.1.2",
 ]
 "apache-webhdfs" = [
-    "hdfs[avro,dataframe,kerberos]>=2.0.4",
+    "apache-airflow-providers-apache-hdfs",
 ]
 "cgroups" = [
     "cgroupspy>=0.2.2",
 ]
 "cloudpickle" = [
-    # Latest version of apache-beam requires cloudpickle~=2.2.1
     "cloudpickle>=2.2.1",
 ]
 "github-enterprise" = [
@@ -212,7 +211,7 @@ dependencies = [
 "s3fs" = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned in aiobotocore extra
-    "s3fs>=2023.10.0",
+    "apache-airflow-providers-amazon[s3fs]",
 ]
 "sentry" = [
     "blinker>=1.1",
