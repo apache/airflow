@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class RdsBaseOperator(AwsBaseOperator):
+class RdsBaseOperator(AwsBaseOperator[RdsHook]):
     """Base operator that implements common functions for all operators."""
 
     aws_hook_class = RdsHook
