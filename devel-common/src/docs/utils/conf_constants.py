@@ -45,6 +45,9 @@ AIRFLOW_CORE_DOCKER_COMPOSE_PATH = AIRFLOW_CORE_DOCS_PATH / "howto" / "docker-co
 AIRFLOW_CORE_SRC_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
 AIRFLOW_FAVICON_PATH = AIRFLOW_CORE_SRC_PATH / "airflow" / "ui" / "public" / "pin_32.png"
 
+CHART_PATH = AIRFLOW_CORE_ROOT_PATH / "chart"
+CHART_DOC_PATH = AIRFLOW_CORE_DOCS_PATH / "docs"
+
 # Add sphinx_exts to the path so that sphinx can find them
 sys.path.append((DEVEL_COMMON_PATH / "src" / "sphinx_exts").as_posix())
 

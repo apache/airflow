@@ -23,36 +23,37 @@ Builds documentation and runs spell checking
 
 from __future__ import annotations
 
-import argparse
 import itertools
 import multiprocessing
 import os
+import shutil
 import sys
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any, Callable, NamedTuple, TypeVar
 
+import rich_click as click
+from click import Choice
 from rich.console import Console
 from tabulate import tabulate
 
 from sphinx_exts.docs_build import dev_index_generator
-from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH, GENERATED_APIS_PATH, GENERATED_PATH
-from sphinx_exts.docs_build.docs_builder import AirflowDocsBuilder, get_available_packages
+from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH, GENERATED_PATH
+from sphinx_exts.docs_build.docs_builder import (
+    AirflowDocsBuilder,
+    get_available_packages,
+    get_long_form,
+    get_short_form,
+)
 from sphinx_exts.docs_build.errors import DocBuildError, display_errors_summary
 from sphinx_exts.docs_build.fetch_inventories import fetch_inventories
 from sphinx_exts.docs_build.github_action_utils import with_group
-from sphinx_exts.docs_build.package_filter import process_package_filters
+from sphinx_exts.docs_build.package_filter import find_packages_to_build
 from sphinx_exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
 
 TEXT_RED = "\033[31m"
 TEXT_RESET = "\033[0m"
-
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        "To run this script, run the ./build_docs.py command"
-    )
 
 CHANNEL_INVITATION = """\
 If you need help, write to #documentation channel on Airflow's Slack.
@@ -75,6 +76,35 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 T = TypeVar("T")
 
 
+class BetterChoice(Choice):
+    """
+    Nicer formatted choice class for click.
+
+    We have a lot of parameters sometimes, and formatting
+    them without spaces causes ugly artifacts as the words are broken. This one adds spaces so
+    that when the long list of choices does not wrap on words.
+    """
+
+    name = "BetterChoice"
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.all_choices: Sequence[str] = self.choices
+
+    def get_metavar(self, param) -> str:
+        choices_str = " | ".join(self.all_choices)
+        # Use curly braces to indicate a required argument.
+        if param.required and param.param_type_name == "argument":
+            return f"{{{choices_str}}}"
+
+        if param.param_type_name == "argument" and param.nargs == -1:
+            # avoid double [[ for multiple args
+            return f"{choices_str}"
+
+        # Use square braces to indicate an option or optional argument.
+        return f"[{choices_str}]"
+
+
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
     iter_1, iter_2 = itertools.tee(iterable)
@@ -83,95 +113,41 @@ def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterabl
 
 def _promote_new_flags():
     console.print()
-    console.print("[yellow]Still tired of waiting for documentation to be built?[/]")
+    console.print("[yellow]Tired of waiting for documentation to be built?[/]")
     console.print()
-    if ON_GITHUB_ACTIONS:
-        console.print("You can quickly build documentation locally with just one command.")
-        console.print("    [bright_blue]breeze build-docs[/]")
-        console.print()
-        console.print("[yellow]Still too slow?[/]")
-        console.print()
-    console.print("You can only build one documentation package:")
-    console.print("    [bright_blue]breeze build-docs <PACKAGES>[/]")
+    console.print("You can quickly build documentation locally with just one command.\n")
+    console.print("    [bright_blue]cd DISTRIBUTION_FOLDER[/]")
+    console.print("    [bright_blue]uv run --group docs build-docs[/]")
     console.print()
-    console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
+    console.print("If you want to interactively work on your documentation you can add --autobuild flag.\n")
+    console.print("    [bright_blue]cd DISTRIBUTION_FOLDER[/]")
+    console.print("    [bright_blue]uv run --group docs build-docs --autobuild[/]")
+    console.print()
+    console.print("You can build several documentation packages together if they are modified together:")
+    console.print("    [bright_blue]uv run --group docs build-docs PACKAGE1 PACKAGE2[/]")
+    console.print()
+    console.print("In the root of Airflow repo, you can build all packages together:")
+    console.print("    [bright_blue]uv run --group docs build-docs[/]")
     console.print()
     console.print("You can also use other extra flags to iterate faster:")
     console.print("   [bright_blue]--docs-only       - Only build documentation[/]")
     console.print("   [bright_blue]--spellcheck-only - Only perform spellchecking[/]")
+    console.print("   [bright_blue]--clean-build     - Refresh inventories for inter-sphinx references[/]")
+    console.print()
+    console.print("You can list all packages you can build:")
+    console.print()
+    console.print("   [bright_blue]--list-packages   - Shows the list of packages you can build[/]")
     console.print()
     console.print("For more info:")
-    console.print("   [bright_blue]breeze build-docs --help[/]")
+    console.print("   [bright_blue]uv run build-docs --help[/]")
     console.print()
-
-
-def _get_parser():
-    available_packages_list = " * " + "\n * ".join(get_available_packages())
-    parser = argparse.ArgumentParser(
-        description="Builds documentation and runs spell checking",
-        epilog=f"List of supported documentation packages:\n{available_packages_list}",
-    )
-    parser.formatter_class = argparse.RawTextHelpFormatter
-    parser.add_argument(
-        "--disable-checks", dest="disable_checks", action="store_true", help="Disables extra checks"
-    )
-    parser.add_argument(
-        "--disable-provider-checks",
-        dest="disable_provider_checks",
-        action="store_true",
-        help="Disables extra checks for providers",
-    )
-    parser.add_argument(
-        "--one-pass-only",
-        dest="one_pass_only",
-        action="store_true",
-        help="Do not attempt multiple builds on error",
-    )
-    parser.add_argument(
-        "--package-filter",
-        action="append",
-        help=(
-            "Filter(s) to use more than one can be specified. You can use glob pattern matching the "
-            "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
-            "several similarly named packages together."
-        ),
-    )
-    parser.add_argument("--docs-only", dest="docs_only", action="store_true", help="Only build documentation")
-    parser.add_argument(
-        "--spellcheck-only", dest="spellcheck_only", action="store_true", help="Only perform spellchecking"
-    )
-    parser.add_argument(
-        "-j",
-        "--jobs",
-        dest="jobs",
-        type=int,
-        default=0,
-        help=(
-            """\
-        Number of parallel processes that will be spawned to build the docs.
-
-        If passed 0, the value will be determined based on the number of CPUs.
-        """
-        ),
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        action="store_true",
-        help=(
-            "Increases the verbosity of the script i.e. always displays a full log of "
-            "the build process, not just when it encounters errors"
-        ),
-    )
-
-    return parser
 
 
 class BuildSpecification(NamedTuple):
     """Specification of single build."""
 
     package_name: str
+    is_autobuild: bool
     verbose: bool
 
 
@@ -179,7 +155,7 @@ class BuildDocsResult(NamedTuple):
     """Result of building documentation."""
 
     package_name: str
-    log_file_name: str
+    log_file_name: Path
     errors: list[DocBuildError]
 
 
@@ -187,7 +163,7 @@ class SpellCheckResult(NamedTuple):
     """Result of spellcheck."""
 
     package_name: str
-    log_file_name: str
+    log_file_name: Path
     spelling_errors: list[SpellingError]
     build_errors: list[DocBuildError]
 
@@ -195,7 +171,11 @@ class SpellCheckResult(NamedTuple):
 def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
     """Performs single package docs build."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
-    console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Building documentation")
+    builder.is_autobuild = build_specification.is_autobuild
+    console.print(
+        f"[bright_blue]{build_specification.package_name:60}:[/] Building documentation"
+        + (" (autobuild)" if build_specification.is_autobuild else "")
+    )
     result = BuildDocsResult(
         package_name=build_specification.package_name,
         errors=builder.build_sphinx_docs(
@@ -209,6 +189,7 @@ def perform_docs_build_for_single_package(build_specification: BuildSpecificatio
 def perform_spell_check_for_single_package(build_specification: BuildSpecification) -> SpellCheckResult:
     """Performs single package spell check."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
+    builder.is_autobuild = build_specification.is_autobuild
     console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Checking spelling started")
     spelling_errors, build_errors = builder.check_spelling(
         verbose=build_specification.verbose,
@@ -225,6 +206,7 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
 
 def build_docs_for_packages(
     packages_to_build: list[str],
+    is_autobuild: bool,
     docs_only: bool,
     spellcheck_only: bool,
     jobs: int,
@@ -237,8 +219,9 @@ def build_docs_for_packages(
         for package_name in packages_to_build:
             console.print(f"[bright_blue]{package_name:60}:[/] Cleaning files")
             builder = AirflowDocsBuilder(package_name=package_name)
+            builder.is_autobuild = is_autobuild
             builder.clean_files()
-    if jobs > 1:
+    if jobs > 1 and len(packages_to_build) > 1:
         run_in_parallel(
             all_build_errors=all_build_errors,
             all_spelling_errors=all_spelling_errors,
@@ -253,6 +236,7 @@ def build_docs_for_packages(
             all_build_errors=all_build_errors,
             all_spelling_errors=all_spelling_errors,
             packages_to_build=packages_to_build,
+            is_autobuild=is_autobuild,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
             verbose=verbose,
@@ -263,6 +247,7 @@ def build_docs_for_packages(
 def run_sequentially(
     all_build_errors,
     all_spelling_errors,
+    is_autobuild,
     packages_to_build,
     docs_only,
     spellcheck_only,
@@ -274,6 +259,7 @@ def run_sequentially(
             build_result = perform_docs_build_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
+                    is_autobuild=is_autobuild,
                     verbose=verbose,
                 )
             )
@@ -285,6 +271,7 @@ def run_sequentially(
             spellcheck_result = perform_spell_check_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
+                    is_autobuild=is_autobuild,
                     verbose=verbose,
                 )
             )
@@ -347,6 +334,7 @@ def run_docs_build_in_parallel(
             console.print(f"[bright_blue]{package_name:60}:[/] Scheduling documentation to build")
             doc_build_specifications.append(
                 BuildSpecification(
+                    is_autobuild=False,
                     package_name=package_name,
                     verbose=verbose,
                 )
@@ -384,7 +372,9 @@ def run_spell_check_in_parallel(
     with with_group("Scheduling spell checking of documentation"):
         for package_name in packages_to_build:
             console.print(f"[bright_blue]{package_name:60}:[/] Scheduling spellchecking")
-            spell_check_specifications.append(BuildSpecification(package_name=package_name, verbose=verbose))
+            spell_check_specifications.append(
+                BuildSpecification(package_name=package_name, is_autobuild=False, verbose=verbose)
+            )
     with with_group("Running spell checking of documentation"):
         console.print()
         result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
@@ -439,51 +429,182 @@ def print_build_errors_and_exit(
         console.print("[green]Documentation build is successful[/]")
 
 
-def main():
-    """Main code"""
-    args = _get_parser().parse_args()
+def do_list_packages():
     available_packages = get_available_packages()
-    docs_only = args.docs_only
-    spellcheck_only = args.spellcheck_only
-    # disable_provider_checks = args.disable_provider_checks
-    # disable_checks = args.disable_checks
-    package_filters = args.package_filter
-    with with_group("Available packages"):
-        for pkg in sorted(available_packages):
-            console.print(f" - {pkg}")
-
+    console.print(
+        "\nAvailable packages (in parenthesis the short form of the"
+        " package is shown if it has a short form):\n"
+    )
     for package in available_packages:
-        if package.startswith("apache-airflow-providers-"):
-            package_id = package.replace("apache-airflow-providers-", "").replace("-", ".")
-            api_dir: Path = GENERATED_APIS_PATH.joinpath(*package_id.split(".")) / "_api"
-        elif package == "apache-airflow":
-            api_dir = GENERATED_APIS_PATH / "apache-airflow" / "_api"
+        short_package_name = get_short_form(package)
+        if short_package_name:
+            console.print(f"[bright_blue]{package} ({short_package_name}) [/] ")
         else:
-            api_dir = GENERATED_APIS_PATH / package / "_api"
-        if api_dir.exists():
-            if not next(api_dir.iterdir()):
-                console.print(
-                    "[red]The toctree already contains a reference to a non-existing document "
-                    f"for provider [green]'{package}'[/green]: {api_dir}. "
-                    f"Use the --clean-build option while building docs"
-                )
-                sys.exit(1)
+            console.print(f"[bright_blue]{package} [/] ")
+    console.print()
 
-    if package_filters:
-        console.print("Current package filters: ", package_filters)
-    packages_to_build = process_package_filters(available_packages, package_filters)
+
+def is_command_available(command):
+    """Check if a command is available in the system's PATH."""
+    return shutil.which(command) is not None
+
+
+click.rich_click.OPTION_GROUPS = {
+    "build-docs": [
+        {
+            "name": "Build scope (default is to build docs and spellcheck)",
+            "options": ["--docs-only", "--spellcheck-only"],
+        },
+        {
+            "name": "Type of build",
+            "options": ["--autobuild", "--one-pass-only", "--clean-build"],
+        },
+        {
+            "name": "Filtering options",
+            "options": [
+                "--package-filter",
+                "--list-packages",
+            ],
+        },
+        {
+            "name": "Miscellaneous options",
+            "options": [
+                "--jobs",
+                "--verbose",
+            ],
+        },
+    ],
+}
+
+
+@click.command(name="build-docs")
+@click.option(
+    "--autobuild",
+    is_flag=True,
+    help="Starts server, serving the build docs (sphinx-autobuild) rebuilding and "
+    "refreshing the docs when they change on the disk. "
+    "Implies --verbose, --docs-only and --one-pass-only",
+)
+@click.option("--one-pass-only", is_flag=True, help="Do not attempt multiple builds on error")
+@click.option(
+    "--package-filter",
+    "package_filters",
+    multiple=True,
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the full "
+    "package name, for example `apache-airflow-providers-*`. "
+    "Useful when you want to select several similarly named packages together. "
+    "When no filtering is specified and the command is run inside one of the distribution packages with docs, "
+    "only that package is selected to build. "
+    "If the command is run in the root of the Airflow repo, all packages are selected to be built.",
+)
+@click.option(
+    "--clean-build", is_flag=True, help="Cleans the build directory before building the documentation."
+)
+@click.option("--docs-only", is_flag=True, help="Only build documentation")
+@click.option("--spellcheck-only", is_flag=True, help="Only perform spellchecking")
+@click.option(
+    "-j",
+    "--jobs",
+    default=os.cpu_count(),
+    show_default=True,
+    type=int,
+    help="Number of parallel processes that will be spawned to build the docs. If not set, default - equal "
+    "to the number of CPU cores - will be used. If set to 1, the build will be done sequentially.",
+)
+@click.option(
+    "--list-packages",
+    is_flag=True,
+    help="Lists all available packages. You can use it to check the names of the packages you want to build.",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Increases the verbosity of the script i.e. always displays a full log of "
+    "the build process, not just when it encounters errors",
+)
+@click.argument(
+    "packages",
+    nargs=-1,
+    type=BetterChoice(get_available_packages(short_form=True)),
+)
+def build_docs(
+    autobuild,
+    one_pass_only,
+    package_filters,
+    clean_build,
+    docs_only,
+    spellcheck_only,
+    jobs,
+    list_packages,
+    verbose,
+    packages,
+):
+    """Builds documentation and runs spell checking for all distribution packages of airflow.."""
+    if list_packages:
+        do_list_packages()
+        sys.exit(0)
+    command = "sphinx-autobuild" if autobuild else "sphinx-build"
+    if not is_command_available(command):
+        console.print(
+            f"\n[red]Command '{command}' is not available. "
+            "Please use `--group docs` after the `uv run` when running the command:[/]\n"
+        )
+        console.print("uv run --group docs build-docs ...\n")
+        sys.exit(1)
+    available_packages = get_available_packages()
+    filters_to_add = []
+    for package_name in packages:
+        if package_name in available_packages:
+            filters_to_add.append(package_name)
+        else:
+            long_form = get_long_form(package_name)
+            if long_form:
+                filters_to_add.append(long_form)
+            else:
+                console.print("[red]Bad package specified as argument[/]:", package_name)
+                sys.exit(1)
+    if filters_to_add:
+        package_filters = tuple(set(package_filters).union(set(filters_to_add)))
+    packages_to_build = find_packages_to_build(available_packages, package_filters)
+    for package_name in packages_to_build:
+        builder = AirflowDocsBuilder(package_name=package_name)
+        api_dir = builder._api_dir
+        if api_dir.exists():
+            try:
+                if api_dir.iterdir():
+                    shutil.rmtree(api_dir)
+            except StopIteration:
+                pass
     with with_group("Fetching inventories"):
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.
-        packages_without_inventories = fetch_inventories()
+        packages_without_inventories = fetch_inventories(clean_build=clean_build)
     normal_packages, priority_packages = partition(
         lambda d: d in packages_without_inventories, packages_to_build
     )
     normal_packages, priority_packages = list(normal_packages), list(priority_packages)
-    jobs = args.jobs if args.jobs != 0 else os.cpu_count()
+    if len(packages_to_build) > 1 and autobuild:
+        console.print("[red]You cannot use more than 1 package with --autobuild. Quitting.[/]")
+        sys.exit(1)
+    if autobuild:
+        console.print(
+            "[yellow]Autobuild mode is enabled. Forcing --docs-only, --one-pass-only and --verbose[/]"
+        )
+        docs_only = True
+        verbose = True
+        one_pass_only = True
+
+    if len(packages_to_build) == 1:
+        console.print(
+            "[yellow]Building one package. Forcing --one-pass-oly and --jobs to 1 as only one pass is needed."
+        )
+        one_pass_only = True
+        jobs = 1
 
     with with_group(
-        f"Documentation will be built for {len(packages_to_build)} package(s) with up to {jobs} parallel jobs"
+        f"Documentation will be built for {len(packages_to_build)} package(s)"
+        + (f"with up to {jobs} parallel jobs," if jobs > 1 else "")
     ):
         for pkg_no, pkg in enumerate(packages_to_build, start=1):
             console.print(f"{pkg_no}. {pkg}")
@@ -494,10 +615,11 @@ def main():
         # Build priority packages
         package_build_errors, package_spelling_errors = build_docs_for_packages(
             packages_to_build=priority_packages,
+            is_autobuild=autobuild,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
             jobs=jobs,
-            verbose=args.verbose,
+            verbose=verbose,
         )
         if package_build_errors:
             all_build_errors.update(package_build_errors)
@@ -510,24 +632,26 @@ def main():
     # may have failed as well.
     package_build_errors, package_spelling_errors = build_docs_for_packages(
         packages_to_build=packages_to_build if len(priority_packages) > 1 else normal_packages,
+        is_autobuild=autobuild,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         jobs=jobs,
-        verbose=args.verbose,
+        verbose=verbose,
     )
     if package_build_errors:
         all_build_errors.update(package_build_errors)
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
 
-    if not args.one_pass_only:
+    if not one_pass_only:
         # Build documentation for some packages again if it can help them.
         package_build_errors = retry_building_docs_if_needed(
             all_build_errors=all_build_errors,
             all_spelling_errors=all_spelling_errors,
-            args=args,
+            autobuild=autobuild,
             docs_only=docs_only,
             jobs=jobs,
+            verbose=verbose,
             package_build_errors=package_build_errors,
             originally_built_packages=packages_to_build,
             # If spellchecking fails, we need to rebuild all packages first in case some references
@@ -539,9 +663,10 @@ def main():
         package_build_errors = retry_building_docs_if_needed(
             all_build_errors=all_build_errors,
             all_spelling_errors=all_spelling_errors,
-            args=args,
+            autobuild=autobuild,
             docs_only=docs_only,
             jobs=jobs,
+            verbose=verbose,
             package_build_errors=package_build_errors,
             originally_built_packages=packages_to_build,
             # In the 3rd pass we only rebuild packages that failed in the 2nd pass
@@ -556,21 +681,16 @@ def main():
             package_build_errors = retry_building_docs_if_needed(
                 all_build_errors=all_build_errors,
                 all_spelling_errors=all_spelling_errors,
-                args=args,
+                autobuild=autobuild,
                 docs_only=docs_only,
                 jobs=jobs,
+                verbose=verbose,
                 package_build_errors=package_build_errors,
                 originally_built_packages=packages_to_build,
                 # In the 4th pass we only rebuild packages that failed in the 3rd pass
                 # no matter if we do spellcheck-only build
                 rebuild_all_packages=False,
             )
-
-    # if not disable_checks:
-    #     general_errors = lint_checks.run_all_check(disable_provider_checks=disable_provider_checks)
-    #     if general_errors:
-    #         all_build_errors[None] = general_errors
-    #     pass
 
     dev_index_generator.generate_index(f"{GENERATED_PATH}/_build/index.html")
 
@@ -587,9 +707,10 @@ def main():
 def retry_building_docs_if_needed(
     all_build_errors: dict[str, list[DocBuildError]],
     all_spelling_errors: dict[str, list[SpellingError]],
-    args: argparse.Namespace,
+    autobuild: bool,
     docs_only: bool,
     jobs: int,
+    verbose: bool,
     package_build_errors: dict[str, list[DocBuildError]],
     originally_built_packages: list[str],
     rebuild_all_packages: bool,
@@ -616,10 +737,11 @@ def retry_building_docs_if_needed(
             del all_spelling_errors[package_name]
     package_build_errors, package_spelling_errors = build_docs_for_packages(
         packages_to_build=to_retry_packages,
+        is_autobuild=autobuild,
         docs_only=docs_only,
         spellcheck_only=False,
         jobs=jobs,
-        verbose=args.verbose,
+        verbose=verbose,
     )
     if package_build_errors:
         all_build_errors.update(package_build_errors)
@@ -629,4 +751,4 @@ def retry_building_docs_if_needed(
 
 
 if __name__ == "__main__":
-    main()
+    build_docs()
