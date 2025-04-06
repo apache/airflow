@@ -53,7 +53,7 @@ dependencies = [
     # is taken from the front-end not from the backend, so in order to make sure that the
     # packages are reproducible, we should pin both backend in "build-system" and frontend in
     # "dependencies" of the environment that is used to build the packages
-    "flit==3.11.0",
+    "flit==3.12.0",
     "flit-core==3.11.0",
     "google-api-python-client>=2.142.0",
     "google-auth-httplib2>=0.2.0",
