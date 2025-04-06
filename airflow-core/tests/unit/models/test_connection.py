@@ -278,20 +278,22 @@ class TestConnection:
             "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
         }
 
-    @mock.patch("airflow.sdk.Connection")
-    def test_get_connection_from_secrets_task_sdk_success(self, mock_task_sdk_connection):
+    @mock.patch("airflow.sdk.Connection.get")
+    def test_get_connection_from_secrets_task_sdk_success(self, mock_get):
         """Test the get_connection_from_secrets method with Task SDK success path."""
-        # Mock sys.modules for task_runner
+        from airflow.sdk import Connection as SDKConnection
+
+        expected_connection = SDKConnection(conn_id="test_conn", conn_type="test_type")
+        mock_get.return_value = expected_connection
+
         mock_task_runner = mock.MagicMock()
         mock_task_runner.SUPERVISOR_COMMS = True
 
-        expected_connection = Connection(conn_id="test_conn", conn_type="test_type")
-        mock_task_sdk_connection.get.return_value = expected_connection
-
         with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
             result = Connection.get_connection_from_secrets("test_conn")
-            assert result.conn_id == expected_connection.conn_id
-            assert result.conn_type == expected_connection.conn_type
+
+            assert result.conn_id == "test_conn"
+            assert result.conn_type == "test_type"
 
     @mock.patch("airflow.sdk.Connection")
     def test_get_connection_from_secrets_task_sdk_not_found(self, mock_task_sdk_connection):
