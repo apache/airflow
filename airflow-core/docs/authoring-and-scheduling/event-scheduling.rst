@@ -43,7 +43,7 @@ SQS:
 .. code-block:: python
 
     from airflow.sdk import Asset, AssetWatcher
-    from airflow.providers.common.msgq.triggers.msg_queue import MessageQueueTrigger
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
     from airflow.sdk import DAG
     from datetime import datetime
 
