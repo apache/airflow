@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-06T02:35:05.950158
+# This constraints file was automatically generated on 2025-04-06T07:58:55.111735
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -131,7 +131,6 @@ apache-airflow-providers-discord==3.9.4
 apache-airflow-providers-docker==4.3.0
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.3
-apache-airflow-providers-fab==2.0.0rc2
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
 apache-airflow-providers-github==2.8.3
