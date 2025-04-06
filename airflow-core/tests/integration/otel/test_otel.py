@@ -66,7 +66,7 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
         dag_id,
         "--run-id",
         run_id,
-        "--exec-date",
+        "--logical-date",
         execution_date.isoformat(),
     ]
 

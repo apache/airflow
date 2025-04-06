@@ -1013,7 +1013,7 @@ class DagRun(Base, LoggingMixin):
                             ti_carrier = Trace.inject()
                             ti.context_carrier = ti_carrier
                             ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set(ti.key, ti_span)
+                            self.active_spans.set(ti.try_id, ti_span)
             else:
                 self.log.info(
                     "Found span_status '%s', while updating state for dag_run '%s'",

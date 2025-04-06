@@ -59,6 +59,7 @@ class TaskInstance(BaseModel):
     task_id: str
     dag_id: str
     run_id: str
+    try_id: uuid.UUID
     try_number: int
     map_index: int = -1
 
@@ -69,7 +70,6 @@ class TaskInstance(BaseModel):
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None
-    queued_dttm: datetime | None = None
 
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
