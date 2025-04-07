@@ -48,7 +48,7 @@ class TestWorkflowTrigger:
     EXECUTION_DATE = timezone.datetime(2022, 1, 1)
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_success(self, mock_get_count):
         """check the db count get called correctly."""
@@ -85,7 +85,7 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
@@ -122,7 +122,7 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
         mock_get_count.return_value = 0
 
@@ -155,7 +155,7 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_skipped(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
@@ -187,7 +187,7 @@ class TestWorkflowTrigger:
             states=["success", "fail"],
         )
 
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     @mock.patch("asyncio.sleep")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_sleep_success(self, mock_sleep, mock_get_count):
