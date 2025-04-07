@@ -19,6 +19,7 @@ from __future__ import annotations
 import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
@@ -660,3 +661,66 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+async def get_ti_count(
+    dag_id: str,
+    task_ids: list[str] | None = None,
+    task_group_id: str | None = None,
+    logical_dates: list[datetime] | None = None,
+    run_ids: list[str] | None = None,
+    states: list[str] | None = None,
+) -> int:
+    """Return the number of task instances matching the given criteria."""
+    from airflow.sdk.execution_time.comms import GetTICount, TICount
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    log = structlog.get_logger(logger_name="task")
+
+    async with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetTICount(
+                dag_id=dag_id,
+                task_ids=task_ids,
+                task_group_id=task_group_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
+    if not isinstance(response, TICount):
+        raise TypeError(f"Expected TICount, received: {type(response)} {response}")
+
+    return response.count
+
+
+async def get_dr_count(
+    dag_id: str,
+    logical_dates: list[datetime] | None = None,
+    run_ids: list[str] | None = None,
+    states: list[str] | None = None,
+) -> int:
+    """Return the number of DAG runs matching the given criteria."""
+    from airflow.sdk.execution_time.comms import DRCount, GetDRCount
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    log = structlog.get_logger(logger_name="task")
+
+    async with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetDRCount(
+                dag_id=dag_id,
+                logical_dates=logical_dates,
+                run_ids=run_ids,
+                states=states,
+            ),
+        )
+        response = SUPERVISOR_COMMS.get_message()
+
+    if not isinstance(response, DRCount):
+        raise TypeError(f"Expected DRCount, received: {type(response)} {response}")
+
+    return response.count
