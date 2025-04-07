@@ -32,6 +32,7 @@ from airflow.sdk.definitions.xcom_arg import (
 )
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
+from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 __all__ = ["XComArg", "get_task_map_length"]
@@ -92,14 +93,15 @@ class SchedulerConcatXComArg(SchedulerXComArg):
 
 @attrs.define
 class SchedulerZipXComArg(SchedulerXComArg):
-    args: SchedulerXComArg
-    callables: Sequence[str]
+    args: Sequence[SchedulerXComArg]
+    fillvalue: Any
 
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
-        # We are deliberately NOT deserializing the callables. These are shown
-        # in the UI, and displaying a function object is useless.
-        return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
+        return cls(
+            [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
+            fillvalue=data.get("fillvalue", NOTSET),
+        )
 
 
 @attrs.define
