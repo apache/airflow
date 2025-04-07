@@ -23,6 +23,8 @@ import type { StructuredLogMessage } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
+import { LogLinks } from "./LogLinks";
+
 type Frame = {
   filename: string;
   lineno: number;
@@ -56,7 +58,7 @@ export const renderStructuredLog = ({
   if (typeof logMessage === "string") {
     return (
       <chakra.span key={index} lineHeight={1.5}>
-        {logMessage}
+        <LogLinks content={logMessage} />
       </chakra.span>
     );
   }
@@ -147,7 +149,7 @@ export const renderStructuredLog = ({
 
   elements.push(
     <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
-      {event}
+      <LogLinks content={event} />
     </chakra.span>,
   );
 
