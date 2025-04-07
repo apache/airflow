@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Generator, Iterator, Sequence
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.serialization import serde
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -117,7 +118,7 @@ class XComIterable(Iterator, Sequence):
         return XComIterable(**data)
 
 
-class DeferredIterable(Iterator, LoggingMixin):
+class DeferredIterable(Iterator, ResolveMixin, LoggingMixin):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
     def __init__(
@@ -136,7 +137,12 @@ class DeferredIterable(Iterator, LoggingMixin):
         self.context = context
         self.index = 0
 
-    def resolve(self, context: Context) -> DeferredIterable:
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        yield self.operator, XCOM_RETURN_KEY
+
+    def resolve(
+        self, context: Context, *, include_xcom: bool = True
+    ) -> DeferredIterable:
         return DeferredIterable(
             results=self.results,
             trigger=self.trigger,
@@ -159,10 +165,25 @@ class DeferredIterable(Iterator, LoggingMixin):
 
         self.log.info("No more results. Running trigger: %s", self.trigger)
 
+        if not self.context:
+            raise AirflowException("Context is required to run the trigger.")
+
+        results = self._execute_trigger()
+
+        if isinstance(results, (list, set)):
+            self.results.extend(results)
+        else:
+            self.results.append(results)
+
+        self.index += 1
+        return self.results[-1]
+
+    def _execute_trigger(self):
         try:
             with event_loop() as loop:
                 self.log.info("Running trigger: %s", self.trigger)
                 event = loop.run_until_complete(run_trigger(self.trigger))
+                self.operator.render_template_fields(context=self.context)
                 next_method = getattr(self.operator, self.next_method)
                 self.log.info("Triggering next method: %s", self.next_method)
                 results = next_method(self.context, event.payload)
@@ -172,15 +193,13 @@ class DeferredIterable(Iterator, LoggingMixin):
 
         if isinstance(results, DeferredIterable):
             self.trigger = results.trigger
-            self.results.extend(results.results)
-        else:
-            self.trigger = None
-            self.results.extend(results)
+            return results.results
 
-        self.index += 1
-        return self.results[-1]
+        self.trigger = None
+        return results
 
     def __len__(self):
+        # TODO: maybe we should raise an exception here as you can't know the total length of an iterable in advance
         return len(self.results)
 
     def __getitem__(self, index: int):
@@ -201,14 +220,15 @@ class DeferredIterable(Iterator, LoggingMixin):
         }
 
     @classmethod
-    def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> Operator:
+    def get_operator_from_dag(
+        cls, dag_fileloc: str, dag_id: str, task_id: str
+    ) -> Operator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
 
         from airflow.models import DagBag
 
         dag_bag = DagBag(dag_folder=None)  # Avoid loading all DAGs
-        processed_dags = dag_bag.process_file(dag_fileloc)
-        cls.logger().info("processed_dags: %s", processed_dags)
+        dag_bag.process_file(dag_fileloc)
         cls.logger().info("dag_bag: %s", dag_bag)
         cls.logger().info("dags: %s", dag_bag.dags)
         return dag_bag.dags[dag_id].get_task(task_id)
@@ -219,9 +239,14 @@ class DeferredIterable(Iterator, LoggingMixin):
 
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
-        operator = cls.get_operator_from_dag(data["dag_fileloc"], data["dag_id"], data["task_id"])
+        operator = cls.get_operator_from_dag(
+            data["dag_fileloc"], data["dag_id"], data["task_id"]
+        )
         return DeferredIterable(
-            results=data["results"], trigger=trigger, operator=operator, next_method=data["next_method"]
+            results=data["results"],
+            trigger=trigger,
+            operator=operator,
+            next_method=data["next_method"],
         )
 
 

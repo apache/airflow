@@ -33,8 +33,6 @@ from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from airflow.models.iterable import DeferredIterable
-
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -358,6 +356,8 @@ class PlainXComArg(XComArg):
                 default=NOTSET,
             )
         if not isinstance(result, ArgNotSet):
+            if isinstance(result, ResolveMixin):
+                return result.resolve(context)
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
@@ -450,7 +450,7 @@ class MapXComArg(XComArg):
         value = self.arg.resolve(context)
         if not isinstance(value, (Sequence, Iterable, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        if isinstance(value, DeferredIterable):
+        if isinstance(value, ResolveMixin):
             value = value.resolve(context)
         return _MapResult(value, self.callables)
 
