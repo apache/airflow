@@ -570,8 +570,6 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
     :return: task_instance context as dict.
     """
-    from datetime import datetime
-
     from airflow import settings
 
     params = {}
@@ -632,46 +630,3 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
-
-
-async def get_dr_count(
-    dag_id: str,
-    logical_dates: list[datetime] | None = None,
-    run_ids: list[str] | None = None,
-    states: list[str] | None = None,
-) -> int:
-    """Return the number of DAG runs matching the given criteria."""
-    from airflow.sdk.execution_time.comms import DRCount, GetDRCount
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    async with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetDRCount(
-                dag_id=dag_id,
-                logical_dates=logical_dates,
-                run_ids=run_ids,
-                states=states,
-            ),
-        )
-        response = SUPERVISOR_COMMS.get_message()
-
-    if TYPE_CHECKING:
-        assert isinstance(response, DRCount)
-
-    return response.count
-
-
-async def get_dagrun_state(dag_id: str, run_id: str) -> str:
-    """Return the state of the DAG run with the given Run ID."""
-    from airflow.sdk.execution_time.comms import DagRunStateResult, GetDagRunState
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    async with SUPERVISOR_COMMS.lock:
-        SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
-        response = SUPERVISOR_COMMS.get_message()
-
-    if TYPE_CHECKING:
-        assert isinstance(response, DagRunStateResult)
-
-    return response.state

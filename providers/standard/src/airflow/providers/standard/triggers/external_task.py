@@ -197,12 +197,12 @@ class DagStateTrigger(BaseTrigger):
                 await asyncio.sleep(self.poll_interval)
 
     async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
-        from airflow.sdk.execution_time.context import get_dagrun_state, get_dr_count
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         cls_path, data = self.serialize()
 
         while True:
-            num_dags = await get_dr_count(
+            num_dags = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
                 dag_id=self.dag_id,
                 run_ids=self.run_ids,
                 states=self.states,  # type: ignore[arg-type]
@@ -211,7 +211,7 @@ class DagStateTrigger(BaseTrigger):
             if num_dags == runs_ids_or_dates_len:
                 if isinstance(self.run_ids, list):
                     for run_id in self.run_ids:
-                        state = await get_dagrun_state(
+                        state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
                             dag_id=self.dag_id,
                             run_id=run_id,
                         )

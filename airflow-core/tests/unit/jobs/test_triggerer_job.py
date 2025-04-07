@@ -711,9 +711,9 @@ class CustomTriggerDagRun(BaseTrigger):
         )
 
     async def run(self, **args) -> AsyncIterator[TriggerEvent]:
-        from airflow.sdk.execution_time.context import get_dr_count
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        dag_run_states_count = await sync_to_async(get_dr_count)(
+        dag_run_states_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
             dag_id=self.trigger_dag_id,
             run_ids=self.run_ids,
             states=self.states,
@@ -751,7 +751,7 @@ async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, da
             "logical_dates": [dr.logical_date],
         },
     )
-    trigger_orm.id = 1
+
     session.add(trigger_orm)
     session.commit()
     task_instance.trigger_id = trigger_orm.id

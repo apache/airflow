@@ -281,7 +281,7 @@ class TestDagStateTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
-    @mock.patch("airflow.sdk.execution_time.context.get_dr_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
     async def test_dag_state_trigger_af_3(self, mock_get_dag_run_count, session):
         """
         Assert that the DagStateTrigger only goes off on or after a DagRun
