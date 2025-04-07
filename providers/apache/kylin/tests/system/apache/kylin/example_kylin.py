@@ -23,14 +23,23 @@ KylinHook to be compatible with SQLExecuteQueryOperator.
 """
 
 # ===================== Monkey Patch Start =====================
+from __future__ import annotations
+
+import datetime
+
+import airflow.providers.apache.kylin.hooks.kylin as kylin_hooks
+from airflow import DAG
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook as OriginalKylinHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
 
 class PatchedKylinHook(DbApiHook, OriginalKylinHook):
     """
     Patched version of KylinHook that inherits from DbApiHook.
     This allows SQLExecuteQueryOperator to use it.
     """
+
     conn_name_attr = "kylin_conn_id"
     default_conn_name = "my_kylin_conn"
     supports_autocommit = True
@@ -60,19 +69,17 @@ class PatchedKylinHook(DbApiHook, OriginalKylinHook):
             raise ValueError("Project name must be provided in the connection's schema field.")
         url = f"http://{host}:{port}/kylin/api/query"
         import requests
+
         payload = {"sql": sql, "project": project}
         response = requests.post(url, json=payload, auth=(conn.login, conn.password))
         response.raise_for_status()
         return response.json()
 
-# Apply the monkey patch by replacing the original KylinHook with our patched version.
-import airflow.providers.apache.kylin.hooks.kylin as kylin_hooks
-kylin_hooks.KylinHook = PatchedKylinHook
-# ===================== Monkey Patch End =====================
 
-import datetime
-from airflow import DAG
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+# Apply the monkey patch by replacing the original KylinHook with our patched version.
+kylin_hooks.KylinHook = PatchedKylinHook
+
+# ===================== Monkey Patch End =====================
 
 DAG_ID = "example_kylin"
 
@@ -83,7 +90,6 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-
     # [START howto_operator_kylin]
     create_table_kylin_task = SQLExecuteQueryOperator(
         task_id="create_table_kylin",
@@ -128,7 +134,9 @@ with DAG(
     )
 
     from tests_common.test_utils.watcher import watcher
+
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
 test_run = get_test_run(dag)

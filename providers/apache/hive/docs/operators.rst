@@ -26,7 +26,7 @@ Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.s
 Hive commands in an `Apache Hive <https://cwiki.apache.org/confluence/display/Hive/Home>`__ database.
 
 .. note::
-    Previously, ``HiveOperator`` was used to perform this kind of operation. 
+    Previously, ``HiveOperator`` was used to perform this kind of operation.
     After deprecation this has been removed. Please use ``SQLExecuteQueryOperator`` instead.
 
 .. note::
