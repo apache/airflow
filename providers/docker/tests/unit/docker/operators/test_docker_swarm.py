@@ -210,9 +210,9 @@ class TestDockerSwarmOperator:
         )
         operator.execute(None)
 
-        assert (
-            client_mock.remove_service.call_count == 0
-        ), "Docker service being removed even when `auto_remove` set to `never`"
+        assert client_mock.remove_service.call_count == 0, (
+            "Docker service being removed even when `auto_remove` set to `never`"
+        )
 
     @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")

@@ -17,4 +17,4 @@ The BaseNotifier class has been moved to ``airflow.sdk``.
 
     * AIR302
 
-      * [ ] ``airflow.notifications.basenotifier.BaseNotifier`` → ``airflow.sdk.BaseNotifier``
+      * [x] ``airflow.notifications.basenotifier.BaseNotifier`` → ``airflow.sdk.BaseNotifier``

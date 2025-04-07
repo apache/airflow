@@ -26,7 +26,7 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-fab",
         "name": "Fab",
         "description": "`Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__\n",
-        "state": "not-ready",
+        "state": "ready",
         "source-date-epoch": 1741121873,
         "versions": [
             "2.0.0",
@@ -97,5 +97,5 @@ def get_provider_info():
             "werkzeug>=2.2,<4",
         ],
         "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},
-        "devel-dependencies": ["kerberos>=1.3.0"],
+        "devel-dependencies": ["kerberos>=1.3.0", "requests_kerberos>=0.14.0"],
     }

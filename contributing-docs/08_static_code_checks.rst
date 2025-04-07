@@ -179,8 +179,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-hatch-build-order                                   | Check order of dependencies in hatch_build.py          |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-imports-in-providers                                | Check imports in providers                             |         |
@@ -220,8 +218,6 @@ require Breeze Docker image to be built locally.
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-pyproject-toml-consistency                          | Check consistency of Airflow's pyproject.toml          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -318,23 +314,23 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-airflow                                              | * Run mypy for airflow                                 | *       |
-|                                                           | * Run mypy for airflow (manual)                        |         |
+| mypy-airflow-core                                         | * Run mypy for airflow-core                            | *       |
+|                                                           | * Run mypy for airflow-core (manual)                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-airflowctl                                           | * Run mypy for airflowctl                              | *       |
-|                                                           | * Run mypy for airflowctl (manual)                     |         |
+| mypy-airflow-ctl                                          | * Run mypy for airflow-ctl                             | *       |
+|                                                           | * Run mypy for airflow-ctl (manual)                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-dev                                                  | * Run mypy for dev                                     | *       |
 |                                                           | * Run mypy for dev (manual)                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-docs                                                 | * Run mypy for /docs/ folder                           | *       |
-|                                                           | * Run mypy for /docs/ folder (manual)                  |         |
+| mypy-devel-common                                         | * Run mypy for devel-common                            | *       |
+|                                                           | * Run mypy for devel-common (manual)                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-providers                                            | * Run mypy for providers                               | *       |
 |                                                           | * Run mypy for providers (manual)                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| mypy-task-sdk                                             | * Run mypy for Task SDK                                | *       |
-|                                                           | * Run mypy for Task SDK (manual)                       |         |
+| mypy-task-sdk                                             | * Run mypy for task-sdk                                | *       |
+|                                                           | * Run mypy for task-sdk (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -366,8 +362,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-er-diagram                                         | Update ER diagram                                      | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-extras                                             | Update extras in documentation                         |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-in-the-wild-to-be-sorted                           | Sort INTHEWILD.md alphabetically                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts            |         |
@@ -383,6 +377,8 @@ require Breeze Docker image to be built locally.
 | update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for providers                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-pyproject-toml                                     | Update Airflow's meta-package pyproject.toml           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -453,7 +449,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=mypy-airflow,ruff pre-commit run --all-files
+    SKIP=mypy-airflow-core,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -468,7 +464,7 @@ In case you have a problem with running particular ``pre-commit`` check you can 
 benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
 checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
 when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-``export SKIP=ruff,mypy-airflow,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+``export SKIP=ruff,mypy-airflow-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
 do not want to set it manually every time you enter the terminal.
 
 In case you do not have breeze image configured locally, you can also disable all checks that require breeze
@@ -487,7 +483,7 @@ Mypy checks
 -----------
 
 When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
-``mypy-dev``, ``mypy-providers``, ``mypy-docs``, depending on the files you are changing. The mypy checks
+``mypy-dev``, ``mypy-providers``, ``mypy-airflow-ctl``, depending on the files you are changing. The mypy checks
 are run by passing those changed files to mypy. This is way faster than running checks for all files (even
 if mypy cache is used - especially when you change a file in airflow core that is imported and used by many
 files). However, in some cases, it produces different results than when running checks for the whole set

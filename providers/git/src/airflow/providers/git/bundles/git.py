@@ -30,7 +30,7 @@ from airflow.dag_processing.bundles.base import (
 from airflow.exceptions import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 class GitDagBundle(BaseDagBundle):
@@ -172,7 +172,7 @@ class GitDagBundle(BaseDagBundle):
         try:
             repo.commit(version)
             return True
-        except BadName:
+        except (BadName, ValueError):
             return False
 
     def _fetch_bare_repo(self):
@@ -223,6 +223,11 @@ class GitDagBundle(BaseDagBundle):
         host = parsed_url.hostname
         if not host:
             return None
+        if parsed_url.username or parsed_url.password:
+            new_netloc = host
+            if parsed_url.port:
+                new_netloc += f":{parsed_url.port}"
+            url = parsed_url._replace(netloc=new_netloc).geturl()
         host_patterns = {
             "github.com": f"{url}/tree/{version}",
             "gitlab.com": f"{url}/-/tree/{version}",

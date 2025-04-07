@@ -45,7 +45,7 @@ from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
+from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import Operator
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
@@ -296,7 +296,7 @@ class SerializedDagModel(Base):
     load_op_links = True
 
     def __init__(self, dag: DAG | LazyDeserializedDAG) -> None:
-        from airflow.models.dag import DAG
+        from airflow.sdk import DAG
 
         self.dag_id = dag.dag_id
         dag_data = {}
@@ -380,10 +380,12 @@ class SerializedDagModel(Base):
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
             if session.scalar(
-                select(literal(True)).where(
+                select(literal(True))
+                .where(
                     cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                 )
+                .select_from(cls)
             ):
                 return False
 
@@ -555,32 +557,6 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         return session.scalar(cls.latest_item_select_object(dag_id))
-
-    @staticmethod
-    @provide_session
-    def bulk_sync_to_db(
-        dags: list[DAG] | list[LazyDeserializedDAG],
-        bundle_name: str,
-        bundle_version: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Save DAGs as Serialized DAG objects in the database.
-
-        Each DAG is saved in a separate database query.
-
-        :param dags: the DAG objects to save to the DB
-        :param session: ORM Session
-        :return: None
-        """
-        for dag in dags:
-            SerializedDagModel.write_dag(
-                dag=dag,
-                bundle_name=bundle_name,
-                bundle_version=bundle_version,
-                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                session=session,
-            )
 
     @classmethod
     @provide_session

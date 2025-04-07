@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Spacer, Text } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -32,7 +32,6 @@ import {
 import React, { type ReactNode, useCallback, useRef, useState } from "react";
 
 import { CardList } from "src/components/DataTable/CardList";
-import FilterMenuButton from "src/components/DataTable/FilterMenuButton";
 import { TableList } from "src/components/DataTable/TableList";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
@@ -60,7 +59,7 @@ type DataTableProps<TData> = {
 const defaultGetRowCanExpand = () => false;
 
 export const DataTable = <TData,>({
-  allowFiltering = true,
+  allowFiltering,
   cardDef,
   columns,
   data,
@@ -129,16 +128,17 @@ export const DataTable = <TData,>({
     (table.getState().pagination.pageIndex !== 0 ||
       (table.getState().pagination.pageIndex === 0 && rows.length !== total));
 
+  // Default to show columns filter only if there are actually many columns displayed
+  const showColumnsFilter = allowFiltering ?? columns.length > 5;
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
-      <HStack>
-        <Spacer display="flow" />
-        {allowFiltering && hasRows && display === "table" ? <FilterMenuButton table={table} /> : undefined}
-      </HStack>
       {errorMessage}
-      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
+      {hasRows && display === "table" ? (
+        <TableList allowFiltering={showColumnsFilter} table={table} />
+      ) : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}

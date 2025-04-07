@@ -216,6 +216,7 @@ export const $AssetEventResponse = {
     extra: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -301,6 +302,7 @@ export const $AssetResponse = {
     extra: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -399,6 +401,7 @@ export const $BackfillPostBody = {
       default: false,
     },
     dag_run_conf: {
+      additionalProperties: true,
       type: "object",
       title: "Dag Run Conf",
       default: {},
@@ -441,6 +444,7 @@ export const $BackfillResponse = {
       title: "To Date",
     },
     dag_run_conf: {
+      additionalProperties: true,
       type: "object",
       title: "Dag Run Conf",
     },
@@ -612,6 +616,7 @@ export const $BulkActionResponse = {
     },
     errors: {
       items: {
+        additionalProperties: true,
         type: "object",
       },
       type: "array",
@@ -1220,8 +1225,16 @@ export const $ConfigResponse = {
       title: "Test Connection",
     },
     state_color_mapping: {
+      additionalProperties: true,
       type: "object",
       title: "State Color Mapping",
+    },
+    dashboard_alert: {
+      items: {
+        $ref: "#/components/schemas/UIAlert",
+      },
+      type: "array",
+      title: "Dashboard Alert",
     },
   },
   type: "object",
@@ -1245,6 +1258,7 @@ export const $ConfigResponse = {
     "audit_view_included_events",
     "test_connection",
     "state_color_mapping",
+    "dashboard_alert",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",
@@ -1479,6 +1493,7 @@ export const $ConnectionHookMetaData = {
     extra_fields: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -1632,6 +1647,7 @@ export const $CreateAssetEventsBody = {
       title: "Asset Id",
     },
     extra: {
+      additionalProperties: true,
       type: "object",
       title: "Extra",
     },
@@ -1706,11 +1722,25 @@ export const $DAGDetailsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -1858,6 +1888,7 @@ export const $DAGDetailsResponse = {
     asset_expression: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -1915,6 +1946,7 @@ export const $DAGDetailsResponse = {
     params: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -2091,11 +2123,25 @@ export const $DAGResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -2445,9 +2491,17 @@ export const $DAGRunResponse = {
       $ref: "#/components/schemas/DagRunState",
     },
     triggered_by: {
-      $ref: "#/components/schemas/DagRunTriggeredByType",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagRunTriggeredByType",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     conf: {
+      additionalProperties: true,
       type: "object",
       title: "Conf",
     },
@@ -2889,11 +2943,25 @@ export const $DAGWithLatestDagRunsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -3025,6 +3093,7 @@ export const $DAGWithLatestDagRunsResponse = {
     asset_expression: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -3646,6 +3715,24 @@ export const $FastAPIAppResponse = {
   description: "Serializer for Plugin FastAPI App responses.",
 } as const;
 
+export const $FastAPIRootMiddlewareResponse = {
+  properties: {
+    middleware: {
+      type: "string",
+      title: "Middleware",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["middleware", "name"],
+  title: "FastAPIRootMiddlewareResponse",
+  description: "Serializer for Plugin FastAPI root middleware responses.",
+} as const;
+
 export const $GridDAGRunwithTIs = {
   properties: {
     dag_run_id: {
@@ -3735,17 +3822,6 @@ export const $GridDAGRunwithTIs = {
       ],
       title: "Data Interval End",
     },
-    version_number: {
-      anyOf: [
-        {
-          type: "integer",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Version Number",
-    },
     note: {
       anyOf: [
         {
@@ -3777,7 +3853,6 @@ export const $GridDAGRunwithTIs = {
     "logical_date",
     "data_interval_start",
     "data_interval_end",
-    "version_number",
     "note",
     "task_instances",
   ],
@@ -3794,9 +3869,12 @@ export const $GridResponse = {
       type: "array",
       title: "Dag Runs",
     },
+    structure: {
+      $ref: "#/components/schemas/StructureDataResponse",
+    },
   },
   type: "object",
-  required: ["dag_runs"],
+  required: ["dag_runs", "structure"],
   title: "GridResponse",
   description: "Response model for the Grid UI.",
 } as const;
@@ -3911,6 +3989,7 @@ export const $HTTPExceptionResponse = {
           type: "string",
         },
         {
+          additionalProperties: true,
           type: "object",
         },
       ],
@@ -4019,7 +4098,14 @@ export const $ImportErrorResponse = {
       title: "Filename",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     stack_trace: {
@@ -4407,6 +4493,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Apps",
     },
+    fastapi_root_middlewares: {
+      items: {
+        $ref: "#/components/schemas/FastAPIRootMiddlewareResponse",
+      },
+      type: "array",
+      title: "Fastapi Root Middlewares",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -4460,6 +4553,7 @@ export const $PluginResponse = {
     "macros",
     "flask_blueprints",
     "fastapi_apps",
+    "fastapi_root_middlewares",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
@@ -5436,6 +5530,7 @@ export const $TaskInstanceResponse = {
       title: "Rendered Map Index",
     },
     rendered_fields: {
+      additionalProperties: true,
       type: "object",
       title: "Rendered Fields",
     },
@@ -6168,6 +6263,7 @@ export const $TaskResponse = {
     params: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -6179,6 +6275,7 @@ export const $TaskResponse = {
     class_ref: {
       anyOf: [
         {
+          additionalProperties: true,
           type: "object",
         },
         {
@@ -6330,6 +6427,7 @@ export const $TriggerDAGRunPostBody = {
       title: "Run After",
     },
     conf: {
+      additionalProperties: true,
       type: "object",
       title: "Conf",
     },
@@ -6418,6 +6516,24 @@ export const $TriggererInfoResponse = {
   required: ["status", "latest_triggerer_heartbeat"],
   title: "TriggererInfoResponse",
   description: "Triggerer info serializer for responses.",
+} as const;
+
+export const $UIAlert = {
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+    },
+    category: {
+      type: "string",
+      enum: ["info", "warning", "error"],
+      title: "Category",
+    },
+  },
+  type: "object",
+  required: ["text", "category"],
+  title: "UIAlert",
+  description: "Optional alert to be shown at the top of the page.",
 } as const;
 
 export const $ValidationError = {

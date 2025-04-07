@@ -29,6 +29,8 @@ from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 pytestmark = pytest.mark.db_test
 
 
@@ -341,6 +343,7 @@ class TestDockerDecorator:
             with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
                 f()
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
         "serializer",
         [

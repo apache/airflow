@@ -36,7 +36,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 from airflow.models.iterable import DeferredIterable
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
 

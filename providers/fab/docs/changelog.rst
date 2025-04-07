@@ -20,8 +20,8 @@
 Changelog
 ---------
 
-2.0.0b1
-.......
+2.0.0
+.....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -54,15 +54,132 @@ Features
 * ``Set up JWT token authentication in Fast APIs (#42634)``
 * ``AIP-79 Support Airflow 2.x plugins in fast api. Embed a minimal version of the Flask application in fastapi application (#44464)``
 
-
 Misc
 ~~~~
 
 * ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
 
-.. Review and move the new changes to one of the sections above:
+Full list of unclassified changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``(Re)move old dependencies from the old FAB UI (#48007)``
+* ``AIP 84 - Add auth for asset alias (#47241)``
+* ``AIP-38 Fix safari login loop in dev mode (#47859)``
+* ``AIP-38 Move token handling to axios interceptor (#47562)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``AIP-79 Generate assets for Flask application in FAB provider (#44744) (#45060)``
+* ``AIP-81 | AIP-84 | Include Token Generation Endpoints in FAB (#47043)``
+* ``AIP-81: Flatten core CLI commands (#48224)``
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``AIP-84 Add Auth for DAG Versioning (#47553)``
+* ``AIP-84 Add Auth for backfill (#47482)``
+* ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+* ``Add 'logout' method in auth manager interface (#47573)``
+* ``Add AWS SageMaker Unified Studio Workflow Operator (#45726)``
+* ``Add authentication section in FAB auth manager API documentation (#48455)``
+* ``Add back 'get_url_logout' in auth managers but make it optional (#47729)``
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+* ``Add missing methods in fab provider's AirflowAppBuilder class (#45611)``
+* ``Add option in auth manager interface to define FastAPI api (#45009)``
+* ``Add option in auth managers to specify DB manager (#48196)``
+* ``Add run_after column to DagRun model (#45732)``
+* ``Add some typing and require kwargs for auth manager (#47455)``
+* ``Avoid imports from "providers" (#46801)``
+* ``Bump dompurify in /providers/fab/src/airflow/providers/fab/www (#46798)``
+* ``Bump eslint in /providers/fab/src/airflow/providers/fab/www (#48143)``
+* ``Bump eslint-config-prettier (#48206)``
+* ``Bump serialize-javascript, copy-webpack-plugin and terser-webpack-plugin (#46698)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 21 updates (#48414)``
+* ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+* ``Call 'init' from auth managers only once (#47869)``
+* ``Clean Leftovers of RemovedInAirflow3Warning (#47264)``
+* ``Clean up simple auth and fab provider package json files (#47516)``
+* ``Cleanup leftovers from api connexion (#47490)``
+* ``Convert exceptions raised in Flask application to fastapi exceptions (#45625)``
+* ``Cookies in non TLS mode (#48453)``
+* ``Disable Flask-SQLAlchemy modification tracking in FAB provider (#46249)``
+* ``Do not use FAB auth manager methods in views (#47747)``
+* ``Do not use core Airflow Flask related resources in FAB provider (#45441)``
+* ``Do not use core Airflow Flask related resources in FAB provider (package 'api_connexion') (#45473)``
+* ``Do not use core Airflow Flask related resources in FAB provider (package 'security') (#45471)``
+* ``Expose security views in Flask application in FAB provider (#46203)``
+* ``FAB login. Fix asset URLs and missing alert (#47586)``
+* ``Fix 'conf.get_boolean("api", "ssl_cert")' (#48465)``
+* ``Fix 'get_menu_items' in FAB auth manager (#47688)``
+* ``Fix 'sync-perm' CLI command (#47626)``
+* ``Fix FAB static asset (#46727)``
+* ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
+* ``Fix new UI when running outside of breeze (#46991)``
+* ``Fix section for base_url in FAB auth manager (#47173)``
+* ``Get rid of google-re2 as dependency (#47493)``
+* ``Handle user deletion while being logged in in FAB auth manager (#48754)``
+* ``Implement 'simple_auth_manager_all_admins' in simple auth manager with new auth flow (#47514)``
+* ``Improve documentation for updating provider dependencies (#47203)``
+* ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+* ``Make FAB auth manager login process compatible with Airflow 3 UI (#45765)``
+* ``Make parameter 'user' mandatory for all methods in the auth manager interface (#45986)``
+* ``Marking fab and common messaging as not ready (#47581)``
+* ``Move "create db from orm" to be a public method in db manager interface (#48000)``
+* ``Move 'airflow.www.auth' to 'airflow.providers.fab.www.auth' (#47307)``
+* ``Move 'airflow/api_fastapi/auth/managers/utils/fab' to FAB provider (#47571)``
+* ``Move 'fastapi-api' command to 'api-server' (#47076)``
+* ``Move FAB session table creation to FAB provider (#47969)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+* ``Move airflow sources to airflow-core package (#47798)``
+* ``Move api-server to port 8080 (#47310)``
+* ``Move fab provider to new structure (#46144)``
+* ``Move flask-based tests of providers manager to FAB provider tests (#48113)``
+* ``Move provider_tests to unit folder in provider tests (#46800)``
+* ``Move tests_common package to devel-common project (#47281)``
+* ``Moving EmptyOperator to standard provider (#46231)``
+* ``Prepare fab ad-hoc release December 2024 (#45218)``
+* ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+* ``Rebuild FAB assets (#48116)``
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``Remove '/webapp' prefix from new UI (#47041)``
+* ``Remove 'airflow.www' module (#47318)``
+* ``Remove 'api_connexion' (#47171)``
+* ``Remove 'is_in_fab' in FAB auth manager (#47465)``
+* ``Remove auth backends from core Airflow (#47399)``
+* ``Remove extra whitespace in provider readme template (#46975)``
+* ``Remove links to x/twitter.com (#47801)``
+* ``Remove old UI and webserver (#46942)``
+* ``Remove old provider references and replace "new" with just providers (#46810)``
+* ``Remove references of "airflow.www" in FAB provider (#46914)``
+* ``Remove unused code in Fab provider (#47510)``
+* ``Remove unused methods from auth managers (#47316)``
+* ``Remove unused webserver configs (#48066)``
+* ``Removed the unused provider's distribution (#46608)``
+* ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+* ``Set JWT token to localStorage from cookies (#47432)``
+* ``Set simple auth manager as default (#47691)``
+* ``Simplify tooling by switching completely to uv (#48223)``
+* ``Stop reserializing DAGs during db migration (#45362)``
+* ``Update FAB auth manager 'get_url_login' method to handle AF2 and AF3 (#46527)``
+* ``Update FAB provider documentation (#48247)``
+* ``Update create token apis in simple auth manager (#48498)``
+* ``Update docstring for users param in auth managers (#47334)``
+* ``Update fast-api generated code after Pydantic upgrade (#48484)``
+* ``Update simple auth manager documentation to include token API (#48454)``
+* ``Upgrade 'copy-webpack-plugin' to latest version in FAB provider (#48399)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+* ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+* ``Upgrade ruff to latest version (#48553)``
+* ``Upgrade to FAB 4.5.3 (#45874)``
+* ``Use SimpleAuthManager for standalone (#48036)``
+* ``Use a single http tag to report the server's location to front end, not two (#47572)``
+* ``Use different default algorithms for different werkzeug versions (#46384)``
+* ``feat(AIP-84): add auth to /ui/backfills (#47657)``
+* ``forward port fab 1.5.2 to main branch (#45377)``
+* ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prevent __init__.py in providers from being modified (#44713)``
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Prepare docs for Nov 1st wave of providers Dec 2024 (#45042)``
+   * ``Prepare documentation for FAB 2.0.0rc2 release (#48745)``
 
 1.5.3
 .....

@@ -57,7 +57,7 @@ def get_tasks(
     except AttributeError as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
     return TaskCollectionResponse(
-        tasks=cast(list[TaskResponse], tasks),
+        tasks=cast("list[TaskResponse]", tasks),
         total_entries=len(tasks),
     )
 
@@ -81,4 +81,4 @@ def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
         task = dag.get_task(task_id=task_id)
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with id {task_id} was not found")
-    return cast(TaskResponse, task)
+    return cast("TaskResponse", task)

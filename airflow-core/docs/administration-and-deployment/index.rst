@@ -28,6 +28,7 @@ This section contains information about deploying dags into production and the a
     kubernetes
     lineage
     listeners
+    dag-bundles
     dag-serialization
     modules_management
     scheduler

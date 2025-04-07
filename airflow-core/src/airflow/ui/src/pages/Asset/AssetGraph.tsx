@@ -64,7 +64,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
       ...edge.data,
       rest: {
         ...edge.data?.rest,
-        isSelected: `asset:${asset?.name}` === edge.source || `asset:${asset?.name}` === edge.target,
+        isSelected: `asset:${asset?.id}` === edge.source || `asset:${asset?.id}` === edge.target,
       },
     },
   }));

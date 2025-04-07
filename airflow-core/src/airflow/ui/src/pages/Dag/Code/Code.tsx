@@ -28,6 +28,8 @@ import {
   useDagSourceServiceGetDagSource,
   useDagVersionServiceGetDagVersion,
 } from "openapi/queries";
+import type { ApiError } from "openapi/requests/core/ApiError";
+import type { DAGSourceResponse } from "openapi/requests/types.gen";
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
@@ -65,7 +67,7 @@ export const Code = () => {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
-  } = useDagSourceServiceGetDagSource({
+  } = useDagSourceServiceGetDagSource<DAGSourceResponse, ApiError | null>({
     dagId: dagId ?? "",
     versionNumber: selectedVersion,
   });
@@ -117,7 +119,7 @@ export const Code = () => {
           }
         </HStack>
         <HStack>
-          <DagVersionSelect />
+          <DagVersionSelect showLabel={false} />
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>
@@ -126,7 +128,8 @@ export const Code = () => {
           </Button>
         </HStack>
       </HStack>
-      <ErrorAlert error={error ?? codeError} />
+      {/* We want to show an empty state on 404 instead of an error */}
+      <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
       <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
       <div
         style={{
@@ -174,7 +177,7 @@ export const Code = () => {
           style={style}
           wrapLongLines={wrap}
         >
-          {code?.content ?? ""}
+          {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
         </SyntaxHighlighter>
       </div>
     </Box>

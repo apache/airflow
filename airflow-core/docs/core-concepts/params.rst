@@ -38,7 +38,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.sdk.definiti
 .. code-block::
    :emphasize-lines: 7-10
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.sdk import Param
 
@@ -361,24 +361,24 @@ The following features are supported in the Trigger UI Form:
 For examples, please take a look at the two example dags provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
 
 .. _params-trigger-ui:
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_trigger_ui.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_trigger_ui.py
     :language: python
     :start-after: [START params_trigger]
     :end-before: [END params_trigger]
 
 
 .. _params-ui-tutorial:
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_1]
     :end-before: [END section_1]
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_2]
     :end-before: [END section_2]
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_params_ui_tutorial.py
+.. exampleinclude:: /../src/airflow/example_dags/example_params_ui_tutorial.py
     :language: python
     :start-after: [START section_3]
     :end-before: [END section_3]

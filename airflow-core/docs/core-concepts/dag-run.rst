@@ -101,7 +101,7 @@ then you will want to turn catchup off, which is the default setting or can be d
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
 
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
@@ -219,7 +219,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the co
 
 .. code-block:: bash
 
-    airflow dags trigger --exec-date logical_date run_id
+    airflow dags trigger --logical-date logical_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger's timestamp and are displayed
 in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
@@ -241,7 +241,7 @@ Example of a parameterized DAG:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(

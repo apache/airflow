@@ -50,7 +50,7 @@ Creating an ObjectStoragePath
 The ObjectStoragePath is a path-like object that represents a path on object storage.
 It is the fundamental building block of the Object Storage API.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_objectstorage.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_objectstorage.py
     :language: python
     :start-after: [START create_object_storage_path]
     :end-before: [END create_object_storage_path]
@@ -80,7 +80,7 @@ An ObjectStoragePath behaves mostly like a pathlib.Path object. You can
 use it to save and load data directly to and from object storage. So, a typical
 flow could look like this:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_objectstorage.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_objectstorage.py
     :language: python
     :start-after: [START get_air_quality_data]
     :end-before: [END get_air_quality_data]
@@ -113,7 +113,7 @@ In Duck DB we can then create a table from the data and run a query on it. The
 query is returned as a dataframe, which could be used for further analysis or
 saved to object storage.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_objectstorage.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_objectstorage.py
     :language: python
     :start-after: [START analyze]
     :end-before: [END analyze]
@@ -128,7 +128,7 @@ Putting it all together
 
 The final DAG looks like this, which wraps things so that we can run it:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_objectstorage.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_objectstorage.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]

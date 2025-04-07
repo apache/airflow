@@ -49,7 +49,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                 start_date = datetime(2021 + i, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
                 dag_run = DagRun(
                     dag_id=dag_id,
-                    run_id=f"run_id_{i+1}",
+                    run_id=f"run_id_{i + 1}",
                     run_type=DagRunType.MANUAL,
                     start_date=start_date,
                     logical_date=start_date,
@@ -85,7 +85,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_return_200(self, test_client, query_params, expected_ids, expected_total_dag_runs):
-        response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
+        response = test_client.get("/dags/recent_dag_runs", params=query_params)
         assert response.status_code == 200
         body = response.json()
         required_dag_run_key = [
@@ -108,9 +108,9 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/dags/recent_dag_runs", params={})
+        response = unauthenticated_test_client.get("/dags/recent_dag_runs", params={})
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/dags/recent_dag_runs", params={})
+        response = unauthorized_test_client.get("/dags/recent_dag_runs", params={})
         assert response.status_code == 403

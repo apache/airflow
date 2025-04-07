@@ -34,7 +34,7 @@ Example "TaskFlow API" Pipeline
 Here is a very simple pipeline using the TaskFlow API paradigm. A more detailed
 explanation is given below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -57,7 +57,7 @@ when we set this up with Airflow, without any retries or complex scheduling.
 In this example, please notice that we are creating this DAG using the ``@dag`` decorator
 as shown below, with the Python function name acting as the DAG identifier.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -65,7 +65,7 @@ as shown below, with the Python function name acting as the DAG identifier.
 Now to actually enable this to be run as a DAG, we invoke the Python function
 ``tutorial_taskflow_api`` set up using the ``@dag`` decorator earlier, as shown below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START dag_invocation]
     :end-before: [END dag_invocation]
@@ -79,7 +79,7 @@ Tasks
 In this data pipeline, tasks are created based on Python functions using the ``@task`` decorator
 as shown below. The function name acts as a unique identifier for the task.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START extract]
@@ -94,7 +94,7 @@ Main flow of the DAG
 Now that we have the Extract, Transform, and Load tasks defined based on the Python functions,
 we can move to the main part of the DAG.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -109,7 +109,7 @@ running on different workers on different nodes on the network is all handled by
 Now to actually enable this to be run as a DAG, we invoke the Python function
 ``tutorial_taskflow_api`` set up using the ``@dag`` decorator earlier, as shown below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :start-after: [START dag_invocation]
     :end-before: [END dag_invocation]
@@ -120,7 +120,7 @@ But how?
 For experienced Airflow DAG authors, this is startlingly simple! Let's contrast this with
 how this DAG had to be written before Airflow 2.0 below:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_dag.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_dag.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -131,7 +131,7 @@ it is all abstracted from the DAG developer.
 Let's examine this in detail by looking at the Transform task in isolation since it is
 in the middle of the data pipeline. In Airflow 1.x, this task is defined as shown below:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_dag.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_dag.py
     :language: python
     :dedent: 4
     :start-after: [START transform_function]
@@ -143,7 +143,7 @@ into another XCom variable which will then be used by the Load task.
 
 Contrasting that with TaskFlow API in Airflow 2.0 as shown below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START transform]
@@ -157,7 +157,7 @@ Similarly, task dependencies are automatically generated within TaskFlows based 
 functional invocation of tasks. In Airflow 1.x, tasks had to be explicitly created and
 dependencies specified as shown below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_dag.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_dag.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -166,7 +166,7 @@ dependencies specified as shown below.
 In contrast, with the TaskFlow API in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_api.py
     :language: python
     :dedent: 4
     :start-after: [START main_flow]
@@ -268,7 +268,7 @@ run your function.
 
 Example (dynamically created virtualenv):
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_python_venv]
@@ -286,7 +286,7 @@ made available in all workers that can execute the tasks in the same location.
 
 Example with ``@task.external_python`` (using immutable, pre-existing virtualenv):
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]
@@ -369,7 +369,7 @@ an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` metho
 
   .. code-block:: python
 
-    from airflow.sensors.base import PokeReturnValue
+    from airflow.sdk import PokeReturnValue
 
 
     class SensorWithXcomValue(BaseSensorOperator):
@@ -386,7 +386,7 @@ pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
   .. code-block:: python
 
     try:
-        from airflow.sensors.base import PokeReturnValue
+        from airflow.sdk import PokeReturnValue
     except ImportError:
         PokeReturnValue = None
 
@@ -412,7 +412,7 @@ function can return a boolean-like value where ``True`` designates the sensor's 
 
 .. _taskflow/task_sensor_example:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_sensor_decorator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_sensor_decorator.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -680,7 +680,7 @@ Finally, you can also manually render templates:
 
 Here is a full example that demonstrates everything above:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/tutorial_taskflow_templates.py
+.. exampleinclude:: /../src/airflow/example_dags/tutorial_taskflow_templates.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]

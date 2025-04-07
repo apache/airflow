@@ -31,6 +31,8 @@ from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 pytestmark = pytest.mark.db_test
 
 
@@ -317,8 +319,25 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
     @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
-    def test_sensor(self):
+    def test_sensor(self, run_task):
+        sensor = HttpSensor(
+            task_id="http_sensor_check",
+            http_conn_id="http_default",
+            endpoint="/search",
+            request_params={"client": "ubuntu", "q": "airflow", "date": "{{ds}}"},
+            headers={},
+            response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
+            poke_interval=5,
+            timeout=15,
+            dag=self.dag,
+        )
+        run_task(sensor)
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    def test_sensor_af2(self):
         sensor = HttpSensor(
             task_id="http_sensor_check",
             http_conn_id="http_default",

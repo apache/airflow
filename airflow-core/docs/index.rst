@@ -36,7 +36,7 @@ code" serves several purposes:
 Dags
 -----------------------------------------
 
-.. include:: ../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
@@ -46,7 +46,7 @@ Take a look at the following snippet of code:
 
     from datetime import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.providers.standard.operators.bash import BashOperator
 
@@ -85,7 +85,7 @@ seen running over time:
 Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
 other views which allow you to deep dive into the state of your workflows.
 
-.. include:: ../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 

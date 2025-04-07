@@ -77,7 +77,7 @@ apache-airflow-providers-postgres package
 `PostgreSQL <https://www.postgresql.org/>`__
 
 
-Release: 6.1.1
+Release: 6.1.2
 
 Provider package
 ----------------
@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow-providers-common-sql``  ``>=1.23.0``
 ``psycopg2-binary``                      ``>=2.9.9``
 ``asyncpg``                              ``>=0.30.0``
 =======================================  ==================
@@ -110,7 +110,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -133,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-postgres 6.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-postgres 6.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-postgres 6.1.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-postgres 6.1.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-6.1.2-py3-none-any.whl.sha512>`__)

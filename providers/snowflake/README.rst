@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-snowflake``
 
-Release: ``6.1.1``
+Release: ``6.2.0``
 
 
 `Snowflake <https://www.snowflake.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``snowflake`` provider. All classes for this prov
 are in ``airflow.providers.snowflake`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.2.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``pandas``                                  ``>=2.1.2,<2.2``
 ``pyarrow``                                 ``>=14.0.1``
@@ -85,4 +85,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.2.0/changelog.html>`_.

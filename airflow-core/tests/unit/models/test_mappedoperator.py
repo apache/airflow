@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
-@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+@patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):

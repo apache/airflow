@@ -76,7 +76,7 @@ apache-airflow-providers-apache-livy package
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 4.2.1
+Release: 4.3.0
 
 Provider package
 ----------------
@@ -96,33 +96,35 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.9.0``
-``apache-airflow-providers-http``  ``>=5.1.0``
-``aiohttp``                        ``>=3.9.2``
-``asgiref``                        ``>=2.3.0``
-=================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-http``           ``>=5.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``aiohttp``                                 ``>=3.9.2``
+``asgiref``                                 ``>=2.3.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-livy[http]
+    pip install apache-airflow-providers-apache-livy[common.compat]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -130,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-livy 4.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-livy 4.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.2.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.3.0-py3-none-any.whl.sha512>`__)

@@ -422,13 +422,3 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
-
-
-@ci_group.command(
-    name="find-backtracking-candidates",
-    help="Find new releases of dependencies that could be the reason of backtracking.",
-)
-def find_backtracking_candidates():
-    from airflow_breeze.utils.backtracking import print_backtracking_candidates
-
-    print_backtracking_candidates()

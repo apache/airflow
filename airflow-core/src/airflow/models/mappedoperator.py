@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prevent_duplicates
@@ -32,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.context import Context
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 @attrs.define(
@@ -47,8 +46,7 @@ log = structlog.get_logger()
     getstate_setstate=False,
     repr=False,
 )
-# TODO: Task-SDK: Multiple inheritance is a crime. There must be a better way
-class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[misc] # It complains about weight_rule being different
+class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complains about weight_rule being different
     """Object representing a mapped operator in a DAG."""
 
     def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:

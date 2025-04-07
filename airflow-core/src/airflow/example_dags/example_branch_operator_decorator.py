@@ -31,8 +31,8 @@ import tempfile
 import pendulum
 
 from airflow.decorators import task
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 

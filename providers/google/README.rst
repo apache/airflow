@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``14.1.0``
+Release: ``15.0.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.0/>`_.
 
 Installation
 ------------
@@ -127,6 +127,7 @@ PIP package                                 Version required
 ``sqlalchemy-spanner``                      ``>=1.6.2``
 ``tenacity``                                ``>=8.1.0``
 ``immutabledict``                           ``>=4.2.0``
+``types-protobuf``                          ``!=5.29.1.20250402``
 ==========================================  ======================================
 
 Cross provider package dependencies
@@ -166,4 +167,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.0/changelog.html>`_.

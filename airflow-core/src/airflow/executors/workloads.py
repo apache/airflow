@@ -36,7 +36,7 @@ __all__ = [
     "ExecuteTask",
 ]
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 
 class BaseWorkload(BaseModel):
@@ -67,6 +67,10 @@ class TaskInstance(BaseModel):
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
 
+    parent_context_carrier: dict | None = None
+    context_carrier: dict | None = None
+    queued_dttm: datetime | None = None
+
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
@@ -94,7 +98,7 @@ class ExecuteTask(BaseWorkload):
     log_path: str | None
     """The rendered relative log filename template the task logs should be written to"""
 
-    kind: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+    type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
     @classmethod
     def make(
@@ -105,6 +109,7 @@ class ExecuteTask(BaseWorkload):
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
+        ser_ti.parent_context_carrier = ti.dag_run.context_carrier
         bundle_info = BundleInfo(
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
@@ -146,10 +151,10 @@ class RunTrigger(BaseModel):
 
     timeout_after: datetime | None = None
 
-    kind: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+    type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
 
 
 All = Annotated[
     Union[ExecuteTask, RunTrigger],
-    Field(discriminator="kind"),
+    Field(discriminator="type"),
 ]
