@@ -108,3 +108,7 @@ When migrating legacy endpoint to the new FastAPI API:
 1. Implement a feature complete endpoint in comparison to the legacy one or explain why this is not possible in your context.
 2. Make sure to have a good test coverage by copying over the legacy test cases to the new endpoint. This will guarantee an isofunctional new endpoint.
 3. Mark the legacy endpoint with the ``@mark_fastapi_migration_done`` decorator. This will help maintainers keep track of the endpoints remaining for the migration and those already migrated.
+
+------
+
+If you happen to change architecture of Airflow, you can learn how we create our `Architecture diagrams <17_architecture_diagrams.rst>`__.

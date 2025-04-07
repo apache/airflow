@@ -1071,7 +1071,7 @@ The drawbacks:
   installed in those environments
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
 that make it smoother to move from development phase to production phase. As a DAG author you'd normally

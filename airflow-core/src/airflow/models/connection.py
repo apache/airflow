@@ -470,7 +470,13 @@ class Connection(Base, LoggingMixin):
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
             try:
-                return TaskSDKConnection.get(conn_id=conn_id)
+                conn = TaskSDKConnection.get(conn_id=conn_id)
+                if isinstance(conn, TaskSDKConnection):
+                    if conn.password:
+                        mask_secret(conn.password)
+                    if conn.extra:
+                        mask_secret(conn.extra)
+                return conn
             except AirflowRuntimeError as e:
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                     log.debug("Unable to retrieve connection from MetastoreBackend using Task SDK")

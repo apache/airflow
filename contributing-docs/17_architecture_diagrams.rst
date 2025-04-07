@@ -59,6 +59,6 @@ Once you've done iteration and you are happy with the diagram, you can commit th
 code and the .md5sum file. The pre-commit hook will then not run the diagram generation until the
 source code for it changes.
 
-----
+------
 
-You can now see an overview of the whole `contribution workflow <16_contribution_workflow.rst>`__
+You can now see an overview of the whole `contribution workflow <18_contribution_workflow.rst>`__

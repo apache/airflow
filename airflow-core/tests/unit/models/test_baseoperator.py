@@ -64,7 +64,7 @@ class ClassWithCustomAttributes:
 
 class TestBaseOperator:
     def test_trigger_rule_validation(self):
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
 
         fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
