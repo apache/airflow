@@ -32,7 +32,6 @@ from airflow.sdk.definitions.xcom_arg import (
 )
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
-from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 __all__ = ["XComArg", "get_task_map_length"]

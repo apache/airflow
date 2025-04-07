@@ -629,9 +629,7 @@ class FilterXComArg(XComArg):
         else:
             for c in callables:
                 if getattr(c, "_airflow_is_task_decorator", False):
-                    raise ValueError(
-                        "filter() argument must be a plain function, not a @task operator"
-                    )
+                    raise ValueError("filter() argument must be a plain function, not a @task operator")
         self.callables = callables
 
     @classmethod
@@ -645,9 +643,7 @@ class FilterXComArg(XComArg):
     def _serialize(self) -> dict[str, Any]:
         return {
             "arg": serialize_xcom_arg(self.arg),
-            "callables": [
-                inspect.getsource(c) if callable(c) else c for c in self.callables
-            ],
+            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
         }
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
@@ -660,9 +656,7 @@ class FilterXComArg(XComArg):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
         if not isinstance(value, (Sequence, dict)):
-            raise ValueError(
-                f"XCom filter expects sequence or dict, not {type(value).__name__}"
-            )
+            raise ValueError(f"XCom filter expects sequence or dict, not {type(value).__name__}")
         return _FilterResult(value, self.callables)
 
 
