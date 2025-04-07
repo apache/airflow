@@ -459,10 +459,7 @@ class OracleHook(DbApiHook):
         elif service_name and not sid:
             schema = service_name
         else:
-            schema = conn.schema
-
-        if not schema:
-            schema = ""
+            schema = conn.schema or ""
 
         uri = f"oracle://{login}:{password}@{host}:{port}"
 
