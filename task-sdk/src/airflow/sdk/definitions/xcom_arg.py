@@ -336,10 +336,10 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def filter(self, *others: XComArg) -> ConcatXComArg:
+    def filter(self, f: Callable[[Any], Any]) -> FilterXComArg:
         if self.key != XCOM_RETURN_KEY:
             raise ValueError("cannot filter non-return XCom")
-        return super().filter(*others)
+        return super().filter(f)
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
