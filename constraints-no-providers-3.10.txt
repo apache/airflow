@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-07T02:27:10.070123
+# This constraints file was automatically generated on 2025-04-07T13:52:09.274116
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -289,7 +289,7 @@ influxdb-client==1.48.0
 iniconfig==2.1.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.34.0
+ipython==8.35.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
