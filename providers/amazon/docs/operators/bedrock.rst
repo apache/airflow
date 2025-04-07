@@ -74,6 +74,14 @@ To invoke a Claude V2 model using the Completions API you would use:
     :start-after: [START howto_operator_invoke_claude_model]
     :end-before: [END howto_operator_invoke_claude_model]
 
+To invoke a Claude V3 Sonnet model using the Messages API you would use:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_invoke_claude_messages]
+    :end-before: [END howto_operator_invoke_claude_messages]
+
 
 .. _howto/operator:BedrockCustomizeModelOperator:
 
@@ -237,6 +245,29 @@ Example using a PDF file in an Amazon S3 Bucket:
     :start-after: [START howto_operator_bedrock_external_sources_rag]
     :end-before: [END howto_operator_bedrock_external_sources_rag]
 
+.. _howto/operator:BedrockBatchInferenceOperator:
+
+Create an Amazon Bedrock Batch Inference Job
+============================================
+
+To creates a batch inference job to invoke a model on multiple prompts, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockBatchInferenceOperator`.
+
+The input must be formatted in jsonl and uploaded to an Amazon S3 bucket.  Please see
+https://docs.aws.amazon.com/bedrock/latest/userguide/batch-inference.html for details.
+
+NOTE: Jobs are added to a queue and processed in order.  Given the potential wait times,
+and the fact that the optional timeout parameter is measured in hours, deferrable mode is
+recommended over "wait_for_completion" in this case.
+
+Example using an Amazon Bedrock Batch Inference Job:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_batch_inference]
+    :end-before: [END howto_operator_bedrock_batch_inference]
+
 
 Sensors
 -------
@@ -297,6 +328,24 @@ To wait on the state of an Amazon Bedrock data ingestion job until it reaches a 
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_ingest_data]
     :end-before: [END howto_sensor_bedrock_ingest_data]
+
+.. _howto/sensor:BedrockBatchInferenceSensor:
+
+Wait for an Amazon Bedrock batch inference job
+==============================================
+
+To wait on the state of an Amazon Bedrock batch inference job until it reaches the "Scheduled" or "Completed"
+state you can use :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceScheduledSensor`
+
+Bedrock adds batch inference jobs to a queue, and they may take some time to complete.  If you want to wait
+for the job to complete, use TargetState.COMPLETED for the success_state, but if you only want to wait until
+the service confirms that the job is in the queue, use TargetState.SCHEDULED.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
+    :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
 
 Reference
 ---------
