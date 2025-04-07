@@ -634,7 +634,7 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     return outlet_events
 
 
-def get_dr_count(
+async def get_dr_count(
     dag_id: str,
     logical_dates: list[datetime] | None = None,
     run_ids: list[str] | None = None,
@@ -644,7 +644,7 @@ def get_dr_count(
     from airflow.sdk.execution_time.comms import DRCount, GetDRCount
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    with SUPERVISOR_COMMS.lock:
+    async with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(
             log=log,
             msg=GetDRCount(
@@ -662,12 +662,12 @@ def get_dr_count(
     return response.count
 
 
-def get_dagrun_state(dag_id: str, run_id: str) -> str:
+async def get_dagrun_state(dag_id: str, run_id: str) -> str:
     """Return the state of the DAG run with the given Run ID."""
     from airflow.sdk.execution_time.comms import DagRunStateResult, GetDagRunState
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    with SUPERVISOR_COMMS.lock:
+    async with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=GetDagRunState(dag_id=dag_id, run_id=run_id))
         response = SUPERVISOR_COMMS.get_message()
 
