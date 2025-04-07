@@ -30,7 +30,11 @@ from requests import HTTPError, Response
 from airflow.providers.edge.cli.dataclasses import Job
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched, WorkerSetStateReturn
+from airflow.providers.edge.worker_api.datamodels import (
+    EdgeJobFetched,
+    WorkerRegistrationReturn,
+    WorkerSetStateReturn,
+)
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -375,7 +379,7 @@ class TestEdgeWorkerCli:
             _EdgeWorkerCli.jobs = []
 
         mock_loop.side_effect = stop_running
-        mock_register.side_effect = [datetime.now()]
+        mock_register.side_effect = [WorkerRegistrationReturn(last_update=datetime.now())]
 
         worker_with_job.start()
 

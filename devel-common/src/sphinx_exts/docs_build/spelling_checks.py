@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import re
 from functools import total_ordering
+from pathlib import Path
 from typing import NamedTuple
 
 from rich.console import Console
@@ -36,7 +37,7 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class SpellingError(NamedTuple):
     """Spelling errors found when building docs."""
 
-    file_path: str | None
+    file_path: Path | None
     line_no: int | None
     spelling: str | None
     suggestion: str | None
@@ -64,24 +65,30 @@ class SpellingError(NamedTuple):
         return not self == other
 
     def __lt__(self, other):
-        file_path_a = self.file_path or ""
-        file_path_b = other.file_path or ""
-        line_no_a = self.line_no or 0
-        line_no_b = other.line_no or 0
-        context_line_a = self.context_line or ""
-        context_line_b = other.context_line or ""
-        left = (file_path_a, line_no_a, context_line_a, self.spelling, self.message)
-        right = (
+        file_path_a: Path = self.file_path or Path("/")
+        file_path_b: Path = other.file_path or Path("/")
+        line_no_a: int = self.line_no or 0
+        line_no_b: int = other.line_no or 0
+        context_line_a: str = self.context_line or ""
+        context_line_b: str = other.context_line or ""
+        left: tuple[Path, int, int, str, str] = (
+            file_path_a,
+            line_no_a,
+            context_line_a,
+            self.spelling or "",
+            self.message or "",
+        )
+        right: tuple[Path, int, int, str, str] = (
             file_path_b,
-            line_no_b,
-            context_line_b,
-            other.spelling,
-            other.message,
+            line_no_b or 0,
+            context_line_b or 0,
+            other.spelling or "",
+            other.message or "",
         )
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingError]:
+def parse_spelling_warnings(warning_text: str, docs_dir: Path) -> list[SpellingError]:
     """
     Parses warnings from Sphinx.
 
@@ -101,7 +108,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingEr
             try:
                 sphinx_spelling_errors.append(
                     SpellingError(
-                        file_path=os.path.join(docs_dir, warning_parts[0]),
+                        file_path=docs_dir / warning_parts[0],
                         line_no=int(warning_parts[1]) if warning_parts[1] not in ("None", "") else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,
@@ -177,7 +184,7 @@ def _display_error(error: SpellingError):
     console.print(error.message)
     console.print()
     if error.file_path:
-        console.print(f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)}")
+        console.print(f"File path: {error.file_path.resolve()}")
         if error.spelling:
             console.print(f"[red]Incorrect Spelling: '{error.spelling}'")
         if error.suggestion:
@@ -186,7 +193,7 @@ def _display_error(error: SpellingError):
             console.print(f"Line with Error: '{error.context_line}'")
         if (
             error.file_path
-            and not error.file_path.endswith("<unknown>")
+            and not error.file_path.as_posix().endswith("<unknown>")
             and error.line_no
             and os.path.isfile(error.file_path)
         ):

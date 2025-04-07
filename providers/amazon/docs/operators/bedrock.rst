@@ -21,8 +21,8 @@ Amazon Bedrock
 
 `Amazon Bedrock <https://aws.amazon.com/bedrock/>`__ is a fully managed service that
 offers a choice of high-performing foundation models (FMs) from leading AI companies
-like AI21 Labs, Anthropic, Cohere, Meta, Mistral AI, Stability AI, and Amazon via a
-single API, along with a broad set of capabilities you need to build generative AI
+like ``AI21 Labs``, ``Anthropic``, ``Cohere``, ``Meta``, ``Mistral AI``, ``Stability AI``,
+and ``Amazon`` via a single API, along with a broad set of capabilities you need to build generative AI
 applications with security, privacy, and responsible AI.
 
 Prerequisite Tasks

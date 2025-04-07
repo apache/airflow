@@ -64,7 +64,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python-image",
                 "--use-uv",
                 "--uv-http-timeout",
-                "--build-timeout-minutes",
             ],
         },
         {

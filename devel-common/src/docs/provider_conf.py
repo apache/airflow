@@ -36,6 +36,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import rich
 from packaging.version import parse as parse_version
 
 import airflow
@@ -315,16 +316,15 @@ for p in load_package_data(include_suspended=True):
         continue
     autoapi_ignore.extend((p["package-dir"] + "/*", p["system-tests-dir"] + "/*"))
 
-autoapi_keep_files = True
-
 if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     test_dir = SYSTEM_TESTS_DIR.parent
     autoapi_dirs.append(test_dir.as_posix())
 
     autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
-print("#### AUTOAPI_IGNORE:")
-print(autoapi_ignore)
-print("#### END OF AUTOAPI_IGNORE:")
+
+rich.print("[bright_blue]AUTOAPI_IGNORE:")
+rich.print(autoapi_ignore)
+rich.print()
 
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
