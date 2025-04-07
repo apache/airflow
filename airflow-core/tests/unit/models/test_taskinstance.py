@@ -75,6 +75,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import BaseSensorOperator
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -82,7 +83,6 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -4311,7 +4311,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         assert ti.pool == task.pool
 
     assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.priority_weight_total
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config

@@ -266,7 +266,8 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models import DagBag
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
 
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
@@ -275,6 +276,8 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
         dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
+        # Create a SchedulerDAG since some of the CLI commands rely on DB access
+        dag = DAG.from_sdk_dag(dag)
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
@@ -376,10 +379,6 @@ def should_use_colors(args) -> bool:
     if args.color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()
-
-
-def should_ignore_depends_on_past(args) -> bool:
-    return args.depends_on_past == "ignore"
 
 
 def suppress_logs_and_warning(f: T) -> T:

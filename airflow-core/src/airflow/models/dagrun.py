@@ -65,13 +65,13 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
-from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -190,7 +190,7 @@ class DagRun(Base, LoggingMixin):
     scheduled_by_job_id = Column(Integer)
     # Span context carrier, used for context propagation.
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
-    span_status = Column(String(250), default=SpanStatus.NOT_STARTED, nullable=False)
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:

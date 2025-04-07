@@ -41,7 +41,7 @@ from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
@@ -527,3 +527,29 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
 
     assert len(datasets.outputs) == 1
     assert datasets.outputs[0].asset == Asset(uri=path)
+
+
+def test_extract_inlets_and_outlets_with_operator():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = PythonOperator(task_id="task_id", python_callable=lambda x: x, inlets=inlets, outlets=outlets)
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets
+
+
+def test_extract_inlets_and_outlets_with_sensor():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = DateTimeSensor(
+        task_id="task_id", target_time="2025-04-04T08:48:13.713922+00:00", inlets=inlets, outlets=outlets
+    )
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets

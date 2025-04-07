@@ -42,9 +42,9 @@ SQS:
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import Asset, AssetWatcher
+    from airflow.sdk import Asset, AssetWatcher
     from airflow.providers.common.msgq.triggers.msg_queue import MessageQueueTrigger
-    from airflow import DAG
+    from airflow.sdk import DAG
     from datetime import datetime
 
     # Define a trigger that listens to an external message queue (AWS SQS in this case)

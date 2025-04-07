@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Annotated
 
 from sqlalchemy import select
@@ -27,6 +26,7 @@ from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorke
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge.worker_api.datamodels import (
     WorkerQueueUpdateBody,
+    WorkerRegistrationReturn,
     WorkerSetStateReturn,
     WorkerStateBody,
 )
@@ -155,7 +155,7 @@ def register(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
-) -> datetime:
+) -> WorkerRegistrationReturn:
     """Register a new worker to the backend."""
     _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
@@ -170,7 +170,7 @@ def register(
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
     session.add(worker)
-    return worker.last_update
+    return WorkerRegistrationReturn(last_update=worker.last_update)
 
 
 @worker_router.patch("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])

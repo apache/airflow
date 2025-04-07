@@ -124,7 +124,7 @@ Not avoiding top-level DAG code:
 
   import pendulum
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.decorators import task
 
 
@@ -153,7 +153,7 @@ Avoiding top-level DAG code:
 
   import pendulum
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.decorators import task
 
 
@@ -227,7 +227,7 @@ Imagine this code:
 
 .. code-block:: python
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
@@ -259,7 +259,7 @@ What you can do to check it is add some print statements to the code you want to
 
 .. code-block:: python
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
@@ -408,7 +408,7 @@ Bad example:
 
 .. code-block:: python
 
-    from airflow.models import Variable
+    from airflow.sdk import Variable
 
     foo_var = Variable.get("foo")  # AVOID THAT
     bash_use_variable_bad_1 = BashOperator(
@@ -459,7 +459,7 @@ Bad example:
 
 .. code-block:: python
 
-    from airflow.models.variable import Variable
+    from airflow.sdk import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
 
 
@@ -472,7 +472,7 @@ Good example:
 
 .. code-block:: python
 
-    from airflow.models.variable import Variable
+    from airflow.sdk import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
 
 
@@ -535,7 +535,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
     from datetime import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
     from airflow.providers.standard.operators.bash import BashOperator
@@ -781,7 +781,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
     import pendulum
     import pytest
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1071,7 +1071,7 @@ The drawbacks:
   installed in those environments
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
 that make it smoother to move from development phase to production phase. As a DAG author you'd normally

@@ -34,9 +34,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
 from airflow.decorators import task
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk import DAG, Asset, AssetAlias
 
 with DAG(
     dag_id="asset_s3_bucket_producer",

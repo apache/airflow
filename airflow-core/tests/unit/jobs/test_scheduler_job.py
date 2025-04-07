@@ -64,7 +64,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
@@ -474,12 +474,13 @@ class TestSchedulerJob:
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
+        session.add(scheduler_job)
+        session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.id = 1
 
         # ti is queued with another try number - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 1
+        ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 2
         session.merge(ti1)
         session.commit()
@@ -493,7 +494,7 @@ class TestSchedulerJob:
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 2
+        ti1.queued_by_job_id = scheduler_job.id - 1
         session.merge(ti1)
         session.commit()
 
@@ -2223,7 +2224,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         old_job = Job()
-        old_job.id = 1
         old_job.job_type = SchedulerJobRunner.job_type
 
         session.add(old_job)
@@ -2232,8 +2232,9 @@ class TestSchedulerJob:
         assert old_job.is_alive() is False
 
         new_job = Job()
-        new_job.id = 2
         new_job.job_type = SchedulerJobRunner.job_type
+        session.add(new_job)
+        session.flush()
 
         self.job_runner = SchedulerJobRunner(job=new_job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2290,8 +2291,8 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
+        session.add(job)
 
         self.job_runner = SchedulerJobRunner(job=job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2348,7 +2349,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
 
         self.job_runner = SchedulerJobRunner(job=job)
@@ -3160,6 +3160,7 @@ class TestSchedulerJob:
                     run_after=next_info.run_after,
                     state=DagRunState.RUNNING,
                     triggered_by=DagRunTriggeredByType.TEST,
+                    session=session,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
                 if next_info is None:
@@ -5805,12 +5806,17 @@ class TestSchedulerJob:
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
-        DAG.bulk_write_to_db("testing", None, [dag])
+        dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        scheduler_dag = DAG.from_sdk_dag(dag)
+
+        DAG.bulk_write_to_db("testing", None, [dm])
         SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
         dag_v = DagVersion.get_latest_version(dag.dag_id)
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+
+        data_interval = scheduler_dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+
         dag_run = create_dagrun(
-            dag,
+            scheduler_dag,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             data_interval=data_interval,
@@ -5866,13 +5872,16 @@ class TestSchedulerJob:
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
-        DAG.bulk_write_to_db("testing", None, [dag])
+        dm = LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+        scheduler_dag = DAG.from_sdk_dag(dag)
+
+        DAG.bulk_write_to_db("testing", None, [dm])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
         session.query(Job).delete()
 
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        data_interval = scheduler_dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
-            dag,
+            scheduler_dag,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             data_interval=data_interval,

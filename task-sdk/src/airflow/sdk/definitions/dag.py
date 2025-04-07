@@ -70,7 +70,6 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
-    # TODO: Task-SDK: Remove pendulum core dep
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.decorators import TaskDecoratorCollection

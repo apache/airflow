@@ -44,6 +44,10 @@ const links = [
     href: "/connections",
     title: "Connections",
   },
+  {
+    href: "/configs",
+    title: "Config",
+  },
 ];
 
 export const AdminButton = () => (

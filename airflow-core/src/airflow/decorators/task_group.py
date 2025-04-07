@@ -204,7 +204,7 @@ def task_group(python_callable=None, **tg_kwargs):
 
     This wraps a function into an Airflow TaskGroup. When used as the
     ``@task_group()`` form, all arguments are forwarded to the underlying
-    TaskGroup class. Can be used to parametrize TaskGroup.
+    TaskGroup class. Can be used to parameterize TaskGroup.
 
     :param python_callable: Function to decorate.
     :param tg_kwargs: Keyword arguments for the TaskGroup object.
