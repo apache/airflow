@@ -577,7 +577,7 @@ class _FilterResult(Sequence, Iterable):
         self.callables = callables
         self.length: int | None = None
 
-    def __getitem__(self, index: int) -> Any:
+    def __getitem__(self, index: Any) -> Any:
         if not (0 <= index < len(self)):
             raise IndexError
 
@@ -620,7 +620,7 @@ class FilterXComArg(XComArg):
     def __init__(
         self,
         arg: XComArg,
-        callables: FilterCallables,
+        callables: FilterCallables | None,
     ) -> None:
         self.arg = arg
 
@@ -649,7 +649,7 @@ class FilterXComArg(XComArg):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield from self.arg.iter_references()
 
-    def filter(self, f: Callable[[Any], Any]) -> FilterXComArg:
+    def filter(self, f: Callable[[Any], Any] | None) -> FilterXComArg:
         # Filter arg.filter(f1).filter(f2) into one FilterXComArg.
         return FilterXComArg(self.arg, [*self.callables, f if f else self.none_filter])
 
