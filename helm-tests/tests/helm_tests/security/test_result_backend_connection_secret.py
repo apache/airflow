@@ -81,6 +81,26 @@ class TestResultBackendConnectionSecret:
 
         assert expected_doc_count == len(docs)
 
+    def test_should_add_annotations_to_result_backend_connection_secret(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "data": {
+                    "metadataConnection": {**self.non_chart_database_values},
+                    "resultBackendConnection": {
+                        **self.non_chart_database_values,
+                        "user": "anotheruser",
+                        "pass": "anotherpass",
+                    },
+                    "resultBackendConnectionSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/secrets/result-backend-connection-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
     def _get_connection(self, values: dict) -> str | None:
         docs = render_chart(
             values=values,

@@ -1405,6 +1405,14 @@
                         "sslmode"
                     ]
                 },
+                "resultBackendConnectionSecretAnnotations": {
+                    "description": "Annotations to add to the result backend connection secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [

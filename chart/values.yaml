@@ -480,6 +480,8 @@ data:
     secretAnnotations: {}
   # resultBackendConnection defaults to the same database as metadataConnection
   resultBackendConnection: ~
+  # Add custom annotations to the result backend connection secret
+  resultBackendConnectionSecretAnnotations: {}
   # or, you can use a different database
   # resultBackendConnection:
   #   user: postgres
