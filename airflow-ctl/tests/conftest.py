@@ -23,7 +23,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from airflowctl.api.client import Client, Credentials
+from airflowctl.api.client import Client, ClientKind, Credentials
 
 pytest_plugins = "tests_common.pytest_plugin"
 
@@ -53,12 +53,12 @@ def api_client_maker(client_credentials):
     Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
     """
 
-    def make_api_client(transport: httpx.MockTransport, kind: str = "cli") -> Client:
+    def make_api_client(transport: httpx.MockTransport, kind: ClientKind = ClientKind.CLI) -> Client:
         """Get a client with a custom transport"""
         return Client(base_url="test://server", transport=transport, token="", kind=kind)
 
     def _api_client(
-        path: str, response_json: dict, expected_http_status_code: int, kind: str = "cli"
+        path: str, response_json: dict, expected_http_status_code: int, kind: ClientKind = ClientKind.CLI
     ) -> Client:
         """Get a client with a custom transport"""
 

@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import contextlib
+import enum
 import json
 import os
 import sys
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
 
 import httpx
 import keyring
@@ -67,10 +68,18 @@ __all__ = [
     "Credentials",
     "provide_api_client",
     "NEW_API_CLIENT",
+    "ClientKind",
 ]
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
+
+
+class ClientKind(enum.Enum):
+    """Client kind enum."""
+
+    CLI = "cli"
+    AUTH = "auth"
 
 
 def add_correlation_id(request: httpx.Request):
@@ -155,11 +164,11 @@ class Client(httpx.Client):
         *,
         base_url: str,
         token: str,
-        kind: str = "cli",
+        kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
         **kwargs: Any,
     ) -> None:
         auth = BearerAuth(token)
-        if kind == "auth":
+        if kind == ClientKind.AUTH:
             kwargs["base_url"] = f"{base_url}/auth"
         else:
             kwargs["base_url"] = f"{base_url}/api/v2"
@@ -246,7 +255,7 @@ class Client(httpx.Client):
 
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
-def get_client(kind: str = "cli"):
+def get_client(kind: ClientKind = ClientKind.CLI):
     """
     Get CLI API client.
 
@@ -269,7 +278,9 @@ def get_client(kind: str = "cli"):
             api_client.close()
 
 
-def provide_api_client(kind: str = "cli") -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
+def provide_api_client(
+    kind: ClientKind = ClientKind.CLI,
+) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
     """
     Provide a CLI API Client to the decorated function.
 

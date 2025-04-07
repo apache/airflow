@@ -26,7 +26,7 @@ from io import StringIO
 import httpx
 import pytest
 
-from airflowctl.api.client import Client
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
@@ -79,7 +79,7 @@ def make_api_client(
     transport: httpx.MockTransport | None = None,
     base_url: str = "test://server",
     token: str = "",
-    kind: str = "cli",
+    kind: ClientKind = ClientKind.CLI,
 ) -> Client:
     """Get a client with a custom transport"""
     return Client(base_url=base_url, transport=transport, token=token, kind=kind)
@@ -767,7 +767,7 @@ class TestAuthOperations:
             assert request.url.path == "/auth/token/cli"
             return httpx.Response(200, json=json.loads(self.login_response.model_dump_json()))
 
-        client = make_api_client(transport=httpx.MockTransport(handle_request), kind="auth")
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
         response = client.login.login_with_username_and_password(
             LoginBody(
                 username="username",

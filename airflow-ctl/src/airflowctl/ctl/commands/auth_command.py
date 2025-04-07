@@ -23,11 +23,11 @@ import sys
 
 import rich
 
-from airflowctl.api.client import NEW_API_CLIENT, Credentials, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, Credentials, provide_api_client
 from airflowctl.api.datamodels.auth_generated import LoginBody
 
 
-@provide_api_client(kind="auth")
+@provide_api_client(kind=ClientKind.AUTH)
 def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
     success_message = "[green]Login successful! Welcome to airflowctl![/green]"
