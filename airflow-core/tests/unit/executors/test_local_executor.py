@@ -61,6 +61,7 @@ class TestLocalExecutor:
                 task_id=f"success_{i}",
                 dag_id="mydag",
                 run_id="run1",
+                try_id=uuid7(),
                 try_number=1,
                 state="queued",
                 pool_slots=1,
