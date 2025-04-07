@@ -18,10 +18,10 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 import re
 import argparse
+import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 from common_precommit_utils import console, get_imports_from_file
