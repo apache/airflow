@@ -336,7 +336,7 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def filter(self, f: Callable[[Any], Any]) -> FilterXComArg:
+    def filter(self, f: Callable[[Any], Any] | None) -> FilterXComArg:
         if self.key != XCOM_RETURN_KEY:
             raise ValueError("cannot filter non-return XCom")
         return super().filter(f)
