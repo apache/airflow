@@ -191,8 +191,8 @@ export const TaskInstances = () => {
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
+    ["-start_date"] : new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);

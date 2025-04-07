@@ -208,7 +208,8 @@ export const DagsList = () => {
     searchParams.get(NAME_PATTERN) ?? savedSearchPattern,
   );
 
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
+    ["-last_run_start_date"] : new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const columns = useMemo(() => createColumns(translate), [translate]);
 
