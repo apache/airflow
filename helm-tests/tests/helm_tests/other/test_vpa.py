@@ -19,7 +19,7 @@ from __future__ import annotations
 import jmespath
 import pytest
 
-from unit.charts.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import render_chart
 
 
 class TestVPA:
