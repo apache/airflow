@@ -736,3 +736,8 @@ def _(xcom_arg: ConcatXComArg, resolved_val: Sized, upstream_map_indexes: dict[s
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
     return sum(ready_lengths)
+
+
+@get_task_map_length.register
+def _(xcom_arg: FilterXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
+    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
