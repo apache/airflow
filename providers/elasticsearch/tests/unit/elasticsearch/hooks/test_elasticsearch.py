@@ -206,7 +206,10 @@ class TestElasticsearchSQLHook:
 
     def test_connection_ignore_cursor_parameters(self):
         assert ESConnection(
-            host="localhost", port=9200, fetch_size=1000, field_multi_value_leniency=True,
+            host="localhost",
+            port=9200,
+            fetch_size=1000,
+            field_multi_value_leniency=True,
         )
 
 
