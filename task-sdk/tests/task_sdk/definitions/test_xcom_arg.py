@@ -60,7 +60,7 @@ def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
     assert results == {"aa", "bb", "cc"}
 
 
-def test_xcom_map_transform_to_none(run_ti: RunTI, mock_supervisor_comms):
+def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_comms):
     results = set()
 
     with DAG("test") as dag:
@@ -78,7 +78,7 @@ def test_xcom_map_transform_to_none(run_ti: RunTI, mock_supervisor_comms):
                 return None
             return v
 
-        pull.expand(value=push().map(c_to_none))
+        pull.expand(value=push().map(c_to_none).filter(None))
 
     # Mock xcom result from push task
     mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
@@ -87,7 +87,7 @@ def test_xcom_map_transform_to_none(run_ti: RunTI, mock_supervisor_comms):
     for map_index in range(3):
         assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
 
-    assert results == {"a", "b", None}
+    assert results == {"a", "b"}
 
 
 def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, captured_logs):

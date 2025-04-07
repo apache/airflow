@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 # the user, but deserialize them into strings in a serialized XComArg for
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
+FilterCallables = Sequence[Callable[[Any], bool]]
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -174,6 +175,9 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
+
+    def filter(self, f: Callable[[Any], Any] | None) -> FilterXComArg:
+        return FilterXComArg(self, [f] if f else [])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
@@ -567,9 +571,105 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
+class _FilterResult(Sequence, Iterable):
+    def __init__(self, value: Sequence | Iterable, callables: list) -> None:
+        self.value = value
+        self.callables = callables
+        self.length: int | None = None
+
+    def __getitem__(self, index: int) -> Any:
+        if not (0 <= index < len(self)):
+            raise IndexError
+
+        value = self.value[index]
+        if self._apply_callables(value):
+            return value
+        return None
+
+    def __len__(self) -> int:
+        # Calculating the length of an iterable can be a heavy operation, so we cache the result after first attempt
+        if not self.length:
+            if isinstance(self.value, Iterable):
+                self.length = sum(1 for _ in self.value)
+            else:
+                self.length = len(self.value)
+        return self.length
+
+    def __iter__(self) -> Iterator:
+        for item in iter(self.value):
+            if self._apply_callables(item):
+                yield item
+
+    def _apply_callables(self, value) -> bool:
+        for func in self.callables:
+            if not func(value):
+                return False
+        return True
+
+
+class FilterXComArg(XComArg):
+    """
+    An XCom reference with ``filter()`` call(s) applied.
+
+    This is based on an XComArg, but also applies a series of "filters" that
+    filters the pulled XCom value.
+
+    :meta private:
+    """
+
+    def __init__(
+        self,
+        arg: XComArg,
+        callables: FilterCallables,
+    ) -> None:
+        self.arg = arg
+
+        if not callables:
+            callables = [self.none_filter]
+        else:
+            for c in callables:
+                if getattr(c, "_airflow_is_task_decorator", False):
+                    raise ValueError(
+                        "filter() argument must be a plain function, not a @task operator"
+                    )
+        self.callables = callables
+
+    @classmethod
+    def none_filter(cls, value) -> bool:
+        return value if True else False
+
+    def __repr__(self) -> str:
+        map_calls = "".join(f".filter({_get_callable_name(f)})" for f in self.callables)
+        return f"{self.arg!r}{map_calls}"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {
+            "arg": serialize_xcom_arg(self.arg),
+            "callables": [
+                inspect.getsource(c) if callable(c) else c for c in self.callables
+            ],
+        }
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def filter(self, f: Callable[[Any], Any]) -> FilterXComArg:
+        # Filter arg.filter(f1).filter(f2) into one FilterXComArg.
+        return FilterXComArg(self.arg, [*self.callables, f if f else self.none_filter])
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        value = self.arg.resolve(context)
+        if not isinstance(value, (Sequence, dict)):
+            raise ValueError(
+                f"XCom filter expects sequence or dict, not {type(value).__name__}"
+            )
+        return _FilterResult(value, self.callables)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
     "concat": ConcatXComArg,
+    "filter": FilterXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
