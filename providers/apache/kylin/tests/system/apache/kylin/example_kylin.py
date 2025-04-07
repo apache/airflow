@@ -27,59 +27,8 @@ from __future__ import annotations
 
 import datetime
 
-import airflow.providers.apache.kylin.hooks.kylin as kylin_hooks
 from airflow import DAG
-from airflow.providers.apache.kylin.hooks.kylin import KylinHook as OriginalKylinHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-
-
-class PatchedKylinHook(DbApiHook, OriginalKylinHook):
-    """
-    Patched version of KylinHook that inherits from DbApiHook.
-    This allows SQLExecuteQueryOperator to use it.
-    """
-
-    conn_name_attr = "kylin_conn_id"
-    default_conn_name = "my_kylin_conn"
-    supports_autocommit = True
-
-    def get_conn(self):
-        """
-        Return connection details.
-        In a production scenario, you may want to establish a proper connection
-        object to interact with Kylin's REST API.
-        """
-        conn = self.get_connection(self.kylin_conn_id)
-        host = conn.host
-        port = conn.port or 7070
-        return (host, port, conn.login, conn.password)
-
-    def run(self, sql, autocommit=True, parameters=None, **kwargs):
-        """
-        Executes the given SQL query against Apache Kylin via its REST API.
-        The `autocommit` parameter and any additional keyword arguments are accepted.
-        It also includes the project name (from connection schema) in the request payload.
-        """
-        conn = self.get_connection(self.kylin_conn_id)
-        host = conn.host
-        port = conn.port or 7070
-        project = conn.schema  # 使用連線中的 schema 作為 project name
-        if not project:
-            raise ValueError("Project name must be provided in the connection's schema field.")
-        url = f"http://{host}:{port}/kylin/api/query"
-        import requests
-
-        payload = {"sql": sql, "project": project}
-        response = requests.post(url, json=payload, auth=(conn.login, conn.password))
-        response.raise_for_status()
-        return response.json()
-
-
-# Apply the monkey patch by replacing the original KylinHook with our patched version.
-kylin_hooks.KylinHook = PatchedKylinHook
-
-# ===================== Monkey Patch End =====================
 
 DAG_ID = "example_kylin"
 
