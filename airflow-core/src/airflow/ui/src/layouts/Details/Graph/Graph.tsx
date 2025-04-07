@@ -77,7 +77,7 @@ const edgeTypes = { custom: Edge };
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
-  const { dagId = "", runId, taskId } = useParams();
+  const { dagId = "", runId = "", taskId } = useParams();
 
   const selectedVersion = useSelectedVersion();
 
@@ -94,7 +94,7 @@ export const Graph = () => {
   const { openGroupIds } = useOpenGroups();
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
   const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
@@ -112,7 +112,7 @@ export const Graph = () => {
   const { data: dagRun } = useDagRunServiceGetDagRun(
     {
       dagId,
-      dagRunId: runId ?? "",
+      dagRunId: runId,
     },
     undefined,
     { enabled: runId !== "" },

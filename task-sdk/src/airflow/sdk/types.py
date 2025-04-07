@@ -27,10 +27,11 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from datetime import datetime
 
+    from pydantic import AwareDatetime
+
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -42,13 +43,13 @@ class DagRunProtocol(Protocol):
 
     dag_id: str
     run_id: str
-    logical_date: datetime | None
-    data_interval_start: datetime | None
-    data_interval_end: datetime | None
-    start_date: datetime
-    end_date: datetime | None
+    logical_date: AwareDatetime | None
+    data_interval_start: AwareDatetime | None
+    data_interval_end: AwareDatetime | None
+    start_date: AwareDatetime
+    end_date: AwareDatetime | None
     run_type: Any
-    run_after: datetime
+    run_after: AwareDatetime
     conf: dict[str, Any] | None
 
 
@@ -64,7 +65,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     map_index: int | None
     max_tries: int
     hostname: str | None = None
-    start_date: datetime
+    start_date: AwareDatetime
+    end_date: AwareDatetime | None = None
 
     def xcom_pull(
         self,
@@ -83,7 +85,25 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_template_context(self) -> Context: ...
 
-    def get_first_reschedule_date(self, first_try_number) -> datetime | None: ...
+    def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+
+    @staticmethod
+    def get_ti_count(
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
+
+    @staticmethod
+    def get_dr_count(
+        dag_id: str,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int: ...
 
 
 class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):

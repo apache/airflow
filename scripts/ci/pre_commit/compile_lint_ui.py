@@ -39,3 +39,13 @@ if __name__ == "__main__":
     subprocess.check_call(["pnpm", "codegen"], cwd=dir)
     subprocess.check_call(["pnpm", "format"], cwd=dir)
     subprocess.check_call(["pnpm", "lint:fix"], cwd=dir)
+
+    dir = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+    subprocess.check_call(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
+
+    subprocess.check_call(
+        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir
+    )
+    subprocess.check_call(["pnpm", "codegen"], cwd=dir)
+    subprocess.check_call(["pnpm", "format"], cwd=dir)
+    subprocess.check_call(["pnpm", "lint:fix"], cwd=dir)

@@ -22,9 +22,10 @@ description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9, <3.13"
 dependencies = [
+    "aiologic>=0.14.0",
     "attrs>=24.2.0, !=25.2.0",
     "httpx>=0.27.0",
-    "jinja2>=3.1.4",
+    "jinja2>=3.1.5",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
@@ -98,11 +99,11 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
+    "apache-airflow>=3.0.0.dev0",
     "datamodel-code-generator[http]==0.28.2",
-    "apache-airflow",
-    "rich",
-    "ruff",
     "svcs>=25.1.0",
+    "ruff==0.11.2",
+    "rich>=12.4.4",
 ]
 dev = [
     "apache-airflow",
@@ -128,7 +129,7 @@ enable-version-header=true
 enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
-output-datetime-class='datetime'
+output-datetime-class='AwareDatetime'
 target-python-version='3.9'
 use-annotated=true
 use-default=true

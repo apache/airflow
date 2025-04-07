@@ -25,7 +25,7 @@ import pendulum
 import pytest
 
 from airflow.sdk.api.datamodels._generated import TerminalTIState
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -131,9 +131,15 @@ def test_partial_on_instance() -> None:
 
 def test_partial_on_class() -> None:
     # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id="a", arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
+    op = MockOperator.partial(
+        task_id="a",
+        arg1="a",
+        trigger_rule=TriggerRule.ONE_FAILED,
+        on_execute_callback=id,
+    )
     assert op.kwargs["arg1"] == "a"
     assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
+    assert op.kwargs["on_execute_callback"] == [id]
 
 
 def test_partial_on_class_invalid_ctor_args() -> None:
@@ -155,12 +161,17 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
 
 
 def test_mapped_task_applies_default_args_classic():
-    with DAG("test", default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+    with DAG(
+        dag_id="test",
+        default_args={"execution_timeout": timedelta(minutes=30), "on_failure_callback": str},
+    ) as dag:
         MockOperator(task_id="simple", arg1=None, arg2=0)
         MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("simple").on_failure_callback == [str]
+    assert dag.get_task("mapped").on_failure_callback == [str]
 
 
 def test_mapped_task_applies_default_args_taskflow():
@@ -179,6 +190,8 @@ def test_mapped_task_applies_default_args_taskflow():
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("simple").on_success_callback == []
+    assert dag.get_task("mapped").on_success_callback == []
 
 
 @pytest.mark.parametrize(

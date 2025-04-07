@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 import httpx
 import keyring
 import structlog
+from keyring.errors import NoKeyringError
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
@@ -63,6 +64,8 @@ log = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "Client",
     "Credentials",
+    "provide_api_client",
+    "NEW_CLI_API_CLIENT",
 ]
 
 PS = ParamSpec("PS")
@@ -115,7 +118,10 @@ class Credentials:
             os.makedirs(default_config_dir)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
-        keyring.set_password("airflow-cli", f"api_token-{self.api_environment}", self.api_token)
+        try:
+            keyring.set_password("airflow-cli", f"api_token-{self.api_environment}", self.api_token)
+        except NoKeyringError as e:
+            log.error(e)
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -145,7 +151,7 @@ class Client(httpx.Client):
 
     def __init__(self, *, base_url: str, token: str, **kwargs: Any):
         auth = BearerAuth(token)
-        kwargs["base_url"] = f"{base_url}/public"
+        kwargs["base_url"] = f"{base_url}/api/v2"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -260,4 +266,4 @@ def provide_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
     return wrapper
 
 
-NEW_CLI_API_CLIENT: Client = cast(Client, None)
+NEW_CLI_API_CLIENT: Client = cast("Client", None)

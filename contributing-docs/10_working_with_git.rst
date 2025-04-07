@@ -220,4 +220,4 @@ Useful when you understand the flow but don't remember the steps and want a quic
 -------
 
 Now, once you know it all you can read more about how Airflow repository is a monorepo containing both airflow package and
-more than 80 `providers <11_provider_distributions.rst>`__ and how to develop providers.
+more than 80 `providers <11_documentation_building.rst>`__ and how to develop providers.

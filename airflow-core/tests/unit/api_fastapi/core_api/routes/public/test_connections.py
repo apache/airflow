@@ -27,6 +27,7 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -36,6 +37,8 @@ TEST_CONN_DESCRIPTION = "some_description_a"
 TEST_CONN_HOST = "some_host_a"
 TEST_CONN_PORT = 8080
 TEST_CONN_LOGIN = "some_login"
+TEST_CONN_SCHEMA = "https"
+TEST_CONN_EXTRA = '{"extra_key": "extra_value"}'
 
 
 TEST_CONN_ID_2 = "test_connection_id_2"
@@ -98,22 +101,22 @@ class TestDeleteConnection(TestConnectionEndpoint):
         self.create_connection()
         conns = session.query(Connection).all()
         assert len(conns) == 1
-        response = test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = unauthenticated_test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = unauthorized_test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 403
 
     def test_delete_should_respond_404(self, test_client):
-        response = test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
@@ -122,22 +125,22 @@ class TestDeleteConnection(TestConnectionEndpoint):
 class TestGetConnection(TestConnectionEndpoint):
     def test_get_should_respond_200(self, test_client, session):
         self.create_connection()
-        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = unauthenticated_test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = unauthorized_test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 403
 
     def test_get_should_respond_404(self, test_client):
-        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
@@ -147,7 +150,7 @@ class TestGetConnection(TestConnectionEndpoint):
         connection = session.query(Connection).first()
         connection.extra = '{"extra_key": "extra_value"}'
         session.commit()
-        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
@@ -160,7 +163,7 @@ class TestGetConnection(TestConnectionEndpoint):
         connection = session.query(Connection).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
-        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
@@ -196,7 +199,7 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/api/v2/connections", params=query_params)
+        response = test_client.get("/connections", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -204,11 +207,11 @@ class TestGetConnections(TestConnectionEndpoint):
         assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/connections", params={})
+        response = unauthenticated_test_client.get("/connections", params={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/connections", params={})
+        response = unauthorized_test_client.get("/connections", params={})
         assert response.status_code == 403
 
 
@@ -233,18 +236,18 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_201(self, test_client, session, body):
-        response = test_client.post("/api/v2/connections", json=body)
+        response = test_client.post("/connections", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/api/v2/connections", json={})
+        response = unauthenticated_test_client.post("/connections", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/api/v2/connections", json={})
+        response = unauthorized_test_client.post("/connections", json={})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -257,7 +260,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_422_for_invalid_conn_id(self, test_client, body):
-        response = test_client.post("/api/v2/connections", json=body)
+        response = test_client.post("/connections", json=body)
         assert response.status_code == 422
         # This regex is used for validation in ConnectionBody
         assert response.json() == {
@@ -279,10 +282,10 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_already_exist(self, test_client, body):
-        response = test_client.post("/api/v2/connections", json=body)
+        response = test_client.post("/connections", json=body)
         assert response.status_code == 201
         # Another request
-        response = test_client.post("/api/v2/connections", json=body)
+        response = test_client.post("/connections", json=body)
         assert response.status_code == 409
         response_json = response.json()
         assert "detail" in response_json
@@ -342,7 +345,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_response_201_redacted_password(self, test_client, body, expected_response, session):
-        response = test_client.post("/api/v2/connections", json=body)
+        response = test_client.post("/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
@@ -350,47 +353,179 @@ class TestPostConnection(TestConnectionEndpoint):
 
 class TestPatchConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "body",
+        "body, expected_result",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "test_host_patch"},
-            {
-                "connection_id": TEST_CONN_ID,
-                "conn_type": TEST_CONN_TYPE,
-                "host": "test_host_patch",
-                "port": 80,
-            },
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "login": "test_login_patch"},
-            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": 80},
-            {
-                "connection_id": TEST_CONN_ID,
-                "conn_type": TEST_CONN_TYPE,
-                "port": 80,
-                "login": "test_login_patch",
-            },
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": "new_type", "extra": '{"key": "var"}'},
+                {
+                    "conn_type": "new_type",
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": '{"key": "var"}',
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "password": None,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": "type_patch", "host": "test_host_patch"},
+                {
+                    "conn_type": "type_patch",
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": "test_host_patch",
+                    "login": TEST_CONN_LOGIN,
+                    "password": None,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                },
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": "surprise",
+                    "host": "test_host_patch",
+                    "port": 80,
+                },
+                {
+                    "conn_type": "surprise",
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": "test_host_patch",
+                    "login": TEST_CONN_LOGIN,
+                    "password": None,
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": "really_new_type", "login": "test_login_patch"},
+                {
+                    "conn_type": "really_new_type",
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": None,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": 80},
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "password": None,
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "port": 80,
+                    "login": "test_login_patch",
+                    "password": "test_password_patch",
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "password": "test_password_patch",
+                    "port": 80,
+                    "schema": None,
+                },
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "schema": "http_patch",
+                    "extra": '{"extra_key_patch": "extra_value_patch"}',
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": TEST_CONN_DESCRIPTION,
+                    "extra": '{"extra_key_patch": "extra_value_patch"}',
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "password": None,
+                    "port": TEST_CONN_PORT,
+                    "schema": "http_patch",
+                },
+            ),
+            (
+                {  # Explicitly test that None is applied compared to if not provided
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "schema": None,
+                },
+                {
+                    "conn_type": TEST_CONN_TYPE,
+                    "connection_id": TEST_CONN_ID,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "schema": None,
+                },
+            ),
         ],
     )
     @provide_session
-    def test_patch_should_respond_200(self, test_client, body, session):
+    def test_patch_should_respond_200(
+        self, test_client, body: dict[str, str], expected_result: dict[str, str], session
+    ):
         self.create_connection()
 
-        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
+        assert response.json() == expected_result
+
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json={})
+        response = unauthenticated_test_client.patch(f"/connections/{TEST_CONN_ID}", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json={})
+        response = unauthorized_test_client.patch(f"/connections/{TEST_CONN_ID}", json={})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "body, updated_connection, update_mask",
         [
             (
-                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"key": "var"}',
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                },
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
@@ -398,6 +533,27 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "host": TEST_CONN_HOST,
                     "login": TEST_CONN_LOGIN,
                     "port": TEST_CONN_PORT,
+                    "schema": None,
+                    "password": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["login", "port"]},
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"key": "var"}',
+                    "login": None,
+                    "port": None,
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": None,
+                    "port": None,
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
@@ -474,13 +630,35 @@ class TestPatchConnection(TestConnectionEndpoint):
                 },
                 {"update_mask": ["host"]},
             ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"new_extra_key": "new_extra_value"}',
+                    "host": TEST_CONN_HOST,
+                    "schema": "new_schema",
+                    "port": 80,
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"new_extra_key": "new_extra_value"}',
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                    "password": None,
+                    "schema": "new_schema",
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["schema", "extra"]},
+            ),
         ],
     )
     def test_patch_should_respond_200_with_update_mask(
         self, test_client, session, body, updated_connection, update_mask
     ):
         self.create_connection()
-        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body, params=update_mask)
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
         assert connection.password is None
@@ -521,7 +699,7 @@ class TestPatchConnection(TestConnectionEndpoint):
     )
     def test_patch_should_respond_400(self, test_client, body):
         self.create_connection()
-        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
         assert response.json() == {
             "detail": "The connection_id in the request body does not match the URL parameter",
@@ -561,7 +739,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     def test_patch_should_respond_404(self, test_client, body):
-        response = test_client.patch(f"/api/v2/connections/{body['connection_id']}", json=body)
+        response = test_client.patch(f"/connections/{body['connection_id']}", json=body)
         assert response.status_code == 404
         assert response.json() == {
             "detail": f"The Connection with connection_id: `{body['connection_id']}` was not found",
@@ -569,7 +747,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        "body, expected_response, update_mask",
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -584,6 +762,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password"]},
             ),
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
@@ -598,6 +777,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password"]},
             ),
             (
                 {
@@ -617,12 +797,15 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password", "extra"]},
             ),
         ],
     )
-    def test_patch_should_response_200_redacted_password(self, test_client, session, body, expected_response):
+    def test_patch_should_response_200_redacted_password(
+        self, test_client, session, body, expected_response, update_mask
+    ):
         self.create_connections()
-        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
@@ -631,32 +814,36 @@ class TestPatchConnection(TestConnectionEndpoint):
 class TestConnection(TestConnectionEndpoint):
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
-        "body",
+        "body, message",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+            ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
+                "Path / is existing.",
+            ),
         ],
     )
-    def test_should_respond_200(self, test_client, body):
-        response = test_client.post("/api/v2/connections/test", json=body)
+    def test_should_respond_200(self, test_client, body, message):
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json() == {
             "status": True,
-            "message": "Connection successfully tested",
+            "message": message,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            "/api/v2/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
+            "/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(
-            "/api/v2/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
+            "/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
         )
         assert response.status_code == 403
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
         "body",
@@ -666,7 +853,7 @@ class TestConnection(TestConnectionEndpoint):
         ],
     )
     def test_connection_env_is_cleaned_after_run(self, test_client, body):
-        test_client.post("/api/v2/connections/test", json=body)
+        test_client.post("/connections/test", json=body)
         assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
     @pytest.mark.parametrize(
@@ -677,7 +864,7 @@ class TestConnection(TestConnectionEndpoint):
         ],
     )
     def test_should_respond_403_by_default(self, test_client, body):
-        response = test_client.post("/api/v2/connections/test", json=body)
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 403
         assert response.json() == {
             "detail": "Testing connections is disabled in Airflow configuration. "
@@ -687,22 +874,22 @@ class TestConnection(TestConnectionEndpoint):
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):
     def test_should_respond_204(self, test_client, session):
-        response = test_client.post("/api/v2/connections/defaults")
+        response = test_client.post("/connections/defaults")
         assert response.status_code == 204
         assert response.content == b""
         _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/api/v2/connections/defaults")
+        response = unauthenticated_test_client.post("/connections/defaults")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/api/v2/connections/defaults")
+        response = unauthorized_test_client.post("/connections/defaults")
         assert response.status_code == 403
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.db_create_default_connections")
     def test_should_call_db_create_default_connections(self, mock_db_create_default_connections, test_client):
-        response = test_client.post("/api/v2/connections/defaults")
+        response = test_client.post("/connections/defaults")
         assert response.status_code == 204
         mock_db_create_default_connections.assert_called_once()
 
@@ -1001,16 +1188,16 @@ class TestBulkConnections(TestConnectionEndpoint):
     )
     def test_bulk_connections(self, test_client, actions, expected_results, session):
         self.create_connections()
-        response = test_client.patch("/api/v2/connections", json=actions)
+        response = test_client.patch("/connections", json=actions)
         response_data = response.json()
         for connection_id, value in expected_results.items():
             assert response_data[connection_id] == value
         _check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch("/api/v2/connections", json={})
+        response = unauthenticated_test_client.patch("/connections", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/api/v2/connections", json={})
+        response = unauthorized_test_client.patch("/connections", json={})
         assert response.status_code == 403

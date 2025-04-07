@@ -17,6 +17,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -61,12 +62,12 @@ import {
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinks = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenus = <
+  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -74,8 +75,8 @@ export const useAuthLinksServiceGetAuthLinks = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenus() as TData,
     ...options,
   });
 /**
@@ -2988,6 +2989,32 @@ export const useLoginServiceLogout = <
   useQuery<TData, TError>({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
     queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDefaultServiceNotFoundHandler = <
+  TData = Common.DefaultServiceNotFoundHandlerDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }, queryKey),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }) as TData,
     ...options,
   });
 /**

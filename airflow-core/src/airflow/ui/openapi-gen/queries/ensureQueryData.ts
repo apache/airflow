@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -38,14 +39,14 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseAuthLinksServiceGetAuthLinksData = (queryClient: QueryClient) =>
+export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenus(),
   });
 /**
  * Next Run Assets
@@ -2510,4 +2511,24 @@ export const ensureUseLoginServiceLogoutData = (
   queryClient.ensureQueryData({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const ensureUseDefaultServiceNotFoundHandlerData = (
+  queryClient: QueryClient,
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+) =>
+  queryClient.ensureQueryData({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

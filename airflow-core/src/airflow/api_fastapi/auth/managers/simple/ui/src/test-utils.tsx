@@ -16,17 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import React, { PropsWithChildren } from "react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { MemoryRouter, MemoryRouterProps } from "react-router-dom";
-import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { PropsWithChildren } from "react";
+import { CookiesProvider } from "react-cookie";
+import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
 
-interface WrapperProps extends PropsWithChildren {
-  initialEntries?: MemoryRouterProps["initialEntries"];
-}
+type WrapperProps = {
+  readonly initialEntries?: MemoryRouterProps["initialEntries"];
+} & PropsWithChildren;
 
-export const Wrapper = ({ initialEntries, children }: WrapperProps) => {
+export const Wrapper = ({ children, initialEntries }: WrapperProps) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -34,12 +34,13 @@ export const Wrapper = ({ initialEntries, children }: WrapperProps) => {
       },
     },
   });
+
   return (
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={initialEntries}>
-          {children}
-        </MemoryRouter>
+        <CookiesProvider>
+          <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+        </CookiesProvider>
       </QueryClientProvider>
     </ChakraProvider>
   );

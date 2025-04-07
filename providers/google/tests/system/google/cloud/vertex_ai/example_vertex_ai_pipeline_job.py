@@ -123,8 +123,7 @@ with DAG(
         task_id="get_pipeline_job",
         project_id=PROJECT_ID,
         region=REGION,
-        pipeline_job_id="{{ task_instance.xcom_pull("
-        "task_ids='run_pipeline_job', key='pipeline_job_id') }}",
+        pipeline_job_id="{{ task_instance.xcom_pull(task_ids='run_pipeline_job', key='pipeline_job_id') }}",
     )
     # [END how_to_cloud_vertex_ai_get_pipeline_job_operator]
 
@@ -133,8 +132,7 @@ with DAG(
         task_id="delete_pipeline_job",
         project_id=PROJECT_ID,
         region=REGION,
-        pipeline_job_id="{{ task_instance.xcom_pull("
-        "task_ids='run_pipeline_job', key='pipeline_job_id') }}",
+        pipeline_job_id="{{ task_instance.xcom_pull(task_ids='run_pipeline_job', key='pipeline_job_id') }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_pipeline_job_operator]

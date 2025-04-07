@@ -22,8 +22,7 @@ import itertools
 import re
 import signal
 from collections.abc import Generator, Iterable, Mapping, MutableMapping
-from datetime import datetime
-from functools import cache, reduce
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urljoin
 
@@ -58,42 +57,6 @@ def validate_key(k: str, max_length: int = 250):
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
-
-
-def validate_instance_args(instance: object, expected_arg_types: dict[str, Any]) -> None:
-    """Validate that the instance has the expected types for the arguments."""
-    for arg_name, expected_arg_type in expected_arg_types.items():
-        instance_arg_value = getattr(instance, arg_name, None)
-        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
-            raise TypeError(
-                f"'{arg_name}' has an invalid type {type(instance_arg_value)} with value "
-                f"{instance_arg_value}, expected type is {expected_arg_type}"
-            )
-
-
-def validate_group_key(k: str, max_length: int = 200):
-    """Validate value used as a group key."""
-    if not isinstance(k, str):
-        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
-    if len(k) > max_length:
-        raise AirflowException(f"The key has to be less than {max_length} characters")
-    if not GROUP_KEY_REGEX.match(k):
-        raise AirflowException(
-            f"The key {k!r} has to be made of alphanumeric characters, dashes and underscores exclusively"
-        )
-
-
-def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transform a SQLAlchemy model instance into a dictionary."""
-    if not obj:
-        return None
-    output = {}
-    for col in obj.__table__.columns:
-        value = getattr(obj, col.name)
-        if isinstance(value, datetime):
-            value = value.isoformat()
-        output[col.name] = value
-    return output
 
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
@@ -137,29 +100,12 @@ def is_container(obj: Any) -> bool:
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
-def as_tuple(obj: Any) -> tuple:
-    """Return obj as a tuple if obj is a container, otherwise return a tuple containing obj."""
-    if is_container(obj):
-        return tuple(obj)
-    else:
-        return tuple([obj])
-
-
 def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
     """Yield successive chunks of a given size from a list of items."""
     if chunk_size <= 0:
         raise ValueError("Chunk size must be a positive integer")
     for i in range(0, len(items), chunk_size):
         yield items[i : i + chunk_size]
-
-
-def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
-    """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
-    if not iterable:
-        return initializer
-    if chunk_size == 0:
-        chunk_size = len(iterable)
-    return reduce(fn, chunks(iterable, chunk_size), initializer)
 
 
 def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
@@ -297,12 +243,12 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
 
 def render_template_to_string(template: jinja2.Template, context: Context) -> str:
     """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, cast(MutableMapping[str, Any], context), native=False)
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
 
 
 def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
-    return render_template(template, cast(MutableMapping[str, Any], context), native=True)
+    return render_template(template, cast("MutableMapping[str, Any]", context), native=True)
 
 
 def exactly_one(*args) -> bool:

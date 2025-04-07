@@ -58,7 +58,6 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
 
   return (
     <Select.Root
-      bg="bg"
       collection={runOptions}
       data-testid="dag-run-select"
       disabled={isLoading}
@@ -67,6 +66,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
       value={runId === undefined ? [] : [runId]}
       width="250px"
     >
+      <Select.Label fontSize="xs">Dag Run</Select.Label>
       <Select.Trigger clearable>
         <Select.ValueText placeholder="All Runs">
           {(items: Array<DagRunSelected>) => (

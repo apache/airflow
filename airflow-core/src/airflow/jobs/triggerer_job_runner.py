@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import selectors
@@ -41,6 +42,15 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    GetXCom,
+    VariableResult,
+    XComResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -57,7 +67,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
+    from airflow.sdk.api.client import Client
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -169,18 +182,16 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         requests_fd: int
-        kind: Literal["StartTriggerer"] = "StartTriggerer"
-
-    class CancelTriggers(BaseModel):
-        """Request to cancel running triggers."""
-
-        ids: Iterable[int]
-        kind: Literal["CancelTriggersMessage"] = "CancelTriggersMessage"
+        type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class TriggerStateChanges(BaseModel):
-        """Report state change about triggers back to the TriggerRunnerSupervisor."""
+        """
+        Report state change about triggers back to the TriggerRunnerSupervisor.
 
-        kind: Literal["TriggerStateChanges"] = "TriggerStateChanges"
+        The supervisor will respond with a TriggerStateSync message.
+        """
+
+        type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
             list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
@@ -191,10 +202,23 @@ class messages:
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
 
+    class TriggerStateSync(BaseModel):
+        type: Literal["TriggerStateSync"] = "TriggerStateSync"
+
+        to_create: list[workloads.RunTrigger]
+        to_cancel: set[int]
+
 
 ToTriggerRunner = Annotated[
-    Union[workloads.RunTrigger, messages.CancelTriggers, messages.StartTriggerer],
-    Field(discriminator="kind"),
+    Union[
+        messages.StartTriggerer,
+        messages.TriggerStateSync,
+        ConnectionResult,
+        VariableResult,
+        XComResult,
+        ErrorResponse,
+    ],
+    Field(discriminator="type"),
 ]
 """
 The types of messages we can send in to the Trigger Runner process (the process that runs the actual async
@@ -203,8 +227,8 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges],
-    Field(discriminator="kind"),
+    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom],
+    Field(discriminator="type"),
 ]
 """
 The types of messages that the async Trigger Runner can send back up to the supervisor process.
@@ -215,7 +239,9 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
-    bound_logger: WrappedLogger = attrs.field(init=False)
+    ti: RuntimeTI = attrs.field(repr=False)
+
+    bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
     def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
         if hasattr(self, "bound_logger"):
@@ -241,7 +267,14 @@ class TriggerLoggingFactory:
             # Never actually called, nothing to do
             return
 
-        upload_to_remote(self.bound_logger)
+        upload_to_remote(self.bound_logger, self.ti)
+
+
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
 
 
 @attrs.define(kw_only=True)
@@ -272,6 +305,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # FinishedTriggers message
     cancelling_triggers: set[int] = attrs.field(factory=set, init=False)
 
+    # A list of RunTrigger workloads to send to the async process when it next checks in. We can't send it
+    # directly as all comms has to be initiated by the subprocess
+    creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
+
     # Outbound queue of events
     events: deque[tuple[int, events.TriggerEvent]] = attrs.field(factory=deque, init=False)
 
@@ -293,12 +330,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
         msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc._send(msg)
+        proc.stdin.write(msg.model_dump_json().encode() + b"\n")
         return proc
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+
+        resp = None
+
         if isinstance(msg, messages.TriggerStateChanges):
-            log.debug("State change from async process", state=msg)
             if msg.events:
                 self.events.extend(msg.events)
             if msg.failures:
@@ -310,21 +359,62 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
-            return
 
-        raise ValueError(f"Unknown message type {type(msg)}")
+            response = messages.TriggerStateSync(
+                to_create=[],
+                to_cancel=self.cancelling_triggers,
+            )
+
+            # Pull out of these deques in a thread-safe manner
+            while self.creating_triggers:
+                workload = self.creating_triggers.popleft()
+                response.to_create.append(workload)
+            self.running_triggers.update(m.id for m in response.to_create)
+            resp = response.model_dump_json().encode()
+
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
+        elif isinstance(msg, GetXCom):
+            xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            if isinstance(xcom, XComResponse):
+                xcom_result = XComResult.from_xcom_response(xcom)
+                resp = xcom_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = xcom.model_dump_json().encode()
+        else:
+            raise ValueError(f"Unknown message type {type(msg)}")
+
+        if resp:
+            self.stdin.write(resp + b"\n")
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
+        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
+        reset_secrets_masker()
+
         while not self.stop:
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
             with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
+                self.load_triggers()
+
                 # Wait for up to 1 second for activity
                 self._service_subprocess(1)
 
-                self.load_triggers()
                 self.handle_events()
                 self.handle_failed_triggers()
                 self.clean_unused()
@@ -392,9 +482,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             }
         )
 
-    def _send(self, msg: BaseModel):
-        self.stdin.write(msg.model_dump_json().encode("utf-8") + b"\n")
-
     def update_triggers(self, requested_trigger_ids: set[int]):
         """
         Request that we update what triggers we're running.
@@ -448,27 +535,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log"
-                )
 
                 ser_ti = workloads.TaskInstance.model_validate(
                     new_trigger_orm.task_instance, from_attributes=True
                 )
+                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+                self.logger_cache[new_id] = TriggerLoggingFactory(
+                    log_path=f"{log_path}.trigger.{self.job.id}.log",
+                    ti=ser_ti,  # type: ignore
+                )
+
                 workload.ti = ser_ti
                 workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
 
             to_create.append(workload)
 
-        for workload in to_create:
-            self._send(workload)
-        self.running_triggers.update(m.id for m in to_create)
+        self.creating_triggers.extend(to_create)
 
         if cancel_trigger_ids:
             # Enqueue orphaned triggers for cancellation
             self.cancelling_triggers.update(cancel_trigger_ids)
-            self._send(messages.CancelTriggers(ids=cancel_trigger_ids))
 
     def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
         super()._register_pipe_readers(stdout, stderr, requests, logs)
@@ -583,6 +669,9 @@ class TriggerRunner:
     log: FilteringBoundLogger = structlog.get_logger()
 
     requests_sock: asyncio.StreamWriter
+    response_sock: asyncio.StreamReader
+
+    decoder: TypeAdapter[ToTriggerRunner]
 
     def __init__(self):
         super().__init__()
@@ -593,6 +682,7 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
+        self.decoder = TypeAdapter(ToTriggerRunner)
 
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
@@ -604,25 +694,25 @@ class TriggerRunner:
 
         Actual triggers run in their own separate coroutines.
         """
-        watchdog = asyncio.create_task(self.block_watchdog())
-        ready_event = asyncio.Event()
-        read_workloads = asyncio.create_task(self.read_workloads(ready_event))
+        # Make sure comms are initialized before allowing any Triggers to run
+        await self.init_comms()
 
-        await ready_event.wait()
+        watchdog = asyncio.create_task(self.block_watchdog())
+
         last_status = time.monotonic()
         try:
             while not self.stop:
                 # Raise exceptions from the tasks
-                if read_workloads.done():
-                    read_workloads.result()
                 if watchdog.done():
                     watchdog.result()
 
                 # Run core logic
+
+                finished_ids = await self.cleanup_finished_triggers()
+                # This also loads the triggers we need to create or cancel
+                await self.sync_state_to_supervisor(finished_ids)
                 await self.create_triggers()
                 await self.cancel_triggers()
-                finished_ids = await self.cleanup_finished_triggers()
-                await self.sync_state_to_supervisor(finished_ids)
                 # Sleep for a bit
                 await asyncio.sleep(1)
                 # Every minute, log status
@@ -632,27 +722,32 @@ class TriggerRunner:
                     last_status = now
 
         except Exception:
-            log.exception("Trigger runner failed")
+            try:
+                await log.aexception("Trigger runner failed")
+            except BrokenPipeError:
+                pass
             self.stop = True
             raise
-        read_workloads.cancel()
         # Wait for supporting tasks to complete
         await watchdog
-        await read_workloads
 
-    async def read_workloads(self, ready_event: asyncio.Event):
+    async def init_comms(self):
         """
-        Read the triggers to run on stdin.
+        Set up the communications pipe between this process and the supervisor.
 
-        This reads-and-decodes the JSON lines send by the TriggerRunnerSupervisor to us on our stdint
+        This also sets up the SUPERVISOR_COMMS so that TaskSDK code can work as expected too (but that will
+        need to be wrapped in an ``sync_to_async()`` call)
         """
+        from airflow.sdk.execution_time import task_runner
+
         loop = asyncio.get_event_loop()
 
-        task = asyncio.current_task(loop=loop)
-        if TYPE_CHECKING:
-            assert task
-        # Set the event on done callback so that this FN fails the arun wakes up and we catch the exception
-        task.add_done_callback(lambda _: ready_event.set())
+        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            input=sys.stdin,
+            decoder=self.decoder,
+        )
+
+        task_runner.SUPERVISOR_COMMS = comms_decoder
 
         async def connect_stdin() -> asyncio.StreamReader:
             reader = asyncio.StreamReader()
@@ -660,34 +755,20 @@ class TriggerRunner:
             await loop.connect_read_pipe(lambda: protocol, sys.stdin)
             return reader
 
-        stdin = await connect_stdin()
+        self.response_sock = await connect_stdin()
 
-        # The first message must be this type, else we can't operate
-        line = await stdin.readline()
+        line = await self.response_sock.readline()
 
-        decoder = TypeAdapter[ToTriggerRunner](ToTriggerRunner)
-        msg = decoder.validate_json(line)
-        if not isinstance(msg, messages.StartTriggerer) or msg.requests_fd <= 0:
-            raise RuntimeError(f"First message to triggerer must be {messages.StartTriggerer.__name__}")
+        msg = self.decoder.validate_json(line)
+        if not isinstance(msg, messages.StartTriggerer):
+            raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
+        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         writer_transport, writer_protocol = await loop.connect_write_pipe(
             lambda: asyncio.streams.FlowControlMixin(loop=loop),
-            os.fdopen(msg.requests_fd, "wb"),
+            comms_decoder.request_socket,
         )
         self.requests_sock = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
-
-        # Tell `arun` it can start the main loop now
-        ready_event.set()
-
-        async for line in stdin:
-            msg = decoder.validate_json(line)
-
-            if isinstance(msg, workloads.RunTrigger):
-                self.to_create.append(msg)
-            elif isinstance(msg, messages.CancelTriggers):
-                self.to_cancel.extend(msg.ids)
-            else:
-                raise ValueError(f"Unknown workload type {type(msg)}")
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
@@ -797,6 +878,8 @@ class TriggerRunner:
         return finished_ids
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]):
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
         # Copy out of our deques in threadsafe manner to sync state with parent
         events_to_send = []
         while self.events:
@@ -813,7 +896,6 @@ class TriggerRunner:
             events=events_to_send, finished=finished_ids, failures=failures_to_send
         )
 
-        # Only send a message if there is anything to say
         if not events_to_send:
             msg.events = None
 
@@ -823,9 +905,21 @@ class TriggerRunner:
         if not finished_ids:
             msg.finished = None
 
-        if msg.events or msg.finished or msg.failures:
+        # Block triggers from making any requests for the duration of this
+        async with SUPERVISOR_COMMS.lock:
             # Tell the monitor that we've finished triggers so it can update things
             self.requests_sock.write(msg.model_dump_json(exclude_none=True).encode() + b"\n")
+            line = await self.response_sock.readline()
+
+        if line == b"":  # EoF received!
+            if task := asyncio.current_task():
+                task.cancel("EOF - shutting down")
+
+        resp = self.decoder.validate_json(line)
+        if not isinstance(resp, messages.TriggerStateSync):
+            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got f{type(msg)}")
+        self.to_create.extend(resp.to_create)
+        self.to_cancel.extend(resp.to_cancel)
 
     async def block_watchdog(self):
         """

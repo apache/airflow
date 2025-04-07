@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+from cadwyn import VersionChange, endpoint, schema
+
+from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams
 
 
 class RemoveTIRuntimeChecksEndpoint(VersionChange):
@@ -26,4 +28,14 @@ class RemoveTIRuntimeChecksEndpoint(VersionChange):
     description = __doc__
     instructions_to_migrate_to_previous_version = (
         endpoint("/task-instances/{task_instance_id}/runtime-checks", ["POST"]).existed,
+    )
+
+
+class AddIncludePriorDatesParam(VersionChange):
+    """Add the `include_prior_dates` query parameter to the GET XCom API."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXcomFilterParams).field("include_prior_dates").didnt_exist,
     )

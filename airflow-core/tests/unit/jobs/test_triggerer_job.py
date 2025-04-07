@@ -22,13 +22,16 @@ import datetime
 import os
 import selectors
 import time
-from typing import TYPE_CHECKING
-from unittest.mock import ANY, MagicMock, patch
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
+from asgiref.sync import sync_to_async
 
 from airflow.executors import workloads
+from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggererJobRunner,
@@ -38,17 +41,26 @@ from airflow.jobs.triggerer_job_runner import (
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import (
+    clear_db_connections,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_variables,
+    clear_db_xcom,
+)
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -61,9 +73,15 @@ def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
     clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
     yield  # Test runs here
-    clear_db_dags()
     clear_db_runs()
+    clear_db_dags()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_connections()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -79,16 +97,16 @@ def create_trigger_in_db(session, trigger, operator=None):
         run_type=DagRunType.MANUAL,
     )
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     if operator:
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, run_id=run.run_id)
-    task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)
     session.add(trigger_orm)
+    session.flush()
+    task_instance = TaskInstance(operator, run_id=run.run_id)
+    task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
     return dag_model, run, trigger_orm, task_instance
@@ -103,7 +121,6 @@ def test_is_needed(session):
     # Add a trigger, it's needed
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
     assert triggerer_job_runner.is_needed() is True
@@ -183,22 +200,30 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
 
     try:
         # Spy on it so we can see what gets send, but also call the original.
-        send_spy = spy_agency.spy_on(TriggerRunnerSupervisor._send, owner=TriggerRunnerSupervisor)
+        message = None
 
-        trigger_runner_supervisor._service_subprocess(0.1)
+        @spy_agency.spy_for(trigger_runner_supervisor.stdin.write)
+        def write_spy(self, line, *args, **kwargs):
+            nonlocal message
+            message = messages.TriggerStateSync.model_validate_json(line)
+            trigger_runner_supervisor.stdin.write.call_original(line, *args, **kwargs)
+
         trigger_runner_supervisor.load_triggers()
-        # Make sure it turned up in TriggerRunner's queue
-        assert trigger_runner_supervisor.running_triggers == {1}
+        trigger_runner_supervisor._service_subprocess(0.1)
 
-        spy_agency.assert_spy_called_with(
-            send_spy,
+        # Make sure it turned up in TriggerRunner's queue
+        assert trigger_runner_supervisor.running_triggers == {trigger_orm.id}
+
+        assert message is not None, "spy was not called"
+        assert len(message.to_create) == 1
+        assert message.to_create[0] == (
             workloads.RunTrigger.model_construct(
                 id=trigger_orm.id,
                 ti=ANY,
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
-            ),
+            )
         )
         # OK, now remove it from the DB
         session.delete(trigger_orm)
@@ -270,13 +295,18 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
     @pytest.mark.asyncio
-    async def test_invalid_trigger(self):
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_invalid_trigger(self, supervisor_builder):
         """Test the behaviour when we try to run an invalid Trigger"""
         workload = workloads.RunTrigger.model_construct(
             id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
         )
         trigger_runner = TriggerRunner()
         trigger_runner.requests_sock = MagicMock()
+        trigger_runner.response_sock = AsyncMock()
+        trigger_runner.response_sock.readline.return_value = (
+            b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        )
 
         trigger_runner.to_create.append(workload)
 
@@ -320,8 +350,8 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     session.add(trigger_orm)
+    session.flush()
 
     dag = DagModel(dag_id="test-dag")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
@@ -350,7 +380,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # Instead of running job_runner1._execute, we will run the individual methods
     # to control the timing of the execution.
     supervisor1.load_triggers()
-    assert len(supervisor1.running_triggers) == 1
+    assert {t.id for t in supervisor1.creating_triggers} == {trigger_orm.id}
     trigger_orm = session.get(Trigger, trigger_orm.id)
     assert trigger_orm.task_instance is not None, "Pre-condition"
 
@@ -377,59 +407,6 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     assert supervisor2.running_triggers == set()
     # We should have not sent anything to the async runner process
     supervisor2.stdin.write.assert_not_called()
-
-
-def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_agency: SpyAgency):
-    """
-    This verifies the resolution of race condition documented in github issue #18392.
-    Triggers are queued for creation by TriggerJob.load_triggers.
-    There was a race condition where multiple triggers would be created unnecessarily.
-    What happens is the runner completes the trigger and purges from the "running" list.
-    Then job.load_triggers is called and it looks like the trigger is not running but should,
-    so it queues it again.
-
-    The scenario is as follows:
-        1. job.load_triggers (trigger now queued and sent to subprocess)
-        2. runner.create_triggers (trigger now running)
-        3. job.handle_events (trigger still appears running so state not updated in DB)
-        4. runner.cleanup_finished_triggers (trigger completed at this point; trigger from "running" set)
-        5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
-        6. runner.create_triggers (trigger created again)
-
-    This test verifies that under this scenario only one trigger is created.
-    """
-    trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
-    trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
-    session.add(trigger_orm)
-
-    dag = DagModel(dag_id="test-dag")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
-    ti.dag_id = dag.dag_id
-    ti.trigger_id = 1
-    session.add(dag)
-    session.add(dag_run)
-    session.add(ti)
-
-    session.commit()
-
-    supervisor = supervisor_builder()
-
-    iteration = 0
-
-    # Hook into something in each iteration of the loop
-    @spy_agency.spy_for(TriggerRunnerSupervisor.is_alive)
-    def is_alive(self):
-        nonlocal iteration
-        iteration += 1
-        if iteration >= 2:
-            self.stop = True
-
-        return True
-
-    supervisor.run()
-    assert supervisor.stdin.write.call_count == 1
 
 
 @pytest.mark.execution_timeout(5)
@@ -538,9 +515,8 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     """
     # Create a totally invalid trigger
     trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
-    trigger_orm.id = 1
     session.add(trigger_orm)
-    session.commit()
+    session.flush()
 
     # Create the test DAG and task
     with dag_maker(dag_id="test_invalid_trigger", session=session):
@@ -553,12 +529,12 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     task_instance.trigger_id = trigger_orm.id
     session.commit()
 
-    supervisor = supervisor_builder()
+    supervisor: TriggerRunnerSupervisor = supervisor_builder()
 
     supervisor.load_triggers()
 
     # Make sure it got picked up
-    assert supervisor.running_triggers == {1}, "Pre-condition"
+    assert {t.id for t in supervisor.creating_triggers} == {trigger_orm.id}, "Pre-condition"
     # Simulate receiving the state update message
 
     supervisor._handle_request(
@@ -567,7 +543,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
             finished=None,
             failures=[
                 (
-                    1,
+                    trigger_orm.id,
                     [
                         "Traceback (most recent call last):\n",
                         'File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked\n',
@@ -589,3 +565,128 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_method == "__fail__"
     assert task_instance.next_kwargs["error"] == "Trigger failure"
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+
+class CustomTrigger(BaseTrigger):
+    """Custom Trigger that will access one Variable and one Connection."""
+
+    def __init__(self, dag_id, run_id, task_id, map_index):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.task_id = task_id
+        self.map_index = map_index
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        import attrs
+
+        from airflow.sdk import Variable
+        from airflow.sdk.execution_time.xcom import XCom
+
+        conn = await sync_to_async(BaseHook.get_connection)("test_connection")
+        self.log.info("Loaded conn %s", conn.conn_id)
+
+        variable = await sync_to_async(Variable.get)("test_variable")
+        self.log.info("Loaded variable %s", variable)
+
+        xcom = await sync_to_async(XCom.get_one)(
+            key="test_xcom",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=self.map_index,
+        )
+        self.log.info("Loaded XCom %s", xcom)
+
+        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable, "xcom": xcom})
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "dag_id": self.dag_id,
+                "run_id": self.run_id,
+                "task_id": self.task_id,
+                "map_index": self.map_index,
+            },
+        )
+
+
+class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
+    """
+    Make sure that the Supervisor stops after handling the events and do not keep running forever so the
+    test can continue.
+    """
+
+    def handle_events(self):
+        self.stop = bool(self.events)
+        super().handle_events()
+
+
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
+@pytest.mark.asyncio
+@pytest.mark.execution_timeout(20)
+async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
+    """Checks that the trigger will successfully access Variables, Connections and XComs."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    # Make a task instance based on that and tie it to the trigger
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Create a Trigger
+    trigger = CustomTrigger(dag_id=dr.dag_id, run_id=dr.run_id, task_id=task_instance.task_id, map_index=-1)
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
+    )
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    # Create the appropriate Connection, Variable and XCom
+    connection = Connection(conn_id="test_connection", conn_type="http")
+    variable = Variable(key="test_variable", val="some_variable_value")
+    XComModel.set(
+        key="test_xcom",
+        value="some_xcom_value",
+        task_id=task_instance.task_id,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        map_index=-1,
+        session=session,
+    )
+    session.add(connection)
+    session.add(variable)
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {
+        "event": {
+            "connection": {
+                "conn_id": "test_connection",
+                "conn_type": "http",
+                "description": None,
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
+            },
+            "variable": "some_variable_value",
+            "xcom": '"some_xcom_value"',
+        }
+    }

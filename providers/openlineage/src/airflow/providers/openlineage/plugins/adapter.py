@@ -159,11 +159,20 @@ class OpenLineageAdapter(LoggingMixin):
                 stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
-                self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
-        except Exception:
+                self.log.info(
+                    "Successfully emitted OpenLineage `%s` event of id `%s`",
+                    event_type.upper(),
+                    event.run.runId,
+                )
+        except Exception as e:
             Stats.incr("ol.emit.failed")
-            self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
-            self.log.debug("OpenLineage emission failure: %s", exc_info=True)
+            self.log.warning(
+                "Failed to emit OpenLineage `%s` event of id `%s` with the following exception: `%s`",
+                event_type.upper(),
+                event.run.runId,
+                e,
+            )
+            self.log.debug("OpenLineage emission failure details:", exc_info=True)
 
         return redacted_event
 
@@ -371,7 +380,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG started event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG started event: \n %s", traceback.format_exc())
 
     def dag_success(
         self,
@@ -409,7 +418,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG success event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG success event: \n %s", traceback.format_exc())
 
     def dag_failed(
         self,
@@ -453,7 +462,7 @@ class OpenLineageAdapter(LoggingMixin):
             # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
             # This ensures that any unexpected exceptions are logged for debugging purposes.
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
-            self.log.warning("Failed to emit DAG failed event: \n %s", traceback.format_exc())
+            self.log.warning("Failed to emit OpenLineage DAG failed event: \n %s", traceback.format_exc())
 
     @staticmethod
     def _build_run(

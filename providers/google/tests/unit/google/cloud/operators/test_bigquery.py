@@ -1111,9 +1111,9 @@ class TestBigQueryGetDataOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryGetDataTrigger
-        ), "Trigger is not a BigQueryGetDataTrigger"
+        assert isinstance(exc.value.trigger, BigQueryGetDataTrigger), (
+            "Trigger is not a BigQueryGetDataTrigger"
+        )
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("as_dict", [True, False])
@@ -1141,9 +1141,9 @@ class TestBigQueryGetDataOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryGetDataTrigger
-        ), "Trigger is not a BigQueryGetDataTrigger"
+        assert isinstance(exc.value.trigger, BigQueryGetDataTrigger), (
+            "Trigger is not a BigQueryGetDataTrigger"
+        )
 
     @pytest.mark.parametrize("as_dict", [True, False])
     def test_bigquery_get_data_operator_execute_failure(self, as_dict):
@@ -1816,9 +1816,9 @@ class TestBigQueryInsertJobOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryInsertJobTrigger
-        ), "Trigger is not a BigQueryInsertJobTrigger"
+        assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger), (
+            "Trigger is not a BigQueryInsertJobTrigger"
+        )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(
@@ -1853,9 +1853,9 @@ class TestBigQueryInsertJobOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryInsertJobTrigger
-        ), "Trigger is not a BigQueryInsertJobTrigger"
+        assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger), (
+            "Trigger is not a BigQueryInsertJobTrigger"
+        )
 
         assert exc.value.trigger.project_id == TEST_GCP_PROJECT_ID
 
@@ -2468,9 +2468,9 @@ class TestBigQueryIntervalCheckOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryIntervalCheckTrigger
-        ), "Trigger is not a BigQueryIntervalCheckTrigger"
+        assert isinstance(exc.value.trigger, BigQueryIntervalCheckTrigger), (
+            "Trigger is not a BigQueryIntervalCheckTrigger"
+        )
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -2781,9 +2781,9 @@ class TestBigQueryValueCheckOperator:
         with pytest.raises(TaskDeferred) as exc:
             ti.task.execute(MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BigQueryValueCheckTrigger
-        ), "Trigger is not a BigQueryValueCheckTrigger"
+        assert isinstance(exc.value.trigger, BigQueryValueCheckTrigger), (
+            "Trigger is not a BigQueryValueCheckTrigger"
+        )
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.defer")

@@ -22,7 +22,7 @@ use the WinRMOperator to execute commands on a given remote host using the winrm
 
 create a hook
 
-.. exampleinclude:: /../../providers/microsoft/winrm/tests/system/microsoft/winrm/example_winrm.py
+.. exampleinclude:: /../tests/system/microsoft/winrm/example_winrm.py
     :language: python
     :dedent: 4
     :start-after: [START create_hook]
@@ -30,7 +30,7 @@ create a hook
 
 Run the operator, pass the hook, and pass a command to do something
 
-.. exampleinclude:: /../../providers/microsoft/winrm/tests/system/microsoft/winrm/example_winrm.py
+.. exampleinclude:: /../tests/system/microsoft/winrm/example_winrm.py
     :language: python
     :dedent: 4
     :start-after: [START run_operator]

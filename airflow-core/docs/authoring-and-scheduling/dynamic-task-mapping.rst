@@ -34,7 +34,7 @@ In its simplest form you can map over a list defined directly in your DAG file u
 
 If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
+.. exampleinclude:: /../src/airflow/example_dags/example_dynamic_task_mapping.py
     :language: python
 
 This will show ``Total was 9`` in the task logs when executed.
@@ -222,7 +222,7 @@ Mapping with non-TaskFlow operators
 It is possible to use ``partial`` and ``expand`` with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as ``task_id``, ``queue``, ``pool``, and most other arguments to ``BaseOperator``.
 
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping_with_no_taskflow_operators.py
+.. exampleinclude:: /../src/airflow/example_dags/example_dynamic_task_mapping_with_no_taskflow_operators.py
     :language: python
 
 .. note:: Only keyword arguments are allowed to be passed to ``partial()``.
@@ -253,7 +253,7 @@ In this example, you have a regular data delivery to an S3 bucket and want to ap
 
     from datetime import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task
     from airflow.providers.amazon.aws.hooks.s3 import S3Hook
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator

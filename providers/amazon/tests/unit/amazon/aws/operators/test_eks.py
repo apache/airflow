@@ -451,9 +451,9 @@ class TestEksCreateFargateProfileOperator:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute({})
-        assert isinstance(
-            exc.value.trigger, EksCreateFargateProfileTrigger
-        ), "Trigger is not a EksCreateFargateProfileTrigger"
+        assert isinstance(exc.value.trigger, EksCreateFargateProfileTrigger), (
+            "Trigger is not a EksCreateFargateProfileTrigger"
+        )
 
     def test_template_fields(self):
         op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
@@ -679,9 +679,9 @@ class TestEksDeleteFargateProfileOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             self.delete_fargate_profile_operator.execute({})
-        assert isinstance(
-            exc.value.trigger, EksDeleteFargateProfileTrigger
-        ), "Trigger is not a EksDeleteFargateProfileTrigger"
+        assert isinstance(exc.value.trigger, EksDeleteFargateProfileTrigger), (
+            "Trigger is not a EksDeleteFargateProfileTrigger"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.delete_fargate_profile_operator)

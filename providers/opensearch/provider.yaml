@@ -22,7 +22,7 @@ description: |
     `OpenSearch <https://opensearch.org/>`__
 
 state: ready
-source-date-epoch: 1741509372
+source-date-epoch: 1743477861
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.6.2

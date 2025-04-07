@@ -24,12 +24,9 @@ from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-import methodtools
-
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions._internal.types import Logger
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -46,12 +43,24 @@ def validate_key(k: str, max_length: int = 250):
     """Validate value used as a key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
-    if len(k) > max_length:
-        raise ValueError(f"The key has to be less than {max_length} characters")
+    if (length := len(k)) > max_length:
+        raise ValueError(f"The key has to be less than {max_length} characters, not {length}")
     if not KEY_REGEX.match(k):
         raise ValueError(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively"
+            f"dots, and underscores exclusively"
+        )
+
+
+def validate_group_key(k: str, max_length: int = 200):
+    """Validate value used as a group key."""
+    if not isinstance(k, str):
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if (length := len(k)) > max_length:
+        raise ValueError(f"The key has to be less than {max_length} characters, not {length}")
+    if not GROUP_KEY_REGEX.match(k):
+        raise ValueError(
+            f"The key {k!r} has to be made of alphanumeric characters, dashes, and underscores exclusively"
         )
 
 
@@ -69,6 +78,10 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     end_date: datetime | None
     upstream_task_ids: set[str]
     downstream_task_ids: set[str]
+
+    _log_config_logger_name: str | None = None
+    _logger_name: str | None = None
+    _cached_logger: logging.Logger | None = None
 
     def __init__(self):
         self.upstream_task_ids = set()
@@ -98,12 +111,34 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.dag.dag_id
         return "_in_memory_dag_"
 
-    @methodtools.lru_cache()  # type: ignore[misc]
     @property
-    def log(self) -> Logger:
+    def log(self) -> logging.Logger:
+        """
+        Get a logger for this node.
+
+        The logger name is determined by:
+        1. Using _logger_name if provided
+        2. Otherwise, using the class's module and qualified name
+        3. Prefixing with _log_config_logger_name if set
+        """
+        if self._cached_logger is not None:
+            return self._cached_logger
+
         typ = type(self)
-        name = f"{typ.__module__}.{typ.__qualname__}"
-        return logging.getLogger(name)
+
+        logger_name: str = (
+            self._logger_name if self._logger_name is not None else f"{typ.__module__}.{typ.__qualname__}"
+        )
+
+        if self._log_config_logger_name:
+            logger_name = (
+                f"{self._log_config_logger_name}.{logger_name}"
+                if logger_name
+                else self._log_config_logger_name
+            )
+
+        self._cached_logger = logging.getLogger(logger_name)
+        return self._cached_logger
 
     @property
     @abstractmethod
@@ -122,7 +157,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set relatives for the task or task list."""
-        from airflow.sdk.definitions.baseoperator import BaseOperator
+        from airflow.sdk.bases.operator import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if not isinstance(task_or_task_list, Sequence):

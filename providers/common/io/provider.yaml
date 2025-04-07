@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-common-io
 name: Common IO
 description: |
-  ``Common IO Provider``
+  Common IO Provider
 
 state: ready
-source-date-epoch: 1742478916
+source-date-epoch: 1743477801
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.5.2

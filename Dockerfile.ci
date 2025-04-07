@@ -394,9 +394,9 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_INSTALL_FLAGS="--group=dev"
         export EXTRA_UNINSTALL_FLAGS=""
-        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
         export UV_CONCURRENT_DOWNLOADS
@@ -408,7 +408,7 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export UPGRADE_EAGERLY="--upgrade --upgrade-strategy eager"
+        export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
@@ -566,35 +566,96 @@ function common::import_trusted_gpg() {
 }
 EOF
 
-# The content below is automatically copied from scripts/docker/install_airflow.sh
-COPY <<"EOF" /install_airflow.sh
+# The content below is automatically copied from scripts/docker/install_airflow_when_building_images.sh
+COPY <<"EOF" /install_airflow_when_building_images.sh
 #!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-function install_airflow() {
-    # Remove mysql from extras if client is not going to be installed
-    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
-        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
-    fi
-    # Remove postgres from extras if client is not going to be installed
-    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
-        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
-    fi
-    # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
+function install_from_sources() {
     local installation_command_flags
-    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
-        # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
-        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
-        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
+    local fallback_no_constraints_installation
+    fallback_no_constraints_installation="false"
+    if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
+        if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
+            set +x
+            echo
+            echo "${COLOR_RED}We only support uv not pip installation for upgrading dependencies!.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        set +x
+        echo
+        echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
+        echo
+        set -x
+        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb
+    else
+        # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
+        # do not use ``uv sync`` because we are not committing and using uv.lock yet.
+        # Once we switch to uv.lock (with the workflow that dependabot will update it
+        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here)
+        # So for now when we are installing with constraints we need to install airflow distributions first and
+        # separately each provider that has some extra development dependencies - otherwise `dev`
+        # dependency groups will not be installed  because ``uv pip install --editable .`` only installs dev
+        # dependencies for the "top level" pyproject.toml
+        set +x
+        echo
+        echo
+        echo "${COLOR_BLUE}Installing first airflow distribution with constraints.${COLOR_RESET}"
+        echo
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
+              --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
+              --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
+              --editable ./devel-common[all] --editable ./dev \
+              --group dev --group docs --group docs-gen --group leveldb"
+        local -a projects_with_devel_dependencies
         while IFS= read -r -d '' pyproject_toml_file; do
-            project_folder=$(dirname ${pyproject_toml_file})
-            installation_command_flags="${installation_command_flags} --editable ${project_folder}"
-        done < <(find "providers" -name "pyproject.toml" -print0)
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
+             project_folder=$(dirname ${pyproject_toml_file})
+             echo "${COLOR_BLUE}Checking provider ${project_folder} for development dependencies ${COLOR_RESET}"
+             first_line_of_devel_deps=$(grep -A 1 "# Additional devel dependencies (do not remove this line and add extra development dependencies)" ${project_folder}/pyproject.toml | tail -n 1)
+             if [[ "$first_line_of_devel_deps" != "]" ]]; then
+                projects_with_devel_dependencies+=("${project_folder}")
+             fi
+             installation_command_flags+=" --editable ${project_folder}"
+        done < <(find "providers" -name "pyproject.toml" -print0 | sort -z)
+        set -x
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
+            fallback_no_constraints_installation="true"
+        else
+            # For production image, we do not add devel dependencies in prod image
+            if [[ ${AIRFLOW_IMAGE_TYPE=} == "ci" ]]; then
+                set +x
+                echo
+                echo "${COLOR_BLUE}Installing all providers with development dependencies.${COLOR_RESET}"
+                echo
+                for project_folder in "${projects_with_devel_dependencies[@]}"; do
+                    echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
+                    set -x
+                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
+                        fallback_no_constraints_installation="true"
+                    fi
+                    set +x
+                done
+            fi
+        fi
+        set +x
+        if [[ ${fallback_no_constraints_installation} == "true" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
+            echo
+            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            set -x
+            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb
+            set +x
+        fi
+    fi
+}
+
+function install_from_external_spec() {
+     local installation_command_flags
+    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
@@ -606,7 +667,7 @@ function install_airflow() {
         echo
         exit 1
     fi
-    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
+    if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider distributions installed before potentially${COLOR_RESET}"
         echo
@@ -614,22 +675,16 @@ function install_airflow() {
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
         set +x
         echo
-        echo "${COLOR_BLUE}Installing all packages in eager upgrade mode. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with highest resolutions. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
         set +x
-        common::install_packaging_tools
-        echo
-        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
-        echo
-        pip check
     else
         echo
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        # TODO(potiuk) - when we switch to storing uv.lock in the repo, we might use `uv sync` here - but that requires changing our upgrade dependency workflow and strategy
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
@@ -639,15 +694,35 @@ function install_airflow() {
             echo
             set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
+            set +x
         fi
-        set +x
-        common::install_packaging_tools
-        echo
-        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
-        echo
-        pip check
     fi
+}
 
+
+function install_airflow_when_building_images() {
+    # Remove mysql from extras if client is not going to be installed
+    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
+        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
+    fi
+    # Remove postgres from extras if client is not going to be installed
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
+        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
+    fi
+    # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
+    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        install_from_sources
+    else
+        install_from_external_spec
+    fi
+    set +x
+    common::install_packaging_tools
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    pip check
 }
 
 common::get_colors
@@ -656,7 +731,7 @@ common::get_airflow_version_specification
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
-install_airflow
+install_airflow_when_building_images
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
@@ -669,14 +744,14 @@ set -euo pipefail
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
+    if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_TO_HIGHEST_RESOLUTION} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+            ${ADDITIONAL_PYTHON_DEPS}
         set +x
         common::install_packaging_tools
         echo
@@ -904,6 +979,7 @@ function determine_airflow_to_use() {
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
         # Use uv run to install necessary dependencies automatically
+        # in the future we will be able to use uv sync when `uv.lock` is supported
         uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
@@ -913,6 +989,10 @@ function determine_airflow_to_use() {
         echo "${COLOR_BLUE}Installing airflow and providers ${COLOR_RESET}"
         echo
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+    fi
+    if [[ "${USE_AIRFLOW_VERSION}" =~ ^2.* ]]; then
+        # Remove auth manager setting
+        unset AIRFLOW__CORE__AUTH_MANAGER
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -987,28 +1067,28 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
+        local provider_id
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
-        export EXTRA
+        provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
         echo
-        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo
-        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py "${provider_id}"; then
             echo
-            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo "S${COLOR_YELLOW}Skipping ${provider_id} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!${COLOR_RESET}"
             echo
             exit 0
         fi
+        cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
+        uv sync --resolution lowest-direct
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
+        cd "${AIRFLOW_SOURCES}/airflow-core"
+        uv sync --resolution lowest-direct
     fi
-    set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./airflow-core" --editable "./task-sdk" --editable "./devel-common"
-    set +x
 }
 
 function check_airflow_python_client_installation() {
@@ -1019,7 +1099,9 @@ function check_airflow_python_client_installation() {
 }
 
 function start_api_server_with_examples(){
-    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" ]]; then
+    # check if we should not start the api server with examples by checking if both
+    # START_API_SERVER_WITH_EXAMPLES is false AND the TEST_GROUP env var is not equal to "system"
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
@@ -1139,11 +1221,13 @@ COPY --from=scripts common.sh /scripts/docker/
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
 
 ARG HOME=/root
+ARG AIRFLOW_IMAGE_TYPE="ci"
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
 ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 
 ENV HOME=${HOME} \
+    AIRFLOW_IMAGE_TYPE=${AIRFLOW_IMAGE_TYPE} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES} \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE}
@@ -1226,6 +1310,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     UV_SYSTEM_PYTHON="true" \
+    UV_PROJECT_ENVIRONMENT="/usr/local" \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1253,7 +1338,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.6.9
+ARG AIRFLOW_UV_VERSION=0.6.10
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
@@ -1278,7 +1363,7 @@ ARG DEPENDENCY_CACHE_EPOCH="0"
 # in the version specified above
 RUN bash /scripts/docker/install_packaging_tools.sh
 
-COPY --from=scripts install_airflow.sh /scripts/docker/
+COPY --from=scripts install_airflow_when_building_images.sh /scripts/docker/
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)
@@ -1286,16 +1371,10 @@ COPY --from=scripts install_airflow.sh /scripts/docker/
 # add it with ! in .dockerignore next to the airflow, test etc. directories there
 COPY . ${AIRFLOW_SOURCES}/
 
-# Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
-# dependency resolution and we do not need to limit the versions of the dependencies
-#
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
-ARG UPGRADE_INVALIDATION_STRING=""
+ARG UPGRADE_RANDOM_INDICATOR_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
-ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-    UPGRADE_INVALIDATION_STRING=${UPGRADE_INVALIDATION_STRING} \
+ENV UPGRADE_RANDOM_INDICATOR_STRING=${UPGRADE_RANDOM_INDICATOR_STRING} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources
@@ -1304,7 +1383,7 @@ ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENT
 # Usually we will install versions based on the dependencies in pyproject.toml and upgraded only if needed.
 # But in cron job we will install latest versions matching pyproject.toml to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ bash /scripts/docker/install_airflow.sh
+RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ bash /scripts/docker/install_airflow_when_building_images.sh
 
 COPY --from=scripts install_packaging_tools.sh install_additional_dependencies.sh /scripts/docker/
 
@@ -1344,7 +1423,8 @@ ENV PATH="/files/bin/:/opt/airflow/scripts/in_container/bin/:${PATH}" \
     # is different with different platforms / python versions. We want to have a clean cache
     # in the image - and in this case /root/.cache is on the same filesystem as the installed packages.
     # so we can go back to the default link mode being hardlink.
-    UV_LINK_MODE=hardlink
+    UV_LINK_MODE=hardlink \
+    MYPY_FORCE_COLOR="true"
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init

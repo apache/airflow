@@ -28,15 +28,15 @@ from sqlalchemy import func, select, update
 import airflow.example_dags as example_dags_module
 from airflow.decorators import task as task_decorator
 from airflow.models.asset import AssetModel
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG as SchedulerDAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.sdk import DAG, Asset
+from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
@@ -44,7 +44,6 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
 
 pytestmark = pytest.mark.db_test
 
@@ -61,7 +60,9 @@ def make_example_dags(module):
             session.add(testing)
 
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
+
+    dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
+    SchedulerDAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
 
@@ -144,7 +145,10 @@ class TestSerializedDagModel:
         example_bash_op_dag = example_dags.get("example_bash_operator")
         dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
         assert dag_updated is True
-        example_bash_op_dag.create_dagrun(
+
+        # SchedulerDAG is created to create dagrun
+        dag = SchedulerDAG.from_sdk_dag(dag=example_bash_op_dag)
+        dag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
@@ -192,7 +196,10 @@ class TestSerializedDagModel:
         assert len(example_dags) == len(serialized_dags)
 
         dag = example_dags.get("example_bash_operator")
-        dag.create_dagrun(
+
+        # DAGs are serialized and deserialized to access create_dagrun object
+        sdag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag))
+        sdag.create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
@@ -205,18 +212,6 @@ class TestSerializedDagModel:
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
-
-    def test_bulk_sync_to_db(self, testing_dag_bundle):
-        dags = [
-            DAG("dag_1", schedule=None),
-            DAG("dag_2", schedule=None),
-            DAG("dag_3", schedule=None),
-        ]
-        DAG.bulk_write_to_db("testing", None, dags)
-        # we also write to dag_version and dag_code tables
-        # in dag_version.
-        with assert_queries_count(24):
-            SDM.bulk_sync_to_db(dags, bundle_name="testing")
 
     def test_order_of_dag_params_is_stable(self):
         """
@@ -391,3 +386,23 @@ class TestSerializedDagModel:
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
+
+    @pytest.mark.parametrize("min_update_interval", [0, 10])
+    @mock.patch.object(DagVersion, "get_latest_version")
+    def test_min_update_interval_is_respected(
+        self, mock_dv_get_latest_version, min_update_interval, dag_maker
+    ):
+        mock_dv_get_latest_version.return_value = None
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+        # new task
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(dag, bundle_name="testing", min_update_interval=min_update_interval)
+        if min_update_interval:
+            # Because min_update_interval is 10, DagVersion.get_latest_version would
+            # be called only once:
+            mock_dv_get_latest_version.assert_called_once()
+        else:
+            assert mock_dv_get_latest_version.call_count == 2

@@ -1044,8 +1044,7 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
         "network_interfaces": [
             {
                 "kind": "compute#networkInterface",
-                "network": "https://www.googleapis.com/compute/v1/"
-                "projects/project/global/networks/default",
+                "network": "https://www.googleapis.com/compute/v1/projects/project/global/networks/default",
                 "access_configs": [
                     {
                         "kind": "compute#accessConfig",
@@ -1054,8 +1053,7 @@ GCE_INSTANCE_TEMPLATE_BODY_GET = {
                 ],
             },
             {
-                "network": "https://www.googleapis.com/compute/v1/"
-                "projects/project/global/networks/default",
+                "network": "https://www.googleapis.com/compute/v1/projects/project/global/networks/default",
                 "access_configs": [{"kind": "compute#accessConfig", "networkTier": "PREMIUM"}],
             },
         ],
@@ -1386,8 +1384,7 @@ class TestGceInstanceTemplateCopy:
 
 GCE_INSTANCE_GROUP_MANAGER_NAME = "instance-group-test"
 GCE_INSTANCE_TEMPLATE_SOURCE_URL = (
-    "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-test"
+    "https://www.googleapis.com/compute/beta/projects/project/global/instanceTemplates/instance-template-test"
 )
 
 GCE_INSTANCE_TEMPLATE_OTHER_URL = (
@@ -1401,8 +1398,7 @@ GCE_INSTANCE_TEMPLATE_NON_EXISTING_URL = (
 )
 
 GCE_INSTANCE_TEMPLATE_DESTINATION_URL = (
-    "https://www.googleapis.com/compute/beta/projects/project"
-    "/global/instanceTemplates/instance-template-new"
+    "https://www.googleapis.com/compute/beta/projects/project/global/instanceTemplates/instance-template-new"
 )
 
 GCE_INSTANCE_GROUP_MANAGER_GET = {

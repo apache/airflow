@@ -74,6 +74,25 @@ dev = [
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "uuid6>=2024.7.10",
+    "apache-airflow-providers-apache-kafka",
+    "apache-airflow-providers-google",
+    "apache-airflow-providers-common-sql[pandas]",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
 
 [tool.uv.sources]
