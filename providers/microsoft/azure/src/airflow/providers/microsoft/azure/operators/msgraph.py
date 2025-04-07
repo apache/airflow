@@ -61,8 +61,8 @@ def execute_callable(
     try:
         with warnings.catch_warnings():
             with suppress(AttributeError, ImportError):
-                from airflow.utils.context import (
-                    AirflowContextDeprecationWarning,  # type: ignore[attr-defined]
+                from airflow.utils.context import (  # type: ignore[attr-defined]
+                    AirflowContextDeprecationWarning,
                 )
 
                 warnings.filterwarnings("ignore", category=AirflowContextDeprecationWarning)
