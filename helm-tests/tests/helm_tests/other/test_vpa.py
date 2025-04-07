@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-
 from chart_utils.helm_template_generator import render_chart
 
 
