@@ -18,11 +18,10 @@
  */
 import { Link } from "@chakra-ui/react";
 
-export const LogLinks = ({ content }: { content: string }) => {
-  const urlPattern =
-    /\b(?:(?:https?|ftp|ws):\/\/|localhost(?::\d+)?(?:\/\S*)?|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/\S*)?|\w[\w.-]*\.[a-z]{2,}(?::\d+)?(?:\/\S*)?)\b/giu;
+import { urlRegex } from "src/constants/urlRegex";
 
-  const matches = [...content.matchAll(urlPattern)];
+export const LogLinks = ({ content }: { content: string }) => {
+  const matches = [...content.matchAll(urlRegex)];
   const elements: Array<JSX.Element> = [];
 
   let currentIndex = 0;
@@ -44,7 +43,7 @@ export const LogLinks = ({ content }: { content: string }) => {
 
     elements.push(
       <Link
-        colorPalette="blue"
+        color="fg.info"
         href={url}
         // eslint-disable-next-line react/no-array-index-key
         key={`link-${idx}`}
