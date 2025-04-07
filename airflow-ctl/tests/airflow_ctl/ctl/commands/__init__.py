@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class MenuItemCollectionResponse(BaseModel):
-    """Menu Item Collection serializer for responses."""
-
-    authorized_menu_items: list[MenuItem]
-    extra_menu_items: list[ExtraMenuItem]

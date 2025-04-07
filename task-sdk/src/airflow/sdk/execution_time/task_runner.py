@@ -23,7 +23,6 @@ import contextvars
 import functools
 import os
 import sys
-import threading
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime, timezone
@@ -32,6 +31,7 @@ from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TextIO, TypeVar
 
+import aiologic
 import attrs
 import lazy_object_proxy
 import structlog
@@ -547,7 +547,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # "sort of wrong default"
     decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
+    lock: aiologic.Lock = attrs.field(factory=aiologic.Lock, repr=False)
 
     def get_message(self) -> ReceiveMsgType:
         """

@@ -382,16 +382,16 @@ class WatchedSubprocess:
     decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
-    _process: psutil.Process
+    _process: psutil.Process = attrs.field(repr=False)
     _requests_fd: int
     """File descriptor for request handling."""
 
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
 
-    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
+    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
 
-    process_log: FilteringBoundLogger
+    process_log: FilteringBoundLogger = attrs.field(repr=False)
 
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""

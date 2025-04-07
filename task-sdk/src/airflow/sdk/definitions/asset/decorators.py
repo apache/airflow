@@ -179,7 +179,7 @@ class _DAGFactory:
     tags: Collection[str] = attrs.field(factory=set)
 
     def create_dag(self, *, default_dag_id: str) -> DAG:
-        from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
+        from airflow.sdk.definitions.dag import DAG
 
         dag_id = self.dag_id or default_dag_id
         return DAG(
