@@ -2217,6 +2217,9 @@ pgbouncer:
 
   podAnnotations: {}
 
+  # Add custom annotations to the pgbouncer certificates secret
+  certificatesSecretAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2255,6 +2258,8 @@ pgbouncer:
   #  configSecretName: pgbouncer-config-secret
   #
   configSecretName: ~
+  # Add custom annotations to the pgbouncer config secret
+  configSecretAnnotations: {}
 
   # PgBouncer pod disruption budget
   podDisruptionBudget:
@@ -2375,6 +2380,8 @@ pgbouncer:
 
     # Key containing the PGBouncer connection URI, defaults to `connection` if not defined
     statsSecretKey: ~
+    # Add custom annotations to the pgbouncer stats secret
+    statsSecretAnnotations: {}
 
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:

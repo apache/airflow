@@ -7126,6 +7126,14 @@
                         "type": "string"
                     }
                 },
+                "certificatesSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer certificates secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "replicas": {
                     "description": "Number of PgBouncer replicas to run in Deployment.",
                     "type": "integer",
@@ -7204,6 +7212,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "configSecretAnnotations": {
+                    "description": "Annotations to add to the PgBouncer config secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "podAnnotations": {
                     "description": "Add annotations for the PgBouncer Pod.",
@@ -7603,6 +7619,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "statsSecretAnnotations": {
+                            "description": "Annotations to add to the PgBouncer stats secret.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         },
                         "sslmode": {
                             "description": "SSL mode for ``metricsExporterSidecar``",
