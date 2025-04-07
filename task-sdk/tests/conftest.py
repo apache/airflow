@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol
+from unittest.mock import patch
 
 import pytest
 
@@ -266,3 +267,13 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture
+def set_secrets_masker():
+    from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+
+    secrets_masker = SecretsMasker()
+    with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
+            yield secrets_masker

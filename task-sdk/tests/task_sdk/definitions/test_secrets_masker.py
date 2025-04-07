@@ -471,34 +471,25 @@ class TestRedactedIO:
 
 
 class TestMaskSecretAdapter:
-    @pytest.fixture(autouse=True)
-    def reset_secrets_masker_and_skip_escape(self):
-        self.secrets_masker = SecretsMasker()
-        with patch(
-            "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
-        ):
-            with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
-                yield
-
-    def test_calling_mask_secret_adds_adaptations_for_returned_str(self):
+    def test_calling_mask_secret_adds_adaptations_for_returned_str(self, set_secrets_masker):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.quote"}):
             mask_secret("secret<>&", None)
 
-        assert self.secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
+        assert set_secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
 
-    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self):
+    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self, set_secrets_masker):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
             mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
 
-        assert self.secrets_masker.patterns == {
+        assert set_secrets_masker.patterns == {
             "https",
             "airflow.apache.org",
             "/docs/apache-airflow/stable",
             "https://airflow.apache.org/docs/apache-airflow/stable",
         }
 
-    def test_calling_mask_secret_not_set(self):
+    def test_calling_mask_secret_not_set(self, set_secrets_masker):
         with conf_vars({("logging", "secret_mask_adapter"): None}):
             mask_secret("a secret")
 
-        assert self.secrets_masker.patterns == {"a secret"}
+        assert set_secrets_masker.patterns == {"a secret"}
