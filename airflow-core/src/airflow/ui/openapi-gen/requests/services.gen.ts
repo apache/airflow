@@ -3,7 +3,7 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  GetAuthLinksResponse,
+  GetAuthMenusResponse,
   NextRunAssetsData,
   NextRunAssetsResponse,
   GetAssetsData,
@@ -221,14 +221,14 @@ import type {
 
 export class AuthLinksService {
   /**
-   * Get Auth Links
+   * Get Auth Menus
    * @returns MenuItemCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getAuthLinks(): CancelablePromise<GetAuthLinksResponse> {
+  public static getAuthMenus(): CancelablePromise<GetAuthMenusResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/auth/links",
+      url: "/ui/auth/menus",
     });
   }
 }
