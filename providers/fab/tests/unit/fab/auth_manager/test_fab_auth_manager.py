@@ -60,6 +60,7 @@ from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
+    RESOURCE_AUDIT_LOG,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
@@ -488,9 +489,9 @@ class TestFabAuthManager:
                 [],
             ),
             (
-                [MenuItem.ASSET_EVENTS, MenuItem.VARIABLES],
-                [(ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
-                [MenuItem.ASSET_EVENTS],
+                [MenuItem.AUDIT_LOG, MenuItem.VARIABLES],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
+                [MenuItem.AUDIT_LOG],
             ),
             (
                 [],
