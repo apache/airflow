@@ -38,8 +38,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from io import BytesIO
 
-    from kiota_abstractions.request_adapter import ResponseType
-    from kiota_abstractions.request_information import QueryParams
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
@@ -118,11 +116,11 @@ class MSGraphAsyncOperator(BaseOperator):
         self,
         *,
         url: str,
-        response_type: ResponseType | None = None,
+        response_type: str | None = None,
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,

@@ -34,14 +34,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.2
+.....
+
+Latest change: 2025-04-02
+
+==================================================================================================  ===========  =======================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =======================================================================================
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`ac3090d776 <https://github.com/apache/airflow/commit/ac3090d7768eafcefc680f6ad7de7daada4382e8>`__  2025-03-31   ``Checking modification timestamps only when newer_than parameter is present (#48063)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+==================================================================================================  ===========  =======================================================================================
+
 5.1.1
 .....
 
-Latest change: 2025-03-05
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ===================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `69eba4407b <https://github.com/apache/airflow/commit/69eba4407bfa0073562fe51fb58e3d23c25ca8cd>`__  2025-03-01   ``Change get_conn to get_managed_conn in direcotry transfer (#47248)``
 `998fcd6cfb <https://github.com/apache/airflow/commit/998fcd6cfbc35b671a07b92d6f6fc532a00bd8dd>`__  2025-03-01   ``Improve SFTP hook's directory transfer to use a single connection for multiple files (#46582)``

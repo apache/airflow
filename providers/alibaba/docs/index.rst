@@ -77,7 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 3.0.1
+Release: 3.0.2
 
 Provider package
 ----------------

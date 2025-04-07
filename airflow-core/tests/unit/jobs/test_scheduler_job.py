@@ -474,12 +474,13 @@ class TestSchedulerJob:
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
+        session.add(scheduler_job)
+        session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.id = 1
 
         # ti is queued with another try number - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 1
+        ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 2
         session.merge(ti1)
         session.commit()
@@ -493,7 +494,7 @@ class TestSchedulerJob:
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 2
+        ti1.queued_by_job_id = scheduler_job.id - 1
         session.merge(ti1)
         session.commit()
 
@@ -2223,7 +2224,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         old_job = Job()
-        old_job.id = 1
         old_job.job_type = SchedulerJobRunner.job_type
 
         session.add(old_job)
@@ -2232,8 +2232,9 @@ class TestSchedulerJob:
         assert old_job.is_alive() is False
 
         new_job = Job()
-        new_job.id = 2
         new_job.job_type = SchedulerJobRunner.job_type
+        session.add(new_job)
+        session.flush()
 
         self.job_runner = SchedulerJobRunner(job=new_job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2290,8 +2291,8 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
+        session.add(job)
 
         self.job_runner = SchedulerJobRunner(job=job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2348,7 +2349,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
 
         self.job_runner = SchedulerJobRunner(job=job)
