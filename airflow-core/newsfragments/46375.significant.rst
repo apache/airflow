@@ -19,4 +19,4 @@ Any occurrences of the ``secrets_masker`` module will have to be updated from ``
 
     * AIR302
 
-      * [ ] ``airflow.utils.log.secrets_masker`` → ``airflow.sdk.execution_time.secrets_masker``
+      * [x] ``airflow.utils.log.secrets_masker`` → ``airflow.sdk.execution_time.secrets_masker``

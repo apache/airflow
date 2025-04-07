@@ -28,7 +28,7 @@ For example, instead of ``from airflow.sensors import TimeDeltaSensor``, use ``f
 
     * AIR302
 
-      * [ ] ``airflow.sensors.base_sensor_operator.BaseSensorOperator`` → ``airflow.sdk.bases.sensor.BaseSensorOperator``
+      * [x] ``airflow.sensors.base_sensor_operator.BaseSensorOperator`` → ``airflow.sdk.bases.sensor.BaseSensorOperator``
       * [x] ``airflow.sensors.date_time_sensor.DateTimeSensor`` → ``airflow.sensors.date_time.DateTimeSensor``
       * [x] ``airflow.hooks.base_hook.BaseHook`` → ``airflow.hooks.base.BaseHook``
 
