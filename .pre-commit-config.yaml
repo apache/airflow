@@ -1186,17 +1186,8 @@ repos:
           \bab_register_user\b
         pass_filenames: true
         files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
-        # These migrations contain FAB related changes but existed before moving FAB auth manager
-        # to its own provider
-        exclude: >
-          (?ix)^(
-            airflow-core/src/airflow/migrations/versions/00.*\.py|
-            airflow-core/src/airflow/migrations/versions/0106.*\.py|
-            airflow-core/src/airflow/migrations/versions/0118.*\.py|
-            airflow-core/src/airflow/migrations/versions/0119.*\.py|
-            airflow-core/src/airflow/migrations/versions/0121.*\.py|
-            airflow-core/src/airflow/migrations/versions/0124.*\.py
-          )$
+        exclude:
+          airflow-core/src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
