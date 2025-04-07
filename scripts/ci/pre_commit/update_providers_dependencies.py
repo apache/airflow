@@ -155,7 +155,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
     file_provider = get_provider_id_from_path(file_path)
     if not file_provider:
         return
-    imports = get_imports_from_file(file_path)
+    imports = get_imports_from_file(file_path, only_top_level=False)
     for import_name in imports:
         imported_provider = get_provider_id_from_import(import_name, file_path)
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
