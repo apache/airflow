@@ -336,6 +336,11 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
+    def filter(self, *others: XComArg) -> ConcatXComArg:
+        if self.key != XCOM_RETURN_KEY:
+            raise ValueError("cannot filter non-return XCom")
+        return super().filter(*others)
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
