@@ -58,11 +58,11 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then default boto3 configuration would be used (and must be
          maintained on each worker node).
-     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-     :param verify: Whether or not to verify SSL certificates. See:
-         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
-         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     template_fields: Sequence[str] = aws_template_fields(
