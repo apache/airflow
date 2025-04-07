@@ -577,7 +577,7 @@ class ConcatXComArg(XComArg):
 
 
 class _FilterResult(Sequence, Iterable):
-    def __init__(self, value: Sequence | Iterable, callables: list) -> None:
+    def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
         self.value = value
         self.callables = callables
         self.length: int | None = None
