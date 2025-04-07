@@ -1468,6 +1468,15 @@
             "x-docsSection": "Common",
             "default": null
         },
+        "webserverSecretAnnotations": {
+            "description": "Annotations to add to the webserver secret.",
+            "type": "object",
+            "x-docsSection": "Common",
+            "default": {},
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "webserverSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Webserver.",
             "type": [
