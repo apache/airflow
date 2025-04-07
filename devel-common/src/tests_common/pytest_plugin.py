@@ -245,7 +245,7 @@ def pytest_addoption(parser: pytest.Parser):
         dest="integration",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
+        "[cassandra,kerberos,mongo,celery,statsd,trino, redis]. ",
     )
     group.addoption(
         "--keep-env-variables",
