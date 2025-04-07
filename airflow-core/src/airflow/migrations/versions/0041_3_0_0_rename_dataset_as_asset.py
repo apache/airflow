@@ -413,8 +413,8 @@ def upgrade():
             mysql_drop_foreignkey_if_exists("dagrun_dataset_events_dag_run_id_fkey", "dagrun_asset_event", op)
             mysql_drop_foreignkey_if_exists("dagrun_dataset_event_dag_run_id_fkey", "dagrun_asset_event", op)
         else:
-            # sqlite
-            batch_op.drop_constraint("dagrun_dataset_events_dag_run_id_fkey", type_="foreignkey")
+            # sqlite: Assuming no upgrade for sqlite from Airflow 2
+            batch_op.drop_constraint("dagrun_dataset_event_dag_run_id_fkey", type_="foreignkey")
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_dataset_events_event_id",
