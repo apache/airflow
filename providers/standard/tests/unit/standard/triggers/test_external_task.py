@@ -66,6 +66,7 @@ class TestWorkflowTrigger:
         trigger_task = asyncio.create_task(gen.__anext__())
         fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
+        await fake_task
         assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
@@ -102,6 +103,7 @@ class TestWorkflowTrigger:
         trigger_task = asyncio.create_task(gen.__anext__())
         fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
+        await fake_task
         assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
@@ -119,8 +121,8 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
-    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
     @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.get_ti_count")
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
         mock_get_count.return_value = 0
 
@@ -170,6 +172,7 @@ class TestWorkflowTrigger:
         trigger_task = asyncio.create_task(gen.__anext__())
         fake_task = asyncio.create_task(fake_async_fun())
         await trigger_task
+        await fake_task
         assert fake_task.done()  # confirm that get_count is done in an async fashion
         assert trigger_task.done()
         result = trigger_task.result()
