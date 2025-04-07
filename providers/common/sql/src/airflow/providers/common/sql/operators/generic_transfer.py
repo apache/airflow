@@ -66,6 +66,8 @@ class GenericTransfer(BaseOperator):
         "destination_table",
         "preoperator",
         "insert_args",
+        "page_size",
+        "_paginated_sql_statement_format",
     )
     template_ext: Sequence[str] = (
         ".sql",
@@ -86,6 +88,7 @@ class GenericTransfer(BaseOperator):
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,
+        paginated_sql_statement_format: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -98,9 +101,7 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
         self.page_size = page_size
-        self._paginated_sql_statement_format = kwargs.get(
-            "paginated_sql_statement_format", "{} LIMIT {} OFFSET {}"
-        )
+        self._paginated_sql_statement_format = paginated_sql_statement_format or "{} LIMIT {} OFFSET {}"
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> DbApiHook:
