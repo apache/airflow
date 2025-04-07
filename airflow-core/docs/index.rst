@@ -110,7 +110,7 @@ If you prefer coding over clicking, Airflow is built for you. Defining workflows
 - **Testing**: Validate pipeline logic through unit and integration tests.
 - **Extensibility**: Customize workflows using a large ecosystem of existing components — or build your own.
 
-Airflow’s rich scheduling and execution semantics make it easy to define complex, recurring pipelines. From the web interface,
+Airflow's rich scheduling and execution semantics make it easy to define complex, recurring pipelines. From the web interface,
 you can manually trigger DAGs, inspect logs, and monitor task status. You can also backfill DAG runs to process historical
 data, or rerun only failed tasks to minimize cost and time.
 
@@ -118,7 +118,7 @@ The Airflow platform is highly customizable. With the :doc:`public-airflow-inter
 every part of the system — from operators to UI plugins to execution logic.
 
 Because Airflow is open source, you're building on components developed, tested, and maintained by a global community.
-You’ll find a wealth of learning resources, including blog posts, books, and conference talks — and you can connect with
+You'll find a wealth of learning resources, including blog posts, books, and conference talks — and you can connect with
 others via the `community <https://airflow.apache.org/community>`_, `Slack <https://s.apache.org/airflow-slack>`_, and mailing lists.
 
 Why not Airflow®?
