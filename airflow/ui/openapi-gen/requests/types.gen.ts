@@ -1681,7 +1681,7 @@ export type GetAssetsData = {
   limit?: number;
   namePattern?: string | null;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   uriPattern?: string | null;
 };
 
@@ -1691,7 +1691,7 @@ export type GetAssetAliasesData = {
   limit?: number;
   namePattern?: string | null;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 };
 
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
@@ -1706,7 +1706,7 @@ export type GetAssetEventsData = {
   assetId?: number | null;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   sourceDagId?: string | null;
   sourceMapIndex?: number | null;
   sourceRunId?: string | null;
@@ -1822,7 +1822,7 @@ export type GetConnectionsData = {
   connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 };
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
@@ -2007,7 +2007,7 @@ export type GetDagRunsData = {
   logicalDateGte?: string | null;
   logicalDateLte?: string | null;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   runAfterGte?: string | null;
   runAfterLte?: string | null;
   startDateGte?: string | null;
@@ -2151,7 +2151,7 @@ export type GetEventLogsData = {
   limit?: number;
   mapIndex?: number | null;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   owner?: string | null;
   runId?: string | null;
   taskId?: string | null;
@@ -2284,7 +2284,7 @@ export type GetTaskInstancesData = {
   logicalDateGte?: string | null;
   logicalDateLte?: string | null;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   pool?: Array<string>;
   queue?: Array<string>;
   runAfterGte?: string | null;
@@ -2537,7 +2537,7 @@ export type PatchVariableResponse = VariableResponse;
 export type GetVariablesData = {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   variableKeyPattern?: string | null;
 };
 

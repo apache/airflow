@@ -133,7 +133,7 @@ export const useAssetServiceGetAssets = <
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     uriPattern?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -173,7 +173,7 @@ export const useAssetServiceGetAssetAliases = <
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -246,7 +246,7 @@ export const useAssetServiceGetAssetEvents = <
     assetId?: number;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     sourceDagId?: string;
     sourceMapIndex?: number;
     sourceRunId?: string;
@@ -552,7 +552,7 @@ export const useConnectionServiceGetConnections = <
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1064,7 +1064,7 @@ export const useDagRunServiceGetDagRuns = <
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     runAfterGte?: string;
     runAfterLte?: string;
     startDateGte?: string;
@@ -1514,7 +1514,7 @@ export const useEventLogServiceGetEventLogs = <
     limit?: number;
     mapIndex?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owner?: string;
     runId?: string;
     taskId?: string;
@@ -2079,7 +2079,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     pool?: string[];
     queue?: string[];
     runAfterGte?: string;
@@ -2789,7 +2789,7 @@ export const useVariableServiceGetVariables = <
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
