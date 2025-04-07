@@ -245,6 +245,7 @@ Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
+
 [tool.hatch.version]
 path = "src/airflow/__init__.py"
 
@@ -293,6 +294,23 @@ dev = [
     # TODO(potiuk): check if this is really needed
     "apache-airflow-providers-ftp",
 ]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+
 
 [tool.uv]
 required-version = ">=0.6.3"

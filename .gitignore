@@ -185,6 +185,12 @@ airflow-*.log
 airflow-*.pid
 .airflow_db_initialised
 
+# Generated doc files
+_api
+_build
+_doctree
+_inventory_cache
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -261,8 +267,3 @@ airflow-build-dockerfile*
 *.zip
 
 _api/
-
-# Items generated when building the docs locally for release
-/docs/_build/
-/docs/_doctrees/*/
-/docs/_inventory_cache/
