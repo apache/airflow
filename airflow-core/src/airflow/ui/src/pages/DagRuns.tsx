@@ -138,8 +138,8 @@ export const DagRuns = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
+    ["-run_after"] : new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);

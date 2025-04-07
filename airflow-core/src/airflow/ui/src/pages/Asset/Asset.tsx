@@ -37,8 +37,8 @@ export const Asset = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-timestamp";
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
+    ["-timestamp"] : new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },

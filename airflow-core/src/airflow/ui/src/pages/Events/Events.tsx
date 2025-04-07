@@ -115,9 +115,8 @@ export const Events = () => {
   const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
+    ["-when"] : new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const {
     data,

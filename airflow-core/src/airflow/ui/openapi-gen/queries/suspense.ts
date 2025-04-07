@@ -70,7 +70,7 @@ export const useAssetServiceGetAssetsSuspense = <
     namePattern?: string;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: string[];
     uriPattern?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -118,7 +118,7 @@ export const useAssetServiceGetAssetAliasesSuspense = <
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -191,7 +191,7 @@ export const useAssetServiceGetAssetEventsSuspense = <
     assetId?: number;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     sourceDagId?: string;
     sourceMapIndex?: number;
     sourceRunId?: string;
@@ -398,7 +398,7 @@ export const useBackfillServiceListBackfillsSuspense = <
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -668,7 +668,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     runAfterGte?: string;
     runAfterLte?: string;
     runType?: string[];
@@ -1199,7 +1199,7 @@ export const useEventLogServiceGetEventLogsSuspense = <
     limit?: number;
     mapIndex?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owner?: string;
     runId?: string;
     taskId?: string;
@@ -1769,7 +1769,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     pool?: string[];
     queue?: string[];
     runAfterGte?: string;
@@ -2539,7 +2539,7 @@ export const useVariableServiceGetVariablesSuspense = <
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,

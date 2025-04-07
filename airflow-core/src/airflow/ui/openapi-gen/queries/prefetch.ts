@@ -67,7 +67,7 @@ export const prefetchUseAssetServiceGetAssets = (
     namePattern?: string;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: string[];
     uriPattern?: string;
   } = {},
 ) =>
@@ -106,7 +106,7 @@ export const prefetchUseAssetServiceGetAssetAliases = (
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -167,7 +167,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     assetId?: number;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     sourceDagId?: string;
     sourceMapIndex?: number;
     sourceRunId?: string;
@@ -335,7 +335,7 @@ export const prefetchUseBackfillServiceListBackfills = (
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   },
 ) =>
   queryClient.prefetchQuery({
@@ -549,7 +549,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     runAfterGte?: string;
     runAfterLte?: string;
     runType?: string[];
@@ -991,7 +991,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
     limit?: number;
     mapIndex?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owner?: string;
     runId?: string;
     taskId?: string;
@@ -1485,7 +1485,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     pool?: string[];
     queue?: string[];
     runAfterGte?: string;
@@ -2148,7 +2148,7 @@ export const prefetchUseVariableServiceGetVariables = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     variableKeyPattern?: string;
   } = {},
 ) =>
