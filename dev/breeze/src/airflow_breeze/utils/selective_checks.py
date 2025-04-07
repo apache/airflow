@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
@@ -988,9 +989,9 @@ class SelectiveChecks:
         # We are hard-coding the number of lists as reasonable starting point to split the
         # list of test types - and we can modify it in the future
         # TODO: In Python 3.12 we will be able to use itertools.batched
-        if len(current_test_types) < 5:
+        if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, 5)
+        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -1211,16 +1212,6 @@ class SelectiveChecks:
         if self._get_providers_test_types_to_run():
             return False
         return True
-
-    @cached_property
-    def test_groups(self):
-        if self.skip_providers_tests:
-            if self.run_tests:
-                return "['core']"
-        else:
-            if self.run_tests:
-                return "['core', 'providers']"
-        return "[]"
 
     @cached_property
     def docker_cache(self) -> str:
