@@ -97,16 +97,16 @@ def create_trigger_in_db(session, trigger, operator=None):
         run_type=DagRunType.MANUAL,
     )
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     if operator:
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, run_id=run.run_id)
-    task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)
     session.add(trigger_orm)
+    session.flush()
+    task_instance = TaskInstance(operator, run_id=run.run_id)
+    task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
     return dag_model, run, trigger_orm, task_instance
@@ -121,7 +121,6 @@ def test_is_needed(session):
     # Add a trigger, it's needed
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
     assert triggerer_job_runner.is_needed() is True
@@ -206,7 +205,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
         trigger_runner_supervisor._service_subprocess(0.1)
         trigger_runner_supervisor.load_triggers()
         # Make sure it turned up in TriggerRunner's queue
-        assert trigger_runner_supervisor.running_triggers == {1}
+        assert trigger_runner_supervisor.running_triggers == {trigger_orm.id}
 
         spy_agency.assert_spy_called_with(
             send_spy,
@@ -338,8 +337,8 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     session.add(trigger_orm)
+    session.flush()
 
     dag = DagModel(dag_id="test-dag")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
@@ -368,7 +367,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # Instead of running job_runner1._execute, we will run the individual methods
     # to control the timing of the execution.
     supervisor1.load_triggers()
-    assert len(supervisor1.running_triggers) == 1
+    assert supervisor1.running_triggers == {trigger_orm.id}
     trigger_orm = session.get(Trigger, trigger_orm.id)
     assert trigger_orm.task_instance is not None, "Pre-condition"
 
@@ -418,14 +417,14 @@ def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_ag
     """
     trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
     trigger_orm = Trigger.from_object(trigger)
-    trigger_orm.id = 1
     session.add(trigger_orm)
+    session.flush()
 
     dag = DagModel(dag_id="test-dag")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
     ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
     ti.dag_id = dag.dag_id
-    ti.trigger_id = 1
+    ti.trigger_id = trigger_orm.id
     session.add(dag)
     session.add(dag_run)
     session.add(ti)
@@ -556,9 +555,8 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     """
     # Create a totally invalid trigger
     trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
-    trigger_orm.id = 1
     session.add(trigger_orm)
-    session.commit()
+    session.flush()
 
     # Create the test DAG and task
     with dag_maker(dag_id="test_invalid_trigger", session=session):
@@ -571,12 +569,12 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     task_instance.trigger_id = trigger_orm.id
     session.commit()
 
-    supervisor = supervisor_builder()
+    supervisor: TriggerRunnerSupervisor = supervisor_builder()
 
     supervisor.load_triggers()
 
     # Make sure it got picked up
-    assert supervisor.running_triggers == {1}, "Pre-condition"
+    assert supervisor.running_triggers == {trigger_orm.id}, "Pre-condition"
     # Simulate receiving the state update message
 
     supervisor._handle_request(
@@ -585,7 +583,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
             finished=None,
             failures=[
                 (
-                    1,
+                    trigger_orm.id,
                     [
                         "Traceback (most recent call last):\n",
                         'File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked\n',
@@ -687,7 +685,6 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
         classpath=trigger.serialize()[0],
         kwargs={"dag_id": dr.dag_id, "run_id": dr.run_id, "task_id": task_instance.task_id, "map_index": -1},
     )
-    trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
     task_instance.trigger_id = trigger_orm.id

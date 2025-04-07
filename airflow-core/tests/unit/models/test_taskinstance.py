@@ -4311,7 +4311,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         assert ti.pool == task.pool
 
     assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.priority_weight_total
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config

@@ -94,7 +94,7 @@ def tutorial_taskflow_templates():
         # function
         params={"foobar": "param_from_task"},
     )(
-        sql="sql/test.sql",
+        sql="sql/tutorial_taskflow_template.sql",
         test_var="{{ run_id }}",
     )
     # [END main_flow]
