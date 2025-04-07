@@ -636,6 +636,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -652,6 +653,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -673,6 +675,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,

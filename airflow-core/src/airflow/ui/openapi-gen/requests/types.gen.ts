@@ -2038,6 +2038,7 @@ export type GetDagRunsData = {
   orderBy?: string;
   runAfterGte?: string | null;
   runAfterLte?: string | null;
+  runType?: Array<string>;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
