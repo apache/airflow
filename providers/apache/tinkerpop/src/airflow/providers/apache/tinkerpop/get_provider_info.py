@@ -55,6 +55,6 @@ def get_provider_info():
                 "connection-type": "gremlin",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "gremlinpython>=3.7.0", "nest-asyncio>=1.6.0"],
+        "dependencies": ["apache-airflow>=2.10.0", "gremlinpython>=3.7.0", "nest-asyncio>=1.6.0"],
         "devel-dependencies": [],
     }
