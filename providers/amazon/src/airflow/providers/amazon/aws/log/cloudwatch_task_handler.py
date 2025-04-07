@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     import structlog.typing
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -152,13 +153,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     def close(self):
         self.handler.close()
 
-    def upload(self, path: os.PathLike | str):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         # No-op, as we upload via the processor as we go
         # But we need to give the handler time to finish off its business
         self.close()
         return
 
-    def read(self, relative_path, ti: TaskInstance | None = None) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         logs: LogMessages | None = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -179,7 +180,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, logs
 
-    def get_cloudwatch_logs(self, stream_name: str, task_instance: TaskInstance | None):
+    def get_cloudwatch_logs(self, stream_name: str, task_instance: RuntimeTI):
         """
         Return all logs from the given log stream.
 
@@ -192,8 +193,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
         end_time = (
             None
-            if task_instance is None or task_instance.end_date is None
-            else datetime_to_epoch_utc_ms(task_instance.end_date + timedelta(seconds=30))
+            if (end_date := getattr(task_instance, "end_date", None)) is None
+            else datetime_to_epoch_utc_ms(end_date + timedelta(seconds=30))
         )
         events = self.hook.get_log_events(
             log_group=self.log_group,

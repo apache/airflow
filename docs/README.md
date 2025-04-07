@@ -23,7 +23,7 @@ This directory used to contain all the documentation files for the project. The 
 been split to separate folders - the documentation is now in the folders in sub-projects that they
 are referring to.
 
-If you look for the dpcumentation it is moved as follows:
+If you look for the documentation it is stored as follows:
 
 Documentation in separate distributions:
 
@@ -33,7 +33,7 @@ Documentation in separate distributions:
 * `task-sdk/docs` - documentation for Task SDK (new format not yet published)
 * `airflow-ctl/docs` - documentation for Airflow CLI (future)
 
-Documentation for general overview and summaries not connected with amy specific distribution:
+Documentation for general overview and summaries not connected with any specific distribution:
 
 * `docker-stack-docs` - documentation for Docker Stack'
 * `providers-summary-docs` - documentation for provider summary page

@@ -27,5 +27,5 @@
 
     * AIR302
 
-      * [ ] ``default_view`` argument to DAG removed
-      * [ ] ``orientation`` argument to DAG removed
+      * [x] ``default_view`` argument to DAG removed
+      * [x] ``orientation`` argument to DAG removed

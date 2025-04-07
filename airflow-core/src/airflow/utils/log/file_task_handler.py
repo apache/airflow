@@ -638,5 +638,5 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        sources, logs = remote_io.read(path)
+        sources, logs = remote_io.read(path, ti)
         return sources, logs or []

@@ -369,7 +369,7 @@ an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` metho
 
   .. code-block:: python
 
-    from airflow.sensors.base import PokeReturnValue
+    from airflow.sdk import PokeReturnValue
 
 
     class SensorWithXcomValue(BaseSensorOperator):
@@ -386,7 +386,7 @@ pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
   .. code-block:: python
 
     try:
-        from airflow.sensors.base import PokeReturnValue
+        from airflow.sdk import PokeReturnValue
     except ImportError:
         PokeReturnValue = None
 

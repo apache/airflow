@@ -47,7 +47,7 @@ which will add anything inside it to the DAG implicitly:
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
@@ -65,7 +65,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
@@ -459,7 +459,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         import pendulum
 
         from airflow.decorators import task
-        from airflow.models import DAG
+        from airflow.sdk import DAG
         from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
@@ -577,7 +577,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.decorators import task_group
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator

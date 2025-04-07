@@ -493,7 +493,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
         ),
         pytest.param(
             {"my_tup": (1, 2), "my_set": {1, 2, 3}},
-            {"my_tup": "(1, 2)", "my_set": "{1, 2, 3}"},
+            {"my_tup": [1, 2], "my_set": "{1, 2, 3}"},
             id="tuples_and_sets",
         ),
         pytest.param(

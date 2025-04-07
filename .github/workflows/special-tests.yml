@@ -28,10 +28,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch for the repository"
         required: true
         type: string
-      test-groups:
-        description: "The json representing list of test test groups to run"
-        required: true
-        type: string
       core-test-types-list-as-strings-in-json:
         description: "The list of core test types to run separated by spaces"
         required: true
