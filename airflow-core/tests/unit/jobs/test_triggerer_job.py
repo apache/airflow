@@ -851,7 +851,6 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, d
             "run_ids": [parent_dag_run.run_id],
         },
     )
-    trigger_orm.id = 1
     session.add(trigger_orm)
     session.commit()
     task_instance.trigger_id = trigger_orm.id
