@@ -17,17 +17,14 @@
 
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from cadwyn import VersionChange, schema
 
-from airflow.api_fastapi.execution_api.versions.v2025_03_26 import (
-    AddIncludePriorDatesParam,
-    RemoveTIRuntimeChecksEndpoint,
-)
-from airflow.api_fastapi.execution_api.versions.v2025_04_10 import AddConsumedAssetEventsField
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2025-04-10", AddConsumedAssetEventsField),
-    Version("2025-03-26", RemoveTIRuntimeChecksEndpoint, AddIncludePriorDatesParam),
-    Version("2025-03-19"),
-)
+
+class AddConsumedAssetEventsField(VersionChange):
+    """Add the `consumed_asset_events` to DagRun model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("consumed_asset_events").didnt_exist,)
