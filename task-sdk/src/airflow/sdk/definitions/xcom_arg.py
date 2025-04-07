@@ -586,10 +586,12 @@ class _FilterResult(Sequence, Iterable):
         if not (0 <= index < len(self)):
             raise IndexError
 
-        value = self.value[index]
-        if self._apply_callables(value):
-            return value
-        return None
+        if isinstance(self.value, Sequence):
+            value = self.value[index]
+            if self._apply_callables(value):
+                return value
+            return None
+        raise TypeError("XComArg filter does not support indexing on non-sequence values")
 
     def __len__(self) -> int:
         # Calculating the length of an iterable can be a heavy operation, so we cache the result after first attempt
