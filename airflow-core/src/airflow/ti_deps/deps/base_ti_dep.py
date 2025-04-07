@@ -46,7 +46,7 @@ class BaseTIDep:
     # to some tasks (e.g. depends_on_past is not specified by all tasks).
     IS_TASK_DEP = False
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two task instance dependencies are equal by comparing their types."""
         return isinstance(self, type(other))
 

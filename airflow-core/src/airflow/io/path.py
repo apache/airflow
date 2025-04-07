@@ -123,7 +123,7 @@ class ObjectStoragePath(CloudPath):
             self._hash_cached = hash(str(self))
             return self._hash_cached
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self.samestore(other) and str(self) == str(other)
 
     def samestore(self, other: typing.Any) -> bool:

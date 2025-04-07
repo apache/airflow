@@ -104,7 +104,7 @@ class ObjectStore:
 
         return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         self_fs = None
         other_fs = None
         with suppress(ValueError):

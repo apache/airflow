@@ -83,7 +83,7 @@ class CronMixin:
             interval_description = ""
         self.description: str = interval_description
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Both expression and timezone should match.
 
