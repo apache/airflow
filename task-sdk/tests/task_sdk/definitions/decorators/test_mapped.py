@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,23 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.decorators import (
-    TaskDecorator as TaskDecorator,
-    TaskDecoratorCollection as TaskDecoratorCollection,
-    dag as dag,
-    setup as setup,
-    task as task,
-    task_group as task_group,
-    teardown as teardown,
-)
-from airflow.utils.deprecation_tools import add_deprecated_classes
+from airflow.sdk import DAG, TaskGroup
 
-__deprecated_classes = {
-    "base": {
-        "DecoratedMappedOperator": "airflow.sdk.bases.decorator.DecoratedMappedOperator",
-        "DecoratedOperator": "airflow.sdk.bases.decorator.DecoratedOperator",
-        "TaskDecorator": "airflow.sdk.bases.decorator.TaskDecorator",
-        "task_decorator_factory": "airflow.sdk.bases.decorator.task_decorator_factory",
-    },
-}
-add_deprecated_classes(__deprecated_classes, __name__)
+
+def test_mapped_task_group_id_prefix_task_id():
+    def f(z):
+        pass
+
+    with DAG(dag_id="d", schedule=None) as dag:
+        x1 = dag.task(task_id="t1")(f).expand(z=[])
+        with TaskGroup("g"):
+            x2 = dag.task(task_id="t2")(f).expand(z=[])
+
+    assert x1.operator.task_id == "t1"
+    assert x2.operator.task_id == "g.t2"
+
+    assert dag.get_task("t1") == x1.operator
+    assert dag.get_task("g.t2") == x2.operator

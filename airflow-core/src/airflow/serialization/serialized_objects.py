@@ -43,7 +43,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
-    EXPAND_INPUT_EMPTY,
     create_expand_input,
 )
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -52,6 +51,7 @@ from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,

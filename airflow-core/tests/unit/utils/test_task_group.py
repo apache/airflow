@@ -22,18 +22,18 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import (
+from airflow.exceptions import TaskAlreadyInTaskGroup
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import (
     dag,
     setup,
     task as task_decorator,
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
@@ -349,7 +349,7 @@ def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def task_1():
@@ -638,9 +638,9 @@ def test_dag_edges_setup_teardown():
 
 
 def test_dag_edges_setup_teardown_nested():
-    from airflow.decorators import task, task_group
     from airflow.models.dag import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import task, task_group
 
     logical_date = pendulum.parse("20200101")
 
@@ -746,7 +746,7 @@ def test_build_task_group_deco_context_manager():
     2. TaskGroup consisting Tasks created using task decorator.
     3. Node Ids of dags created with taskgroup decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     # Creating Tasks
     @task
@@ -844,7 +844,7 @@ def test_build_task_group_deco_context_manager():
 
 def test_build_task_group_depended_by_task():
     """A decorator-based task group should be able to be used as a relative to operators."""
-    from airflow.decorators import dag as dag_decorator, task
+    from airflow.sdk import dag as dag_decorator, task
 
     @dag_decorator(schedule=None, start_date=pendulum.now())
     def build_task_group_depended_by_task():
@@ -879,7 +879,7 @@ def test_build_task_group_depended_by_task():
 
 def test_build_task_group_with_operators():
     """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -938,7 +938,7 @@ def test_build_task_group_with_operators():
 
 def test_task_group_context_mix():
     """Test cases to check nested TaskGroup context manager with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -1041,7 +1041,7 @@ def test_default_args():
 
 def test_duplicate_task_group_id():
     """Testing automatic suffix assignment for duplicate group_id"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1114,7 +1114,7 @@ def test_duplicate_task_group_id():
 
 def test_call_taskgroup_twice():
     """Test for using same taskgroup decorated function twice"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1176,7 +1176,7 @@ def test_call_taskgroup_twice():
 
 def test_pass_taskgroup_output_to_task():
     """Test that the output of a task group can be passed to a task."""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def one():
@@ -1215,7 +1215,7 @@ def test_decorator_unknown_args():
 
 
 def test_decorator_multiple_use_task():
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @dag("test-dag", schedule=None, start_date=DEFAULT_DATE)
     def _test_dag():
