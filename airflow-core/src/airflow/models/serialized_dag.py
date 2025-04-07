@@ -385,8 +385,8 @@ class SerializedDagModel(Base):
                 select(literal(True))
                 .where(
                     cls.dag_id == dag.dag_id,
-                    and_((timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
-                         cls.created_at > dag_file_modified_time)
+                    and_((timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
+                         cls.last_updated > dag_file_modified_time)
                 )
                 .select_from(cls)
             ):
