@@ -24,10 +24,7 @@ import re
 import argparse
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import (
-    console,
-    get_imports_from_file
-)
+from common_precommit_utils import console, get_imports_from_file
 
 
 def parse_args():
@@ -36,17 +33,13 @@ def parse_args():
     parser.add_argument(
         "--pattern",
         required=True,
-        help="Regular expression pattern to match forbidden imports (e.g., '^airflow\\.kubernetes')."
+        help="Regular expression pattern to match forbidden imports (e.g., '^airflow\\.kubernetes').",
     )
     parser.add_argument(
-        "--message",
-        required=True,
-        help="Error message to show when a forbidden import is found."
+        "--message", required=True, help="Error message to show when a forbidden import is found."
     )
     parser.add_argument(
-        "--only_top_level",
-        action="store_true",
-        help="If set, only top-level imports will be analyzed."
+        "--only_top_level", action="store_true", help="If set, only top-level imports will be analyzed."
     )
     return parser.parse_args()
 

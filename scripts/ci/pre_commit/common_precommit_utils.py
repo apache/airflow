@@ -316,7 +316,7 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
         import json
         from pathlib import Path, PurePath
     from __future__ import annotations
-    
+
     When only_top_level = False then returns
         ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame']
     When only_top_level = False then returns

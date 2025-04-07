@@ -433,7 +433,7 @@ repos:
         require_serial: true
         exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_airflow_imports.py
-            --pattern '^airflow\.providers\.cncf\.kubernetes' \
+            --pattern '^airflow\.providers\.cncf\.kubernetes'
             --message "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file

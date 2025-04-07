@@ -41,7 +41,7 @@ from common_precommit_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     console,
-    get_imports_from_file
+    get_imports_from_file,
 )
 
 AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."

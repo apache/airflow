@@ -117,13 +117,12 @@ def test_repair_task_with_params(mock_databricks_hook):
         "overriding_parameters": {
             "key1": "value1",
             "key2": "value2",
-        }
+        },
     }
     assert result == 200
     mock_hook_instance.get_latest_repair_id.assert_called_once_with(DATABRICKS_RUN_ID)
     mock_hook_instance.get_run.assert_called_once_with(DATABRICKS_RUN_ID)
     mock_hook_instance.repair_run.assert_called_once_with(expected_payload)
-
 
 
 def test_get_launch_task_id_no_launch_task():
