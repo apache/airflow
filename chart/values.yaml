@@ -491,6 +491,8 @@ data:
   #   sslmode: disable
   # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
+  # Add custom annotations to the broker url secret
+  brokerUrlSecretAnnotations: {}
 
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
@@ -2474,6 +2476,9 @@ redis:
   # Otherwise a new password will be generated on install
   # Note: password can only be set during install, not upgrade.
   password: ~
+
+  # Add custom annotations to the redis password secret
+  passwordSecretAnnotations: {}
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.

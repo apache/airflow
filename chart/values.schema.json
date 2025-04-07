@@ -1413,6 +1413,14 @@
                     ],
                     "x-docsSection": "Redis",
                     "default": null
+                },
+                "brokerUrlSecretAnnotations": {
+                    "description": "Annotations to add to the broker url secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -7877,6 +7885,14 @@
                         "null"
                     ],
                     "default": null
+                },
+                "passwordSecretAnnotations": {
+                    "description": "Annotations to add to the redis password secret.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
