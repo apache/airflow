@@ -18,10 +18,13 @@
 This is an example DAG for the use of the SQLExecuteQueryOperator with Apache Pinot.
 """
 
+from __future__ import annotations
+
 import datetime
+from textwrap import dedent
+
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from textwrap import dedent
 
 DAG_ID = "example_pinot"
 
@@ -32,7 +35,6 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-
     # [START howto_operator_pinot]
 
     # Task: Simple query to test connection and query engine
@@ -65,7 +67,9 @@ with DAG(
 
     # Optional: watcher for system tests
     from tests_common.test_utils.watcher import watcher
+
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
 test_run = get_test_run(dag)

@@ -18,7 +18,10 @@
 This is an example DAG for the use of the SQLExecuteQueryOperator with Hive.
 """
 
+from __future__ import annotations
+
 import datetime
+
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
@@ -31,7 +34,6 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-
     # [START howto_operator_hive]
 
     create_table_hive_task = SQLExecuteQueryOperator(
@@ -61,7 +63,13 @@ with DAG(
         sql="drop table hive_example",
     )
 
-    (create_table_hive_task >> alter_table_hive_task >> insert_data_hive_task >> select_data_hive_task >> drop_table_hive_task)
+    (
+        create_table_hive_task
+        >> alter_table_hive_task
+        >> insert_data_hive_task
+        >> select_data_hive_task
+        >> drop_table_hive_task
+    )
 
     from tests_common.test_utils.watcher import watcher
 

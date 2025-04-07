@@ -18,7 +18,10 @@
 This is an example DAG for the use of the SQLExecuteQueryOperator with Impala.
 """
 
+from __future__ import annotations
+
 import datetime
+
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
@@ -31,7 +34,6 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-
     # [START howto_operator_impala]
 
     create_table_impala_task = SQLExecuteQueryOperator(
