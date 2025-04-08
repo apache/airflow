@@ -396,11 +396,11 @@ class _MapResult(Sequence):
         self.value = value
         self.callables = callables
 
-    def __getitem__(self, index: int) -> Any:
+    def __getitem__(self, index: Any) -> Any:
         if not (0 <= index < len(self)):
             raise IndexError
 
-        if hasattr(self.value, '__getitem__'):
+        if hasattr(self.value, "__getitem__"):
             value = self.value[index]
             return self._apply_callables(value)
         raise TypeError("XComArg map does not support indexing on non-sequence values")
