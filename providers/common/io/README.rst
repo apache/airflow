@@ -26,7 +26,7 @@ Package ``apache-airflow-providers-common-io``
 Release: ``1.5.2``
 
 
-``Common IO Provider``
+Common IO Provider
 
 
 Provider package

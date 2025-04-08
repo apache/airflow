@@ -31,7 +31,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -43,6 +42,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.sdk import setup, task, task_group, teardown
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -125,6 +125,7 @@ class TestDagRun:
             state=state,
             dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
 
         if task_states is not None:
@@ -1080,7 +1081,7 @@ class TestDagRun:
         dag = DAG(dag_id="test_dagrun_stats", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id="dummy", dag=dag)
 
-        dag.sync_to_db()
+        dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
         initial_task_states = {
@@ -1088,7 +1089,7 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        dag_run.update_state()
+        dag_run.update_state(session=session)
         assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
 
     @pytest.mark.parametrize(
@@ -2090,7 +2091,7 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
 
 
 def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session, dag_maker):
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def do_something(i):

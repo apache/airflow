@@ -39,12 +39,12 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinksSuspense = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenusSuspense = <
+  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -52,8 +52,8 @@ export const useAuthLinksServiceGetAuthLinksSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenus() as TData,
     ...options,
   });
 /**
@@ -1019,6 +1019,7 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -1040,6 +1041,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -1056,6 +1058,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1078,6 +1081,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1098,6 +1102,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,

@@ -427,6 +427,17 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
                     f"{version_suffix} suffix."
                 )
+        if line.strip().startswith('"apache-airflow-core') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
         updated_lines.append(line)
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
@@ -951,7 +962,7 @@ def prepare_provider_documentation(
                 f"Update release notes for package '{provider_id}' ",
                 skip_printing_title=only_min_version_update,
             ):
-                if not only_min_version_update:
+                if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
@@ -966,7 +977,7 @@ def prepare_provider_documentation(
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            if not only_min_version_update:
+            if not only_min_version_update and not reapply_templates_only:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
                     skip_printing_title=only_min_version_update,

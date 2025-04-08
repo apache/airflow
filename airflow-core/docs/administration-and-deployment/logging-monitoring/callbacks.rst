@@ -65,7 +65,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     import datetime
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
 

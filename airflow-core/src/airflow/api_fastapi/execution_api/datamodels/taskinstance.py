@@ -230,7 +230,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(StrictBaseModel):
+class TaskInstance(BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID

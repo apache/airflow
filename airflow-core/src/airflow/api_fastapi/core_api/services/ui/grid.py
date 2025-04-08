@@ -22,6 +22,7 @@ from operator import methodcaller
 from typing import Callable
 from uuid import UUID
 
+from sqlalchemy import select
 from typing_extensions import Any
 
 from airflow import DAG
@@ -37,6 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.structure import (
 )
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -183,16 +185,11 @@ def fill_task_instance_summaries(
     task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
 
     for (task_id, run_id), tis in grouped_task_instances.items():
-        serdag_id = tis[0].dag_version.serialized_dag.id
-
-        serdag_cache[serdag_id] = serdag_cache.get(serdag_id) or tis[0].dag_version.serialized_dag.dag
-        serdag = serdag_cache[serdag_id]
-
-        task_group_map_cache[serdag_id] = task_group_map_cache.get(serdag_id) or get_task_group_map(
-            dag=serdag
-        )
-        task_node_map = task_group_map_cache[serdag_id]
-
+        sdm = _get_serdag(tis[0], session)
+        serdag_cache[sdm.id] = serdag_cache.get(sdm.id) or sdm.dag
+        dag = serdag_cache[sdm.id]
+        task_group_map_cache[sdm.id] = task_group_map_cache.get(sdm.id) or get_task_group_map(dag=dag)
+        task_node_map = task_group_map_cache[sdm.id]
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
@@ -265,11 +262,27 @@ def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
     return StructureDataResponse(nodes=nodes, edges=[])
 
 
-def get_combined_structure(task_instances):
+def _get_serdag(ti, session):
+    dag_version = ti.dag_version
+    if not dag_version:
+        dag_version = session.scalar(
+            select(DagVersion)
+            .where(
+                DagVersion.dag_id == ti.dag_id,
+            )
+            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
+            .limit(1)
+        )
+    if not dag_version:
+        raise RuntimeError("No dag_version object could be found.")
+    return dag_version.serialized_dag
+
+
+def get_combined_structure(task_instances, session):
     """Given task instances with varying DAG versions, get a combined structure."""
     merged_nodes = []
     # we dedup with serdag, as serdag.dag varies somehow?
-    serdags = {ti.dag_version.serialized_dag for ti in task_instances}
+    serdags = {_get_serdag(ti, session) for ti in task_instances}
     dags = [serdag.dag for serdag in serdags]
     for dag in dags:
         nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]

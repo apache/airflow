@@ -155,6 +155,32 @@ def get_merged_defaults(
     return args, params
 
 
+def parse_retries(retries: Any) -> int | None:
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    return parsed_retries
+
+
+def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
+    if resources is None:
+        return None
+    from airflow.utils.operator_resources import Resources
+
+    return Resources(**resources)
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 

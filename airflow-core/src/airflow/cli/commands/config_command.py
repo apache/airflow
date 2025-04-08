@@ -151,6 +151,12 @@ CONFIGS_CHANGES = [
     ),
     # core
     ConfigChange(
+        config=ConfigParameter("core", "executor"),
+        default_change=True,
+        new_default="LocalExecutor",
+        was_removed=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "check_slas"),
         suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
@@ -781,9 +787,10 @@ def update_config(args) -> None:
 
     config_dict = conf.as_dict(
         display_source=True,
-        include_env=True,
-        include_cmds=True,
+        include_env=False,
+        include_cmds=False,
         include_secret=True,
+        display_sensitive=True,
     )
     for change in CONFIGS_CHANGES:
         conf_section = change.config.section.lower()
@@ -806,7 +813,6 @@ def update_config(args) -> None:
             continue
 
         current_value = value_data[0]
-
         if change.default_change:
             if str(current_value) != str(change.new_default):
                 modifications.add_default_update(conf_section, conf_option, str(change.new_default))

@@ -36,10 +36,9 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow import settings
-from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -75,6 +74,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import BaseSensorOperator, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -82,7 +82,6 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -1574,7 +1573,7 @@ class TestTaskInstance:
         expect_state: State,
         expect_completed: bool,
     ):
-        from airflow.decorators import task
+        from airflow.sdk import task
 
         @task
         def do_something(i):
@@ -2253,7 +2252,7 @@ class TestTaskInstance:
 
     def test_mapped_current_state(self, dag_maker):
         with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.decorators import task
+            from airflow.sdk import task
 
             @task()
             def raise_an_exception(placeholder: int):
@@ -4223,29 +4222,34 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
-    @pytest.mark.want_activate_assets(True)
+    @pytest.mark.want_activate_assets(False)
     def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
+        valid_asset = Asset("asset_first")
+        conflict_asset = Asset(name="asset_first", uri="test://asset/")
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
-            @task(inlets=Asset("asset_first"))
+            @task(inlets=valid_asset)
             def first_asset_task():
                 pass
 
-            @task(inlets=Asset(name="asset_first", uri="test://asset"))
-            def duplicate_asset_task():
+            @task(inlets=conflict_asset)
+            def conflict_asset_task():
                 pass
 
-            first_asset_task() >> duplicate_asset_task()
+            first_asset_task() >> conflict_asset_task()
+
+        session.execute(delete(AssetActive))
+        session.add(AssetActive.for_asset(valid_asset))
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
-            tis["first_asset_task"].run(session=session)
+            tis["conflict_asset_task"].run(session=session)
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            "Asset(name='asset_first', uri='asset_first')"
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4311,7 +4315,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         assert ti.pool == task.pool
 
     assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.priority_weight_total
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config
