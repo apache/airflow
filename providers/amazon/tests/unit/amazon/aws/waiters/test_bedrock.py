@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import inspect
+import re
+import sys
 from unittest import mock
 
 import boto3
@@ -25,6 +28,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockBatchInferenceSensor,
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
@@ -32,8 +36,17 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
 
 class TestBedrockCustomWaiters:
     def test_service_waiters(self):
-        assert "model_customization_job_complete" in BedrockHook().list_waiters()
-        assert "provisioned_model_throughput_complete" in BedrockHook().list_waiters()
+        """Ensure that all custom Bedrock waiters have unit tests."""
+
+        def _class_tests_a_waiter(class_name: str) -> bool:
+            """Check if the class name starts with 'Test' and ends with 'Waiter'."""
+            return bool(re.match(r"^Test[A-Za-z]+Waiter$", class_name))
+
+        # Collect WAITER_NAME from each waiter test class in this module.
+        test_classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+        waiters_tested = [cls.WAITER_NAME for (name, cls) in test_classes if _class_tests_a_waiter(name)]
+
+        assert sorted(BedrockHook()._list_custom_waiters()) == sorted(waiters_tested)
 
 
 class TestBedrockCustomWaitersBase:
@@ -102,4 +115,76 @@ class TestProvisionedModelThroughputCompleteWaiter(TestBedrockCustomWaitersBase)
 
         BedrockHook().get_waiter(self.WAITER_NAME).wait(
             jobIdentifier="job_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestBatchInferenceCompleteWaiter(TestBedrockCustomWaitersBase):
+    WAITER_NAME = "batch_inference_complete"
+    SENSOR = BedrockBatchInferenceSensor(
+        task_id="task_id",
+        job_arn="job_arn",
+        success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED,
+    )
+
+    @pytest.fixture
+    def mock_get_job(self):
+        with mock.patch.object(self.client, "get_model_invocation_job") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
+    def test_batch_inference_complete(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
+
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
+    def test_batch_inference_failed(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
+
+    def test_batch_inference_wait(self, mock_get_job):
+        wait = {"status": "InProgress"}
+        success = {"status": "Completed"}
+        mock_get_job.side_effect = [wait, wait, success]
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
+            jobIdentifier="job_arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestBatchInferenceScheduledWaiter(TestBedrockCustomWaitersBase):
+    WAITER_NAME = "batch_inference_scheduled"
+    SENSOR = BedrockBatchInferenceSensor(
+        task_id="task_id",
+        job_arn="job_arn",
+        success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED,
+    )
+
+    @pytest.fixture
+    def mock_get_job(self):
+        with mock.patch.object(self.client, "get_model_invocation_job") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", SENSOR.SUCCESS_STATES)
+    def test_batch_inference_complete(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
+
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
+    def test_batch_inference_failed(self, state, mock_get_job):
+        mock_get_job.return_value = {"status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockHook().get_waiter(self.WAITER_NAME).wait(jobIdentifier="job_arn")
+
+    def test_batch_inference_wait(self, mock_get_job):
+        wait = {"status": "InProgress"}
+        success = {"status": "Completed"}
+        mock_get_job.side_effect = [wait, wait, success]
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
+            jobIdentifier="job_arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
         )

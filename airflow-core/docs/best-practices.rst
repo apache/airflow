@@ -125,7 +125,7 @@ Not avoiding top-level DAG code:
   import pendulum
 
   from airflow.sdk import DAG
-  from airflow.decorators import task
+  from airflow.sdk import task
 
 
   def expensive_api_call():
@@ -154,7 +154,7 @@ Avoiding top-level DAG code:
   import pendulum
 
   from airflow.sdk import DAG
-  from airflow.decorators import task
+  from airflow.sdk import task
 
 
   def expensive_api_call():
@@ -536,7 +536,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from datetime import datetime
 
     from airflow.sdk import DAG
-    from airflow.decorators import task
+    from airflow.sdk import task
     from airflow.exceptions import AirflowException
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.utils.trigger_rule import TriggerRule

@@ -21,19 +21,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.decorators import task
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.decorators import task
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
-    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
 
-pytestmark = pytest.mark.db_test
 
-
-def test_skip_if(dag_maker, session):
-    with dag_maker(session=session):
+def test_skip_if(run_task):
+    with DAG(dag_id="test_skip_if", schedule=None) as dag:
 
         @task.skip_if(lambda context: context["task_instance"].task_id == "do_skip")
         @task.python()
@@ -42,18 +39,18 @@ def test_skip_if(dag_maker, session):
         f.override(task_id="do_skip")()
         f.override(task_id="do_not_skip")()
 
-    dag_run: DagRun = dag_maker.create_dagrun()
-    do_skip_ti: TaskInstance = dag_run.get_task_instance(task_id="do_skip", session=session)
-    do_not_skip_ti: TaskInstance = dag_run.get_task_instance(task_id="do_not_skip", session=session)
-    do_skip_ti.run(session=session)
-    do_not_skip_ti.run(session=session)
+    do_skip = dag.get_task("do_skip")
+    do_not_skip = dag.get_task("do_not_skip")
 
-    assert do_skip_ti.state == TaskInstanceState.SKIPPED
-    assert do_not_skip_ti.state == TaskInstanceState.SUCCESS
+    run_task(do_skip)
+    assert run_task.state == TaskInstanceState.SKIPPED
+
+    run_task(do_not_skip)
+    assert run_task.state == TaskInstanceState.SUCCESS
 
 
-def test_run_if(dag_maker, session):
-    with dag_maker(session=session):
+def test_run_if(run_task):
+    with DAG(dag_id="test_run_if", schedule=None) as dag:
 
         @task.run_if(lambda context: context["task_instance"].task_id == "do_run")
         @task.python()
@@ -62,14 +59,14 @@ def test_run_if(dag_maker, session):
         f.override(task_id="do_run")()
         f.override(task_id="do_not_run")()
 
-    dag_run: DagRun = dag_maker.create_dagrun()
-    do_run_ti: TaskInstance = dag_run.get_task_instance(task_id="do_run", session=session)
-    do_not_run_ti: TaskInstance = dag_run.get_task_instance(task_id="do_not_run", session=session)
-    do_run_ti.run(session=session)
-    do_not_run_ti.run(session=session)
+    do_run = dag.get_task("do_run")
+    do_not_run = dag.get_task("do_not_run")
 
-    assert do_run_ti.state == TaskInstanceState.SUCCESS
-    assert do_not_run_ti.state == TaskInstanceState.SKIPPED
+    run_task(do_run)
+    assert run_task.state == TaskInstanceState.SUCCESS
+
+    run_task(do_not_run)
+    assert run_task.state == TaskInstanceState.SKIPPED
 
 
 def test_skip_if_with_non_task_error():
@@ -86,13 +83,13 @@ def test_run_if_with_non_task_error():
         def f(): ...
 
 
-def test_skip_if_with_other_pre_execute(dag_maker, session):
+def test_skip_if_with_other_pre_execute(run_task):
     def setup_conf(context: Context) -> None:
         if typing.TYPE_CHECKING:
             assert context["dag_run"].conf
-        context["dag_run"].conf["some_key"] = "some_value"
+        context["dag_run"].conf = {"some_key": "some_value"}
 
-    with dag_maker(session=session):
+    with DAG(dag_id="test_skip_if_with_other_pre_execute", schedule=None) as dag:
 
         @task.skip_if(lambda context: context["dag_run"].conf.get("some_key") == "some_value")
         @task.python(pre_execute=setup_conf)
@@ -100,20 +97,19 @@ def test_skip_if_with_other_pre_execute(dag_maker, session):
 
         f()
 
-    dag_run: DagRun = dag_maker.create_dagrun()
-    ti: TaskInstance = dag_run.get_task_instance(task_id="f", session=session)
-    ti.run(session=session)
+    t = dag.get_task("f")
+    run_task(t)
 
-    assert ti.state == TaskInstanceState.SKIPPED
+    assert run_task.state == TaskInstanceState.SKIPPED
 
 
-def test_run_if_with_other_pre_execute(dag_maker, session):
+def test_run_if_with_other_pre_execute(run_task):
     def setup_conf(context: Context) -> None:
         if typing.TYPE_CHECKING:
             assert context["dag_run"].conf
-        context["dag_run"].conf["some_key"] = "some_value"
+        context["dag_run"].conf = {"some_key": "some_value"}
 
-    with dag_maker(session=session):
+    with DAG(dag_id="test_run_if_with_other_pre_execute", schedule=None) as dag:
 
         @task.run_if(lambda context: context["dag_run"].conf.get("some_key") == "some_value")
         @task.python(pre_execute=setup_conf)
@@ -121,8 +117,7 @@ def test_run_if_with_other_pre_execute(dag_maker, session):
 
         f()
 
-    dag_run: DagRun = dag_maker.create_dagrun()
-    ti: TaskInstance = dag_run.get_task_instance(task_id="f", session=session)
-    ti.run(session=session)
+    t = dag.get_task("f")
+    run_task(t)
 
-    assert ti.state == TaskInstanceState.SUCCESS
+    assert run_task.state == TaskInstanceState.SUCCESS
