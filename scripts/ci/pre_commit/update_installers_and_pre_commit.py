@@ -91,7 +91,7 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(uv>=)([0-9]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
