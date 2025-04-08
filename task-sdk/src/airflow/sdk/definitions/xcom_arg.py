@@ -609,10 +609,7 @@ class _FilterResult(Sequence, Iterable):
     def __len__(self) -> int:
         # Calculating the length of an iterable can be a heavy operation, so we cache the result after first attempt
         if not self.length:
-            if isinstance(self.value, Iterable):
-                self.length = sum(1 for _ in self.value)
-            else:
-                self.length = len(self.value)
+            self.length = sum(1 for _ in self)
         return self.length
 
     def __iter__(self) -> Iterator:
