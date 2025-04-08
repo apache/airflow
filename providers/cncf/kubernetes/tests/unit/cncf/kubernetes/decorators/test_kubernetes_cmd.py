@@ -20,8 +20,8 @@ import contextlib
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
+from airflow.sdk import task
 
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import DAG_ID, TestKubernetesDecoratorsBase
 
