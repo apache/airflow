@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 from platformdirs import user_config_path
 
+from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
@@ -43,7 +44,7 @@ class TestCliAuthCommands:
             path="/auth/token/cli",
             response_json=self.login_response.model_dump(),
             expected_http_status_code=201,
-            kind="auth",
+            kind=ClientKind.AUTH,
         )
 
         mock_keyring.set_password = mock.MagicMock()
@@ -72,7 +73,7 @@ class TestCliAuthCommands:
             path="/auth/token/cli",
             response_json=self.login_response.model_dump(),
             expected_http_status_code=201,
-            kind="auth",
+            kind=ClientKind.AUTH,
         )
 
         mock_keyring.set_password = mock.MagicMock()
