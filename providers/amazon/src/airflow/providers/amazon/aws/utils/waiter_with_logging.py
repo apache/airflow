@@ -23,7 +23,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import jmespath
-from botocore.exceptions import WaiterError, NoCredentialsError
+from botocore.exceptions import NoCredentialsError, WaiterError
 
 from airflow.exceptions import AirflowException
 
