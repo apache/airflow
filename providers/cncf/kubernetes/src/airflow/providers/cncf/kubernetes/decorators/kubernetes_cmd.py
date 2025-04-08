@@ -20,17 +20,22 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
+else:
+    from airflow.decorators.base import (  # type: ignore[no-redef]
+        DecoratedOperator,
+        TaskDecorator,
+        task_decorator_factory,
+    )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.utils.context import Context
 
 
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
