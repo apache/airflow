@@ -59,7 +59,7 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0.dev0"
+version = "3.0.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
