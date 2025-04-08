@@ -27,9 +27,7 @@ import datetime
 import json
 from pathlib import Path
 
-from airflow.decorators import task
-from airflow.models.dag import DAG
-from airflow.sdk import Param
+from airflow.sdk import DAG, Param, task
 
 with DAG(
     dag_id=Path(__file__).stem,

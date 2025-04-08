@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
@@ -33,64 +32,59 @@ export const stylisticESLintNamespace = "@stylistic";
  * ESLint `@stylistic/eslint-plugin` rules.
  * @see [@stylistic/eslint-plugin](https://eslint.style/packages/default#rules)
  */
-export const stylisticRules =
-  /** @type {const} @satisfies {FlatConfig.Config} */ ({
-    plugins: { [stylisticESLintNamespace]: stylistic },
-    rules: {
-      /**
-       * Require padding lines between statements:
-       *
-       * -   Always a new line before a `return` statement.
-       * -   Always a new line after an `import`, `const`, `let` or `var` statement.
-       * -   Indifferent if followed by same type (`const`, `let` or `var`).
-       * -   Indifferent in `import` followed by other `import`.
-       * -   Always a new line before an `export` statement.
-       *
-       * @see [padding-line-between-statements](https://eslint.style/rules/default/padding-line-between-statements)
-       */
-      [`${stylisticESLintNamespace}/padding-line-between-statements`]: [
-        ERROR,
-        {
-          blankLine: "always",
-          next: "return",
-          prev: "*",
-        },
-        {
-          blankLine: "always",
-          next: "*",
-          prev: ["import", "const", "let", "var"],
-        },
-        {
-          blankLine: "any",
-          next: ["const", "let", "var"],
-          prev: ["const", "let", "var"],
-        },
-        {
-          blankLine: "any",
-          next: "import",
-          prev: "import",
-        },
-        {
-          blankLine: "always",
-          next: "export",
-          prev: "*",
-        },
-        {
-          blankLine: "any",
-          next: "export",
-          prev: "export",
-        },
-      ],
+export const stylisticRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
+  plugins: { [stylisticESLintNamespace]: stylistic },
+  rules: {
+    /**
+     * Require padding lines between statements:
+     *
+     * -   Always a new line before a `return` statement.
+     * -   Always a new line after an `import`, `const`, `let` or `var` statement.
+     * -   Indifferent if followed by same type (`const`, `let` or `var`).
+     * -   Indifferent in `import` followed by other `import`.
+     * -   Always a new line before an `export` statement.
+     *
+     * @see [padding-line-between-statements](https://eslint.style/rules/default/padding-line-between-statements)
+     */
+    [`${stylisticESLintNamespace}/padding-line-between-statements`]: [
+      ERROR,
+      {
+        blankLine: "always",
+        next: "return",
+        prev: "*",
+      },
+      {
+        blankLine: "always",
+        next: "*",
+        prev: ["import", "const", "let", "var"],
+      },
+      {
+        blankLine: "any",
+        next: ["const", "let", "var"],
+        prev: ["const", "let", "var"],
+      },
+      {
+        blankLine: "any",
+        next: "import",
+        prev: "import",
+      },
+      {
+        blankLine: "always",
+        next: "export",
+        prev: "*",
+      },
+      {
+        blankLine: "any",
+        next: "export",
+        prev: "export",
+      },
+    ],
 
-      /**
-       * Requires a whitespace (space or tab) beginning a comment.
-       *
-       * @see [spaced-comment](https://eslint.style/rules/default/spaced-comment)
-       */
-      [`${stylisticESLintNamespace}/spaced-comment`]: [
-        ERROR,
-        "always",
-        { exceptions: ["!"] },
-      ],
-    },
-  });
+    /**
+     * Requires a whitespace (space or tab) beginning a comment.
+     *
+     * @see [spaced-comment](https://eslint.style/rules/default/spaced-comment)
+     */
+    [`${stylisticESLintNamespace}/spaced-comment`]: [ERROR, "always", { exceptions: ["!"] }],
+  },
+});

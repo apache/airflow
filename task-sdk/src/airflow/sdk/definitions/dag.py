@@ -70,7 +70,6 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
-    # TODO: Task-SDK: Remove pendulum core dep
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.decorators import TaskDecoratorCollection
@@ -450,7 +449,9 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    disable_bundle_versioning: bool = attrs.field(init=True)
+    disable_bundle_versioning: bool = attrs.field(
+        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -521,12 +522,6 @@ class DAG:
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             return _create_timetable(schedule, instance.timezone)
-
-    @disable_bundle_versioning.default
-    def _disable_bundle_versioning_default(self):
-        from airflow.configuration import conf as airflow_conf
-
-        return airflow_conf.getboolean("dag_processor", "disable_bundle_versioning")
 
     @timezone.default
     def _extract_tz(instance):
@@ -1088,6 +1083,7 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_fast: bool = False,
         dag_display_name: str | None = None,
+        disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.
@@ -1110,7 +1106,13 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
     DAG = __DAG_class
 
     def wrapper(f: Callable) -> Callable[..., DAG]:
-        dag_id = dag_id_or_func if isinstance(dag_id_or_func, str) and dag_id_or_func.strip() else f.__name__
+        # Determine dag_id: prioritize keyword arg, then positional string, fallback to function name
+        if "dag_id" in decorator_kwargs:
+            dag_id = decorator_kwargs.pop("dag_id", "")
+        elif isinstance(dag_id_or_func, str) and dag_id_or_func.strip():
+            dag_id = dag_id_or_func
+        else:
+            dag_id = f.__name__
 
         @functools.wraps(f)
         def factory(*args, **kwargs):

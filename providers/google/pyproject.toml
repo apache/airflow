@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "14.1.0"
+version = "15.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -139,6 +139,8 @@ dependencies = [
     "sqlalchemy-spanner>=1.6.2",
     "tenacity>=8.1.0",
     "immutabledict>=4.2.0",
+    # types-protobuf 5.29.1.20250402 is a partial stub package, leading to mypy complaining
+    "types-protobuf!=5.29.1.20250402",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -150,6 +152,9 @@ dependencies = [
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
+]
+"fab" = [
+    "apache-airflow-providers-fab>=2.0.0",
 ]
 "leveldb" = [
     "plyvel>=1.5.1",
@@ -221,6 +226,23 @@ dev = [
     "apache-airflow-providers-ssh",
     "apache-airflow-providers-trino",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-apache-kafka",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
 
 [tool.uv.sources]
@@ -230,12 +252,11 @@ apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
-apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

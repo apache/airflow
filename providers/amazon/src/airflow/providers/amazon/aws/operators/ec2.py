@@ -254,7 +254,7 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
                 region_name=self.region_name,
                 api_type="client_type",
             ) """
-            self.hook.terminate_instances(InstanceIds=instance_ids)
+            self.hook.terminate_instances(instance_ids=instance_ids)
         super().on_kill()
 
 

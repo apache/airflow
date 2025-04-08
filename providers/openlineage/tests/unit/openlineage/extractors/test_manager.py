@@ -41,12 +41,15 @@ from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import PythonOperator
+from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     try:
-        from airflow.sdk.api.datamodels._generated import TIRunContext
+        from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, TIRunContext
         from airflow.sdk.definitions.context import Context
 
     except ImportError:
@@ -54,7 +57,7 @@ if TYPE_CHECKING:
         # TIRunContext is only used in Airflow 3 tests
         from airflow.utils.context import Context
 
-        TIRunContext = Any  # type: ignore[misc, assignment]
+        AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
 
 if AIRFLOW_V_2_10_PLUS:
@@ -282,6 +285,7 @@ def test_convert_to_ol_dataset_table():
     assert result.facets == expected_facets
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
@@ -438,6 +442,7 @@ class MakeTIContextCallable(Protocol):
         run_type: str = ...,
         task_reschedule_count: int = ...,
         conf: dict[str, Any] | None = ...,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = ...,
     ) -> TIRunContext: ...
 
 
@@ -459,6 +464,7 @@ def make_ti_context() -> MakeTIContextCallable:
         run_type: str = "manual",
         task_reschedule_count: int = 0,
         conf=None,
+        consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -472,6 +478,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,  # type: ignore
+                consumed_asset_events=list(consumed_asset_events),
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
@@ -520,3 +527,29 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
 
     assert len(datasets.outputs) == 1
     assert datasets.outputs[0].asset == Asset(uri=path)
+
+
+def test_extract_inlets_and_outlets_with_operator():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = PythonOperator(task_id="task_id", python_callable=lambda x: x, inlets=inlets, outlets=outlets)
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets
+
+
+def test_extract_inlets_and_outlets_with_sensor():
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    extractor_manager = ExtractorManager()
+    task = DateTimeSensor(
+        task_id="task_id", target_time="2025-04-04T08:48:13.713922+00:00", inlets=inlets, outlets=outlets
+    )
+    lineage = OperatorLineage()
+    extractor_manager.extract_inlets_and_outlets(lineage, task)
+    assert lineage.inputs == inlets
+    assert lineage.outputs == outlets

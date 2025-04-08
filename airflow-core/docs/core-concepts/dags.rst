@@ -20,7 +20,7 @@
 Dags
 ====
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
@@ -32,7 +32,7 @@ It defines four Tasks - A, B, C, and D - and dictates the order in which they ha
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
-.. include:: ../../exts/includes/dag-definition.rst
+.. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 
@@ -47,7 +47,7 @@ which will add anything inside it to the DAG implicitly:
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
@@ -65,7 +65,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
@@ -83,7 +83,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     import datetime
 
-    from airflow.decorators import dag
+    from airflow.sdk import dag
     from airflow.providers.standard.operators.empty import EmptyOperator
 
 
@@ -292,7 +292,7 @@ The DAG decorator
 
 As well as the more traditional ways of declaring a single DAG using a context manager or the ``DAG()`` constructor, you can also decorate a function with ``@dag`` to turn it into a DAG generator function:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_dag_decorator.py
     :language: python
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
@@ -399,7 +399,7 @@ This special Operator skips all tasks downstream of itself if you are not on the
 
 Here's an example:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_latest_only_with_trigger.py
+.. exampleinclude:: /../src/airflow/example_dags/example_latest_only_with_trigger.py
     :language: python
     :start-after: [START example]
     :end-before: [END example]
@@ -458,8 +458,8 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
-        from airflow.decorators import task
-        from airflow.models import DAG
+        from airflow.sdk import task
+        from airflow.sdk import DAG
         from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
@@ -557,7 +557,7 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 .. code-block:: python
    :emphasize-lines: 4,12
 
-    from airflow.decorators import task_group
+    from airflow.sdk import task_group
 
 
     @task_group()
@@ -577,8 +577,8 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     import datetime
 
-    from airflow import DAG
-    from airflow.decorators import task_group
+    from airflow.sdk import DAG
+    from airflow.sdk import task_group
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -636,7 +636,7 @@ Here's an example DAG which illustrates labeling different branches:
 
 .. image:: /img/edge_label_example.png
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_branch_labels.py
+.. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
     :start-after: from airflow.utils.edgemodifier import Label
 

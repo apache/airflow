@@ -26,6 +26,7 @@ import { Link, useParams } from "react-router-dom";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGrid } from "src/queries/useGrid";
 
+import { ToggleGroups } from "../ToggleGroups";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
@@ -71,8 +72,9 @@ export const Grid = ({ limit }: Props) => {
   );
 
   return (
-    <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
-      <Box position="absolute" top="150px" width="100%">
+    <Flex justifyContent="flex-end" position="relative" pt={50} width="100%">
+      <Box position="absolute" top="100px" width="100%">
+        <ToggleGroups height="50px" />
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>

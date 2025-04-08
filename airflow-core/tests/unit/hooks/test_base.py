@@ -66,7 +66,6 @@ class TestBaseHook:
 
         hook = BaseHook(logger_name="")
         hook.get_connection(conn_id="test_conn")
-
         mock_supervisor_comms.send_request.assert_called_once_with(
             msg=GetConnection(conn_id="test_conn"), log=mock.ANY
         )

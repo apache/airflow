@@ -37,6 +37,7 @@ from airflow.metrics.validators import (
 )
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
 class CustomStatsd(statsd.StatsClient):
@@ -505,6 +506,7 @@ class TestCustomStatsName:
         airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.assert_not_called()
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
@@ -529,6 +531,7 @@ class TestCustomStatsName:
         airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",

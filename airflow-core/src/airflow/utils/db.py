@@ -92,12 +92,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "be2cc2f742cf",
+    "3.0.0": "0e9519b56710",
 }
-
-
-def _format_airflow_moved_table_name(source_table, version, category):
-    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), category, source_table])
 
 
 @provide_session
@@ -1212,7 +1208,23 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
+    # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
+    if _revision_greater(config, _REVISION_HEADS_MAP["3.0.0"], to_revision):
+        if conf.getboolean("core", "unit_test_mode"):
+            try:
+                from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
+                dbm = FABDBManager(session)
+                dbm.initdb()
+            except ImportError:
+                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
+                pass
+        if not inspect(settings.engine).has_table("ab_user"):
+            log.error(
+                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
+                "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
+            )
+            return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")

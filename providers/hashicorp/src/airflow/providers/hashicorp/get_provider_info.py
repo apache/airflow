@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Hashicorp",
         "description": "Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508899,
+        "source-date-epoch": 1743477831,
         "versions": [
             "4.1.0",
             "4.0.0",

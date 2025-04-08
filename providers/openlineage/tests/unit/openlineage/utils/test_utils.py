@@ -24,7 +24,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
@@ -47,6 +52,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -293,12 +299,18 @@ def test_get_tasks_details():
         task_1 >> task_6 >> task_3 >> task_4 >> task_5
         task_3 >> task_10 >> task_12
 
+    py_decorator_path = (
+        "airflow.providers.standard.decorators.python._PythonDecoratedOperator"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.decorators.python._PythonDecoratedOperator"
+    )
+
     expected = {
         "generate_list": {
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -311,7 +323,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -324,7 +336,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",

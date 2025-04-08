@@ -77,8 +77,10 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -97,11 +99,13 @@ from airflow.sdk.execution_time.comms import (
     XComCountResponse,
     XComResult,
 )
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
@@ -378,16 +382,16 @@ class WatchedSubprocess:
     decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
-    _process: psutil.Process
+    _process: psutil.Process = attrs.field(repr=False)
     _requests_fd: int
     """File descriptor for request handling."""
 
     _num_open_sockets: int = 4
     _exit_code: int | None = attrs.field(default=None, init=False)
 
-    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
+    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
 
-    process_log: FilteringBoundLogger
+    process_log: FilteringBoundLogger = attrs.field(repr=False)
 
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
@@ -695,6 +699,8 @@ class ActivitySubprocess(WatchedSubprocess):
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
+    ti: RuntimeTI | None = None
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -715,6 +721,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
@@ -783,7 +790,7 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log)
+        upload_to_remote(self.process_log, self.ti)
 
     def _monitor_subprocess(self):
         """
@@ -850,6 +857,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
                     status_code=e.response.status_code,
+                    ti_id=self.id,
                 )
                 self.kill(signal.SIGTERM, force=True)
             else:
@@ -908,6 +916,10 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
@@ -915,6 +927,8 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result.model_dump_json(exclude_unset=True).encode()
             else:
@@ -987,6 +1001,24 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetTaskRescheduleStartDate):
             tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
             resp = tr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetTICount):
+            ti_count = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = ti_count.model_dump_json().encode()
+        elif isinstance(msg, GetDRCount):
+            dr_count = self.client.dag_runs.get_count(
+                dag_id=msg.dag_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = dr_count.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

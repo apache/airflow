@@ -26,7 +26,7 @@ Use the
 
 Below is an example of using this operator to trigger a task on Azure Batch
 
-.. exampleinclude:: /../../providers/microsoft/azure/tests/system/microsoft/azure/example_azure_batch_operator.py
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_batch_operator.py
     :language: python
     :dedent: 0
     :start-after: [START howto_azure_batch_operator]
