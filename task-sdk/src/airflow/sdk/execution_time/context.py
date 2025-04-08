@@ -371,22 +371,27 @@ class TriggeringAssetEventsAccessor(
 
 
 @attrs.define
-class OutletEventAccessor:
+class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
     key: BaseAssetUniqueKey
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset | AssetRef, extra: dict[str, Any] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
         if not isinstance(self.key, AssetAliasUniqueKey):
             return
 
+        if isinstance(asset, AssetRef):
+            asset_key = self._resolve_asset_ref(asset)
+        else:
+            asset_key = AssetUniqueKey.from_asset(asset)
+
         asset_alias_name = self.key.name
         event = AssetAliasEvent(
             source_alias_name=asset_alias_name,
-            dest_asset_key=AssetUniqueKey.from_asset(asset),
+            dest_asset_key=asset_key,
             extra=extra or {},
         )
         self.asset_alias_events.append(event)
