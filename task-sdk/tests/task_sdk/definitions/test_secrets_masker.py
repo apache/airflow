@@ -435,7 +435,7 @@ class TestRedactedIO:
     @pytest.fixture(autouse=True)
     def reset_secrets_masker(self, set_secrets_masker):
         mask_secret(p)
-        yield
+        return
 
     def test_redacts_from_print(self, capsys):
         # Without redacting, password is printed.
