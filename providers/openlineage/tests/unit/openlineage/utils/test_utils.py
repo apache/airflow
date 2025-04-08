@@ -24,7 +24,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState

@@ -29,15 +29,17 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteTask
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(input: str) -> None:
-    from pydantic import TypeAdapter
-
+def execute_workload(workload: ExecuteTask) -> None:
     from airflow.configuration import conf
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
@@ -48,13 +50,12 @@ def execute_workload(input: str) -> None:
 
     configure_logging(output=sys.stdout.buffer, enable_pretty_log=False)
 
-    decoder = TypeAdapter[workloads.All](workloads.All)
-    workload = decoder.validate_json(input)
-
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"We do not know how to handle {type(workload)}")
+        raise ValueError(f"Executor does not know how to handle {type(workload)}")
 
     log.info("Executing workload", workload=workload)
+    server = conf.get("core", "execution_api_server_url")
+    log.info("Connecting to server:", server=server)
 
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
@@ -62,7 +63,7 @@ def execute_workload(input: str) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=server,
         log_path=workload.log_path,
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.
@@ -74,16 +75,44 @@ def main():
     parser = argparse.ArgumentParser(
         description="Execute a workload in a Containerised executor using the task SDK."
     )
-    parser.add_argument(
-        "input_file", help="Path to the input JSON file containing the execution workload payload."
+
+    # Create a mutually exclusive group to ensure that only one of the flags is set
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--json-path",
+        help="Path to the input JSON file containing the execution workload payload.",
+        type=str,
+    )
+    group.add_argument(
+        "--json-string",
+        help="The JSON string itself containing the execution workload payload.",
+        type=str,
     )
 
     args = parser.parse_args()
 
-    with open(args.input_file) as file:
-        input_data = file.read()
+    from pydantic import TypeAdapter
 
-    execute_workload(input_data)
+    from airflow.executors import workloads
+
+    decoder = TypeAdapter[workloads.All](workloads.All)
+    if args.json_path:
+        try:
+            with open(args.json_path) as file:
+                input_data = file.read()
+                workload = decoder.validate_json(input_data)
+        except Exception as e:
+            log.error("Failed to read file", error=str(e))
+            sys.exit(1)
+
+    elif args.json_string:
+        try:
+            workload = decoder.validate_json(args.json_string)
+        except Exception as e:
+            log.error("Failed to parse input JSON string", error=str(e))
+            sys.exit(1)
+
+    execute_workload(workload)
 
 
 if __name__ == "__main__":
