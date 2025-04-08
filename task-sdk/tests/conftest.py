@@ -269,11 +269,10 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
     return _make_context_dict
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def set_secrets_masker():
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker
 
     secrets_masker = SecretsMasker()
     with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-        with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
-            yield secrets_masker
+        yield secrets_masker

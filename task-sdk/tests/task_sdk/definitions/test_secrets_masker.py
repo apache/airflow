@@ -432,14 +432,10 @@ def lineno():
 
 
 class TestRedactedIO:
-    @pytest.fixture(scope="class", autouse=True)
-    def reset_secrets_masker(self):
-        self.secrets_masker = SecretsMasker()
-        with patch(
-            "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
-        ):
-            mask_secret(p)
-            yield
+    @pytest.fixture(autouse=True)
+    def reset_secrets_masker(self, set_secrets_masker):
+        mask_secret(p)
+        yield
 
     def test_redacts_from_print(self, capsys):
         # Without redacting, password is printed.
@@ -471,25 +467,30 @@ class TestRedactedIO:
 
 
 class TestMaskSecretAdapter:
-    def test_calling_mask_secret_adds_adaptations_for_returned_str(self, set_secrets_masker):
+    @pytest.fixture(autouse=True)
+    def patched_escape(self, set_secrets_masker):
+        with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
+            yield set_secrets_masker
+
+    def test_calling_mask_secret_adds_adaptations_for_returned_str(self, patched_escape):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.quote"}):
             mask_secret("secret<>&", None)
 
-        assert set_secrets_masker.patterns == {"secret%3C%3E%26", "secret<>&"}
+        assert patched_escape.patterns == {"secret%3C%3E%26", "secret<>&"}
 
-    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self, set_secrets_masker):
+    def test_calling_mask_secret_adds_adaptations_for_returned_iterable(self, patched_escape):
         with conf_vars({("logging", "secret_mask_adapter"): "urllib.parse.urlparse"}):
             mask_secret("https://airflow.apache.org/docs/apache-airflow/stable", "password")
 
-        assert set_secrets_masker.patterns == {
+        assert patched_escape.patterns == {
             "https",
             "airflow.apache.org",
             "/docs/apache-airflow/stable",
             "https://airflow.apache.org/docs/apache-airflow/stable",
         }
 
-    def test_calling_mask_secret_not_set(self, set_secrets_masker):
+    def test_calling_mask_secret_not_set(self, patched_escape):
         with conf_vars({("logging", "secret_mask_adapter"): None}):
             mask_secret("a secret")
 
-        assert set_secrets_masker.patterns == {"a secret"}
+        assert patched_escape.patterns == {"a secret"}

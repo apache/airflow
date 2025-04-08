@@ -119,7 +119,6 @@ def local_dag_bundle_cfg(path, name="my-bundle"):
 
 
 @pytest.mark.usefixtures("disable_capturing")
-@pytest.mark.usefixtures("set_secrets_masker")
 class TestWatchedSubprocess:
     def test_reading_from_pipes(self, captured_logs, time_machine):
         def subprocess_main():
