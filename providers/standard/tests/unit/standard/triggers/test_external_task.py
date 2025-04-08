@@ -45,7 +45,7 @@ class TestWorkflowTrigger:
     TASK_ID = "external_task_op"
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
-    EXECUTION_DATE = timezone.datetime(2022, 1, 1)
+    LOGICAL_DATE = timezone.datetime(2022, 1, 1)
 
     @pytest.mark.flaky(reruns=5)
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
@@ -56,7 +56,7 @@ class TestWorkflowTrigger:
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             external_task_ids=[self.TASK_ID],
             allowed_states=self.STATES,
             poke_interval=0.2,
@@ -76,7 +76,7 @@ class TestWorkflowTrigger:
             dag_id="external_task",
             task_ids=["external_task_op"],
             task_group_id=None,
-            logical_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=None,
             states=["success", "fail"],
         )
@@ -92,7 +92,7 @@ class TestWorkflowTrigger:
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
@@ -113,7 +113,7 @@ class TestWorkflowTrigger:
             dag_id="external_task",
             task_ids=["external_task_op"],
             task_group_id=None,
-            logical_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             states=["success", "fail"],
         )
@@ -128,7 +128,7 @@ class TestWorkflowTrigger:
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
@@ -146,7 +146,7 @@ class TestWorkflowTrigger:
             dag_id="external_task",
             task_ids=["external_task_op"],
             task_group_id=None,
-            logical_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             states=["success", "fail"],
         )
@@ -162,7 +162,7 @@ class TestWorkflowTrigger:
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             external_task_ids=[self.TASK_ID],
             skipped_states=self.STATES,
             poke_interval=0.2,
@@ -182,7 +182,7 @@ class TestWorkflowTrigger:
             dag_id="external_task",
             task_ids=["external_task_op"],
             task_group_id=None,
-            logical_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=None,
             states=["success", "fail"],
         )
@@ -195,7 +195,7 @@ class TestWorkflowTrigger:
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             external_task_ids=[self.TASK_ID],
             poke_interval=0.2,
         )
@@ -223,7 +223,7 @@ class TestWorkflowTrigger:
         """
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[self.EXECUTION_DATE],
+            logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             failed_states=["failed"],
             skipped_states=["skipped"],
@@ -235,7 +235,7 @@ class TestWorkflowTrigger:
         assert classpath == "airflow.providers.standard.triggers.external_task.WorkflowTrigger"
         assert kwargs == {
             "external_dag_id": self.DAG_ID,
-            "execution_dates": [self.EXECUTION_DATE],
+            "logical_dates": [self.LOGICAL_DATE],
             "run_ids": [self.RUN_ID],
             "external_task_ids": [self.TASK_ID],
             "external_task_group_id": None,

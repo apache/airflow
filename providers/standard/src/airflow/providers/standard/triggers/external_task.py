@@ -50,6 +50,7 @@ class WorkflowTrigger(BaseTrigger):
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
     :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
+    :param logical_dates: A list of logical dates for the external dag.
     """
 
     def __init__(
@@ -57,6 +58,7 @@ class WorkflowTrigger(BaseTrigger):
         external_dag_id: str,
         run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
+        logical_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
         failed_states: typing.Iterable[str] | None = None,
@@ -76,6 +78,7 @@ class WorkflowTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.execution_dates = execution_dates
+        self.logical_dates = logical_dates
         super().__init__(**kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -89,17 +92,23 @@ class WorkflowTrigger(BaseTrigger):
             "allowed_states": self.allowed_states,
             "poke_interval": self.poke_interval,
             "soft_fail": self.soft_fail,
-            "execution_dates": self.execution_dates,
         }
         if AIRFLOW_V_3_0_PLUS:
             data["run_ids"] = self.run_ids
+            data["logical_dates"] = self.logical_dates
+        else:
+            data["execution_dates"] = self.execution_dates
 
         return "airflow.providers.standard.triggers.external_task.WorkflowTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
-        get_count_func = self._get_count_af_3 if AIRFLOW_V_3_0_PLUS else self._get_count
-        run_id_or_dates = self.run_ids or self.execution_dates or []
+        if AIRFLOW_V_3_0_PLUS:
+            get_count_func = self._get_count_af_3
+            run_id_or_dates = (self.run_ids or self.logical_dates) or []
+        else:
+            get_count_func = self._get_count
+            run_id_or_dates = self.execution_dates or []
 
         while True:
             if self.failed_states:
@@ -126,21 +135,21 @@ class WorkflowTrigger(BaseTrigger):
     async def _get_count_af_3(self, states):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        run_id_or_dates = self.run_ids or self.execution_dates or []
+        run_id_or_dates = (self.run_ids or self.logical_dates) or []
 
         if self.external_task_ids or self.external_task_group_id:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
                 dag_id=self.external_dag_id,
                 task_ids=self.external_task_ids,
                 task_group_id=self.external_task_group_id,
-                logical_dates=self.execution_dates,
+                logical_dates=self.logical_dates,
                 run_ids=self.run_ids,
                 states=states,
             )
         else:
             count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
                 dag_id=self.external_dag_id,
-                logical_dates=self.execution_dates,
+                logical_dates=self.logical_dates,
                 run_ids=self.run_ids,
                 states=states,
             )
