@@ -140,8 +140,6 @@ def get_xcom(
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
     key: Annotated[str, StringConstraints(min_length=1)],
-    xcom_query: Annotated[Select, Depends(xcom_query)],
-    map_index: Annotated[int, Query()] = -1,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
