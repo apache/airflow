@@ -1477,6 +1477,7 @@ export class DagRunService {
    * @param data.endDateLte
    * @param data.updatedAtGte
    * @param data.updatedAtLte
+   * @param data.runType
    * @param data.state
    * @param data.orderBy
    * @returns DAGRunCollectionResponse Successful Response
@@ -1502,6 +1503,7 @@ export class DagRunService {
         end_date_lte: data.endDateLte,
         updated_at_gte: data.updatedAtGte,
         updated_at_lte: data.updatedAtLte,
+        run_type: data.runType,
         state: data.state,
         order_by: data.orderBy,
       },

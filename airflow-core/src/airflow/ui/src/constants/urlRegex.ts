@@ -16,23 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  DEPENDENCIES = "dependencies",
-  END_DATE = "end_date",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  LOG_LEVEL = "log_level",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  PAUSED = "paused",
-  RUN_TYPE = "run_type",
-  SORT = "sort",
-  SOURCE = "log_source",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-  TRY_NUMBER = "try_number",
-  VERSION_NUMBER = "version_number",
-}
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+export const urlRegex = /https?:\/\/[\w.-]+(?:\.?:[\w.-]+)*(?:[#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
