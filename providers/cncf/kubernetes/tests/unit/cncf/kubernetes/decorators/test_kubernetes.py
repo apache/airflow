@@ -19,7 +19,7 @@ from __future__ import annotations
 import base64
 import pickle
 
-from airflow.decorators import task
+from airflow.sdk import task
 
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import TestKubernetesDecoratorsBase
 
