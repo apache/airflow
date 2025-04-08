@@ -98,7 +98,9 @@ def stop_batch_inference(job_arn: str):
         BedrockHook().conn.stop_model_invocation_job(jobIdentifier=job_arn)
     except ClientError as e:
         # If the job has already completed, boto will raise a ValidationException.  Consider that a successful result.
-        if (e.response["Error"]["Code"] == "ValidationException") and ("State was: Completed" in e.response["Error"]["Message"]):
+        if (e.response["Error"]["Code"] == "ValidationException") and (
+            "State was: Completed" in e.response["Error"]["Message"]
+        ):
             pass
 
 
