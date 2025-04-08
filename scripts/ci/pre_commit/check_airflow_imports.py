@@ -18,8 +18,8 @@
 # under the License.
 from __future__ import annotations
 
-import re
 import argparse
+import re
 import sys
 from pathlib import Path
 

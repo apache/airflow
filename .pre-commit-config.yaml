@@ -440,7 +440,7 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/serialization/serializers/kubernetes\.py$|
-          ^airflow-core/src/airflow/utils/sqlalchemy\.py$|
+          ^airflow-core/src/airflow/utils/sqlalchemy\.py$
         entry: ./scripts/ci/pre_commit/check_airflow_imports.py
             --pattern '^airflow\.providers\.cncf\.kubernetes'
             --message "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
