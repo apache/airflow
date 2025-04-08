@@ -154,6 +154,15 @@ class GlueJobHook(AwsBaseHook):
         """
         return self.conn.get_jobs()
 
+    def list_jobs(self) -> list:
+        """
+        Get list of Jobs.
+
+        .. deprecated::
+            - Use :meth:`describe_jobs` instead.
+        """
+        return self.describe_jobs()
+
     def get_iam_execution_role(self) -> dict:
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
