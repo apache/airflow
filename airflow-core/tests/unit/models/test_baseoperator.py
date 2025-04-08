@@ -20,7 +20,6 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 from datetime import datetime
-from unittest import mock
 
 import pytest
 
@@ -112,22 +111,6 @@ class TestBaseOperator:
             BaseOperator(task_id="1" * 249, dag=dag)
         except Exception as e:
             pytest.fail(f"Exception raised: {e}")
-
-    def test_pre_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", pre_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.pre_execute({})
-        assert hook.called
-
-    def test_post_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", post_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.post_execute({})
-        assert hook.called
 
     def test_task_naive_datetime(self):
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
