@@ -25,7 +25,7 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
 else:
-    from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+    from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import TaskDecorator

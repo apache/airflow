@@ -25,7 +25,7 @@ from airflow.providers.snowflake.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
 else:
-    from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+    from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
 
 from airflow.providers.snowflake.operators.snowpark import SnowparkOperator
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs

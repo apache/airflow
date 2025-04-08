@@ -26,7 +26,11 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
 else:
-    from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+    from airflow.decorators.base import (  # type: ignore[no-redef]
+        DecoratedOperator,
+        TaskDecorator,
+        task_decorator_factory,
+    )
 
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION

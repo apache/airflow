@@ -44,7 +44,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 else:
     from airflow.decorators import setup, task as task_decorator, teardown
-    from airflow.decorators.base import DecoratedMappedOperator
+    from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
