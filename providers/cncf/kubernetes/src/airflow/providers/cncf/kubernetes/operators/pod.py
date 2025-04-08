@@ -905,7 +905,9 @@ class KubernetesPodOperator(BaseOperator):
                 xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
 
                 if event["status"] != "success":
-                    self.log.error("Trigger emitted an %s event, failing the task: %s", event["status"], event["message"])
+                    self.log.error(
+                        "Trigger emitted an %s event, failing the task: %s", event["status"], event["message"]
+                    )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
 
