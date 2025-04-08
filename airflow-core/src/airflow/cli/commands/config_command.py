@@ -336,6 +336,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
         renamed_to=ConfigParameter("api", "host"),
     ),
