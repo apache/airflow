@@ -117,7 +117,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) =>
           <MdOutlineAccountTree />
         </IconButton>
       </ButtonGroup>
-      <Box justifyContent="flex-end" position="absolute" right={3} top={0} width="250px" zIndex={1}>
+      <Box justifyContent="flex-end" position="absolute" right={3} top={0} zIndex={1}>
         <Accordion.Root collapsible>
           <Accordion.Item borderBottomWidth={0} value="1">
             <Accordion.ItemTrigger justifyContent="flex-end">
