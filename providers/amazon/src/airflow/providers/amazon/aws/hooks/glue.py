@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
