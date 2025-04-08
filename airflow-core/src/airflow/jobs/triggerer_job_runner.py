@@ -50,12 +50,12 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTICount,
     GetVariable,
     GetXCom,
-GetTICount,
+    TICount,
     VariableResult,
     XComResult,
-    TICount,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
@@ -236,7 +236,15 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom, GetTICount, GetDagRunState, GetDRCount],
+    Union[
+        messages.TriggerStateChanges,
+        GetConnection,
+        GetVariable,
+        GetXCom,
+        GetTICount,
+        GetDagRunState,
+        GetDRCount,
+    ],
     Field(discriminator="type"),
 ]
 """
