@@ -590,25 +590,20 @@ class ConcatXComArg(XComArg):
 class _FilterResult(Sequence, Iterable):
     def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
         self.value = value
+        self.filtered_values: list | None = None
         self.callables = callables
-        self.length: int | None = None
 
     def __getitem__(self, index: Any) -> Any:
         if not (0 <= index < len(self)):
             raise IndexError
 
-        if hasattr(self.value, '__getitem__'):
-            value = self.value[index]
-            if self._apply_callables(value):
-                return value
-            return self.__getitem__(index + 1)
-        raise TypeError("XComArg filter does not support indexing on non-sequence values")
+        return self.filtered_values[index]
 
     def __len__(self) -> int:
         # Calculating the length of an iterable can be a heavy operation, so we cache the result after first attempt
-        if not self.length:
-            self.length = sum(1 for _ in self)
-        return self.length
+        if not self.filtered_values:
+            self.filtered_values = list(self)
+        return len(self.filtered_values)
 
     def __iter__(self) -> Iterator:
         for item in iter(self.value):
