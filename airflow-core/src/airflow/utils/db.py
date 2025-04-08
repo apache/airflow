@@ -1533,7 +1533,7 @@ class LazySelectSequence(Sequence[T]):
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, collections.abc.Sequence):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())

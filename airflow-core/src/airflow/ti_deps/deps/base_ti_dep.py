@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.session import provide_session
@@ -46,7 +46,7 @@ class BaseTIDep:
     # to some tasks (e.g. depends_on_past is not specified by all tasks).
     IS_TASK_DEP = False
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two task instance dependencies are equal by comparing their types."""
         return isinstance(self, type(other))
 
