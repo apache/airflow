@@ -48,6 +48,10 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "setup",
+    "task",
+    "task_group",
+    "teardown",
 ]
 
 __version__ = "1.0.0.alpha1"
@@ -63,6 +67,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.decorators import setup, task, teardown
+    from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -98,6 +104,10 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "setup": ".definitions.decorators",
+    "task": ".definitions.decorators",
+    "task_group": ".definitions.decorators",
+    "teardown": ".definitions.decorators",
 }
 
 

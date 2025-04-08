@@ -646,7 +646,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/check_init_decorator_arguments.py
         pass_filenames: false
-        files: ^airflow-core/src/airflow/models/dag\.py$|^airflow-core/src/airflow/(?:decorators|utils)/task_group\.py$
+        files: ^task-sdk/src/airflow/sdk/definitions/dag\.py$|^task-sdk/src/airflow/sdk/definitions/decorators/task_group\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs

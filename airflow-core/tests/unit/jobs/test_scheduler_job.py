@@ -41,7 +41,6 @@ from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -63,6 +62,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval

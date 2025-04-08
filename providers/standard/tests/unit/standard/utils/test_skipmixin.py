@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
@@ -39,7 +38,9 @@ pytestmark = pytest.mark.db_test
 if AIRFLOW_V_3_0_PLUS:
     from airflow.exceptions import DownstreamTasksSkipped
     from airflow.providers.standard.utils.skipmixin import SkipMixin
+    from airflow.sdk import task, task_group
 else:
+    from airflow.decorators import task, task_group
     from airflow.models.skipmixin import SkipMixin
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

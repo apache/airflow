@@ -39,7 +39,6 @@ import uuid6
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -75,7 +74,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import BaseSensorOperator
+from airflow.sdk import BaseSensorOperator, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -1574,7 +1573,7 @@ class TestTaskInstance:
         expect_state: State,
         expect_completed: bool,
     ):
-        from airflow.decorators import task
+        from airflow.sdk import task
 
         @task
         def do_something(i):
@@ -2253,7 +2252,7 @@ class TestTaskInstance:
 
     def test_mapped_current_state(self, dag_maker):
         with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.decorators import task
+            from airflow.sdk import task
 
             @task()
             def raise_an_exception(placeholder: int):

@@ -19,14 +19,14 @@ from __future__ import annotations
 import types
 from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.task_group import _TaskGroupFactory
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
 from airflow.utils.setup_teardown import SetupTeardownContext
 
 if TYPE_CHECKING:
-    from airflow import XComArg
+    from airflow.sdk.definitions.xcom_arg import XComArg
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.decorators.python import python_task

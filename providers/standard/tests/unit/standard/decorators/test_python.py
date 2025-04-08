@@ -23,8 +23,6 @@ from typing import Union
 
 import pytest
 
-from airflow.decorators import setup, task as task_decorator, teardown
-from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
@@ -39,11 +37,14 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg
+    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown
+    from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.utils.types import DagRunTriggeredByType
 else:
+    from airflow.decorators import setup, task as task_decorator, teardown
+    from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG  # type: ignore[assignment]
     from airflow.models.expandinput import DictOfListsExpandInput
