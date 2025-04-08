@@ -41,8 +41,16 @@ const links = [
   },
 ];
 
-export const DocsButton = () => {
-  const showAPIDocs = Boolean(useConfig("enable_swagger_ui"));
+export const DocsButton = ({
+  showAPI,
+  version,
+}: {
+  readonly showAPI?: boolean;
+  readonly version?: string;
+}) => {
+  const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
+
+  const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
@@ -59,6 +67,13 @@ export const DocsButton = () => {
               </Link>
             </Menu.Item>
           ))}
+        {version === undefined ? undefined : (
+          <Menu.Item asChild key={version} value={version}>
+            <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
+              {version}
+            </Link>
+          </Menu.Item>
+        )}
       </Menu.Content>
     </Menu.Root>
   );
