@@ -131,29 +131,7 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        {{- if .Values._rpcServer.waitForMigrations.enabled }}
-        - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values._rpcServer.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
-          volumeMounts:
-            {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
-            {{- end }}
-            {{- if .Values._rpcServer.extraVolumeMounts }}
-              {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-          args: {{- include "wait-for-migrations-command" . | indent 10 }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-            {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values._rpcServer.waitForMigrations.env }}
-              {{- tpl (toYaml .Values._rpcServer.waitForMigrations.env) $ | nindent 12 }}
-            {{- end }}
-        {{- end }}
+        {{- include "wait_for_airflow_migrations_container" (list . "_rpcServer") | nindent 8 }}
         {{- if .Values._rpcServer.extraInitContainers }}
           {{- toYaml .Values._rpcServer.extraInitContainers | nindent 8 }}
         {{- end }}

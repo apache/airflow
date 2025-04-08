@@ -114,9 +114,7 @@ spec:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
         {{- include "airflow_config_mount" . | nindent 8 }}
-        {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-          {{- include "airflow_dags_mount" . | nindent 8 }}
-        {{- end }}
+        {{- include "airflow_dags_mount" . | nindent 8 }}
         {{- if .Values.volumeMounts }}
           {{- toYaml .Values.volumeMounts | nindent 8 }}
         {{- end }}
