@@ -35,13 +35,13 @@ from sqlalchemy import select
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import task
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session

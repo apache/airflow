@@ -962,7 +962,7 @@ def prepare_provider_documentation(
                 f"Update release notes for package '{provider_id}' ",
                 skip_printing_title=only_min_version_update,
             ):
-                if not only_min_version_update:
+                if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
@@ -977,7 +977,7 @@ def prepare_provider_documentation(
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            if not only_min_version_update:
+            if not only_min_version_update and not reapply_templates_only:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
                     skip_printing_title=only_min_version_update,

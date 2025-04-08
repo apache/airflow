@@ -7,12 +7,12 @@ info:
     Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
-  /ui/auth/links:
+  /ui/auth/menus:
     get:
       tags:
       - Auth Links
-      summary: Get Auth Links
-      operationId: get_auth_links
+      summary: Get Auth Menus
+      operationId: get_auth_menus
       responses:
         '200':
           description: Successful Response
@@ -9807,6 +9807,19 @@ components:
       type: object
       title: ExtraLinksResponse
       description: Extra Links Response.
+    ExtraMenuItem:
+      properties:
+        text:
+          type: string
+          title: Text
+        href:
+          type: string
+          title: Href
+      type: object
+      required:
+      - text
+      - href
+      title: ExtraMenuItem
     FastAPIAppResponse:
       properties:
         app:
@@ -10174,33 +10187,36 @@ components:
       title: JobResponse
       description: Job serializer for responses.
     MenuItem:
-      properties:
-        text:
-          type: string
-          title: Text
-        href:
-          type: string
-          title: Href
-      type: object
-      required:
-      - text
-      - href
+      type: string
+      enum:
+      - Assets
+      - Audit log
+      - Connections
+      - Dags
+      - Docs
+      - Plugins
+      - Pools
+      - Providers
+      - Variables
+      - XComs
       title: MenuItem
-      description: Menu Item for responses.
+      description: Define all menu items defined in the menu.
     MenuItemCollectionResponse:
       properties:
-        menu_items:
+        authorized_menu_items:
           items:
             $ref: '#/components/schemas/MenuItem'
           type: array
-          title: Menu Items
-        total_entries:
-          type: integer
-          title: Total Entries
+          title: Authorized Menu Items
+        extra_menu_items:
+          items:
+            $ref: '#/components/schemas/ExtraMenuItem'
+          type: array
+          title: Extra Menu Items
       type: object
       required:
-      - menu_items
-      - total_entries
+      - authorized_menu_items
+      - extra_menu_items
       title: MenuItemCollectionResponse
       description: Menu Item Collection serializer for responses.
     NodeResponse:

@@ -27,9 +27,9 @@ import pytest
 from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 

@@ -1014,7 +1014,7 @@ def system_tests(
         collect_only=collect_only,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
-        forward_ports=False,
+        forward_ports=True,
         github_repository=github_repository,
         integration=(),
         keep_env_variables=keep_env_variables,
