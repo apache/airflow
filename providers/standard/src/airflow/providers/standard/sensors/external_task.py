@@ -346,8 +346,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Calculate the normalized count based on the type of check."""
         if self.external_task_ids:
             return count / len(self.external_task_ids)
-        elif self.external_task_group_id:
-            return count / len(dttm_filter)
         else:
             return count
 

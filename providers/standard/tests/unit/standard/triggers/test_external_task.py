@@ -217,6 +217,101 @@ class TestWorkflowTrigger:
         mock_sleep.assert_awaited()
         assert mock_sleep.await_count == 1
 
+    @pytest.mark.parametrize(
+        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_dag_count, expected",
+        [
+            (
+                ["task_id_one", "task_id_two"],
+                None,
+                ["success"],
+                [
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                ],
+                4,
+                2,
+                2,
+            ),
+            (
+                [],
+                "task_group_id",
+                ["success"],
+                [
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                ],
+                2,
+                2,
+                2,
+            ),
+            (
+                [],
+                None,
+                ["success"],
+                [
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                ],
+                2,
+                2,
+                2,
+            ),
+        ],
+        ids=[
+            "with_task_ids",
+            "with task_group_id only",
+            "no task_ids or task_group_id",
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
+    @pytest.mark.asyncio
+    async def test_get_count_af_3(
+        self,
+        mock_get_dr_count,
+        mock_get_ti_count,
+        task_ids,
+        task_group_id,
+        states,
+        logical_dates,
+        mock_ti_count,
+        mock_dag_count,
+        expected,
+    ):
+        """
+        case1: when provided two task_ids, and two dag runs, the get_ti_count should return 4(each dag run returns two tasks)
+                and normalized count becomes 2
+        case2: when provided task_group_id, and two dag runs, the get_ti_count should return 2(each dag run returns 1 task group)
+        case3: when not provided any task_ids or task_group_id, the get_dr_count should return 2(total dag runs 2)
+        """
+
+        mock_get_ti_count.return_value = mock_ti_count
+        mock_get_dr_count.return_value = mock_dag_count
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            logical_dates=logical_dates,
+            external_task_ids=task_ids,
+            external_task_group_id=task_group_id,
+            allowed_states=states,
+            poke_interval=0.2,
+        )
+
+        get_count_af_3 = await trigger._get_count_af_3(states)
+        assert get_count_af_3 == expected
+
+        if task_ids or task_group_id:
+            mock_get_ti_count.assert_called_once()
+            assert mock_get_ti_count.call_count == 1
+            mock_get_dr_count.assert_not_called()
+            assert mock_get_dr_count.call_count == 0
+
+        if not task_ids and not task_group_id:
+            mock_get_dr_count.assert_called_once()
+            assert mock_get_dr_count.call_count == 1
+            mock_get_ti_count.assert_not_called()
+            assert mock_get_ti_count.call_count == 0
+
     def test_serialization(self):
         """
         Asserts that the WorkflowTrigger correctly serializes its arguments and classpath.
