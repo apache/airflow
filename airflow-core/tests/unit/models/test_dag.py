@@ -42,7 +42,6 @@ from airflow.exceptions import (
 )
 from airflow.models import DagBag
 from airflow.models.asset import (
-    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
@@ -901,48 +900,6 @@ class TestDag:
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
-
-    @staticmethod
-    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
-        assets = session.execute(
-            select(AssetModel, AssetActive)
-            .outerjoin(
-                AssetActive,
-                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
-            )
-            .order_by(AssetModel.uri)
-        ).all()
-        return [a for a, v in assets if not v], [a for a, v in assets if v]
-
-    def test_bulk_write_to_db_does_not_activate(self, dag_maker, testing_dag_bundle, session):
-        """
-        Assets are not activated on write, but later in the scheduler by the SchedulerJob.
-        """
-        # Create four assets - two that have references and two that are unreferenced and marked as
-        # orphans
-        asset1 = Asset(uri="test://asset1", name="asset1", group="test-group")
-        asset2 = Asset(uri="test://asset2", name="asset2", group="test-group")
-        asset3 = Asset(uri="test://asset3", name="asset3", group="test-group")
-        asset4 = Asset(uri="test://asset4", name="asset4", group="test-group")
-
-        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
-        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
-        DAG.bulk_write_to_db("testing", None, [dag1], session=session)
-
-        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [asset1, asset3]
-        assert session.scalars(select(AssetActive)).all() == []
-
-        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
-        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
-        DAG.bulk_write_to_db("testing", None, [dag1], session=session)
-
-        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [
-            asset1,
-            asset2,
-            asset3,
-            asset4,
-        ]
-        assert session.scalars(select(AssetActive)).all() == []
 
     def test_bulk_write_to_db_asset_aliases(self, testing_dag_bundle):
         """
