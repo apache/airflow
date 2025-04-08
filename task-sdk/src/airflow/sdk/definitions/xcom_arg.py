@@ -599,7 +599,9 @@ class _FilterResult(Sequence, Iterable):
 
         if hasattr(self.value, '__getitem__'):
             value = self.value[index]
-            if self._apply_callables(value):
+            result = self._apply_callables(value)
+            print("filter {} is {}".format(value, result))
+            if result:
                 return value
             return None
         raise TypeError("XComArg filter does not support indexing on non-sequence values")
