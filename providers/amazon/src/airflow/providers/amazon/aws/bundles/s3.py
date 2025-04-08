@@ -95,7 +95,7 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
         current_s3_keys = {key for key in current_s3_objects}
 
         for item in self.s3_dags_dir.iterdir():
-            item: Path
+            item: Path  # type: ignore[no-redef]
             absolute_item_path = item.resolve()
 
             if absolute_item_path not in current_s3_keys:
