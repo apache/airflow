@@ -261,7 +261,7 @@ def test_validate_provider_info_with_schema():
     "provider_id, min_version",
     [
         ("amazon", "2.9.0"),
-        ("fab", "3.0.0.dev0"),
+        ("fab", "3.0.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
