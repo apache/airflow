@@ -129,7 +129,7 @@ class BulkDeleteActionConnectionBody(BaseModel):
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionPoolBody(BaseModel):
@@ -140,7 +140,7 @@ class BulkDeleteActionPoolBody(BaseModel):
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkDeleteActionVariableBody(BaseModel):
@@ -151,7 +151,7 @@ class BulkDeleteActionVariableBody(BaseModel):
     entities: Annotated[
         list[str], Field(description="A list of entity id/key to be deleted.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkResponse(BaseModel):
@@ -494,6 +494,14 @@ class EventLogResponse(BaseModel):
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class ExtraLinksResponse(RootModel[dict[str, str | None] | None]):
+    """
+    Extra Links Response.
+    """
+
+    root: dict[str, str | None] | None = None
 
 
 class FastAPIAppResponse(BaseModel):
@@ -960,7 +968,7 @@ class BackfillPostBody(BaseModel):
     to_date: Annotated[datetime, Field(title="To Date")]
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = {}
-    reprocess_behavior: ReprocessBehavior | None = ReprocessBehavior.NONE
+    reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
 
 
@@ -990,7 +998,7 @@ class BulkCreateActionConnectionBody(BaseModel):
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be created.", title="Entities")
     ]
-    action_on_existence: BulkActionOnExistence | None = BulkActionOnExistence.FAIL
+    action_on_existence: BulkActionOnExistence | None = "fail"
 
 
 class BulkCreateActionPoolBody(BaseModel):
@@ -1001,7 +1009,7 @@ class BulkCreateActionPoolBody(BaseModel):
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be created.", title="Entities")
     ]
-    action_on_existence: BulkActionOnExistence | None = BulkActionOnExistence.FAIL
+    action_on_existence: BulkActionOnExistence | None = "fail"
 
 
 class BulkCreateActionVariableBody(BaseModel):
@@ -1012,7 +1020,7 @@ class BulkCreateActionVariableBody(BaseModel):
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be created.", title="Entities")
     ]
-    action_on_existence: BulkActionOnExistence | None = BulkActionOnExistence.FAIL
+    action_on_existence: BulkActionOnExistence | None = "fail"
 
 
 class BulkUpdateActionConnectionBody(BaseModel):
@@ -1023,7 +1031,7 @@ class BulkUpdateActionConnectionBody(BaseModel):
     entities: Annotated[
         list[ConnectionBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionPoolBody(BaseModel):
@@ -1034,7 +1042,7 @@ class BulkUpdateActionPoolBody(BaseModel):
     entities: Annotated[
         list[PoolBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class BulkUpdateActionVariableBody(BaseModel):
@@ -1045,7 +1053,7 @@ class BulkUpdateActionVariableBody(BaseModel):
     entities: Annotated[
         list[VariableBody], Field(description="A list of entities to be updated.", title="Entities")
     ]
-    action_on_non_existence: BulkActionNotOnExistence | None = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
 class Config(BaseModel):
