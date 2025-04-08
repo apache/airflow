@@ -41,6 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
 
@@ -57,7 +58,7 @@ def create_app(enable_plugins: bool):
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
     webserver_config = conf.get_mandatory_value("webserver", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.

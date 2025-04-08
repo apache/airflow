@@ -585,19 +585,6 @@ def prepare_syspath_for_dags_folder():
         sys.path.append(DAGS_FOLDER)
 
 
-def get_session_lifetime_config():
-    """Get session timeout configs and handle outdated configs gracefully."""
-    session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    minutes_per_day = 24 * 60
-    if not session_lifetime_minutes:
-        session_lifetime_days = 30
-        session_lifetime_minutes = minutes_per_day * session_lifetime_days
-
-    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
-
-    return int(session_lifetime_minutes)
-
-
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
