@@ -2543,6 +2543,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(HOOK_CLASS)
     def test_execute_async_callbacks(self, mocked_hook):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
