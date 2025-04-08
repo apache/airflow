@@ -25,9 +25,12 @@ from typing import TYPE_CHECKING, Annotated, Literal, Union
 import structlog
 from pydantic import BaseModel, Field
 
+from airflow.api_fastapi.execution_api.datamodels.token import RuntimeBindingsTokenType
+
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
+    from airflow.models.asset import Asset as AssetModel
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
@@ -50,6 +53,10 @@ class BundleInfo(BaseModel):
     name: str
     version: str | None = None
 
+
+class Asset(BaseModel):
+    """Schema for Asset with minimal required fields needed for Executors and Task SDK."""
+    id: int
 
 class TaskInstance(BaseModel):
     """Schema for TaskInstance with minimal required fields needed for Executors and Task SDK."""
@@ -123,7 +130,7 @@ class ExecuteTask(BaseWorkload):
         token = ""
 
         if generator:
-            token = generator.generate({"sub": str(ti.id)})
+            token = generator.generate({"sub": str(ti.id), "sub_type": RuntimeBindingsTokenType.TASK_INSTANCE})
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
@@ -133,7 +140,7 @@ class ExecuteTask(BaseWorkload):
         )
 
 
-class RunTrigger(BaseModel):
+class RunTrigger(BaseWorkload):
     """Execute an async "trigger" process that yields events."""
 
     id: int
@@ -157,6 +164,42 @@ class RunTrigger(BaseModel):
     timeout_after: datetime | None = None
 
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+
+    @classmethod
+    def make(
+        cls,
+        id: int,
+        encrypted_kwargs: str,
+        classpath: str,
+        ti: TIModel | None,
+        assets: list[AssetModel] | None,
+        generator: JWTGenerator | None = None,
+    ) -> ExecuteTask:
+        assert ti ^ assets, "Must provide either a TaskInstance or Assets, but not both"
+        ser_ti = None
+        ser_assets = None
+        subject = ""
+        sub_type = RuntimeBindingsTokenType.TASK_INSTANCE
+        if ti:
+            ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
+            ser_ti.parent_context_carrier = ti.dag_run.context_carrier
+            subject = str(ti.id)
+        else:
+            # use trigger id as the subject for asset triggers (no task instance)
+            sub_type = RuntimeBindingsTokenType.ASSET_TRIGGER
+            subject = str(id)
+
+        token = ""
+
+        if generator:
+            token = generator.generate({"sub": subject, "sub_type": sub_type})
+        return cls(
+            id=id,
+            encrypted_kwargs=encrypted_kwargs,
+            classpath=classpath,
+            ti=ser_ti,
+            token=token,
+        )
 
 
 All = Annotated[

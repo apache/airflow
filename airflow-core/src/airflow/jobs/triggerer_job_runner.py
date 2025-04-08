@@ -527,12 +527,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 continue
 
-            workload = workloads.RunTrigger(
-                classpath=new_trigger_orm.classpath,
-                id=new_id,
-                encrypted_kwargs=new_trigger_orm.encrypted_kwargs,
-                ti=None,
-            )
+            run_trigger_kwargs = {
+                "classpath": new_trigger_orm.classpath,
+                "encrypted_kwargs": new_trigger_orm.encrypted_kwargs,
+                "id": new_id,
+            }
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
 
@@ -544,11 +543,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     log_path=f"{log_path}.trigger.{self.job.id}.log",
                     ti=ser_ti,  # type: ignore
                 )
+                run_trigger_kwargs["ti"] = ser_ti
+                run_trigger_kwargs["timeout_after"] = new_trigger_orm.task_instance.trigger_timeout
 
-                workload.ti = ser_ti
-                workload.timeout_after = new_trigger_orm.task_instance.trigger_timeout
+            # TODO should handle log path / upload for asset triggers
+            # TODO should add a config for default asset trigger timeout, and set timeout_after here.
 
-            to_create.append(workload)
+            to_create.append(
+                workloads.RunTrigger.make(
+                    **run_trigger_kwargs,
+                )
+            )
 
         self.creating_triggers.extend(to_create)
 

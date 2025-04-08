@@ -29,7 +29,7 @@ from fastapi.security import HTTPBearer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import RuntimeBindingsToken
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -49,8 +49,8 @@ class JWTBearer(HTTPBearer):
 
     This will validate the tokens are signed and that the ``sub`` is a UUID, but nothing deeper than that.
 
-    The dependency result will be an `TIToken` object containing the ``id`` UUID (from the ``sub``) and other
-    validated claims.
+    The dependency result will be an `RuntimeBindingsToken` object containing the
+    ``id`` TaskInstance UUID or Asset ID (from the ``sub``) and other validated claims.
     """
 
     def __init__(
@@ -66,7 +66,7 @@ class JWTBearer(HTTPBearer):
         self,
         request: Request,
         services=DepContainer,
-    ) -> Optional[TIToken]:
+    ) -> Optional[RuntimeBindingsToken]:
         creds = await super().__call__(request)
         if not creds:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing auth token")
@@ -75,16 +75,12 @@ class JWTBearer(HTTPBearer):
 
         try:
             # Example: Validate "task_instance_id" component of the path matches the one in the token
+            validators = {**self.required_claims}
             if self.path_param_name:
                 id = request.path_params[self.path_param_name]
-                validators: dict[str, Any] = {
-                    **self.required_claims,
-                    "sub": {"essential": True, "value": id},
-                }
-            else:
-                validators = self.required_claims
+                validators["sub"] = {"essential": True, "value": id}
             claims = await validator.avalidated_claims(creds.credentials, validators)
-            return TIToken(id=claims["sub"], claims=claims)
+            return RuntimeBindingsToken(id=claims["sub"], claims=claims)
         except Exception as err:
             log.warning(
                 "Failed to validate JWT",
@@ -94,7 +90,7 @@ class JWTBearer(HTTPBearer):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
 
 
-JWTBearerDep: TIToken = Depends(JWTBearer())
+JWTBearerDep: RuntimeBindingsToken = Depends(JWTBearer())
 
 
 class JWTReissuer:
