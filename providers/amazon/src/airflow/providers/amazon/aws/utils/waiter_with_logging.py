@@ -72,8 +72,7 @@ def wait(
             waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
-            error_reason = str(error)
-            log.info(error_reason)
+            log.info(str(error))
 
         except WaiterError as error:
             error_reason = str(error)
@@ -138,8 +137,7 @@ async def async_wait(
             await waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
-            error_reason = str(error)
-            log.info(error_reason)
+            log.info(str(error))
 
         except WaiterError as error:
             error_reason = str(error)
