@@ -110,8 +110,17 @@ def upgrade():
 
     for row in rows:
         id = uuid7()
+        if conn.dialect.name != "postgresql":
+            id = id.hex
+        else:
+            id = str(id)
+
         conn.execute(stmt.bindparams(_id=id, dag_id=row.dag_id))
         id2 = uuid7()
+        if conn.dialect.name != "postgresql":
+            id2 = id2.hex
+        else:
+            id2 = str(id2)
         # Update dagversion table
         conn.execute(
             sa.text("""
@@ -209,6 +218,10 @@ def upgrade():
                 """)
     for row in rows:
         id = uuid7()
+        if conn.dialect.name != "postgresql":
+            id = id.hex
+        else:
+            id = str(id)
         try:
             source_code = DagCode.get_code_from_file(row.fileloc)
         except FileNotFoundError:
