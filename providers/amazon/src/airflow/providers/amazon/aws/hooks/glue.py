@@ -145,7 +145,7 @@ class GlueJobHook(AwsBaseHook):
 
         return config
 
-    def list_jobs(self) -> list:
+    def describe_jobs(self) -> list:
         """
         Get list of Jobs.
 
