@@ -2282,6 +2282,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         An orphaned asset is no longer referenced in any DAG schedule parameters
         or task outlets. Active assets (non-orphaned) have entries in AssetActive
         and must have unique names and URIs.
+
+        :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
         # Group assets into orphaned=True and orphaned=False groups.
         orphaned = (

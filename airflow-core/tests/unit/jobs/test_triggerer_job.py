@@ -690,3 +690,80 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
             "xcom": '"some_xcom_value"',
         }
     }
+
+
+class CustomTriggerDagRun(BaseTrigger):
+    def __init__(self, trigger_dag_id, run_ids, states, logical_dates):
+        self.trigger_dag_id = trigger_dag_id
+        self.run_ids = run_ids
+        self.states = states
+        self.logical_dates = logical_dates
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "trigger_dag_id": self.trigger_dag_id,
+                "run_ids": self.run_ids,
+                "states": self.states,
+                "logical_dates": self.logical_dates,
+            },
+        )
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        dag_run_states_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            dag_id=self.trigger_dag_id,
+            run_ids=self.run_ids,
+            states=self.states,
+            logical_dates=self.logical_dates,
+        )
+        yield TriggerEvent({"count": dag_run_states_count})
+
+
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
+@pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
+async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, dag_maker):
+    """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_in_deferrable", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Use the same dag run with states deferred to fetch the count
+    trigger = CustomTriggerDagRun(
+        trigger_dag_id=dr.dag_id, run_ids=[dr.run_id], states=[dr.state], logical_dates=[dr.logical_date]
+    )
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={
+            "trigger_dag_id": dr.dag_id,
+            "run_ids": [dr.run_id],
+            "states": [dr.state],
+            "logical_dates": [dr.logical_date],
+        },
+    )
+
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {"event": {"count": 1}}

@@ -198,6 +198,46 @@ class TestDagRunOperator:
 
         assert task.failed_states == []
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+
+        try:
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "success"},
+                ),
+            )
+        except Exception as e:
+            pytest.fail(f"Error: {e}")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete_should_fail(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=["failed"],
+        )
+
+        with pytest.raises(AirflowException, match="failed with failed state"):
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "failed"},
+                ),
+            )
+
 
 # TODO: To be removed once the provider drops support for Airflow 2
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")

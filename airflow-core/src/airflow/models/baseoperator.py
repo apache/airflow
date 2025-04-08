@@ -337,19 +337,6 @@ class BaseOperator(TaskSDKBaseOperator):
     extended/overridden by subclasses.
     """
 
-    def pre_execute(self, context: Any):
-        """Execute right before self.execute() is called."""
-        if self._pre_execute_hook is None:
-            return
-        from airflow.sdk.execution_time.callback_runner import create_executable_runner
-        from airflow.sdk.execution_time.context import context_get_outlet_events
-
-        create_executable_runner(
-            self._pre_execute_hook,
-            context_get_outlet_events(context),
-            logger=self.log,
-        ).run(context)
-
     def execute(self, context: Context) -> Any:
         """
         Derive when creating an operator.
@@ -359,23 +346,6 @@ class BaseOperator(TaskSDKBaseOperator):
         Refer to get_template_context for more context.
         """
         raise NotImplementedError()
-
-    def post_execute(self, context: Any, result: Any = None):
-        """
-        Execute right after self.execute() is called.
-
-        It is passed the execution context and any results returned by the operator.
-        """
-        if self._post_execute_hook is None:
-            return
-        from airflow.sdk.execution_time.callback_runner import create_executable_runner
-        from airflow.sdk.execution_time.context import context_get_outlet_events
-
-        create_executable_runner(
-            self._post_execute_hook,
-            context_get_outlet_events(context),
-            logger=self.log,
-        ).run(context, result)
 
     @provide_session
     def clear(

@@ -42,6 +42,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Trigger
 from airflow.models.asset import (
     AssetActive,
+    AssetModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
     asset_trigger_association_table,
@@ -150,14 +151,10 @@ class TestAssetModelOperation:
                 dag.is_paused = is_paused
 
             orm_assets = asset_op.sync_assets(session=session)
-            # Create AssetActive objects from assets. It is usually done in the scheduler
-            for asset in orm_assets.values():
-                session.add(AssetActive.for_asset(asset))
-            session.commit()
-
+            session.flush()
+            asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
             asset_op.add_asset_trigger_references(orm_assets, session=session)
-
-            session.commit()
+            session.flush()
 
             assert session.query(Trigger).count() == expected_num_triggers
             assert session.query(asset_trigger_association_table).count() == expected_num_triggers
@@ -239,6 +236,81 @@ class TestAssetModelOperation:
         orm_aliases = asset_op.sync_asset_aliases(session=session)
         assert len(orm_aliases) == 1
         assert next(iter(orm_aliases.values())).group == "new_group"
+
+
+@pytest.mark.db_test
+class TestAssetModelOperationSyncAssetActive:
+    @staticmethod
+    def clean_db():
+        clear_db_dags()
+        clear_db_assets()
+        clear_db_triggers()
+
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        self.clean_db()
+        yield
+        self.clean_db()
+
+    def test_add_asset_activate(self, dag_maker, session):
+        asset = Asset("myasset", "file://myasset/", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is not None
+
+    def test_add_asset_activate_already_exists(self, dag_maker, session):
+        asset = Asset("myasset", "file://myasset/", group="old_group")
+
+        session.add(AssetModel.from_public(asset))
+        session.flush()
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is not None, "should pick up existing active"
+
+    @pytest.mark.parametrize(
+        "existing_assets",
+        [
+            pytest.param([Asset("myasset", uri="file://different/asset")], id="name"),
+            pytest.param([Asset("another", uri="file://myasset/")], id="uri"),
+        ],
+    )
+    def test_add_asset_activate_conflict(self, dag_maker, session, existing_assets):
+        session.add_all(AssetModel.from_public(a) for a in existing_assets)
+        session.flush()
+        session.add_all(AssetActive.for_asset(a) for a in existing_assets)
+        session.flush()
+
+        asset = Asset(name="myasset", uri="file://myasset/", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        assert len(orm_assets) == 1
+
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+        assert orm_assets["myasset", "file://myasset/"].active is None, "should not activate due to conflict"
 
 
 @pytest.mark.db_test

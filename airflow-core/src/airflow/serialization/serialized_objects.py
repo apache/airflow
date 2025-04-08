@@ -248,6 +248,16 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
+def _encode_trigger(trigger: BaseEventTrigger | dict):
+    if isinstance(trigger, dict):
+        return trigger
+    classpath, kwargs = trigger.serialize()
+    return {
+        "classpath": classpath,
+        "kwargs": kwargs,
+    }
+
+
 def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     Encode an asset condition.
@@ -260,15 +270,6 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             return {
                 "name": watcher.name,
                 "trigger": _encode_trigger(watcher.trigger),
-            }
-
-        def _encode_trigger(trigger: BaseEventTrigger | dict):
-            if isinstance(trigger, dict):
-                return trigger
-            classpath, kwargs = trigger.serialize()
-            return {
-                "classpath": classpath,
-                "kwargs": kwargs,
             }
 
         asset = {

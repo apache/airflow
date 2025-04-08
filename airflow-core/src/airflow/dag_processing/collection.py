@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import delete, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
@@ -37,6 +37,7 @@ from sqlalchemy.orm import joinedload, load_only
 
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG, SerializedAssetWatcher
+    from airflow.serialization.serialized_objects import MaybeSerializedDAG
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
@@ -665,6 +666,33 @@ class AssetModelOperation(NamedTuple):
         )
         return orm_aliases
 
+    def activate_assets_if_possible(self, models: Iterable[AssetModel], *, session: Session) -> None:
+        """
+        Try to activate assets eagerly.
+
+        This inserts a record to AssetActive for an asset so it is activated
+        on creation if its ``name`` and ``uri`` values do not conflict with
+        anything else. This is a best-effort operation; we simply give up if
+        there's a conflict. The scheduler makes a more comprehensive pass
+        through all assets in ``_update_asset_orphanage``.
+        """
+        if (dialect_name := session.bind.dialect.name) == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert
+
+            stmt = insert(AssetActive).on_conflict_do_nothing()
+        elif dialect_name == "mysql":
+            from sqlalchemy.dialects.mysql import insert
+
+            # MySQL does not support "do nothing"; this updates the row in
+            # conflict with its own value to achieve the same idea.
+            stmt = insert(AssetActive).on_duplicate_key_update(name=AssetActive.name)
+        else:
+            from sqlalchemy.dialects.sqlite import insert
+
+            stmt = insert(AssetActive).on_conflict_do_nothing()
+        if values := [{"name": m.name, "uri": m.uri} for m in models]:
+            session.execute(stmt, values)
+
     def add_dag_asset_references(
         self,
         dags: dict[str, DagModel],
@@ -787,6 +815,8 @@ class AssetModelOperation(NamedTuple):
     def add_asset_trigger_references(
         self, assets: dict[tuple[str, str], AssetModel], *, session: Session
     ) -> None:
+        from airflow.serialization.serialized_objects import _encode_trigger
+
         # Update references from assets being used
         refs_to_add: dict[tuple[str, str], set[int]] = {}
         refs_to_remove: dict[tuple[str, str], set[int]] = {}
@@ -797,16 +827,14 @@ class AssetModelOperation(NamedTuple):
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
-            asset_watchers: list[SerializedAssetWatcher] = (
-                [cast("SerializedAssetWatcher", watcher) for watcher in asset.watchers]
+            asset_watcher_triggers = (
+                [_encode_trigger(watcher.trigger) for watcher in asset.watchers]
                 if name_uri in active_assets
                 else []
             )
             trigger_hash_to_trigger_dict: dict[int, dict] = {
-                BaseEventTrigger.hash(
-                    watcher.trigger["classpath"], watcher.trigger["kwargs"]
-                ): watcher.trigger
-                for watcher in asset_watchers
+                BaseEventTrigger.hash(trigger["classpath"], trigger["kwargs"]): trigger
+                for trigger in asset_watcher_triggers
             }
             triggers.update(trigger_hash_to_trigger_dict)
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())

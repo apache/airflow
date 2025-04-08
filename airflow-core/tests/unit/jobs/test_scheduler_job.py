@@ -6296,7 +6296,6 @@ class TestSchedulerJob:
         ).all()
         return [a for a, v in assets if not v], [a for a, v in assets if v]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6309,27 +6308,22 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        # Assets not activated yet; asset5 is not even registered (since it's not used anywhere).
-        orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1, asset2, asset3, asset4]
-
-        self.job_runner._update_asset_orphanage(session=session)
-        session.flush()
-
-        # Assets are activated after scheduler loop.
+        # asset5 is not registered (since it's not used anywhere).
         orphaned, active = self._find_assets_activation(session)
         assert active == [asset1, asset2, asset3, asset4]
         assert orphaned == []
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
 
         # Now remove 2 asset references and add asset5.
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset5])
 
-        # The DAG parser finds asset5, but it's not activated yet.
+        # The DAG parser finds asset5.
         orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1, asset2, asset3, asset4]
-        assert orphaned == [asset5]
+        assert active == [asset1, asset2, asset3, asset4, asset5]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
@@ -6339,7 +6333,6 @@ class TestSchedulerJob:
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6349,15 +6342,11 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1")
 
         orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1]
+        assert active == [asset1]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
-
-        orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1]
-        assert orphaned == []
 
         # now remove asset1 reference
         with dag_maker(dag_id="assets-1", schedule=None, session=session):

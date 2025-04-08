@@ -36,7 +36,7 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.exceptions import (
@@ -4222,29 +4222,34 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
-    @pytest.mark.want_activate_assets(True)
+    @pytest.mark.want_activate_assets(False)
     def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
+        valid_asset = Asset("asset_first")
+        conflict_asset = Asset(name="asset_first", uri="test://asset/")
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
-            @task(inlets=Asset("asset_first"))
+            @task(inlets=valid_asset)
             def first_asset_task():
                 pass
 
-            @task(inlets=Asset(name="asset_first", uri="test://asset"))
-            def duplicate_asset_task():
+            @task(inlets=conflict_asset)
+            def conflict_asset_task():
                 pass
 
-            first_asset_task() >> duplicate_asset_task()
+            first_asset_task() >> conflict_asset_task()
+
+        session.execute(delete(AssetActive))
+        session.add(AssetActive.for_asset(valid_asset))
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
-            tis["first_asset_task"].run(session=session)
+            tis["conflict_asset_task"].run(session=session)
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            "Asset(name='asset_first', uri='asset_first')"
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
