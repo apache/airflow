@@ -108,4 +108,3 @@ class ExasolToS3Operator(BaseOperator):
                 gzip=self.gzip,
                 acl_policy=self.acl_policy,
             )
-        self.log.info("Data uploaded")

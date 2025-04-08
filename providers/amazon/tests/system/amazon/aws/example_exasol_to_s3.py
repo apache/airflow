@@ -21,6 +21,12 @@ Example DAG to test Exasol connection and S3 upload in Apache Airflow.
 This DAG uses the ExasolToS3Operator to execute a simple SQL query on Exasol and
 upload the result file to S3. It verifies that both the Exasol connection (`exasol_default`)
 and S3 credential settings (`aws_default`) are working correctly.
+
+Note:
+This test assumes you have a working Exasol connection (`exasol_default`) and
+AWS credentials (`aws_default`) already configured. If not, the task will fail at runtime.
+Please refer to the documentation for setup instructions:
+<intro-url>
 """
 from __future__ import annotations
 
