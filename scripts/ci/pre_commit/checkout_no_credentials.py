@@ -57,6 +57,13 @@ def check_file(the_file: Path) -> int:
                     # build. This is ok for security, because we are pushing it only in the `main` branch
                     # of the repository and only for unprotected constraints branch
                     continue
+                if step.get("id") == "checkout-for-backport":
+                    # This is a special case - we are ok with persisting credentials in backport
+                    # step, because we need them to push backport branch back to the repository in
+                    # backport checkout-for-backport step and create pr for cherry-picker. This is ok for
+                    # security, because cherry picker pushing it only in the `main` branch of the repository
+                    # and only for unprotected backport branch
+                    continue
                 persist_credentials = with_clause.get("persist-credentials")
                 if persist_credentials is None:
                     console.print(

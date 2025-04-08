@@ -21,7 +21,7 @@ Small tool to update status of all AIP-47 issues.
 
 Simply:
 
-1) Activate dev environment based on [requirements](dev/requirements.txt)
+1) Activate dev environment based on [requirements](../../dev/requirements.txt)
 
 2) Set GITHUB_TOKEN to repo-writeable token
 

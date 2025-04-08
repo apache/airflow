@@ -1,0 +1,54 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_transform_timespan.copy_example_gcs_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_transform_timespan.copy_example_gcs_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://airflow-system-tests-resources",
+                "name": "gcs/example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_timespan_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "timespan_source/example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_transform_timespan.gcs_timespan_transform_files"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_transform_timespan.gcs_timespan_transform_files"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_timespan_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_transform_timespan_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    }
+]

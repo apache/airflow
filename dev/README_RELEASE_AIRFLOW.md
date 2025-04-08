@@ -214,35 +214,39 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Set environment variables
 
-    ```shell script
+```shell script
 
-    # You can avoid repeating this command for every release if you will set it in .zshrc
-    # see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
-    export GPG_TTY=$(tty)
+# You can avoid repeating this command for every release if you will set it in .zshrc
+# see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
+export GPG_TTY=$(tty)
 
-    # Set Version
-    export VERSION=2.1.2rc3
-    export VERSION_SUFFIX=rc3
-    export VERSION_BRANCH=2-1
-    export VERSION_WITHOUT_RC=${VERSION/rc?/}
+# Set Version
+export VERSION=2.1.2rc3
+export VERSION_SUFFIX=rc3
+export VERSION_BRANCH=2-1
+export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
-    # Set AIRFLOW_REPO_ROOT to the path of your git repo
-    export AIRFLOW_REPO_ROOT=$(pwd)
+# Set AIRFLOW_REPO_ROOT to the path of your git repo
+export AIRFLOW_REPO_ROOT=$(pwd)
 
 
-    # Example after cloning
-    git clone https://github.com/apache/airflow.git airflow
-    cd airflow
-    export AIRFLOW_REPO_ROOT=$(pwd)
-    ```
+# Example after cloning
+git clone https://github.com/apache/airflow.git airflow
+cd airflow
+export AIRFLOW_REPO_ROOT=$(pwd)
+```
 
 - Install `breeze` command:
 
-    ```shell script
-    pipx install -e ./dev/breeze
-    ```
+```shell script
+uv tool install -e ./dev/breeze
+```
 
+or (if you prefer to use pipx):
 
+```shell script
+pipx install -e ./dev/breeze
+```
 
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
@@ -257,7 +261,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Set your version in `airflow/__init__.py` (without the RC tag).
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
@@ -317,7 +321,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
   ```shell script
   cat <<EOF
-  Status of testing of Apache Airflow {VERSION}
+  Status of testing of Apache Airflow ${VERSION}
   EOF
   ```
 
@@ -383,8 +387,10 @@ Airflow ${VERSION} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 *apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
-*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release fore airflow meta distribution.
+*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow meta distribution.
+*apache-airflow_core-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release for airflow core distribution.
+*apache_airflow_core-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow core distribution.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -404,8 +410,7 @@ https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify
 The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
 
-
-Please note that the version number excludes the \`rcX\` string, so it's now
+Please note that the version number excludes the 'rcX' string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
@@ -474,16 +479,16 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
+The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
@@ -491,7 +496,7 @@ This is generally faster and requires less resources/network bandwidth. Note tha
 do it before preparing the tarball as preparing packages cleans up dist folder from
 apache-airflow artifacts as it uses hatch's `-c` build flag.
 
-The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
+The `prepare-airflow-distributions` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
 
 The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
@@ -549,7 +554,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
+python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -682,7 +687,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.8.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.9.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -694,7 +699,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -702,7 +707,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -838,7 +843,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.8 3.9 3.10 3.11 3.12
+for PYTHON in 3.9 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -881,13 +886,17 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     breeze release-management publish-docs apache-airflow docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
-    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force --all-combinations --run-in-parallel
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
+The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
+of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
+where N is a number of parallel `cdxgen` servers that should be started.
 
 ## Wait and make sure documentation is published on the website before proceeding
 
@@ -916,7 +925,7 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/${VERSION}/installation/installing-from-sources.html
 
 Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
@@ -1002,9 +1011,9 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.
@@ -1031,7 +1040,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
-- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
@@ -1073,7 +1082,7 @@ Clients can be found here:
 ### API Clients versioning policy
 
 Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
-Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/clients/python/openapi_v1.yaml) has
 changed, clients need to be released.
 
 To determine if you should release API clients, you can run from the airflow repository:
@@ -1091,5 +1100,5 @@ According to the policy above, if we have to release clients:
 
 - Follow the specific release process for each API client:
 
-    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
-    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)

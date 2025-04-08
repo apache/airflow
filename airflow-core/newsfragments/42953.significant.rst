@@ -1,0 +1,15 @@
+``DAG.max_active_tasks`` is now evaluated per-run
+
+Previously, this was evaluated across all runs of the dag. This behavior change was passed by lazy consensus.
+Vote thread: https://lists.apache.org/thread/9o84d3yn934m32gtlpokpwtbbmtxj47l.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

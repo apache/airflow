@@ -25,7 +25,7 @@ from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 CI = os.environ.get("CI")
@@ -69,7 +69,7 @@ def commit_changes(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "commit", "-m", f"Update default branches for {version_branch}"],
+            ["git", "commit", "-m", f"Update default branches for {version_branch}", "--no-verify"],
             dry_run_override=DRY_RUN,
             check=True,
         )
@@ -210,7 +210,7 @@ def create_minor_version_branch(version_branch):
             )
             sys.exit(1)
 
-    os.chdir(AIRFLOW_SOURCES_ROOT)
+    os.chdir(AIRFLOW_ROOT_PATH)
     repo_root = os.getcwd()
     console_print()
     console_print(f"Repo root: {repo_root}")
@@ -227,7 +227,7 @@ def create_minor_version_branch(version_branch):
     if confirm_action("Build latest breeze image?"):
         if DRY_RUN:
             console_print("Skipping below command on CI")
-        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.9"], dry_run_override=DRY_RUN, check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

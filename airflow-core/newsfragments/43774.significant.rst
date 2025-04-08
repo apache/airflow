@@ -1,0 +1,25 @@
+``HookLineageCollector.create_asset`` now accept only keyword arguments
+
+To provider AIP-74 support, new arguments "name" and "group" are added to ``HookLineageCollector.create_asset``.
+For easier change in the future, this function now takes only keyword arguments.
+
+.. Check the type of change that applies to this change
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] Calling ``HookLineageCollector.create_asset`` with positional argument should raise an error

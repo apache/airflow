@@ -85,12 +85,12 @@ def _handle_parent_constructor_kwargs(
     field.
     TODO: Enhance this function to work with nested inheritance trees through dynamic imports.
 
-    :param missing_assignments: List[str] - List of template fields that have not been assigned a value.
+    :param missing_assignments: list[str] - List of template fields that have not been assigned a value.
     :param ctor_stmt: ast.Expr - AST node representing the constructor statement.
-    :param invalid_assignments: List[str] - List of template fields that have been assigned incorrectly.
-    :param template_fields: List[str] - List of template fields to be assigned.
+    :param invalid_assignments: list[str] - List of template fields that have been assigned incorrectly.
+    :param template_fields: list[str] - List of template fields to be assigned.
 
-    :return: List[str] - List of template fields that are still missing assignments.
+    :return: list[str] - List of template fields that are still missing assignments.
     """
     if isinstance(ctor_stmt, ast.Expr):
         if (

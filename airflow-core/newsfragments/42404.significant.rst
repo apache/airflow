@@ -1,0 +1,19 @@
+Removed ``logical_date`` arguments from functions and APIs for DAG run lookups to align with Airflow 3.0.
+
+The shift towards using ``run_id`` as the sole identifier for DAG runs eliminates the limitations of ``execution_date`` and ``logical_date``, particularly for dynamic DAG runs and cases where multiple runs occur at the same logical time. This change impacts database models, templates, and functions:
+
+- Removed ``logical_date`` arguments from public APIs and Python functions related to DAG run lookups.
+- ``run_id`` is now the exclusive identifier for DAG runs in these contexts.
+- ``ds``, ``ds_nodash``, ``ts``, ``ts_nodash``, ``ts_nodash_with_tz`` (and ``logical_date``) will no longer exist for non-scheduled DAG runs (i.e. manually triggered runs)
+- ``task_instance_key_str`` template variable has changed to use ``run_id``, not the logical_date. This means the value of it will change compared to 2.x, even for old runs
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

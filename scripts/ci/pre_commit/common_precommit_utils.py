@@ -26,17 +26,29 @@ import sys
 import textwrap
 from pathlib import Path
 
-from rich.console import Console
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
+AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
+AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
+AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
-AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
-AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.8"
+# Here we should add the second level paths that we want to have sub-packages in
+KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
 
-console = Console(width=400, color_system="standard")
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
+
+try:
+    from rich.console import Console
+
+    console = Console(width=400, color_system="standard")
+except ImportError:
+    console = None  # type: ignore[assignment]
 
 
 def read_airflow_version() -> str:
-    ast_obj = ast.parse((AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text())
+    ast_obj = ast.parse((AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py").read_text())
     for node in ast_obj.body:
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
@@ -48,29 +60,16 @@ def read_airflow_version() -> str:
 def pre_process_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 
+    * Exclude conftest.py files and __init__.py files
     * When running build on non-main branch do not take providers into account.
-    * When running "airflow/providers" package, then we need to add --namespace-packages flag.
-    * When running "airflow" package, then we need to exclude providers.
+    * When running "airflow-core" package, then we need to exclude providers.
     """
+
+    files = [file for file in files if not file.endswith("conftest.py") and not file.endswith("__init__.py")]
     default_branch = os.environ.get("DEFAULT_BRANCH")
     if not default_branch or default_branch == "main":
         return files
-    result = [file for file in files if not file.startswith(f"airflow{os.sep}providers")]
-    if "airflow/providers" in files:
-        if len(files) > 1:
-            raise RuntimeError(
-                "When running `airflow/providers` package, you cannot run any other packages because only "
-                "airflow/providers package requires --namespace-packages flag to be set"
-            )
-        result.append("--namespace-packages")
-    if "airflow" in files:
-        if len(files) > 1:
-            raise RuntimeError(
-                "When running `airflow` package, you cannot run any other packages because only "
-                "airflow/providers package requires --exclude airflow/providers/.* flag to be set"
-            )
-        result.extend(["--exclude", "airflow/providers/.*"])
-    return result
+    return [file for file in files if not file.startswith("providers")]
 
 
 def insert_documentation(
@@ -118,8 +117,11 @@ def initialize_breeze_precommit(name: str, file: str):
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
-            "[yellow]Please install breeze with `pipx install -e ./dev/breeze` from Airflow sources "
-            "and make sure you run `pipx ensurepath`[/]\n\n"
+            "[yellow]Please install breeze.\n"
+            "You can use uv with `uv tool install -e ./dev/breeze or "
+            "`pipx install -e ./dev/breeze`.\n"
+            "It will install breeze from Airflow sources "
+            "(make sure you run `pipx ensurepath` if you use pipx)[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PRE_COMMITS env variable to non-empty "
             "value to skip all breeze tests."
         )
@@ -130,7 +132,7 @@ def run_command_via_breeze_shell(
     cmd: list[str],
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     backend: str = "none",
-    executor: str = "SequentialExecutor",
+    executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
     project_name: str = "pre-commit",
     skip_environment_initialization: bool = True,
@@ -150,6 +152,7 @@ def run_command_via_breeze_shell(
         "--quiet",
         "--restart",
         "--skip-image-upgrade-check",
+        # Note: The terminal is disabled - because pre-commit is run inside git without pseudo-terminal
         "--tty",
         "disabled",
     ]
@@ -211,3 +214,89 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
     console.print()
     errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
     return False
+
+
+def validate_cmd_result(cmd_result, include_ci_env_check=False):
+    if include_ci_env_check:
+        if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
+            console.print(
+                "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+                "run this command:[/]\n"
+            )
+            console.print("[magenta]breeze ci-image build --python 3.9 --upgrade-to-newer-dependencies[/]\n")
+
+    elif cmd_result.returncode != 0:
+        console.print(
+            "[warning]\nIf you see strange stacktraces above, "
+            "run `breeze ci-image build --python 3.9` and try again."
+        )
+    sys.exit(cmd_result.returncode)
+
+
+def get_provider_id_from_path(file_path: Path) -> str | None:
+    """
+    Get the provider id from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
+        if (parent / "provider.yaml").exists():
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
+            else:
+                return None
+    return None
+
+
+def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
+    """
+    Get the provider base dir (where provider.yaml is) from the path of the file it belongs to.
+    """
+    for parent in file_path.parents:
+        if (parent / "provider.yaml").exists():
+            return parent
+    return None
+
+
+def get_all_provider_ids() -> list[str]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_ids = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        provider_id = get_provider_id_from_path(provider_file)
+        if provider_id:
+            all_provider_ids.append(provider_id)
+    return all_provider_ids
+
+
+def get_all_provider_yaml_files() -> list[Path]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_yaml_files = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        all_provider_yaml_files.append(provider_file)
+    return all_provider_yaml_files
+
+
+def get_all_provider_info_dicts() -> dict[str, dict]:
+    """
+    Get provider yaml info for all providers from the new provider structure
+    """
+    providers: dict[str, dict] = {}
+    for provider_file in get_all_provider_yaml_files():
+        provider_id = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)).replace(os.sep, ".")
+        import yaml
+
+        provider_info = yaml.safe_load(provider_file.read_text())
+        if provider_info["state"] != "suspended":
+            providers[provider_id] = provider_info
+    return providers

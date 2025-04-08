@@ -2,12 +2,15 @@
 amazon
 celery
 cncf.kubernetes
+common.compat
 common.io
+common.messaging
 common.sql
 docker
 elasticsearch
 fab
 ftp
+git
 google
 grpc
 hashicorp
@@ -26,3 +29,4 @@ smtp
 snowflake
 sqlite
 ssh
+standard

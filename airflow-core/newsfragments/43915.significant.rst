@@ -1,0 +1,21 @@
+Configuration ``[core] strict_dataset_uri_validation`` is removed
+
+Asset URI with a defined scheme will now always be validated strictly, raising
+a hard error on validation failure.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``core.strict_dataset_uri_validation``

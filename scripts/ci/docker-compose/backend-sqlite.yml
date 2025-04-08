@@ -20,7 +20,3 @@ services:
     environment:
       - BACKEND=sqlite
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${SQLITE_URL}
-    volumes:
-      - sqlite-db-volume:/root/airflow/sqlite
-volumes:
-  sqlite-db-volume:

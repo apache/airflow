@@ -40,11 +40,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
-      image-tag:
-        required: true
-        type: string
-      build-provider-packages:
-        description: "Whether to build provider packages (true/false). If false providers are from PyPI"
+      build-provider-distributions:
+        description: "Whether to build provider distributions (true/false). If false providers are from PyPI"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -63,35 +60,20 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
-  bullseye-image:
-    uses: ./.github/workflows/prod-image-build.yml
-    with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      build-type: "Bullseye"
-      upload-package-artifact: "false"
-      image-tag: bullseye-${{ inputs.image-tag }}
-      debian-version: "bullseye"
-      python-versions: ${{ inputs.python-versions }}
-      default-python-version: ${{ inputs.default-python-version }}
-      platform: "linux/amd64"
-      branch: ${{ inputs.branch }}
-      # Always build images during the extra checks and never push them
-      push-image: "false"
-      use-uv: ${{ inputs.use-uv }}
-      build-provider-packages: ${{ inputs.build-provider-packages }}
-      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      docker-cache: ${{ inputs.docker-cache }}
-
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "MySQL Client"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}
@@ -100,11 +82,13 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: ${{ inputs.use-uv }}
-      build-provider-packages: ${{ inputs.build-provider-packages }}
+      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -113,8 +97,8 @@ jobs:
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "pip"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}
@@ -123,8 +107,10 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "false"
-      build-provider-packages: ${{ inputs.build-provider-packages }}
+      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"

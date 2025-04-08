@@ -21,7 +21,7 @@
 ## Airflow Scheduler Service
 #################################
 {{- if .Values.scheduler.enabled }}
-{{- if or (eq .Values.executor "LocalExecutor") (eq .Values.executor "LocalKubernetesExecutor") }}
+{{- if or (contains "LocalExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) }}
 apiVersion: v1
 kind: Service
 metadata:

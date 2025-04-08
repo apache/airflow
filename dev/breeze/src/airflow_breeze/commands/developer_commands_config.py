@@ -25,9 +25,10 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "down",
         "shell",
         "exec",
-        "compile-www-assets",
+        "compile-ui-assets",
         "cleanup",
         "generate-migration-file",
+        "doctor",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -38,7 +39,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
             ],
         },
         {
@@ -81,8 +81,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--integration",
+                "--load-example-dags",
+                "--load-default-connections",
                 "--standalone-dag-processor",
-                "--database-isolation",
+                "--start-api-server-with-examples",
             ],
         },
         {
@@ -125,7 +127,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force-build",
                 "--platform",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -147,17 +148,19 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
+                "--excluded-providers",
                 "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
-                "--package-format",
+                "--distribution-format",
                 "--providers-constraints-location",
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
-                "--test-type",
                 "--use-airflow-version",
-                "--use-packages-from-dist",
+                "--use-distributions-from-dist",
+                "--install-airflow-python-client",
             ],
         },
         {
@@ -166,7 +169,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
-                "--pydantic",
             ],
         },
         {
@@ -187,9 +189,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze compile-www-assets": [
+    "breeze compile-ui-assets": [
         {
-            "name": "Compile www assets flag",
+            "name": "Compile ui assets flag",
             "options": [
                 "--dev",
                 "--force-clean",
@@ -204,7 +206,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
             ],
@@ -235,6 +236,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Auth manager",
+            "options": [
+                "--auth-manager",
+            ],
+        },
+        {
             "name": "Asset compilation options",
             "options": [
                 "--skip-assets-compilation",
@@ -245,7 +252,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build CI image (before entering shell)",
             "options": [
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
                 "--use-uv",
@@ -266,14 +272,15 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
                 "--install-selected-providers",
-                "--package-format",
+                "--distribution-format",
                 "--providers-constraints-location",
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
-                "--use-packages-from-dist",
+                "--use-distributions-from-dist",
             ],
         },
         {
@@ -292,7 +299,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
-                "--project-name",
+                "--cleanup-build-cache",
             ],
         },
     ],
@@ -309,7 +316,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",
-                "--package-list",
+                "--distributions-list",
             ],
         },
     ],
@@ -338,7 +345,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--skip-image-upgrade-check",
                 "--force-build",
-                "--image-tag",
                 "--github-repository",
                 "--builder",
             ],
@@ -361,5 +367,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--builder",
             ],
         },
+    ],
+    "breeze doctor": [
+        {
+            "name": "Auto-healing of breeze",
+            "options": [
+                "--answer",
+            ],
+        }
     ],
 }

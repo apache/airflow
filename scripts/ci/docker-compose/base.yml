@@ -17,7 +17,7 @@
 ---
 services:
   airflow:
-    image: ${AIRFLOW_CI_IMAGE_WITH_TAG}
+    image: ${AIRFLOW_CI_IMAGE}
     pull_policy: never
     environment:
       - USER=root
@@ -26,6 +26,7 @@ services:
     env_file:
       - _generated_docker_compose.env
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      # Required to get non-blocking entropy source
+      - /dev/urandom:/dev/random
     cap_add:
       - SYS_PTRACE

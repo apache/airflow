@@ -1,0 +1,22 @@
+``SecretsMasker`` has now been moved into the task SDK to be consumed by DAG authors and users
+
+Any occurrences of the ``secrets_masker`` module will have to be updated from ``airflow.utils.log.secrets_masker`` to the new path: ``airflow.sdk.execution_time.secrets_masker``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.log.secrets_masker`` → ``airflow.sdk.execution_time.secrets_masker``

@@ -34,12 +34,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
-For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.9 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.8 --backend mysql --mysql-version 8.0
+    breeze --python 3.9 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -55,7 +55,7 @@ Try adding ``--builder=default`` to your command. For example:
 
 .. code-block:: bash
 
-    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.9 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -112,7 +112,7 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 .. code-block::
 
     * 12322 -> forwarded to Airflow ssh server -> airflow:22
-    * 28080 -> forwarded to Airflow webserver -> airflow:8080
+    * 28080 -> forwarded to Airflow API server or webserver -> airflow:8080
     * 25555 -> forwarded to Flower dashboard -> airflow:5555
     * 25433 -> forwarded to Postgres database -> postgres:5432
     * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -123,15 +123,14 @@ You can connect to these ports/databases using:
 
 .. code-block::
 
-    * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-    * Webserver: http://127.0.0.1:28080
-    * Flower:    http://127.0.0.1:25555
-    * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-    * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-    * Redis:     redis://127.0.0.1:26379/0
+    * ssh connection for remote debugging: ssh -p 12322 airflow@localhost pw: airflow
+    * API server or webserver:    http://localhost:28080
+    * Flower:    http://localhost:25555
+    * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
+    * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
+    * Redis:     redis://localhost:26379/0
 
-If you do not use ``start-airflow`` command, you can start the webserver manually with
-the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
+If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
 You may need to create a user prior to running the webserver in order to log in.
 This can be done with the following command:
 
@@ -153,7 +152,7 @@ database client:
 You can change the used host port numbers by setting appropriate environment variables:
 
 * ``SSH_PORT``
-* ``WEBSERVER_HOST_PORT``
+* ``WEB_HOST_PORT`` - API server for Airflow 3, or webserver port for Airflow 2 when --use-airflow-version is used
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
 * ``MSSQL_HOST_PORT``
@@ -161,6 +160,35 @@ You can change the used host port numbers by setting appropriate environment var
 * ``REDIS_HOST_PORT``
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
+
+
+Remote Debugging in IDE
+-----------------------
+
+One of the possibilities (albeit only easy if you have a paid version of IntelliJ IDEs for example) with
+Breeze is an option to run remote debugging in your IDE graphical interface.
+
+When you run tests, airflow, example DAGs, even if you run them using unit tests, they are run in a separate
+container. This makes it a little harder to use with IDE built-in debuggers.
+Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
+See additional details on
+`remote debugging <https://www.jetbrains.com/help/pycharm/remote-debugging-with-product.html>`_.
+
+You can set up your remote debugging session as follows:
+
+.. image:: images/setup_remote_debugging.png
+    :align: center
+    :alt: Setup remote debugging
+
+Note that on macOS, you have to use a real IP address of your host rather than the default
+localhost because on macOS the container runs in a virtual machine with a different IP address.
+
+Make sure to configure source code mapping in the remote debugging configuration to map
+your local sources to the ``/opt/airflow`` location of the sources within the container:
+
+.. image:: images/source_code_mapping_ide.png
+    :align: center
+    :alt: Source code mapping
 
 Building the documentation
 --------------------------
@@ -171,7 +199,7 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
      breeze build-docs
 
-Results of the build can be found in the ``docs/_build`` folder.
+Results of the build can be found in the ``generated/_build`` folder.
 
 The documentation build consists of three steps:
 
@@ -201,7 +229,7 @@ package names and can be used to select more than one package with single filter
      breeze build-docs --package-filter apache-airflow-providers-*
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
-During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
+During the docs building auto-api generated files are stored in the ``generated`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
 These are all available flags of ``build-docs`` command:
@@ -328,7 +356,7 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.8 --backend mysql start-airflow
+    breeze --python 3.9 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -341,7 +369,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.9 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install
@@ -386,16 +414,16 @@ These are all available flags of ``exec`` command:
   :alt: Breeze exec
 
 
-Compiling www assets
+Compiling ui assets
 --------------------
 
-Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
+Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
 command takes care about it. This is needed when you want to run webserver inside of the breeze.
 
-.. image:: ./images/output_compile-www-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-www-assets.svg
+.. image:: ./images/output_compile-ui-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
   :width: 100%
-  :alt: Breeze compile-www-assets
+  :alt: Breeze compile-ui-assets
 
 Breeze cleanup
 --------------
@@ -405,7 +433,7 @@ are several reasons why you might want to do that.
 
 Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
 images in docker cache. This might cause extra disk usage. Also running various docker compose commands
-(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+(for example running tests with ``breeze testing core-tests``) might create additional docker networks that might
 prevent new networks from being created. Those networks are not removed automatically by docker-compose.
 Also Breeze uses it's own cache to keep information about all images.
 
@@ -423,17 +451,17 @@ These are all available flags of ``cleanup`` command:
   :width: 100%
   :alt: Breeze cleanup
 
-Database volumes in Breeze
---------------------------
+Database and config volumes in Breeze
+-------------------------------------
 
-Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
-You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
-Then, next time when you start Breeze, it will have the data pre-populated.
+Breeze keeps data for all it's integration, database, configuration in named docker volumes.
+Those volumes are persisted until ``breeze down`` command. You can also preserve the volumes by adding
+flag ``--preserve-volumes`` when you run the command. Then, next time when you start Breeze,
+it will have the data pre-populated.
 
 These are all available flags of ``down`` command:
 
-.. image:: ./images/output-down.svg
+.. image:: ./images/output_down.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_down.svg
   :width: 100%
   :alt: Breeze down
@@ -588,7 +616,7 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the
-`Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
+`Local Virtualenv </contributing-docs/07_local_virtualenv.rst>`_.
 
 Auto-generating migration files
 -------------------------------

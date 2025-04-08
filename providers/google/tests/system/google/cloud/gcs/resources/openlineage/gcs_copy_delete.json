@@ -1,0 +1,98 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_copy_delete.upload_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_copy_delete.upload_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://airflow-system-tests-resources",
+                "name": "gcs/example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_copy_delete.copy_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_copy_delete.copy_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_dst_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_copy_delete.delete_files"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt",
+                "facets": {
+                    "lifecycleStateChange": {
+                        "lifecycleStateChange": "DROP",
+                        "previousIdentifier": {
+                            "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                            "name": "example_upload.txt"
+                        }
+                    }
+                }
+            }
+        ],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_copy_delete.delete_files"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt",
+                "facets": {
+                    "lifecycleStateChange": {
+                        "lifecycleStateChange": "DROP",
+                        "previousIdentifier": {
+                            "namespace": "gs://bucket_gcs_copy_delete_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                            "name": "example_upload.txt"
+                        }
+                    }
+                }
+            }
+        ],
+        "outputs": []
+    }
+]

@@ -1,0 +1,24 @@
+Deprecated trigger rule ``TriggerRule.DUMMY`` removed
+
+**Breaking Change**
+
+The trigger rule ``TriggerRule.DUMMY`` was removed.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.trigger_rule.TriggerRule.DUMMY``

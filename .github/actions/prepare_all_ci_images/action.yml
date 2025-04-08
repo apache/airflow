@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Prepare all CI images'
+description: 'Recreates current python CI images from artifacts for all python versions'
+inputs:
+  python-versions-list-as-string:
+    description: 'Stringified array of all Python versions to test - separated by spaces.'
+    required: true
+  docker-volume-location:
+    description: File system location where to move docker space to
+    default: /mnt/var-lib-docker
+  platform:
+    description: 'Platform for the build - linux/amd64 or linux/arm64'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    # TODO: Currently we cannot loop through the list of python versions and have dynamic list of
+    #       tasks. Instead we hardcode all possible python versions and they - but
+    #       this should be implemented in stash action as list of keys to download.
+    #       That includes 3.8 - 3.12 as we are backporting it to v2-10-test branch
+    #       This is captured in https://github.com/apache/airflow/issues/45268
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.8"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.8"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.9"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.9"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.10"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.10"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.11"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.11"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+    - name: "Restore CI docker image ${{ inputs.platform }}:3.12"
+      uses: ./.github/actions/prepare_single_ci_image
+      with:
+        platform: ${{ inputs.platform }}
+        python: "3.12"
+        python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}

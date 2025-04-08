@@ -119,7 +119,7 @@ def main(argv: list[str]) -> int:
         print("Only function decorated with @provide_session should use 'session: Session = NEW_SESSION'.")
         print(
             "See: https://github.com/apache/airflow/blob/main/"
-            "contributing-docs/creating_issues_and_pull_requests#database-session-handling"
+            "contributing-docs/05_pull_requests.rst#database-session-handling"
         )
     return len(errors)
 

@@ -1,0 +1,479 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "package-name": {
+            "description": "Package name available under which the package is available in the PyPI repository.",
+            "type": "string"
+        },
+        "name": {
+            "description": "Provider name",
+            "type": "string"
+        },
+        "description": {
+            "description": "Information about the package in RST format",
+            "type": "string"
+        },
+        "hook-class-names": {
+            "type": "array",
+            "description": "Hook class names that provide connection types to core (deprecated by connection-types)",
+            "items": {
+                "type": "string"
+            },
+            "deprecated": {
+                "description": "The hook-class-names property has been deprecated in favor of connection-types which is more performant version allowing to only import individual Hooks rather than all hooks at once",
+                "deprecatedVersion": "2.2.0"
+            }
+        },
+        "filesystems": {
+            "type": "array",
+            "description": "Filesystem module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "integrations": {
+            "description": "Array of integrations provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integrations to expose by the provider",
+                        "type": "string"
+                    },
+                    "external-doc-url": {
+                        "description": "URL that describes the integration",
+                        "type": "string"
+                    },
+                    "logo": {
+                        "description": "URL or  path on the airflow side where you can find the logo",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "description": "Tags describing the integration (free-form)",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+
+            }
+        },
+        "operators": {
+            "description": "List of operators provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where operators are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "sensors": {
+            "description": "List of sensors provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where sensors are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "hooks": {
+            "description": "List of hooks provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where hooks are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "asset-uris": {
+            "description": "List of asset uris provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "description": "Array of schemes supported",
+                        "type": "array",
+                        "items" : {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "description": "Handler used to handle the asset",
+                        "anyOf": [
+                            { "type": "string" },
+                            { "type": "null" }
+                        ]
+                    },
+                    "factory": {
+                        "description": "Factory to create the asset",
+                        "type": "string"
+                    },
+                    "to_openlineage_converter": {
+                        "description": "Converter to open-lineage event",
+                        "type": "string"
+                    }
+                },
+                "required": ["schemes"]
+            }
+        },
+        "dataset-uris": {
+            "description": "List of asset uris provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "description": "Array of schemes supported",
+                        "type": "array",
+                        "items" : {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "description": "Handler used to handle the asset",
+                        "anyOf": [
+                            { "type": "string" },
+                            { "type": "null" }
+                        ]
+                    },
+                    "factory": {
+                        "description": "Factory to create the asset",
+                        "type": "string"
+                    },
+                    "to_openlineage_converter": {
+                        "description": "Converter to open-lineage event",
+                        "type": "string"
+                    }
+                },
+                "required": ["schemes"]
+            },
+            "deprecated": {
+                "description": "The dataset-uris property has been deprecated in favor of asset-uris in airflow 3.0",
+                "deprecatedVersion": "3.0.0"
+            }
+        },
+        "dialects": {
+            "description": "List of dialects the provider provides",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dialect-type": {
+                        "description": "Type of SQL dialect",
+                        "type": "string"
+                    },
+                    "dialect-class-name": {
+                        "description": "Class name that implements the dialect",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "transfers": {
+            "description": "List of transfer operators the provider provides",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "how-to-guide": {
+                        "description": "Path to how-to-guide for the transfer. The path must start with '/docs/'",
+                        "type": "string"
+                    },
+                    "source-integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
+                    },
+                    "target-integration-name": {
+                        "type": "string",
+                        "description": "Target integration name. It must have a matching item in the 'integration' section of any provider"
+                    },
+                    "python-module": {
+                        "type": "string",
+                        "description": "List of python modules containing the transfers"
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "source-integration-name",
+                    "target-integration-name",
+                    "python-module"
+                ]
+            }
+        },
+        "triggers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
+                    },
+                    "python-modules": {
+                        "description": "List of Python modules containing the triggers",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "bundles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the bundles",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "connection-types": {
+            "type": "array",
+            "description": "Map of connection types mapped to hook class names",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "connection-type": {
+                        "description": "Type of connection defined by the provider",
+                        "type": "string"
+                    },
+                    "hook-class-name": {
+                        "description": "Hook class name that implements the connection type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "connection-type",
+                    "hook-class-name"
+                ]
+            }
+        },
+        "extra-links": {
+            "type": "array",
+            "description": "Operator class names that provide extra link functionality",
+            "items": {
+                "type": "string"
+            }
+        },
+        "secrets-backends": {
+            "type": "array",
+            "description": "Secrets Backend class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "logging": {
+            "type": "array",
+            "description": "Logging Task Handlers class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "auth-backends": {
+            "type": "array",
+            "description": "API Auth Backend module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "auth-managers": {
+            "type": "array",
+            "description": "Auth managers module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "notifications": {
+            "type": "array",
+            "description": "Notification class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "executors": {
+            "type": "array",
+            "description": "Executor class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "config": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/definitions/option"
+                        }
+                    },
+                    "renamed": {
+                        "type": "object",
+                        "properties": {
+                            "previous_name": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "description",
+                    "options"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "task-decorators": {
+            "type": "array",
+            "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",
+            "items": {
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "plugins": {
+            "type": "array",
+            "description": "Plugins provided by the provider",
+            "items": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the plugin"
+                },
+                "plugin-class": {
+                    "type": "string",
+                    "description": "Class to instantiate the plugin"
+                }
+            }
+        }
+    },
+    "definitions": {
+        "option": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version_added": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "boolean",
+                        "integer",
+                        "float"
+                    ]
+                },
+                "example": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "default": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "sensitive": {
+                    "type": "boolean",
+                    "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+                }
+            },
+            "required": [
+                "description",
+                "version_added",
+                "type",
+                "example",
+                "default"
+            ],
+            "additional_properties": false
+        }
+    },
+    "required": [
+        "name",
+        "description"
+    ]
+}

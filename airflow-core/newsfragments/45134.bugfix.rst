@@ -1,0 +1,1 @@
+(v2 API & UI) Allow fetching XCom with forward slash from the API and escape it in the UI

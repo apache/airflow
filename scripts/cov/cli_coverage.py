@@ -30,16 +30,13 @@ cli_files = ["tests/cli"]
 files_not_fully_covered = [
     "airflow/cli/cli_config.py",
     "airflow/cli/cli_parser.py",
-    "airflow/cli/commands/celery_command.py",
     "airflow/cli/commands/config_command.py",
     "airflow/cli/commands/connection_command.py",
     "airflow/cli/commands/dag_command.py",
     "airflow/cli/commands/dag_processor_command.py",
     "airflow/cli/commands/db_command.py",
     "airflow/cli/commands/info_command.py",
-    "airflow/cli/commands/internal_api_command.py",
     "airflow/cli/commands/jobs_command.py",
-    "airflow/cli/commands/kubernetes_command.py",
     "airflow/cli/commands/plugins_command.py",
     "airflow/cli/commands/pool_command.py",
     "airflow/cli/commands/provider_command.py",
@@ -47,7 +44,6 @@ files_not_fully_covered = [
     "airflow/cli/commands/standalone_command.py",
     "airflow/cli/commands/task_command.py",
     "airflow/cli/commands/variable_command.py",
-    "airflow/cli/commands/webserver_command.py",
     "airflow/cli/simple_table.py",
 ]
 

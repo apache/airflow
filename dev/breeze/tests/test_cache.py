@@ -36,8 +36,8 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
     [
         ("backend", "mysql", (True, ["sqlite", "mysql", "postgres", "none"]), None),
         ("backend", "xxx", (False, ["sqlite", "mysql", "postgres", "none"]), None),
-        ("python_major_minor_version", "3.8", (True, ["3.8", "3.9", "3.10", "3.11", "3.12"]), None),
-        ("python_major_minor_version", "3.7", (False, ["3.8", "3.9", "3.10", "3.11", "3.12"]), None),
+        ("python_major_minor_version", "3.9", (True, ["3.9", "3.10", "3.11", "3.12"]), None),
+        ("python_major_minor_version", "3.8", (False, ["3.9", "3.10", "3.11", "3.12"]), None),
         ("missing", "value", None, AttributeError),
     ],
 )
@@ -66,7 +66,7 @@ def test_check_if_cache_exists(path):
 def test_read_from_cache_file(param):
     param_value = read_from_cache_file(param.upper())
     if param_value is None:
-        assert None is param_value
+        assert param_value is None
     else:
         allowed, param_list = check_if_values_allowed(param, param_value)
         if allowed:

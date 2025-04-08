@@ -24,6 +24,5 @@ This directory contains detailed design of the Airflow CI setup.
 * [GitHub Variables](03_github_variables.md) - contains description of the GitHub variables used in CI
 * [Selective checks](04_selective_checks.md) - contains description of the selective checks performed in CI
 * [Workflows](05_workflows.md) - contains description of the workflows used in CI
-* [Diagrams](06_diagrams.md) - contains diagrams of the CI workflows
-* [Debugging](07_debugging.md) - contains description of debugging CI issues
-* [Running CI Locally](08_running_ci_locally.md) - contains description of running CI locally
+* [Debugging](06_debugging.md) - contains description of debugging CI issues
+* [Running CI Locally](07_running_ci_locally.md) - contains description of running CI locally

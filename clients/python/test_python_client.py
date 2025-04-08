@@ -17,7 +17,7 @@
 #
 # PEP 723 compliant inline script metadata (not yet widely supported)
 # /// script
-# requires-python = ">=3.8"
+# requires-python = ">=3.9"
 # dependencies = [
 #   "apache-airflow-client",
 #   "rich",
@@ -27,9 +27,17 @@
 from __future__ import annotations
 
 import sys
+import time
 import uuid
+from typing import cast
 
 import airflow_client.client
+import pytest
+
+from airflow.api_fastapi.app import create_app, get_auth_manager
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -45,86 +53,109 @@ from airflow_client.client.model.dag_run import DAGRun
 # Examples for each auth method are provided below, use the example that
 # satisfies your auth use case.
 #
-# In case of the basic authentication below, make sure that Airflow is
-# configured also with the basic_auth as backend additionally to regular session backend needed
-# by the UI. In the `[api]` section of your `airflow.cfg` set:
+# The example below use the default FabAuthManager, in case your airflow api server use a different
+# auth manager for instance AwsAuthManagerUser or SimpleAuthManager make sure to generate the token with
+# appropriate AuthManager.
+# This is defined in the `[api]` section of your `airflow.cfg`:
 #
-# auth_backend = airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+# auth_manager = airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
 #
 # Make sure that your user/name are configured properly - using the user/password that has admin
 # privileges in Airflow
 
-# Configure HTTP basic authorization: Basic
+# Used to initialize FAB and the auth manager, necessary for creating the token.
+
+
+create_app()
+auth_manager = cast("get_auth_manager()", SimpleAuthManager)
+users = auth_manager.get_users()
+passwords = auth_manager.get_passwords(users)
+username, password = next(iter(passwords.items()))
+access_token = SimpleAuthManagerLogin.create_token(LoginBody(username=username, password=password))
 configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/api/v1", username="admin", password="admin"
+    host="http://localhost:8080/api/v2",
 )
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
 # or AIRFLOW__CORE__LOAD_EXAMPLES environment variable set to True
 DAG_ID = "example_bash_operator"
 
+
 # Enter a context with an instance of the API client
-with airflow_client.client.ApiClient(configuration) as api_client:
-    errors = False
+@pytest.mark.execution_timeout(400)
+def test_python_client():
+    with airflow_client.client.ApiClient(
+        configuration, header_name="Authorization", header_value=f"Bearer {access_token}"
+    ) as api_client:
+        errors = False
 
-    print("[blue]Getting DAG list")
-    dag_api_instance = dag_api.DAGApi(api_client)
-    try:
-        api_response = dag_api_instance.get_dags()
-        print(api_response)
-    except airflow_client.client.OpenApiException as e:
-        print(f"[red]Exception when calling DagAPI->get_dags: {e}\n")
-        errors = True
-    else:
-        print("[green]Getting DAG list successful")
+        print("[blue]Getting DAG list")
+        max_retries = 10
+        while max_retries > 0:
+            try:
+                dag_api_instance = dag_api.DAGApi(api_client)
+                api_response = dag_api_instance.get_dags()
+            except airflow_client.client.OpenApiException as e:
+                print(f"[red]Exception when calling DagAPI->get_dags: {e}\n")
+                errors = True
+                time.sleep(6)
+                max_retries -= 1
+            else:
+                print("[green]Getting DAG list successful")
+                break
 
-    print("[blue]Getting Tasks for a DAG")
-    try:
-        api_response = dag_api_instance.get_tasks(DAG_ID)
-        print(api_response)
-    except airflow_client.client.exceptions.OpenApiException as e:
-        print(f"[red]Exception when calling DagAPI->get_tasks: {e}\n")
-        errors = True
-    else:
-        print("[green]Getting Tasks successful")
-
-    print("[blue]Triggering a DAG run")
-    dag_run_api_instance = dag_run_api.DAGRunApi(api_client)
-    try:
-        # Create a DAGRun object (no dag_id should be specified because it is read-only property of DAGRun)
-        # dag_run id is generated randomly to allow multiple executions of the script
-        dag_run = DAGRun(
-            dag_run_id="some_test_run_" + uuid.uuid4().hex,
-        )
-        api_response = dag_run_api_instance.post_dag_run(DAG_ID, dag_run)
-        print(api_response)
-    except airflow_client.client.exceptions.OpenApiException as e:
-        print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")
-        errors = True
-    else:
-        print("[green]Posting DAG Run successful")
-
-    # Get current configuration. Note, this is disabled by default with most installation.
-    # You need to set `expose_config = True` in Airflow configuration in order to retrieve configuration.
-    conf_api_instance = config_api.ConfigApi(api_client)
-    try:
-        api_response = conf_api_instance.get_config()
-        print(api_response)
-    except airflow_client.client.OpenApiException as e:
-        if "FORBIDDEN" in str(e):
-            print(
-                "[yellow]You need to set `expose_config = True` in Airflow configuration"
-                " in order to retrieve configuration."
-            )
-            print("[bright_blue]This is OK. Exposing config is disabled by default.")
+        print("[blue]Getting Tasks for a DAG")
+        try:
+            api_response = dag_api_instance.get_tasks(DAG_ID)
+            print(api_response)
+        except airflow_client.client.exceptions.OpenApiException as e:
+            print(f"[red]Exception when calling DagAPI->get_tasks: {e}\n")
+            errors = True
         else:
+            print("[green]Getting Tasks successful")
+
+        print("[blue]Triggering a DAG run")
+        dag_run_api_instance = dag_run_api.DAGRunApi(api_client)
+        try:
+            # Create a DAGRun object (no dag_id should be specified because it is read-only property of DAGRun)
+            # dag_run id is generated randomly to allow multiple executions of the script
+            dag_run = DAGRun(
+                dag_run_id="some_test_run_" + uuid.uuid4().hex,
+                logical_date=None,
+            )
+            api_response = dag_run_api_instance.post_dag_run(DAG_ID, dag_run)
+            print(api_response)
+        except airflow_client.client.exceptions.OpenApiException as e:
             print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")
             errors = True
-    else:
-        print("[green]Config retrieved successfully")
+        else:
+            print("[green]Posting DAG Run successful")
 
-    if errors:
-        print("\n[red]There were errors while running the script - see above for details")
-        sys.exit(1)
-    else:
-        print("\n[green]Everything went well")
+        # Get current configuration. Note, this is disabled by default with most installation.
+        # You need to set `expose_config = True` in Airflow configuration in order to retrieve configuration.
+        conf_api_instance = config_api.ConfigApi(api_client)
+        try:
+            api_response = conf_api_instance.get_config()
+            print(api_response)
+        except airflow_client.client.OpenApiException as e:
+            if "Your Airflow administrator chose" in str(e):
+                print(
+                    "[yellow]You need to set `expose_config = True` in Airflow configuration"
+                    " in order to retrieve configuration."
+                )
+                print("[bright_blue]This is OK. Exposing config is disabled by default.")
+            else:
+                print(f"[red]Exception when calling DAGRunAPI->post_dag_run: {e}\n")
+                errors = True
+        else:
+            print("[green]Config retrieved successfully")
+
+        if errors:
+            print("\n[red]There were errors while running the script - see above for details")
+            sys.exit(1)
+        else:
+            print("\n[green]Everything went well")
+
+
+if __name__ == "__main__":
+    test_python_client()

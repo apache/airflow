@@ -37,7 +37,6 @@ console = Console(width=400, color_system="standard")
             {
                 "DEFAULT_BRANCH": AIRFLOW_BRANCH,
                 "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.12",
-                "AIRFLOW_CI_IMAGE_WITH_TAG": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.12",
                 "PYTHON_MAJOR_MINOR_VERSION": "3.12",
             },
             id="python3.12",
@@ -47,28 +46,17 @@ console = Console(width=400, color_system="standard")
             {"python": 3.9},
             {
                 "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9",
-                "AIRFLOW_CI_IMAGE_WITH_TAG": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9",
                 "PYTHON_MAJOR_MINOR_VERSION": "3.9",
             },
             id="python3.9",
         ),
         pytest.param(
             {},
-            {"python": 3.9, "image_tag": "a_tag"},
-            {
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9",
-                "AIRFLOW_CI_IMAGE_WITH_TAG": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9:a_tag",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.9",
-            },
-            id="With tag",
-        ),
-        pytest.param(
-            {},
             {"airflow_branch": "v2-7-test"},
             {
                 "DEFAULT_BRANCH": "v2-7-test",
-                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v2-7-test/ci/python3.8",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.8",
+                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v2-7-test/ci/python3.9",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.9",
             },
             id="With release branch",
         ),
@@ -77,8 +65,8 @@ console = Console(width=400, color_system="standard")
             {},
             {
                 "DEFAULT_BRANCH": AIRFLOW_BRANCH,  # DEFAULT_BRANCH is overridden from sources
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.8",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.8",
+                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.9",
             },
             id="Branch variable from sources not from original env",
         ),
@@ -161,14 +149,6 @@ console = Console(width=400, color_system="standard")
                 "CI": "true",
             },
             id="Unless it's overridden by environment variable",
-        ),
-        pytest.param(
-            {},
-            {},
-            {
-                "ENABLED_SYSTEMS": "",
-            },
-            id="ENABLED_SYSTEMS empty by default even if they are None in ShellParams",
         ),
         pytest.param(
             {},

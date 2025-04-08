@@ -45,6 +45,7 @@ jobs:
           remove-stale-when-updated: false
           remove-issue-stale-when-updated: true
           labels-to-add-when-unstale: 'needs-triage'
+          labels-to-remove-when-unstale: 'Stale Bug Report'
           stale-issue-message: >
             This issue has been automatically marked as stale because it has been open for 365 days
             without any activity. There has been several Airflow releases since last activity on this issue.

@@ -26,7 +26,7 @@ from urllib.request import urlopen
 from airflow_breeze.utils.console import get_console
 
 airflow_redirects_link = (
-    "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/redirects.txt"
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/redirects.txt"
 )
 helm_redirects_link = "https://raw.githubusercontent.com/apache/airflow/main/docs/helm-chart/redirects.txt"
 
@@ -64,8 +64,10 @@ def get_redirect_content(url: str):
     return f'<html><head><meta http-equiv="refresh" content="0; url={url}"/></head></html>'
 
 
-def get_github_redirects_url(provider_name: str):
-    return f"https://raw.githubusercontent.com/apache/airflow/main/docs/{provider_name}/redirects.txt"
+def get_github_provider_redirects_url(provider_name: str):
+    return (
+        f"https://raw.githubusercontent.com/apache/airflow/main/providers/{provider_name}/docs/redirects.txt"
+    )
 
 
 def crete_redirect_html_if_not_exist(path: Path, content: str):
@@ -145,9 +147,11 @@ def start_generating_back_references(airflow_site_directory: Path, short_provide
         get_console().print("[info]Skipping apache-airflow-providers package. No back-reference needed.")
         short_provider_ids.remove("apache-airflow-providers")
     if short_provider_ids:
-        all_providers = [
-            f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_ids
-        ]
-        for p in all_providers:
-            get_console().print(f"Processing airflow provider: {p}")
-            generate_back_references(get_github_redirects_url(p), docs_archive_path / p)
+        for p in short_provider_ids:
+            slash_based_short_provider_id = p.replace(".", "/")
+            full_provider_name = f"apache-airflow-providers-{p.replace('.', '-')}"
+            get_console().print(f"Processing airflow provider: {full_provider_name}")
+            generate_back_references(
+                get_github_provider_redirects_url(slash_based_short_provider_id),
+                docs_archive_path / full_provider_name,
+            )

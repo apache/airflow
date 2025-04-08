@@ -1,0 +1,22 @@
+Remove the ``traces`` ``otel_task_log_event`` event config option and feature
+
+This was sending the task logs form the scheduler, and would be a huge
+scheduling performance hit (blocking the entire all scheduling while it was
+fetching logs to attach to the trace)
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``traces.otel_task_log_event``

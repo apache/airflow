@@ -1,0 +1,75 @@
+[
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    },
+
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    }
+]

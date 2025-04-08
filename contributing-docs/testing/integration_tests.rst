@@ -45,43 +45,51 @@ NOTE: Every integration requires a separate container with the corresponding int
 These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
 until you stop the Breeze environment with the ``breeze down`` command.
 
-The following integrations are available:
+While you can run ``breeze`` or ``breeze shell` with one or multiple integrations enabled, some integrations
+are pure "provider" integrations, and some are "core" integration. Which means that some of the integrations
+have tests defined in the "providers" tests (because they are testing provider features), but other
+integrations are testing core features of Airflow (Fore example executors with CeleryExecutor).
+
+The following integrations are available ("Core tests ?" column indicates if the integration is a
+core or provider type of test.
 
 .. BEGIN AUTO-GENERATED INTEGRATION LIST
 
-+--------------+----------------------------------------------------+
-| Identifier   | Description                                        |
-+==============+====================================================+
-| cassandra    | Integration required for Cassandra hooks.          |
-+--------------+----------------------------------------------------+
-| celery       | Integration required for Celery executor tests.    |
-+--------------+----------------------------------------------------+
-| drill        | Integration required for drill operator and hook.  |
-+--------------+----------------------------------------------------+
-| kafka        | Integration required for Kafka hooks.              |
-+--------------+----------------------------------------------------+
-| kerberos     | Integration that provides Kerberos authentication. |
-+--------------+----------------------------------------------------+
-| mongo        | Integration required for MongoDB hooks.            |
-+--------------+----------------------------------------------------+
-| mssql        | Integration required for mssql hooks.              |
-+--------------+----------------------------------------------------+
-| openlineage  | Integration required for Openlineage hooks.        |
-+--------------+----------------------------------------------------+
-| otel         | Integration required for OTEL/opentelemetry hooks. |
-+--------------+----------------------------------------------------+
-| pinot        | Integration required for Apache Pinot hooks.       |
-+--------------+----------------------------------------------------+
-| qdrant       | Integration required for Qdrant tests.             |
-+--------------+----------------------------------------------------+
-| redis        | Integration required for Redis tests.              |
-+--------------+----------------------------------------------------+
-| statsd       | Integration required for Statsd hooks.             |
-+--------------+----------------------------------------------------+
-| trino        | Integration required for Trino hooks.              |
-+--------------+----------------------------------------------------+
-| ydb          | Integration required for YDB tests.                |
-+--------------+----------------------------------------------------+
++--------------+-------------------------------------------------------+
+| Identifier   | Description                                           |
++==============+=======================================================+
+| cassandra    | Integration required for Cassandra hooks.             |
++--------------+-------------------------------------------------------+
+| celery       | Integration required for Celery executor tests.       |
++--------------+-------------------------------------------------------+
+| drill        | Integration required for drill operator and hook.     |
++--------------+-------------------------------------------------------+
+| kafka        | Integration required for Kafka hooks.                 |
++--------------+-------------------------------------------------------+
+| kerberos     | Integration that provides Kerberos authentication.    |
++--------------+-------------------------------------------------------+
+| keycloak     | Integration for manual testing of multi-team Airflow. |
++--------------+-------------------------------------------------------+
+| mongo        | Integration required for MongoDB hooks.               |
++--------------+-------------------------------------------------------+
+| mssql        | Integration required for mssql hooks.                 |
++--------------+-------------------------------------------------------+
+| openlineage  | Integration required for Openlineage hooks.           |
++--------------+-------------------------------------------------------+
+| otel         | Integration required for OTEL/opentelemetry hooks.    |
++--------------+-------------------------------------------------------+
+| pinot        | Integration required for Apache Pinot hooks.          |
++--------------+-------------------------------------------------------+
+| qdrant       | Integration required for Qdrant tests.                |
++--------------+-------------------------------------------------------+
+| redis        | Integration required for Redis tests.                 |
++--------------+-------------------------------------------------------+
+| statsd       | Integration required for Statsd hooks.                |
++--------------+-------------------------------------------------------+
+| trino        | Integration required for Trino hooks.                 |
++--------------+-------------------------------------------------------+
+| ydb          | Integration required for YDB tests.                   |
++--------------+-------------------------------------------------------+
 
 .. END AUTO-GENERATED INTEGRATION LIST'
 
@@ -168,19 +176,37 @@ Here is an example of the collection limited to the ``providers/apache`` sub-dir
 Running Integration Tests from the Host
 ---------------------------------------
 
-You can also run integration tests using Breeze from the host.
+You can also run integration tests using Breeze from the host. Depending on the type of integration,
+you can rum "providers" or "core" integration tests. You can consult the table above to see which
+integration is "core" and which is "provider" one, also by running the
+``breeze providers-integration-tests --help`` or ``breeze core-integration-tests --help`` command
+you can see the list of available integrations for each type of test.
 
-Runs all integration tests:
-
-  .. code-block:: bash
-
-       breeze testing integration-tests  --db-reset --integration all-testable
-
-Runs all mongo DB tests:
+Runs all core integration tests:
 
   .. code-block:: bash
 
-       breeze testing integration-tests --db-reset --integration mongo
+       breeze testing core-integration-tests  --db-reset --integration all-testable
+
+Runs all providers integration tests:
+
+  .. code-block:: bash
+
+       breeze testing providers-integration-tests  --db-reset --integration all-testable
+
+
+Runs mongo providers integration tests:
+
+  .. code-block:: bash
+
+       breeze testing providers-integration-tests  --db-reset --integration mongo
+
+
+Runs kerberos core integration tests:
+
+  .. code-block:: bash
+
+       breeze testing core-integration-tests --db-reset --integration kerberos
 
 Writing Integration Tests
 -------------------------

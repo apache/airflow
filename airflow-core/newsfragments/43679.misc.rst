@@ -1,0 +1,1 @@
+Renamed ``airflow.security.kerberos.get_kerberos_principle`` to ``airflow.security.kerberos.get_kerberos_principal`` due to misspelling.

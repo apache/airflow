@@ -1,0 +1,100 @@
+{
+    "version": 2,
+    "waiters": {
+        "replication_deprovisioned": {
+            "operation": "DescribeReplications",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].ProvisionData.ProvisionState",
+                    "expected": "deprovisioned",
+                    "state": "success"
+                }
+            ]
+        },
+        "replication_terminal_status": {
+            "operation": "DescribeReplications",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].ProvisionData.ProvisionState",
+                    "expected": "deprovisioning",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "failed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "created",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].ProvisionData.ProvisionState",
+                    "expected": "deprovisioned",
+                    "state": "success"
+                }
+            ]
+        },
+        "replication_complete": {
+            "operation": "DescribeReplications",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                }
+            ]
+        },
+        "replication_config_deleted": {
+            "operation": "DescribeReplicationConfigs",
+            "delay": 5,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "error",
+                    "expected": "ResourceNotFoundFault",
+                    "state": "success",
+                    "argument": "Error.Code"
+                }
+            ]
+        },
+        "replication_stopped": {
+            "operation": "DescribeReplications",
+            "delay": 5,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

@@ -19,6 +19,7 @@
 .rat-excludes
 .stylelintignore
 .stylelintrc
+.venv
 requirements
 requirements.txt
 .*log
@@ -43,7 +44,7 @@ venv
 clients/*
 files/*
 dags/*
-airflow.iml
+generated/*
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
@@ -109,9 +110,6 @@ tmp
 # generated doc-only-changes.txt
 .latest-doc-only-change.txt
 
-# generated provider_packages
-provider_packages
-
 # Chart ignored files
 chart/.gitignore
 chart/values.schema.json
@@ -121,6 +119,9 @@ chart/Chart.yaml
 
 # Generated autocomplete files
 ./dev/breeze/autocomplete/*
+
+# Generated devel_deps files
+devel_deps.txt
 
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
@@ -134,7 +135,7 @@ tests/*
 scripts/*
 images/*
 dev/*
-chart/*.iml
+.*\.iml
 out/*
 airflow-build-dockerfile*
 
@@ -159,3 +160,9 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
+v1-generated.yaml
+
+# Front end generated files
+api-generated.ts
+openapi-gen
+pnpm-lock.yaml

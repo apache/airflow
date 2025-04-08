@@ -1,0 +1,74 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_s3_to_gcs.s3_to_gcs_task"
+        },
+        "inputs": [
+            {
+                "namespace": "s3://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "gcs"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_s3_to_gcs.s3_to_gcs_task"
+        },
+        "inputs": [
+            {
+                "namespace": "s3://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "gcs"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_s3_to_gcs.s3_to_gcs_task_def"
+        },
+        "inputs": [
+            {
+                "namespace": "s3://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "gcs"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_s3_to_gcs.s3_to_gcs_task_def"
+        },
+        "inputs": [
+            {
+                "namespace": "s3://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "gcs"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example-s3-to-gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    }
+]
