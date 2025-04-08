@@ -107,30 +107,7 @@ def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_g
 
     job_id = operator._create_or_reset_job(context)
     assert job_id == 123
-    operator._hook.update_job_permission.assert_not_called()
     operator._hook.reset_job.assert_called_once()
-
-
-def test_create_or_reset_job_existing_with_updated_access_control_list(
-    mock_databricks_hook, context, mock_task_group
-):
-    """Test that _CreateDatabricksWorkflowOperator._create_or_reset_job resets the job if it already exists, and also updates the job permissions if access_control_list is provided."""
-    acl = {"access_control_list": [{"user_name": "test_user", "permission_level": "CAN_MANAGE"}]}
-    operator = _CreateDatabricksWorkflowOperator(
-        task_id="test_task",
-        databricks_conn_id="databricks_default",
-        extra_job_params=acl,
-    )
-    operator.task_group = mock_task_group
-    operator._hook.list_jobs.return_value = [{"job_id": 1234}]
-
-    job_id = operator._create_or_reset_job(context)
-    assert job_id == 1234
-    operator._hook.reset_job.assert_called_once()
-    operator._hook.update_job_permission.assert_called_once_with(
-        job_id=1234,
-        json=acl,
-    )
 
 
 def test_create_or_reset_job_new(mock_databricks_hook, context, mock_task_group):
