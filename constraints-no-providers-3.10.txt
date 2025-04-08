@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-07T19:45:28.155401
+# This constraints file was automatically generated on 2025-04-08T02:22:13.961611
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -129,7 +129,7 @@ cachetools==5.5.2
 cadwyn==5.3.2
 cassandra-driver==3.29.2
 cattrs==24.1.3
-celery==5.5.0
+celery==5.5.1
 certifi==2025.1.31
 cffi==1.17.1
 cgroupspy==0.2.3
@@ -361,7 +361,7 @@ nh3==0.2.21
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.70.0
+openai==1.71.0
 openlineage-integration-common==1.30.1
 openlineage-python==1.30.1
 openlineage_sql==1.30.1
@@ -580,7 +580,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.12
+uv==0.6.13
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
