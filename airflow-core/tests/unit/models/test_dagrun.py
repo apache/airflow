@@ -31,7 +31,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
@@ -43,6 +42,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.sdk import setup, task, task_group, teardown
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -2091,7 +2091,7 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
 
 
 def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session, dag_maker):
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def do_something(i):

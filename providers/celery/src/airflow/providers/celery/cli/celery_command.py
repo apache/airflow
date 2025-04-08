@@ -38,7 +38,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
-from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
@@ -108,6 +107,18 @@ def flower(args):
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
     """Start serve_logs sub-process."""
+    if AIRFLOW_V_3_0_PLUS:
+        try:
+            from airflow.providers.fab.www.serve_logs import serve_logs
+        except ImportError:
+            raise ImportError(
+                "Celery requires FAB provider to be installed in order to run this command. "
+                "Please install the FAB provider by running: "
+                "pip install apache-airflow-providers-celery[fab]"
+            )
+    else:
+        from airflow.utils.serve_logs import serve_logs  # type: ignore[no-redef]
+
     sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)

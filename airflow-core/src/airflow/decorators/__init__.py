@@ -16,47 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from airflow.sdk.definitions.decorators import (
+    TaskDecorator as TaskDecorator,
+    TaskDecoratorCollection as TaskDecoratorCollection,
+    dag as dag,
+    setup as setup,
+    task as task,
+    task_group as task_group,
+    teardown as teardown,
+)
+from airflow.utils.deprecation_tools import add_deprecated_classes
 
-from airflow.decorators.base import TaskDecorator
-from airflow.decorators.condition import run_if, skip_if
-from airflow.decorators.setup_teardown import setup_task, teardown_task
-from airflow.decorators.task_group import task_group
-from airflow.models.dag import dag
-from airflow.providers_manager import ProvidersManager
-
-# Please keep this in sync with the .pyi's __all__.
-__all__ = [
-    "TaskDecorator",
-    "TaskDecoratorCollection",
-    "dag",
-    "task",
-    "task_group",
-    "setup",
-    "teardown",
-]
-
-
-class TaskDecoratorCollection:
-    """Implementation to provide the ``@task`` syntax."""
-
-    run_if = staticmethod(run_if)
-    skip_if = staticmethod(skip_if)
-
-    def __getattr__(self, name: str) -> TaskDecorator:
-        """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
-        if name.startswith("__"):
-            raise AttributeError(f"{type(self).__name__} has no attribute {name!r}")
-        decorators = ProvidersManager().taskflow_decorators
-        if name not in decorators:
-            raise AttributeError(f"task decorator {name!r} not found")
-        return decorators[name]
-
-    def __call__(self, *args, **kwargs):
-        """Alias '@task' to python dynamically."""
-        return self.__getattr__("python")(*args, **kwargs)
-
-
-task = TaskDecoratorCollection()
-setup: Callable = setup_task
-teardown: Callable = teardown_task
+__deprecated_classes = {
+    "base": {
+        "DecoratedMappedOperator": "airflow.sdk.bases.decorator.DecoratedMappedOperator",
+        "DecoratedOperator": "airflow.sdk.bases.decorator.DecoratedOperator",
+        "TaskDecorator": "airflow.sdk.bases.decorator.TaskDecorator",
+        "task_decorator_factory": "airflow.sdk.bases.decorator.task_decorator_factory",
+    },
+}
+add_deprecated_classes(__deprecated_classes, __name__)
