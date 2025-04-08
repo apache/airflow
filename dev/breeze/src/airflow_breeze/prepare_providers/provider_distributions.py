@@ -201,7 +201,7 @@ def build_provider_distribution(
         f"\n[info]Building provider package: {provider_id} "
         f"in format {distribution_format} in {target_provider_root_sources_path}\n"
     )
-    command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--no-use-vcs"]
+    command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
     if distribution_format != "both":
         command.extend(["--format", distribution_format])
     try:

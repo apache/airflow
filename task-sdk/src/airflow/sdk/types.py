@@ -105,6 +105,9 @@ class RuntimeTaskInstanceProtocol(Protocol):
         states: list[str] | None = None,
     ) -> int: ...
 
+    @staticmethod
+    def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
+
 
 class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):
     """Protocol for managing access to a specific outlet event accessor."""
