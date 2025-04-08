@@ -190,10 +190,12 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
 
     def execute(self, context: Context):
-        if self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
+        if isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
-        else:
+        elif isinstance(self.logical_date, str):
             parsed_logical_date = timezone.parse(self.logical_date)
+        else:
+            parsed_logical_date = timezone.utcnow()
 
         try:
             json.dumps(self.conf)
