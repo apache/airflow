@@ -24,7 +24,7 @@ import selectors
 import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
@@ -200,22 +200,30 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
 
     try:
         # Spy on it so we can see what gets send, but also call the original.
-        send_spy = spy_agency.spy_on(TriggerRunnerSupervisor._send, owner=TriggerRunnerSupervisor)
+        message = None
 
-        trigger_runner_supervisor._service_subprocess(0.1)
+        @spy_agency.spy_for(trigger_runner_supervisor.stdin.write)
+        def write_spy(self, line, *args, **kwargs):
+            nonlocal message
+            message = messages.TriggerStateSync.model_validate_json(line)
+            trigger_runner_supervisor.stdin.write.call_original(line, *args, **kwargs)
+
         trigger_runner_supervisor.load_triggers()
+        trigger_runner_supervisor._service_subprocess(0.1)
+
         # Make sure it turned up in TriggerRunner's queue
         assert trigger_runner_supervisor.running_triggers == {trigger_orm.id}
 
-        spy_agency.assert_spy_called_with(
-            send_spy,
+        assert message is not None, "spy was not called"
+        assert len(message.to_create) == 1
+        assert message.to_create[0] == (
             workloads.RunTrigger.model_construct(
                 id=trigger_orm.id,
                 ti=ANY,
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
-            ),
+            )
         )
         # OK, now remove it from the DB
         session.delete(trigger_orm)
@@ -287,13 +295,18 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
     @pytest.mark.asyncio
-    async def test_invalid_trigger(self):
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_invalid_trigger(self, supervisor_builder):
         """Test the behaviour when we try to run an invalid Trigger"""
         workload = workloads.RunTrigger.model_construct(
             id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
         )
         trigger_runner = TriggerRunner()
         trigger_runner.requests_sock = MagicMock()
+        trigger_runner.response_sock = AsyncMock()
+        trigger_runner.response_sock.readline.return_value = (
+            b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        )
 
         trigger_runner.to_create.append(workload)
 
@@ -367,7 +380,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # Instead of running job_runner1._execute, we will run the individual methods
     # to control the timing of the execution.
     supervisor1.load_triggers()
-    assert supervisor1.running_triggers == {trigger_orm.id}
+    assert {t.id for t in supervisor1.creating_triggers} == {trigger_orm.id}
     trigger_orm = session.get(Trigger, trigger_orm.id)
     assert trigger_orm.task_instance is not None, "Pre-condition"
 
@@ -394,59 +407,6 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     assert supervisor2.running_triggers == set()
     # We should have not sent anything to the async runner process
     supervisor2.stdin.write.assert_not_called()
-
-
-def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_agency: SpyAgency):
-    """
-    This verifies the resolution of race condition documented in github issue #18392.
-    Triggers are queued for creation by TriggerJob.load_triggers.
-    There was a race condition where multiple triggers would be created unnecessarily.
-    What happens is the runner completes the trigger and purges from the "running" list.
-    Then job.load_triggers is called and it looks like the trigger is not running but should,
-    so it queues it again.
-
-    The scenario is as follows:
-        1. job.load_triggers (trigger now queued and sent to subprocess)
-        2. runner.create_triggers (trigger now running)
-        3. job.handle_events (trigger still appears running so state not updated in DB)
-        4. runner.cleanup_finished_triggers (trigger completed at this point; trigger from "running" set)
-        5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
-        6. runner.create_triggers (trigger created again)
-
-    This test verifies that under this scenario only one trigger is created.
-    """
-    trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
-    trigger_orm = Trigger.from_object(trigger)
-    session.add(trigger_orm)
-    session.flush()
-
-    dag = DagModel(dag_id="test-dag")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
-    ti.dag_id = dag.dag_id
-    ti.trigger_id = trigger_orm.id
-    session.add(dag)
-    session.add(dag_run)
-    session.add(ti)
-
-    session.commit()
-
-    supervisor = supervisor_builder()
-
-    iteration = 0
-
-    # Hook into something in each iteration of the loop
-    @spy_agency.spy_for(TriggerRunnerSupervisor.is_alive)
-    def is_alive(self):
-        nonlocal iteration
-        iteration += 1
-        if iteration >= 2:
-            self.stop = True
-
-        return True
-
-    supervisor.run()
-    assert supervisor.stdin.write.call_count == 1
 
 
 @pytest.mark.execution_timeout(5)
@@ -574,7 +534,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     supervisor.load_triggers()
 
     # Make sure it got picked up
-    assert supervisor.running_triggers == {trigger_orm.id}, "Pre-condition"
+    assert {t.id for t in supervisor.creating_triggers} == {trigger_orm.id}, "Pre-condition"
     # Simulate receiving the state update message
 
     supervisor._handle_request(
@@ -667,7 +627,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     "We should fix it later. TODO: AIP-72"
 )
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
     """Checks that the trigger will successfully access Variables, Connections and XComs."""

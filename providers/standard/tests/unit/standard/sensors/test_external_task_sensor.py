@@ -26,7 +26,6 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
@@ -55,8 +54,10 @@ from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task as task_deco
     from airflow.utils.types import DagRunTriggeredByType
-
+else:
+    from airflow.decorators import task as task_deco
 pytestmark = pytest.mark.db_test
 
 

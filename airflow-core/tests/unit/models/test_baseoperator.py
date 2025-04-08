@@ -24,7 +24,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import TaskDeferralTimeout
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -34,6 +33,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
+from airflow.sdk import task as task_decorator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
