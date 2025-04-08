@@ -33,24 +33,24 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, TypeVar, ove
 
 import attr
 
-from airflow.decorators.base import ExpandableFactory
-from airflow.models.expandinput import (
+from airflow.sdk.bases.decorator import ExpandableFactory
+from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
 )
-from airflow.models.xcom_arg import XComArg
 from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
-    from airflow.models.expandinput import (
+    from airflow.sdk.definitions._internal.expandinput import (
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.dag import DAG
 
 FParams = ParamSpec("FParams")
 FReturn = TypeVar("FReturn", None, DAGNode)

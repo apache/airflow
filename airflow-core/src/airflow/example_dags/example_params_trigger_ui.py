@@ -25,8 +25,7 @@ from __future__ import annotations
 import datetime
 from pathlib import Path
 
-from airflow.decorators import task
-from airflow.sdk import DAG, Param
+from airflow.sdk import DAG, Param, task
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START params_trigger]

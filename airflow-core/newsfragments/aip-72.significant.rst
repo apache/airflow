@@ -88,6 +88,20 @@ As part of this change the following breaking changes have occurred:
   different secrets backend.
   Priority defined as workers backend > workers env > secrets backend on API server > API server env > metadata DB.
 
+- All the decorators have been moved to the task SDK.
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.decorators import dag, task, task_group, setup, teardown
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import dag, task, task_group, setup, teardown
+
 
 * Types of change
 
@@ -111,4 +125,11 @@ As part of this change the following breaking changes have occurred:
 
     * AIR302
 
-      * [x] ``airflow.models.baseoperatorlink.BaseOperatorLink`` → ``airflow.sdk.definitions.baseoperatorlink.BaseOperatorLink``
+      * [x] ``airflow.models.baseoperatorlink.BaseOperatorLink`` → ``airflow.sdk.BaseOperatorLink``
+      * [ ] ``airflow.models.dag.DAG`` → ``airflow.sdk.DAG``
+      * [ ] ``airflow.models.DAG`` → ``airflow.sdk.DAG``
+      * [ ] ``airflow.decorators.dag`` → ``airflow.sdk.dag``
+      * [ ] ``airflow.decorators.task`` → ``airflow.sdk.task``
+      * [ ] ``airflow.decorators.task_group`` → ``airflow.sdk.task_group``
+      * [ ] ``airflow.decorators.setup`` → ``airflow.sdk.setup``
+      * [ ] ``airflow.decorators.teardown`` → ``airflow.sdk.teardown``
