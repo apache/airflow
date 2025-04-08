@@ -52,6 +52,7 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
+import { Configs } from "./pages/Configs";
 import { Security } from "./pages/Security";
 import { queryClient } from "./queryClient";
 
@@ -95,6 +96,10 @@ export const routerConfig = [
       {
         element: <AssetsList />,
         path: "assets",
+      },
+      {
+        element: <Configs />,
+        path: "configs",
       },
       {
         element: <Asset />,

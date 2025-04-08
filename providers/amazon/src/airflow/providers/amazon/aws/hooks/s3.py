@@ -790,10 +790,6 @@ class S3Hook(AwsBaseHook):
                 "FAILURE: Inactivity Period passed, not enough objects found in %s",
                 path,
             )
-            return {
-                "status": "error",
-                "message": f"FAILURE: Inactivity Period passed, not enough objects found in {path}",
-            }
         return {
             "status": "pending",
             "previous_objects": previous_objects,

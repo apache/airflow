@@ -166,7 +166,7 @@ class TestDagBag:
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
         def create_dag():
-            from airflow.decorators import dag
+            from airflow.sdk import dag
 
             @dag(schedule=None, default_args={"owner": "owner1"})
             def my_flow():

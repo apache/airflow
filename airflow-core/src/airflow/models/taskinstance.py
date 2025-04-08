@@ -2779,6 +2779,9 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
         if TYPE_CHECKING:
             assert self.task
 
@@ -2843,7 +2846,17 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            self.task.pre_execute(context=context)
+            if self.task._pre_execute_hook:
+                create_executable_runner(
+                    self.task._pre_execute_hook,
+                    context_get_outlet_events(context),
+                    logger=self.log,
+                ).run(context)
+            create_executable_runner(
+                self.task.pre_execute,
+                context_get_outlet_events(context),
+                logger=self.log,
+            ).run(context)
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
@@ -2877,7 +2890,17 @@ class TaskInstance(Base, LoggingMixin):
                     self._rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
-            self.task.post_execute(context=context, result=result)
+            if self.task._post_execute_hook:
+                create_executable_runner(
+                    self.task._post_execute_hook,
+                    context_get_outlet_events(context),
+                    logger=self.log,
+                ).run(context, result)
+            create_executable_runner(
+                self.task.post_execute,
+                context_get_outlet_events(context),
+                logger=self.log,
+            ).run(context, result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
