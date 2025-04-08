@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import pdpyras
+import pagerduty
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -79,7 +79,7 @@ class PagerdutyHook(BaseHook):
     def __init__(self, token: str | None = None, pagerduty_conn_id: str | None = None) -> None:
         super().__init__()
         self.routing_key = None
-        self._session = None
+        self._client = None
 
         if pagerduty_conn_id is not None:
             conn = self.get_connection(pagerduty_conn_id)
@@ -95,23 +95,20 @@ class PagerdutyHook(BaseHook):
         if self.token is None:
             raise AirflowException("Cannot get token: No valid api token nor pagerduty_conn_id supplied.")
 
-    def get_session(self) -> pdpyras.APISession:
+    def client(self) -> pagerduty.RestApiV2Client:
         """
-        Return `pdpyras.APISession` for use with sending or receiving data through the PagerDuty REST API.
+        Return `pagerduty.RestApiV2Client` for use with sending or receiving data through the PagerDuty REST API.
 
-        The `pdpyras` library supplies a class `pdpyras.APISession` extending `requests.Session` from the
-        Requests HTTP library.
-
-        Documentation on how to use the `APISession` class can be found at:
-        https://pagerduty.github.io/pdpyras/#data-access-abstraction
+        Documentation on how to use the `RestApiV2Client` class can be found at:
+        https://pagerduty.github.io/python-pagerduty/user_guide.html#generic-client-features
         """
-        self._session = pdpyras.APISession(self.token)
-        return self._session
+        self._client = pagerduty.RestApiV2Client(self.token)
+        return self._client
 
     def test_connection(self):
         try:
-            session = pdpyras.APISession(self.token)
-            session.list_all("services", params={"query": "some_non_existing_service"})
+            client = pagerduty.RestApiV2Client(self.token)
+            client.list_all("services", params={"query": "some_non_existing_service"})
         except Exception:
             return False, "connection test failed, invalid token"
         return True, "connection tested successfully"
