@@ -63,8 +63,8 @@ def _trigger_dag(
     :return: list of triggered dags
     """
     dag = dag_bag.get_dag(dag_id, session=session)  # prefetch dag if it is stored serialized
-
-    if dag is None or dag_id not in dag_bag.dags:
+    dag_info = dag_id, None  # Using None since we don't have bundle_version information
+    if dag is None or dag_info not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     run_after = run_after or timezone.coerce_datetime(timezone.utcnow())

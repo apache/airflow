@@ -82,7 +82,8 @@ def _bootstrap_dagbag():
             dagbag.sync_to_db(session=session)
 
         # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
+        dag_ids = [key[0] for key in dagbag.dags.keys()]
+        DAG.deactivate_unknown_dags(dag_ids, session=session)
 
 
 def initial_db_init():

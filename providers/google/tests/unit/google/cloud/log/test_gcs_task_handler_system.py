@@ -79,7 +79,7 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             assert subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait() == 0
 
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
-        dag = DagBag(dag_folder=example_complex.__file__).dags["example_complex"]
+        dag = DagBag(dag_folder=example_complex.__file__).dags[("example_complex", None)]
         task = dag.task_dict["create_entry_group"]
         ti.task = task
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)

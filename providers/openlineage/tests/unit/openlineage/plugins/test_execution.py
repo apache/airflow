@@ -96,7 +96,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
-            dag = dagbag.dags.get("test_openlineage_execution")
+            dag = dagbag.dags.get(("test_openlineage_execution", None))
             task = dag.get_task(task_name)
 
             if AIRFLOW_V_3_0_PLUS:
@@ -206,7 +206,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
-            dag = dagbag.dags.get("test_openlineage_execution")
+            dag = dagbag.dags.get(("test_openlineage_execution", None))
             task = dag.get_task("execute_long_stall")
 
             if AIRFLOW_V_3_0_PLUS:

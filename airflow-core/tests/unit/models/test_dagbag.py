@@ -485,15 +485,15 @@ class TestDagBag:
             EmptyOperator(task_id="task_1")
         dag_maker.create_dagrun()
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
-        dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
-        dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
+        dagbag.dags = {(dag.dag_id, None): SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
+        dagbag.dags_last_fetched = {(dag.dag_id, None): (tz.utcnow() - timedelta(minutes=2))}
         dagbag.dags_hash = {dag.dag_id: mock.ANY}
 
         assert SerializedDagModel.has_dag(dag.dag_id) is False
 
         assert dagbag.get_dag(dag.dag_id) is None
-        assert dag.dag_id not in dagbag.dags
-        assert dag.dag_id not in dagbag.dags_last_fetched
+        assert (dag.dag_id, None) not in dagbag.dags
+        assert (dag.dag_id, None) not in dagbag.dags_last_fetched
         assert dag.dag_id not in dagbag.dags_hash
 
     def process_dag(self, create_dag, tmp_path):
@@ -512,12 +512,13 @@ class TestDagBag:
     def validate_dags(self, expected_dag, actual_found_dags, actual_dagbag, should_be_found=True):
         actual_found_dag_ids = [dag.dag_id for dag in actual_found_dags]
         dag_id = expected_dag.dag_id
+        dag_info = dag_id, None
         actual_dagbag.log.info("validating %s", dag_id)
-        assert (dag_id in actual_found_dag_ids) == should_be_found, (
+        assert (dag_info in actual_found_dag_ids) == should_be_found, (
             f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'have been found after processing dag "{expected_dag.dag_id}"'
         )
-        assert (dag_id in actual_dagbag.dags) == should_be_found, (
+        assert (dag_info in actual_dagbag.dags) == should_be_found, (
             f'dag "{dag_id}" should {"" if should_be_found else "not "}'
             f'be in dagbag.dags after processing dag "{expected_dag.dag_id}"'
         )
@@ -571,7 +572,7 @@ class TestDagBag:
         """
         dagbag = DagBag(include_examples=True)
         dag_id = "test_deactivate_unknown_dags"
-        expected_active_dags = dagbag.dags.keys()
+        expected_active_dags = [k[0] for k in dagbag.dags.keys()]
 
         model_before = DagModel(dag_id=dag_id, is_active=True)
         with create_session() as session:
@@ -680,13 +681,13 @@ with airflow.DAG(
         Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
         """
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag = DagBag(include_examples=True).dags.get(("example_bash_operator", None))
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
             dag_bag = DagBag(read_dags_from_db=True)
             ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-            ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            ser_dag_1_update_time = dag_bag.dags_last_fetched[("example_bash_operator", None)]
             assert example_bash_op_dag.tags == ser_dag_1.tags
             assert ser_dag_1_update_time == tz.datetime(2020, 1, 5, 0, 0, 0)
 
@@ -705,9 +706,9 @@ with airflow.DAG(
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 8)), tick=False):
-            with assert_queries_count(2):
+            with assert_queries_count(3):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched[("example_bash_operator", None)]
 
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
@@ -722,7 +723,7 @@ with airflow.DAG(
         db_clean_up()
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
-            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag = DagBag(include_examples=True).dags.get(("example_bash_operator", None))
             DAG.from_sdk_dag(example_bash_op_dag).sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
@@ -730,10 +731,10 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
             dag_bag = DagBag(read_dags_from_db=True)
 
-            with assert_queries_count(2):
+            with assert_queries_count(3):
                 ser_dag = dag_bag.get_dag("example_bash_operator")
 
-            ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            ser_dag_update_time = dag_bag.dags_last_fetched[("example_bash_operator", None)]
             assert ser_dag.tags == {"example", "example2"}
             assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
 
@@ -755,9 +756,9 @@ with airflow.DAG(
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
-            with assert_queries_count(2):
+            with assert_queries_count(3):
                 updated_ser_dag = dag_bag.get_dag("example_bash_operator")
-                updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+                updated_ser_dag_update_time = dag_bag.dags_last_fetched[("example_bash_operator", None)]
 
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
@@ -777,8 +778,8 @@ with airflow.DAG(
         new_dagbag.collect_dags_from_db()
         new_dags = new_dagbag.dags
         assert len(example_dags) == len(new_dags)
-        for dag_id, dag in example_dags.items():
-            serialized_dag = new_dags[dag_id]
+        for dag_info, dag in example_dags.items():
+            serialized_dag = new_dags[dag_info]
 
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)

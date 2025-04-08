@@ -3342,8 +3342,8 @@ class TestSchedulerJob:
 
         dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dr.dag_versions[-1].id == dag_version_1.id
-        assert self.job_runner.dagbag.dags == {"test_verify_integrity_if_dag_changed": dag}
-        assert len(self.job_runner.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 1
+        assert self.job_runner.dagbag.dags == {("test_verify_integrity_if_dag_changed", None): dag}
+        assert len(self.job_runner.dagbag.dags.get(("test_verify_integrity_if_dag_changed", None)).tasks) == 1
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
@@ -3359,8 +3359,8 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
         assert dr.dag_versions[-1].id == dag_version_2.id
-        assert self.job_runner.dagbag.dags == {"test_verify_integrity_if_dag_changed": dag}
-        assert len(self.job_runner.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 2
+        assert self.job_runner.dagbag.dags == {("test_verify_integrity_if_dag_changed", None): dag}
+        assert len(self.job_runner.dagbag.dags.get(("test_verify_integrity_if_dag_changed", None)).tasks) == 2
 
         tis_count = (
             session.query(func.count(TaskInstance.task_id))

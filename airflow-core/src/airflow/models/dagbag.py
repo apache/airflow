@@ -69,6 +69,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.utils.types import ArgNotSet
 
 
@@ -127,9 +128,11 @@ class DagBag(LoggingMixin):
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
+        bundle_version: str | None = None,
     ):
         super().__init__()
         self.bundle_path: Path | None = bundle_path
+        self.bundle_version: str | None = bundle_version
         include_examples = (
             include_examples
             if isinstance(include_examples, bool)
@@ -141,7 +144,7 @@ class DagBag(LoggingMixin):
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
-        self.dags: dict[str, DAG] = {}
+        self.dags: dict[tuple[str, str | None], DAG] = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         self.import_errors: dict[str, str] = {}
@@ -149,7 +152,7 @@ class DagBag(LoggingMixin):
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
-        self.dags_last_fetched: dict[str, datetime] = {}
+        self.dags_last_fetched: dict[tuple[str, str | None], datetime] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
         self.dags_hash: dict[str, str] = {}
 
@@ -178,10 +181,10 @@ class DagBag(LoggingMixin):
 
         :return: a list of DAG IDs in this bag
         """
-        return list(self.dags)
+        return list([key[0] for key in self.dags])
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = None):
+    def get_dag(self, dag_id, session: Session = None, bundle_version: str | None = None):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -190,14 +193,16 @@ class DagBag(LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
+        dag_info = (dag_id, bundle_version or self.bundle_version)
+
         if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
 
-            if dag_id not in self.dags:
+            if dag_info not in self.dags:
                 # Load from DB if not (yet) in the bag
-                self._add_dag_from_db(dag_id=dag_id, session=session)
-                return self.dags.get(dag_id)
+                self._add_dag_from_db(dag_id=dag_id, session=session, bundle_version=bundle_version)
+                return self.dags.get(dag_info)
 
             # If DAG is in the DagBag, check the following
             # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
@@ -208,8 +213,8 @@ class DagBag(LoggingMixin):
             # if it exists and return None.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
-                dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
+                dag_info in self.dags_last_fetched
+                and timezone.utcnow() > self.dags_last_fetched[dag_info] + min_serialized_dag_fetch_secs
             ):
                 sd_latest_version_and_updated_datetime = (
                     SerializedDagModel.get_latest_version_hash_and_updated_datetime(
@@ -218,34 +223,34 @@ class DagBag(LoggingMixin):
                 )
                 if not sd_latest_version_and_updated_datetime:
                     self.log.warning("Serialized DAG %s no longer exists", dag_id)
-                    del self.dags[dag_id]
-                    del self.dags_last_fetched[dag_id]
+                    del self.dags[dag_info]
+                    del self.dags_last_fetched[dag_info]
                     del self.dags_hash[dag_id]
                     return None
 
                 sd_latest_version, sd_last_updated_datetime = sd_latest_version_and_updated_datetime
 
                 if (
-                    sd_last_updated_datetime > self.dags_last_fetched[dag_id]
+                    sd_last_updated_datetime > self.dags_last_fetched[dag_info]
                     or sd_latest_version != self.dags_hash[dag_id]
                 ):
-                    self._add_dag_from_db(dag_id=dag_id, session=session)
+                    self._add_dag_from_db(dag_id=dag_id, session=session, bundle_version=bundle_version)
 
-            return self.dags.get(dag_id)
+            return self.dags.get(dag_info)
 
         # If asking for a known subdag, we want to refresh the parent
         dag = None
         root_dag_id = dag_id
-        if dag_id in self.dags:
-            dag = self.dags[dag_id]
+        if dag_info in self.dags:
+            dag = self.dags[dag_info]
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
         orm_dag = DagModel.get_current(root_dag_id, session=session)
         if not orm_dag:
-            return self.dags.get(dag_id)
+            return self.dags.get(dag_info)
 
         # If the dag corresponding to root_dag_id is absent or expired
-        is_missing = root_dag_id not in self.dags
+        is_missing = (root_dag_id, bundle_version) not in self.dags
         is_expired = (
             orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
@@ -260,23 +265,29 @@ class DagBag(LoggingMixin):
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
-                return self.dags[dag_id]
-            elif dag_id in self.dags:
-                del self.dags[dag_id]
-        return self.dags.get(dag_id)
+                return self.dags[dag_info]
+            elif dag_info in self.dags:
+                del self.dags[dag_info]
+        return self.dags.get(dag_info)
 
-    def _add_dag_from_db(self, dag_id: str, session: Session):
+    def _add_dag_from_db(self, dag_id: str, session: Session, bundle_version: str | None = None):
         """Add DAG to DagBag from DB."""
-        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.models.dag_version import DagVersion
 
-        row: SerializedDagModel | None = SerializedDagModel.get(dag_id, session)
+        dag_version = DagVersion.get_version(
+            dag_id=dag_id,
+            bundle_version=bundle_version,
+            session=session,
+        )
+
+        row: SerializedDagModel | None = dag_version.serialized_dag if dag_version else None
         if not row:
             return None
 
         row.load_op_links = self.load_op_links
         dag = row.dag
-        self.dags[dag.dag_id] = dag
-        self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
+        self.dags[(dag.dag_id, bundle_version)] = dag
+        self.dags_last_fetched[(dag.dag_id, bundle_version)] = timezone.utcnow()
         self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
@@ -536,18 +547,20 @@ class DagBag(LoggingMixin):
             raise AirflowClusterPolicyError(e)
 
         try:
-            prev_dag = self.dags.get(dag.dag_id)
+            prev_dag = self.dags.get((dag.dag_id, self.bundle_version))
             if prev_dag and prev_dag.fileloc != dag.fileloc:
                 raise AirflowDagDuplicatedIdException(
                     dag_id=dag.dag_id,
                     incoming=dag.fileloc,
-                    existing=self.dags[dag.dag_id].fileloc,
+                    existing=self.dags[(dag.dag_id, self.bundle_version)].fileloc,
                 )
-            self.dags[dag.dag_id] = dag
-            self.log.debug("Loaded DAG %s", dag)
+            self.dags[(dag.dag_id, self.bundle_version)] = dag
+            self.log.debug("Loaded DAG %s, bundle_version %s", dag, self.bundle_version)
         except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
             # There was an error in bagging the dag. Remove it from the list of dags
-            self.log.exception("Exception bagging dag: %s", dag.dag_id)
+            self.log.exception(
+                "Exception bagging dag: %s, bundle_version %s", dag.dag_id, self.bundle_version
+            )
             raise
 
     def collect_dags(

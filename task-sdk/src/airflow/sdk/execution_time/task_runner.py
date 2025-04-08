@@ -518,11 +518,12 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_version=bundle_info.version,
     )
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
-    dag = bag.dags[what.ti.dag_id]
+    dag = bag.dags[(what.ti.dag_id, bundle_info.version)]
 
     # install_loader()
 

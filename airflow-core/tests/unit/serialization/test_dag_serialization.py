@@ -339,7 +339,7 @@ def make_user_defined_macro_filter_dag():
         bash_command='echo "{{ last_dagrun(dag) }}"',
         dag=dag,
     )
-    return {dag.dag_id: dag}
+    return {(dag.dag_id, None): dag}
 
 
 def get_excluded_patterns() -> Generator[str, None, None]:
@@ -357,7 +357,7 @@ def collect_dags(dag_folder=None):
     """Collects DAGs to test."""
     dags = {}
     import_errors = {}
-    dags.update({"simple_dag": make_simple_dag()})
+    dags.update({("simple_dag", None): make_simple_dag()})
     dags.update(make_user_defined_macro_filter_dag())
 
     if dag_folder is None:
@@ -1613,7 +1613,7 @@ class TestStringifiedDAGs:
             "airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py", include_examples=False
         )
         assert not dagbag.import_errors
-        dag = dagbag.dags["example_dynamic_task_mapping"]
+        dag = dagbag.dags[("example_dynamic_task_mapping", None)]
         ser_dag = SerializedDAG.to_dict(dag)
         # We should not include `_is_sensor` most of the time (as it would be wasteful). Check we don't
         assert "_is_sensor" not in ser_dag["dag"]["tasks"][0]["__var"]

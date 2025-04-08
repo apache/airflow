@@ -259,7 +259,7 @@ class TestTaskInstancesLog:
         # Recreate DAG without tasks
         dagbag = self.app.state.dag_bag
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
-        del dagbag.dags[self.DAG_ID]
+        del dagbag.dags[(self.DAG_ID, None)]
         dagbag.bag_dag(dag=dag)
 
         key = self.app.state.secret_key

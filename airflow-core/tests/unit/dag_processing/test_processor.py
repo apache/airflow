@@ -305,7 +305,7 @@ def test_parse_file_with_dag_callbacks(spy_agency):
     dag = DAG(dag_id="a", on_failure_callback=on_failure)
 
     def fake_collect_dags(self, *args, **kwargs):
-        self.dags[dag.dag_id] = dag
+        self.dags[(dag.dag_id, None)] = dag
 
     spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
 
@@ -341,7 +341,7 @@ def test_parse_file_with_task_callbacks(spy_agency):
         BaseOperator(task_id="b", on_failure_callback=on_failure)
 
     def fake_collect_dags(self, *args, **kwargs):
-        self.dags[dag.dag_id] = dag
+        self.dags[(dag.dag_id, None)] = dag
 
     spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
 

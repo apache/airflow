@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import sqlalchemy_jsonfield
 import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import backref, foreign, joinedload, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -479,7 +479,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
+    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[tuple[str, str | None], SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.
 
@@ -492,11 +492,13 @@ class SerializedDagModel(Base):
             .subquery()
         )
         serialized_dags = session.scalars(
-            select(cls).join(
+            select(cls)
+            .join(
                 latest_serialized_dag_subquery,
                 (cls.dag_id == latest_serialized_dag_subquery.c.dag_id)
                 and (cls.created_at == latest_serialized_dag_subquery.c.max_created),
             )
+            .options(joinedload(cls.dag_version))
         )
 
         dags = {}
@@ -506,7 +508,7 @@ class SerializedDagModel(Base):
 
             # Coherence check
             if dag.dag_id == row.dag_id:
-                dags[row.dag_id] = dag
+                dags[(row.dag_id, row.dag_version.bundle_version)] = dag
             else:
                 log.warning(
                     "dag_id Mismatch in DB: Row with dag_id '%s' has Serialised DAG with '%s' dag_id",
