@@ -400,7 +400,7 @@ class _MapResult(Sequence):
         self._exhausted = False
 
     def _next_mapped(self) -> Any:
-        """Returns the next transformed item from the iterator."""
+        """Return the next transformed item from the iterator."""
         while not self._exhausted:
             try:
                 item = next(self._iterator)
@@ -624,7 +624,7 @@ class _FilterResult(Sequence, Iterable):
         self._exhausted = False
 
     def _next_filtered(self) -> Any:
-        """Returns the next item from the iterator that passes all filters."""
+        """Return the next item from the iterator that passes all filters."""
         while not self._exhausted:
             try:
                 item = next(self._iterator)
