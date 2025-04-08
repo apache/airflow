@@ -588,27 +588,54 @@ class ConcatXComArg(XComArg):
 
 
 class _FilterResult(Sequence, Iterable):
-    def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
+    def __init__(self, value: Sequence | Iterable, callables: list) -> None:
         self.value = value
-        self.filtered_values: list | None = None
         self.callables = callables
+        self._cache: list = []
+        self._iterator = iter(value)
+        self._exhausted = False
+
+    def _next_filtered(self) -> Any:
+        """Returns the next item from the iterator that passes all filters."""
+        while not self._exhausted:
+            try:
+                item = next(self._iterator)
+                if self._apply_callables(item):
+                    self._cache.append(item)
+                    return item
+            except StopIteration:
+                self._exhausted = True
+        raise StopIteration
 
     def __getitem__(self, index: Any) -> Any:
-        if not (0 <= index < len(self)):
+        if index < 0:
             raise IndexError
 
-        return self.filtered_values[index]
+        while len(self._cache) <= index:
+            try:
+                self._next_filtered()
+            except StopIteration:
+                raise IndexError
+
+        return self._cache[index]
 
     def __len__(self) -> int:
-        # Calculating the length of an iterable can be a heavy operation, so we cache the result after first attempt
-        if not self.filtered_values:
-            self.filtered_values = list(self)
-        return len(self.filtered_values)
+        # Force full evaluation to determine total length
+        while not self._exhausted:
+            try:
+                self._next_filtered()
+            except StopIteration:
+                break
+        return len(self._cache)
 
     def __iter__(self) -> Iterator:
-        for item in iter(self.value):
-            if self._apply_callables(item):
-                yield item
+        yield from self._cache
+
+        while not self._exhausted:
+            try:
+                yield self._next_filtered()
+            except StopIteration:
+                break
 
     def _apply_callables(self, value) -> bool:
         for func in self.callables:
