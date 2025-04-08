@@ -167,7 +167,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    def map(self, f: MapCallables) -> MapXComArg:
+    def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         return MapXComArg(self, [f])
 
     def zip(self, *others: XComArg, fillvalue: Any = NOTSET) -> ZipXComArg:
@@ -176,7 +176,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
 
-    def filter(self, f: FilterCallables | None) -> FilterXComArg:
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
         return FilterXComArg(self, [f] if f else [])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
@@ -321,7 +321,7 @@ class PlainXComArg(XComArg):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
 
-    def map(self, f: MapCallables) -> MapXComArg:
+    def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         if self.key != XCOM_RETURN_KEY:
             raise ValueError("cannot map against non-return XCom")
         return super().map(f)
@@ -336,7 +336,7 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def filter(self, f: FilterCallables | None) -> FilterXComArg:
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
         if self.key != XCOM_RETURN_KEY:
             raise ValueError("cannot filter non-return XCom")
         return super().filter(f)
@@ -392,7 +392,7 @@ def _get_callable_name(f: Callable | str) -> str:
 
 
 class _MapResult(Sequence):
-    def __init__(self, value: Iterable | Sequence | dict, callables: list) -> None:
+    def __init__(self, value: Iterable | Sequence | dict, callables: MapCallables) -> None:
         self.value = value
         self.callables = callables
         self._cache: list = []
@@ -476,7 +476,7 @@ class MapXComArg(XComArg):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield from self.arg.iter_references()
 
-    def map(self, f: MapCallables) -> MapXComArg:
+    def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         # Flatten arg.map(f1).map(f2) into one MapXComArg.
         return MapXComArg(self.arg, [*self.callables, f])
 
@@ -616,7 +616,7 @@ class ConcatXComArg(XComArg):
 
 
 class _FilterResult(Sequence, Iterable):
-    def __init__(self, value: Sequence | Iterable, callables: list) -> None:
+    def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
         self.value = value
         self.callables = callables
         self._cache: list = []
@@ -714,7 +714,7 @@ class FilterXComArg(XComArg):
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield from self.arg.iter_references()
 
-    def filter(self, f: FilterCallables | None) -> FilterXComArg:
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
         # Filter arg.filter(f1).filter(f2) into one FilterXComArg.
         return FilterXComArg(self.arg, [*self.callables, f if f else self.none_filter])
 
