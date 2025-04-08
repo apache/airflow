@@ -309,3 +309,18 @@ class TestJdbcHook:
                     future.result()  # This will raise OSError if get_conn isn't threadsafe
 
             assert mock_connect.call_count == 10
+
+    @pytest.mark.parametrize(
+        "jdbc_url",
+        [
+            "jdbc:mysql://localhost:3306/test",
+            "jdbc:postgresql://localhost:5432/test?user=user&password=pass%40word",
+            "jdbc:oracle:thin:@localhost:1521:xe",
+            "jdbc:sqlserver://localhost:1433;databaseName=test;trustServerCertificate=true",
+        ],
+        ids=["mysql", "postgresql", "oracle", "sqlserver"],
+    )
+    def test_get_uri(self, jdbc_url):
+        """Test that get_uri returns the connection host as the JDBC URL."""
+        jdbc_hook = get_hook(host=jdbc_url)
+        assert jdbc_hook.get_uri() == jdbc_url
