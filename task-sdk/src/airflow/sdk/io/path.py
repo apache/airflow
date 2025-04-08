@@ -14,57 +14,51 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import contextlib
 import os
 import shutil
-import typing
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath
 from upath.registry import get_upath_class
 
-from airflow.io.store import attach
-from airflow.io.utils.stat import stat_result
-from airflow.lineage.hook import get_hook_lineage_collector
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.io.stat import stat_result
+from airflow.sdk.io.store import attach
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 
-PT = typing.TypeVar("PT", bound="ObjectStoragePath")
-
-default = "file"
-
-
-class TrackingFileWrapper(LoggingMixin):
+class _TrackingFileWrapper:
     """Wrapper that tracks file operations to intercept lineage."""
 
     def __init__(self, path: ObjectStoragePath, obj):
         super().__init__()
-        self._path: ObjectStoragePath = path
+        self._path = path
         self._obj = obj
 
     def __getattr__(self, name):
-        attr = getattr(self._obj, name)
-        if callable(attr):
-            # If the attribute is a method, wrap it in another method to intercept the call
-            def wrapper(*args, **kwargs):
-                self.log.debug("Calling method: %s", name)
-                if name == "read":
-                    get_hook_lineage_collector().add_input_asset(context=self._path, uri=str(self._path))
-                elif name == "write":
-                    get_hook_lineage_collector().add_output_asset(context=self._path, uri=str(self._path))
-                result = attr(*args, **kwargs)
-                return result
+        from airflow.lineage.hook import get_hook_lineage_collector
 
-            return wrapper
-        return attr
+        if not callable(attr := getattr(self._obj, name)):
+            return attr
+
+        # If the attribute is a method, wrap it in another method to intercept the call
+        def wrapper(*args, **kwargs):
+            if name == "read":
+                get_hook_lineage_collector().add_input_asset(context=self._path, uri=str(self._path))
+            elif name == "write":
+                get_hook_lineage_collector().add_output_asset(context=self._path, uri=str(self._path))
+            result = attr(*args, **kwargs)
+            return result
+
+        return wrapper
 
     def __getitem__(self, key):
         # Intercept item access
@@ -81,12 +75,12 @@ class TrackingFileWrapper(LoggingMixin):
 class ObjectStoragePath(CloudPath):
     """A path-like object for object storage."""
 
-    __version__: typing.ClassVar[int] = 1
+    __version__: ClassVar[int] = 1
 
     _protocol_dispatch = False
 
-    sep: typing.ClassVar[str] = "/"
-    root_marker: typing.ClassVar[str] = "/"
+    sep: ClassVar[str] = "/"
+    root_marker: ClassVar[str] = "/"
 
     __slots__ = ("_hash_cached",)
 
@@ -123,10 +117,10 @@ class ObjectStoragePath(CloudPath):
             self._hash_cached = hash(str(self))
             return self._hash_cached
 
-    def __eq__(self, other: typing.Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return self.samestore(other) and str(self) == str(other)
 
-    def samestore(self, other: typing.Any) -> bool:
+    def samestore(self, other: Any) -> bool:
         return (
             isinstance(other, ObjectStoragePath)
             and self.protocol == other.protocol
@@ -160,7 +154,7 @@ class ObjectStoragePath(CloudPath):
     def open(self, mode="r", **kwargs):
         """Open the file pointed to by this path."""
         kwargs.setdefault("block_size", kwargs.pop("buffering", None))
-        return TrackingFileWrapper(self, self.fs.open(self.path, mode=mode, **kwargs))
+        return _TrackingFileWrapper(self, self.fs.open(self.path, mode=mode, **kwargs))
 
     def stat(self) -> stat_result:  # type: ignore[override]
         """Call ``stat`` and return the result."""
@@ -170,7 +164,7 @@ class ObjectStoragePath(CloudPath):
             conn_id=self.storage_options.get("conn_id"),
         )
 
-    def samefile(self, other_path: typing.Any) -> bool:
+    def samefile(self, other_path: Any) -> bool:
         """Return whether other_path is the same or not as this file."""
         if not isinstance(other_path, ObjectStoragePath):
             return False
@@ -312,6 +306,8 @@ class ObjectStoragePath(CloudPath):
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
+        from airflow.lineage.hook import get_hook_lineage_collector
+
         if isinstance(dst, str):
             dst = ObjectStoragePath(dst)
 
@@ -378,6 +374,8 @@ class ObjectStoragePath(CloudPath):
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
+        from airflow.lineage.hook import get_hook_lineage_collector
+
         if isinstance(path, str):
             path = ObjectStoragePath(path)
 
@@ -390,7 +388,7 @@ class ObjectStoragePath(CloudPath):
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink()
 
-    def serialize(self) -> dict[str, typing.Any]:
+    def serialize(self) -> dict[str, Any]:
         _kwargs = {**self.storage_options}
         conn_id = _kwargs.pop("conn_id", None)
 

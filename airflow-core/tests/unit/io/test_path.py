@@ -29,9 +29,8 @@ from fsspec.implementations.memory import MemoryFileSystem
 from fsspec.registry import _registry as _fsspec_registry, register_implementation
 
 from airflow.io import _register_filesystems, get_fs
-from airflow.io.path import ObjectStoragePath
-from airflow.io.store import _STORE_CACHE, ObjectStore, attach
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk import Asset, ObjectStoragePath
+from airflow.sdk.io.store import _STORE_CACHE, ObjectStore, attach
 from airflow.utils.module_loading import qualname
 
 FAKE = "file:///fake"
