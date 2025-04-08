@@ -190,7 +190,7 @@ in a ``KubernetesPodOperator`` simplifying it's connection to the task flow.
 
 See the following example on how this works:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_cmd_decorator.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_cmd_decorator.py
     :language: python
     :start-after: [START howto_decorator_kubernetes_cmd]
     :end-before: [END howto_decorator_kubernetes_cmd]
