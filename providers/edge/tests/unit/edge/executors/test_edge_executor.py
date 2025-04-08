@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from uuid6 import uuid7
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -320,6 +321,7 @@ class TestEdgeExecutor:
                 task_id="mock",
                 dag_id="mock",
                 run_id="mock",
+                try_id=uuid7(),
                 try_number=1,
                 pool_slots=1,
                 queue="default",
