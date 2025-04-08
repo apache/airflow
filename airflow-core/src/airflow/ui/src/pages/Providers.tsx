@@ -23,6 +23,7 @@ import { useProviderServiceGetProviders } from "openapi/queries";
 import type { ProviderResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { urlRegex } from "src/constants/urlRegex";
 
 const columns: Array<ColumnDef<ProviderResponse>> = [
   {
@@ -50,7 +51,6 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
   {
     accessorKey: "description",
     cell: ({ row: { original } }) => {
-      const urlRegex = /https?:\/\/[\w.-]+(?:\.?:[\w.-]+)*(?:[#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
       const urls = original.description.match(urlRegex);
       const cleanText = original.description.replaceAll(/\n(?:and)?/gu, " ").split(" ");
 

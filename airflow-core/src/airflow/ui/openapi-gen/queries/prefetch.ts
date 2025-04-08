@@ -843,6 +843,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -861,6 +862,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -877,6 +879,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -896,6 +899,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -914,6 +918,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
