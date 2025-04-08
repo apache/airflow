@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils.session import provide_session
