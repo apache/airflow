@@ -454,9 +454,12 @@ class OracleHook(DbApiHook):
         service_name = conn.extra_dejson.get("service_name")
         sid = conn.extra_dejson.get("sid")
 
-        if sid and not service_name:
+        if sid and service_name:
+            raise ValueError("Cannot specify both SID and Service Name. Choose one.")
+
+        if sid:
             schema = sid
-        elif service_name and not sid:
+        elif service_name:
             schema = service_name
         else:
             schema = conn.schema or ""

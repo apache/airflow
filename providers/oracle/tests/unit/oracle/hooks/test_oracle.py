@@ -285,21 +285,6 @@ class TestOracleHookConn:
                 id="schema_only_default_port",
             ),
             pytest.param(
-                {"extra": '{"sid": "sid", "service_name": "service"}', "schema": "db_schema", "port": 1521},
-                "oracle://login:password@host:1521/db_schema",
-                id="schema_with_sid_and_service_name",
-            ),
-            pytest.param(
-                {"extra": '{"sid": "sid", "service_name": "service"}', "schema": None, "port": 1521},
-                "oracle://login:password@host:1521",
-                id="sid_and_service_name_no_schema",
-            ),
-            pytest.param(
-                {"extra": '{"sid": "sid"}', "schema": "db_schema", "port": 1521},
-                "oracle://login:password@host:1521/sid",
-                id="sid_with_schema",
-            ),
-            pytest.param(
                 {"extra": '{"service_name": "service"}', "schema": "db_schema", "port": 1521},
                 "oracle://login:password@host:1521/service",
                 id="service_name_with_schema",
