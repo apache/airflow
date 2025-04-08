@@ -7734,6 +7734,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
@@ -10235,6 +10237,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
