@@ -46,10 +46,12 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import Context
     from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.types import DagRunProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -1996,6 +1998,15 @@ class RunTaskCallable(Protocol):
     @property
     def error(self) -> BaseException | None: ...
 
+    @property
+    def ti(self) -> RuntimeTaskInstance: ...
+
+    @property
+    def dagrun(self) -> DagRunProtocol: ...
+
+    @property
+    def context(self) -> Context: ...
+
     xcom: _XComHelperProtocol
 
     def __call__(
@@ -2039,6 +2050,7 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
+    from airflow.timetables.base import TimeRestriction
     from airflow.utils import timezone
 
     def _create_task_instance(
@@ -2058,6 +2070,7 @@ def create_runtime_ti(mocked_parse):
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
         from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
+        from airflow.utils.types import DagRunType
 
         if not ti_id:
             ti_id = uuid7()
@@ -2067,13 +2080,22 @@ def create_runtime_ti(mocked_parse):
             task.dag = dag  # type: ignore[assignment]
             task = dag.task_dict[task.task_id]
 
+        data_interval_start = None
+        data_interval_end = None
+
         if task.dag.timetable:
-            data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                run_after=logical_date  # type: ignore
-            )
-        else:
-            data_interval_start = None
-            data_interval_end = None
+            if run_type == DagRunType.MANUAL:
+                data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                    run_after=logical_date  # type: ignore
+                )
+            else:
+                drinfo = task.dag.timetable.next_dagrun_info(
+                    last_automated_data_interval=None,
+                    restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+                )
+                if drinfo:
+                    data_interval = drinfo.data_interval
+                    data_interval_start, data_interval_end = data_interval.start, data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0
@@ -2252,6 +2274,9 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             self._state = None
             self._msg = None
             self._error = None
+            self._ti = None
+            self._dagrun = None
+            self._context = None
 
         @property
         def state(self) -> IntermediateTIState | TerminalTIState:
@@ -2267,6 +2292,18 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
         def error(self) -> BaseException | None:
             """Get the error message if there was any."""
             return self._error
+
+        @property
+        def ti(self) -> RuntimeTaskInstance:
+            return self._ti
+
+        @property
+        def dagrun(self) -> DagRunProtocol:
+            return self._dagrun
+
+        @property
+        def context(self) -> Context:
+            return self._context
 
         def __call__(
             self,
@@ -2315,6 +2352,9 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             self._state = state
             self._msg = msg
             self._error = error
+            self._ti = ti
+            self._dagrun = context.get("dag_run")
+            self._context = context
 
             return state, msg, error
 

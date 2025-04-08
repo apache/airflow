@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -300,6 +301,7 @@ def get_dag_runs(
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     order_by: Annotated[
         SortParam,
@@ -349,6 +351,7 @@ def get_dag_runs(
             end_date_range,
             update_at_range,
             state,
+            run_type,
             readable_dag_runs_filter,
         ],
         order_by=order_by,

@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=3.0.0.dev0``
+``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
 ``blinker``                                 ``>=1.6.2``
 ``flask``                                   ``>=2.2.1,<2.3``
