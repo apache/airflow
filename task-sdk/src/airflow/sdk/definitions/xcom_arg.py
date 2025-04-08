@@ -599,8 +599,7 @@ class _FilterResult(Sequence, Iterable):
 
         if hasattr(self.value, '__getitem__'):
             value = self.value[index]
-            result = self._apply_callables(value)
-            if result:
+            if self._apply_callables(value):
                 return value
             return self.__getitem__(index + 1)
         raise TypeError("XComArg filter does not support indexing on non-sequence values")
