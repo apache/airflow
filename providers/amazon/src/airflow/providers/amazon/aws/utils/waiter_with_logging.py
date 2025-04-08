@@ -23,7 +23,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 import jmespath
-from botocore.exceptions import WaiterError
+from botocore.exceptions import WaiterError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 
@@ -70,6 +70,11 @@ def wait(
             time.sleep(waiter_delay)
         try:
             waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
+
+        except NoCredentialsError as error:
+            error_reason = str(error)
+            log.info(error_reason)
+
         except WaiterError as error:
             error_reason = str(error)
             last_response = error.last_response
@@ -131,6 +136,11 @@ async def async_wait(
             await asyncio.sleep(waiter_delay)
         try:
             await waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
+
+        except NoCredentialsError as error:
+            error_reason = str(error)
+            log.info(error_reason)
+
         except WaiterError as error:
             error_reason = str(error)
             last_response = error.last_response
