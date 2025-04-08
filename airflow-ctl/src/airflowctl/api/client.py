@@ -64,6 +64,8 @@ log = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "Client",
     "Credentials",
+    "provide_api_client",
+    "NEW_CLI_API_CLIENT",
 ]
 
 PS = ParamSpec("PS")
@@ -149,7 +151,7 @@ class Client(httpx.Client):
 
     def __init__(self, *, base_url: str, token: str, **kwargs: Any):
         auth = BearerAuth(token)
-        kwargs["base_url"] = f"{base_url}/public"
+        kwargs["base_url"] = f"{base_url}/api/v2"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,

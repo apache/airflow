@@ -28,20 +28,21 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, Ty
 import attr
 import typing_extensions
 
-from airflow.models.baseoperator import (
+from airflow.sdk.bases.operator import (
+    BaseOperator,
     coerce_resources,
     coerce_timedelta,
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.expandinput import (
+from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
+from airflow.sdk.definitions._internal.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     is_mappable,
 )
-from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -51,10 +52,9 @@ from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from airflow.models.expandinput import (
+    from airflow.sdk.definitions._internal.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
-    from airflow.utils.task_group import TaskGroup
+    from airflow.sdk.definitions.taskgroup import TaskGroup
 
 
 class ExpandableFactory(Protocol):
@@ -148,7 +148,7 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
-class DecoratedOperator(TaskSDKBaseOperator):
+class DecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -295,7 +295,7 @@ FParams = ParamSpec("FParams")
 
 FReturn = TypeVar("FReturn")
 
-OperatorSubclass = TypeVar("OperatorSubclass", bound="TaskSDKBaseOperator")
+OperatorSubclass = TypeVar("OperatorSubclass", bound="BaseOperator")
 
 
 @attr.define(slots=False)
@@ -449,7 +449,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
-        base_signature = inspect.signature(TaskSDKBaseOperator)
+        base_signature = inspect.signature(BaseOperator)
         ignore = {
             "default_args",  # This is target we are working on now.
             "kwargs",  # A common name for a keyword argument.
@@ -645,7 +645,7 @@ def task_decorator_factory(
     python_callable: Callable | None = None,
     *,
     multiple_outputs: bool | None = None,
-    decorated_operator_class: type[TaskSDKBaseOperator],
+    decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
     """

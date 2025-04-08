@@ -254,7 +254,7 @@ In this example, you have a regular data delivery to an S3 bucket and want to ap
     from datetime import datetime
 
     from airflow.sdk import DAG
-    from airflow.decorators import task
+    from airflow.sdk import task
     from airflow.providers.amazon.aws.hooks.s3 import S3Hook
     from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 
