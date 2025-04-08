@@ -632,6 +632,7 @@ repos:
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
           ^airflow-core/newsfragments/43349\.significant\.rst$|
+          ^airflow-core/newsfragments/41368\.significant\.rst$|
           .*/dist/.*|
           package-lock\.json$
       - id: check-base-operator-partial-arguments
