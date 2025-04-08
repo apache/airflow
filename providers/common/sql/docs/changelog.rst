@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+1.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add requires_result_fetch Configuration to SQLExecuteQueryOperator (#46997)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
 1.24.1
 ......
 

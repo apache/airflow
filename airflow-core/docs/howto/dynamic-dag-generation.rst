@@ -127,7 +127,7 @@ and Airflow will automatically register them.
 .. code-block:: python
 
     from datetime import datetime
-    from airflow.decorators import dag, task
+    from airflow.sdk import dag, task
 
     configs = {
         "config1": {"message": "first DAG will receive this message"},
@@ -206,7 +206,7 @@ of the context are set to ``None``.
 .. code-block:: python
   :emphasize-lines: 4,8,9
 
-  from airflow.models.dag import DAG
+  from airflow.sdk import DAG
   from airflow.sdk import get_parsing_context
 
   current_dag_id = get_parsing_context().dag_id

@@ -27,7 +27,7 @@ import functools
 import logging
 import operator
 from collections.abc import Collection, Iterable, Iterator
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
@@ -35,14 +35,8 @@ import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
-from airflow.exceptions import AirflowException
-
 # Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
 # main working and useful for others to develop against we use the TaskSDK here but keep this file around
-from airflow.models.abstractoperator import (
-    AbstractOperator,
-    NotMapped,
-)
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.sdk.bases.operator import (
     BaseOperator as TaskSDKBaseOperator,
@@ -52,7 +46,10 @@ from airflow.sdk.bases.operator import (
     cross_downstream as cross_downstream,
     get_merged_defaults as get_merged_defaults,
 )
-from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
+from airflow.sdk.definitions._internal.abstractoperator import (
+    AbstractOperator as TaskSDKAbstractOperator,
+    NotMapped,
+)
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.enums import DagAttributeTypes
@@ -62,7 +59,6 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType
@@ -81,35 +77,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
-def parse_retries(retries: Any) -> int | None:
-    if retries is None:
-        return 0
-    elif type(retries) == int:  # noqa: E721
-        return retries
-    try:
-        parsed_retries = int(retries)
-    except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
-    logger.warning("Implicitly converting 'retries' from %r to int", retries)
-    return parsed_retries
-
-
-def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
-    if isinstance(value, timedelta):
-        return value
-    # TODO: remove this log here
-    if key:
-        logger.debug("%s isn't a timedelta object, assuming secs", key)
-    return timedelta(seconds=value)
-
-
-def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
-    if resources is None:
-        return None
-    return Resources(**resources)
-
-
-class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
+class BaseOperator(TaskSDKBaseOperator):
     r"""
     Abstract base class for all operators.
 

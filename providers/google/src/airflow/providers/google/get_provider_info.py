@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1743477827,
+        "source-date-epoch": 1743836162,
         "versions": [
+            "15.0.0",
             "14.1.0",
             "14.0.0",
             "12.0.0",
@@ -1660,6 +1661,7 @@ def get_provider_info():
                 'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
             ],
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
+            "fab": ["apache-airflow-providers-fab>=2.0.0"],
             "leveldb": ["plyvel>=1.5.1"],
             "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
             "facebook": ["apache-airflow-providers-facebook>=2.2.0"],

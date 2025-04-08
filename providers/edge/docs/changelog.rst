@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
+Initial stable version of the provider.
+
+0.20.3b1
+..........
+
+Fix
+~~~
+
+* ``Cleanup redundant hostname lookup and migrate to core hostname function.``
+
+
 0.20.2b1
 ..........
 

@@ -345,7 +345,7 @@ graphviz_output_format = "svg"
 
 main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-generated.yaml")
 sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-generated.yaml")
-redoc = [
+redocs = [
     {
         "name": "Simple auth manager token API",
         "page": "core-concepts/auth-manager/simple/sam-token-api-ref",

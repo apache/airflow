@@ -41,7 +41,6 @@ from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -63,6 +62,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
@@ -474,12 +474,13 @@ class TestSchedulerJob:
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
+        session.add(scheduler_job)
+        session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.id = 1
 
         # ti is queued with another try number - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 1
+        ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 2
         session.merge(ti1)
         session.commit()
@@ -493,7 +494,7 @@ class TestSchedulerJob:
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 2
+        ti1.queued_by_job_id = scheduler_job.id - 1
         session.merge(ti1)
         session.commit()
 
@@ -2223,7 +2224,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         old_job = Job()
-        old_job.id = 1
         old_job.job_type = SchedulerJobRunner.job_type
 
         session.add(old_job)
@@ -2232,8 +2232,9 @@ class TestSchedulerJob:
         assert old_job.is_alive() is False
 
         new_job = Job()
-        new_job.id = 2
         new_job.job_type = SchedulerJobRunner.job_type
+        session.add(new_job)
+        session.flush()
 
         self.job_runner = SchedulerJobRunner(job=new_job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2290,8 +2291,8 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
+        session.add(job)
 
         self.job_runner = SchedulerJobRunner(job=job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2348,7 +2349,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
 
         self.job_runner = SchedulerJobRunner(job=job)
@@ -3160,6 +3160,7 @@ class TestSchedulerJob:
                     run_after=next_info.run_after,
                     state=DagRunState.RUNNING,
                     triggered_by=DagRunTriggeredByType.TEST,
+                    session=session,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
                 if next_info is None:
@@ -6295,7 +6296,6 @@ class TestSchedulerJob:
         ).all()
         return [a for a, v in assets if not v], [a for a, v in assets if v]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6308,27 +6308,22 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        # Assets not activated yet; asset5 is not even registered (since it's not used anywhere).
-        orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1, asset2, asset3, asset4]
-
-        self.job_runner._update_asset_orphanage(session=session)
-        session.flush()
-
-        # Assets are activated after scheduler loop.
+        # asset5 is not registered (since it's not used anywhere).
         orphaned, active = self._find_assets_activation(session)
         assert active == [asset1, asset2, asset3, asset4]
         assert orphaned == []
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
 
         # Now remove 2 asset references and add asset5.
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset5])
 
-        # The DAG parser finds asset5, but it's not activated yet.
+        # The DAG parser finds asset5.
         orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1, asset2, asset3, asset4]
-        assert orphaned == [asset5]
+        assert active == [asset1, asset2, asset3, asset4, asset5]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
@@ -6338,7 +6333,6 @@ class TestSchedulerJob:
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6348,15 +6342,11 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1")
 
         orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1]
+        assert active == [asset1]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
-
-        orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1]
-        assert orphaned == []
 
         # now remove asset1 reference
         with dag_maker(dag_id="assets-1", schedule=None, session=session):
