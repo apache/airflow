@@ -170,29 +170,58 @@ class DagStateTrigger(BaseTrigger):
             "dag_id": self.dag_id,
             "states": self.states,
             "poll_interval": self.poll_interval,
+            "run_ids": self.run_ids,
+            "execution_dates": self.execution_dates,
         }
-
-        if AIRFLOW_V_3_0_PLUS:
-            data["run_ids"] = self.run_ids
-        else:
-            data["execution_dates"] = self.execution_dates
 
         return "airflow.providers.standard.triggers.external_task.DagStateTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
+        runs_ids_or_dates = 0
+        if self.run_ids:
+            runs_ids_or_dates = len(self.run_ids)
+        elif self.execution_dates:
+            runs_ids_or_dates = len(self.execution_dates)
+
+        if AIRFLOW_V_3_0_PLUS:
+            event = await self.validate_count_dags_af_3(runs_ids_or_dates_len=runs_ids_or_dates)
+            yield TriggerEvent(event)
+            return
+        else:
+            while True:
+                num_dags = await self.count_dags()  # type: ignore[call-arg]
+                if num_dags == runs_ids_or_dates:
+                    yield TriggerEvent(self.serialize())
+                    return
+                await asyncio.sleep(self.poll_interval)
+
+    async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        cls_path, data = self.serialize()
+
         while True:
-            # mypy confuses typing here
-            num_dags = await self.count_dags()  # type: ignore[call-arg]
-            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if num_dags == len(_dates):  # type: ignore[arg-type]
-                yield TriggerEvent(self.serialize())
-                return
+            num_dags = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+                dag_id=self.dag_id,
+                run_ids=self.run_ids,
+                states=self.states,  # type: ignore[arg-type]
+                logical_dates=self.execution_dates,
+            )
+            if num_dags == runs_ids_or_dates_len:
+                if isinstance(self.run_ids, list):
+                    for run_id in self.run_ids:
+                        state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                        )
+                        data[run_id] = state
+                        return cls_path, data
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async
     @provide_session
-    def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
+    def count_dags(self, *, session: Session = NEW_SESSION) -> int:
         """Count how many dag runs in the database match our criteria."""
         _dag_run_date_condition = (
             DagRun.run_id.in_(self.run_ids)
