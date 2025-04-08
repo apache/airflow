@@ -161,6 +161,11 @@ class GlueJobHook(AwsBaseHook):
         .. deprecated::
             - Use :meth:`describe_jobs` instead.
         """
+        warnings.warn(
+            "The method `list_jobs` is deprecated. Use the method `describe_jobs` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self.describe_jobs()
 
     def get_iam_execution_role(self) -> dict:
