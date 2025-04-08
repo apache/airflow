@@ -170,6 +170,22 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"password": "***"}'
 
+    @pytest.mark.enable_redact
+    def test_get_should_not_overmask_short_password_value_in_extra(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID, conn_type="generic", login="a", password="a", extra='{"key": "value"}'
+        )
+        session.add(connection)
+        session.commit()
+
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["connection_id"] == TEST_CONN_ID
+        assert body["conn_type"] == "generic"
+        assert body["login"] == "a"
+        assert body["extra"] == '{"key": "value"}'
+
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
