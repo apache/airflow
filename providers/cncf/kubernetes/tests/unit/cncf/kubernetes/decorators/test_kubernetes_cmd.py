@@ -21,8 +21,12 @@ import contextlib
 import pytest
 
 from airflow.exceptions import AirflowSkipException
-from airflow.sdk import task
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import DAG_ID, TestKubernetesDecoratorsBase
 
 XCOM_IMAGE = "XCOM_IMAGE"
