@@ -133,10 +133,6 @@ dependencies = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<4",
-    "wtforms>=3.0,<4",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-io>=1.5.2",
