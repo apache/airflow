@@ -1915,10 +1915,10 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        base_url = conf.get_mandatory_value("api", "BASE_URL")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
         return _log_uri
 

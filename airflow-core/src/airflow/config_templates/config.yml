@@ -1708,22 +1708,6 @@ webserver:
       type: string
       example: ~
       default: "Access is Denied"
-    config_file:
-      description: |
-        Path of webserver config file used for configuring the webserver parameters
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/webserver_config.py"
-    base_url:
-      description: |
-        The base url of your website: Airflow cannot guess what domain or CNAME you are using.
-        This is used to create links in the Log Url column in the Browse - Task Instances menu,
-        as well as in any automated emails sent by Airflow that contain links to your webserver.
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
     default_ui_timezone:
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or
@@ -1734,28 +1718,9 @@ webserver:
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    session_backend:
-      description: |
-        The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
-        ``database`` backend, sessions are store in the database and they can be
-        managed there (for example when you reset password of the user, all sessions for that user are
-        deleted). For the ``securecookie`` backend, sessions are stored in encrypted cookies on the client
-        side. The ``securecookie`` mechanism is 'lighter' than database backend, but sessions are not deleted
-        when you reset password of the user, which means that other than waiting for expiry time, the only
-        way to invalidate all sessions for a user is to change secret_key and restart webserver (which
-        also invalidates and logs out all other user's sessions).
-
-        When you are using ``database`` backend, make sure to keep your database session table small
-        by periodically running ``airflow db clean --table session`` command, especially if you have
-        automated API calls that will create a new session for each call rather than reuse the sessions
-        stored in browser cookies.
-      version_added: 2.2.4
-      type: string
-      example: securecookie
-      default: database
     secret_key:
       description: |
-        Secret key used to run your flask app. It should be as random as possible. However, when running
+        Secret key used to run your api server. It should be as random as possible. However, when running
         more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
         one of them will error with "CSRF session token is missing".
         The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
