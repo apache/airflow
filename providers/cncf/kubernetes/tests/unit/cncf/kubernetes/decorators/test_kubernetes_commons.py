@@ -21,7 +21,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.sdk import setup, task, teardown
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown
+
 from airflow.utils import timezone
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
