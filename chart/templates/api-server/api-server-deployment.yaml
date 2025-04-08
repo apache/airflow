@@ -127,6 +127,9 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.apiServer }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+        {{- end }}
         {{- include "wait_for_airflow_migrations_container" (list . "apiServer") | nindent 8 }}
         {{- if .Values.apiServer.extraInitContainers }}
           {{- toYaml .Values.apiServer.extraInitContainers | nindent 8 }}
@@ -148,6 +151,7 @@ spec:
           resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_dags_mount" (list . "apiServer") | nindent 12 }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -203,8 +207,8 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
-        {{- end }}
+        {{- include "airflow_dags_volume" (list . "apiServer") | nindent 8 }}
+        {{- include "git_sync_ssh_key_volume" (list . "apiServer") | nindent 8 }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

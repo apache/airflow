@@ -8754,6 +8754,11 @@
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
+                                "apiServer": {
+                                    "description": "Enable git sync for the API server.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
                                 "createUserJob": {
                                     "description": "Enable git sync for the create user job.",
                                     "type": "boolean",
