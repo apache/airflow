@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-standard",
         "name": "Standard",
         "description": "Airflow Standard Provider\n",
-        "state": "ready",
-        "source-date-epoch": 1743477899,
-        "versions": ["0.3.0", "0.2.0", "0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
                 "integration-name": "Standard",
@@ -135,6 +132,4 @@ def get_provider_info():
                 "name": "short_circuit",
             },
         ],
-        "dependencies": ["apache-airflow>=2.9.0"],
-        "devel-dependencies": [],
     }

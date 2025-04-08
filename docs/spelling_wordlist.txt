@@ -14,6 +14,7 @@ actionCard
 Acyclic
 acyclic
 adb
+additionalProperties
 AddressesType
 adf
 adhoc
@@ -32,6 +33,7 @@ Airbnb
 airbnb
 Airbyte
 airbyte
+AirflowConfigParser
 AirflowException
 airflowignore
 ajax
@@ -64,6 +66,7 @@ AnnotateTextResponse
 AnotherExampleDisplayName
 ans
 Ansible
+anyOf
 apache
 api
 apikey
@@ -478,6 +481,8 @@ dep
 DependencyMixin
 deployable
 deploymentUrl
+deprecatedVersion
+deprecationMessage
 Deprecations
 deprecations
 deps

@@ -202,6 +202,15 @@ def build_provider_distribution(
         f"in format {distribution_format} in {target_provider_root_sources_path}\n"
     )
     command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
+    get_console().print(
+        "[warning]Workaround wheel-only package bug in flit by building both and removing sdist."
+    )
+    # Workaround https://github.com/pypa/flit/issues/743 bug in flit that causes .gitignored files
+    # to be included in the package when --format wheel is used
+    remove_sdist = False
+    if distribution_format == "wheel":
+        distribution_format = "both"
+        remove_sdist = True
     if distribution_format != "both":
         command.extend(["--format", distribution_format])
     try:
@@ -216,6 +225,13 @@ def build_provider_distribution(
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()
+    if remove_sdist:
+        get_console().print("[warning]Removing sdist file to workaround flit bug on wheel-only packages")
+        # Remove the sdist file if it was created
+        package_prefix = "apache_airflow_providers_" + provider_id.replace(".", "_")
+        for file in (target_provider_root_sources_path / "dist").glob(f"{package_prefix}*.tar.gz"):
+            get_console().print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
+            file.unlink(missing_ok=True)
     get_console().print(
         f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n"
     )

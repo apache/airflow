@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+.. note::
+
+   In this version of the provider, the ``provider_info`` entrypoint returned json has been cleaned up to
+   not contain any extra values that have not been described in the
+   `Provider Info Schema <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/provider_info.schema.json>`_
+   This is generally backwards-compatible change, as those values appearing there (such as ``dependencies`` had
+   never been described in the schema nor documentation (and the schema allows for optional, unsolicited components).
+   If you depended on some values like ``dependencies`` there, the data exposed there is available in the metadata
+   of the package (for example ``dependencies`` are available in ``requires`` metadata field of the package) and
+   you should retrieve them from there instead.
+
+   Also the ``Provider Info Schema`` for Airflow 3.0 has been updated to reflect the latest functionality
+   that can be exposed by the provider. The schema is backwards-compatible, it only contains new possible
+   entries that can appear there, reflecting new functionality added in Airflow 2 and 3.
+
 5.0.1
 .....
 

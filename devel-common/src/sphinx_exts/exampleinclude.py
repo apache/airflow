@@ -137,12 +137,14 @@ def register_source(app, env, modname):
     :param modname: name of the module to load
     :return: True if the code is registered successfully, False otherwise
     """
+    if modname is None:
+        return False
     entry = env._viewcode_modules.get(modname, None)
     if entry is False:
         print(f"[{modname}] Entry is false for ")
         return False
-
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
+
     if code_tags is None:
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
@@ -237,7 +239,13 @@ def doctree_read(app, doctree):
         relative_path = os.path.relpath(
             filepath, os.path.commonprefix([app.config.exampleinclude_sourceroot, filepath])
         )
-        modname = relative_path.replace("/", ".")[:-3]
+        if relative_path.endswith(".py"):
+            modname = relative_path.replace("/", ".")[-3]
+            split_modname = modname.split(".")
+            if "src" in split_modname:
+                modname = ".".join(split_modname[split_modname.index("src") + 1 :])
+        else:
+            modname = None
         show_button = register_source(app, env, modname)
         onlynode = create_node(env, relative_path, show_button)
 
