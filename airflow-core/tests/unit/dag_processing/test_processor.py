@@ -182,6 +182,8 @@ class TestDagFileProcessor:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
 
     def test_top_level_variable_set(self, tmp_path: pathlib.Path):
+        from airflow.models.variable import Variable as VariableORM
+
         logger_filehandle = MagicMock()
 
         def dag_in_a_fn():
@@ -199,10 +201,15 @@ class TestDagFileProcessor:
         while not proc.is_ready:
             proc._service_subprocess(0.1)
 
-        result = proc.parsing_result
-        assert result is not None
-        assert result.import_errors == {}
-        assert result.serialized_dags[0].dag_id == "test_myvalue"
+        with create_session() as session:
+            result = proc.parsing_result
+            assert result is not None
+            assert result.import_errors == {}
+            assert result.serialized_dags[0].dag_id == "test_myvalue"
+
+            all_vars = session.query(VariableORM).all()
+            assert len(all_vars) == 1
+            assert all_vars[0].key == "mykey"
 
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
         logger_filehandle = MagicMock()

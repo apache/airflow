@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Union
 
 import attrs
 import structlog
-from orjson.orjson import JSONEncodeError
 
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
@@ -246,7 +245,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     try:
         if serialize_json:
             value = json.dumps(value, indent=2)
-    except JSONEncodeError as e:
+    except Exception as e:
         log.exception(e)
     # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
     # we need to make sure that we "atomically" send a request and get the response to that
