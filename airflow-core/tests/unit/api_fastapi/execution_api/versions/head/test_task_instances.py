@@ -1336,7 +1336,7 @@ class TestGetCount:
         assert response.status_code == 200
         assert response.json() == 2
 
-    def test_get_count_with_task_group_return_task_group_count_flag_single_run_ids(
+    def test_get_count_with_task_group_return_task_group_count_flag_single_run_id(
         self, client, session, dag_maker, create_task_instance
     ):
         """
