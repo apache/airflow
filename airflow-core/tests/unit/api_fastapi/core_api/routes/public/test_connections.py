@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import os
-from unittest import mock
+from importlib.metadata import PackageNotFoundError, metadata
+from unittest import SkipTest, mock
 
 import pytest
 
@@ -828,6 +829,12 @@ class TestPatchConnection(TestConnectionEndpoint):
 
 
 class TestConnection(TestConnectionEndpoint):
+    def setup_method(self):
+        try:
+            metadata("apache-airflow-providers-sqlite")
+        except PackageNotFoundError:
+            raise SkipTest("The SQlite distribution package is not installed.")
+
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
         "body, message",
