@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
-from airflow.sdk.api.datamodels._generated import AssetEventResponse
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -45,7 +44,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetEventResponse
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
