@@ -348,6 +348,10 @@ jobs:
         run: |
           ./scripts/ci/testing/run_breeze_command_with_retries.sh \
           release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0 --answer yes
+      - name: "Test providers metadata generation"
+        run: |
+          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
+          release-management generate-providers-metadata --refresh-constraints
       - name: "Fetch all git tags"
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"
