@@ -215,12 +215,6 @@ class TestTaskInstance:
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
 
-    def test_current_state(self, create_task_instance, session):
-        ti = create_task_instance(session=session)
-        assert ti.current_state(session=session) is None
-        ti.run()
-        assert ti.current_state(session=session) == State.SUCCESS
-
     def test_set_dag(self, dag_maker):
         """
         Test assigning Operators to Dags, including deferred assignment
@@ -2249,29 +2243,6 @@ class TestTaskInstance:
 
         # check that no asset events were generated
         assert session.query(AssetEvent).count() == 0
-
-    def test_mapped_current_state(self, dag_maker):
-        with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.sdk import task
-
-            @task()
-            def raise_an_exception(placeholder: int):
-                if placeholder == 0:
-                    raise AirflowFailException("failing task")
-                else:
-                    pass
-
-            _ = raise_an_exception.expand(placeholder=[0, 1])
-
-        tis = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances
-        for task_instance in tis:
-            if task_instance.map_index == 0:
-                with pytest.raises(AirflowFailException):
-                    task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.FAILED
-            else:
-                task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_assets_skipped(self, testing_dag_bundle):
         """

@@ -1948,22 +1948,6 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     @provide_session
-    def current_state(self, session: Session = NEW_SESSION) -> str:
-        """
-        Get the very latest state from the database.
-
-        If a session is passed, we use and looking up the state becomes part of the session,
-        otherwise a new session is used.
-
-        sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
-        it will not regress
-
-        :param session: SQLAlchemy ORM Session
-        """
-        filters = (col == getattr(self, col.name) for col in inspect(TaskInstance).primary_key)
-        return session.query(TaskInstance.state).filter(*filters).scalar()
-
-    @provide_session
     def error(self, session: Session = NEW_SESSION) -> None:
         """
         Force the task instance's state to FAILED in the database.
