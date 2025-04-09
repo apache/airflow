@@ -429,6 +429,22 @@ class TestSFTPOperator:
         args, _ = mock_get.call_args_list[0]
         assert args == (remote_dirpath, local_dirpath)
 
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_directory_concurrently")
+    def test_str_dirpaths_get_concurrently(self, mock_get):
+        local_dirpath = "/tmp_local"
+        remote_dirpath = "/tmp"
+        SFTPOperator(
+            task_id="test_str_to_list",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_dirpath,
+            remote_filepath=remote_dirpath,
+            operation=SFTPOperation.GET,
+            concurrency=2,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_dirpath, local_dirpath)
+
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_str_filepaths_put(self, mock_get):
         local_filepath = "/tmp/test"
@@ -472,6 +488,22 @@ class TestSFTPOperator:
             local_filepath=local_dirpath,
             remote_filepath=remote_dirpath,
             operation=SFTPOperation.PUT,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_dirpath, local_dirpath)
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_directory_concurrently")
+    def test_str_dirpaths_put_concurrently(self, mock_get):
+        local_dirpath = "/tmp"
+        remote_dirpath = "/tmp_remote"
+        SFTPOperator(
+            task_id="test_str_dirpaths_put",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_dirpath,
+            remote_filepath=remote_dirpath,
+            operation=SFTPOperation.PUT,
+            concurrency=2,
         ).execute(None)
         assert mock_get.call_count == 1
         args, _ = mock_get.call_args_list[0]
