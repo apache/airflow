@@ -2182,7 +2182,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         We need to do this upon successful authentication when using the
         database session backend.
         """
-        if conf.get("webserver", "SESSION_BACKEND") == "database":
+        if conf.get("fab", "SESSION_BACKEND") == "database":
             session.sid = str(uuid.uuid4())
 
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
