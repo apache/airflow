@@ -21,7 +21,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
