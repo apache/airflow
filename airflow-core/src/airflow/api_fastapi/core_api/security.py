@@ -329,14 +329,23 @@ def _requires_access(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
-def is_safe_url(target_url: str) -> bool:
+def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     """
     Check that the URL is safe.
 
     Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
     is a valid normalized path.
     """
-    base_url = conf.get("api", "base_url")
+    base_url: str | None = conf.get("api", "base_url")
+
+    if not base_url and request is not None:
+        # base_url not specified in the config, relative to referer is
+        # considered safe.
+        base_url = request.headers.get("Referer")
+
+    if not base_url:
+        # Can't enforce any security check.
+        return True
 
     parsed_base = urlparse(base_url)
     parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs

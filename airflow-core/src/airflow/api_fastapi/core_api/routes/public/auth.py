@@ -39,6 +39,7 @@ def login(request: Request, next: None | str = None) -> RedirectResponse:
 
     if next:
         login_url += f"?next={next}"
+
     return RedirectResponse(login_url)
 
 

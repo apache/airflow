@@ -1309,7 +1309,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "http://localhost:8080"
+      default: ""
     host:
       description: |
         The ip specified when starting the api server
