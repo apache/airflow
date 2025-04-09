@@ -168,6 +168,7 @@ def _reset_signals():
     # Uninstall the rich etc. exception handler
     sys.excepthook = sys.__excepthook__
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
 
