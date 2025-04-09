@@ -1916,52 +1916,16 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
-        _log_uri = (
-            f"{base_url}"
-            f"/dags"
-            f"/{self.dag_id}"
-            f"/grid"
-            f"?dag_run_id={run_id}"
-            f"&task_id={self.task_id}"
-            f"{map_index}"
-            "&tab=logs"
-        )
-        if self.logical_date:
-            base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
-            _log_uri = f"{_log_uri}&base_date={base_date}"
+        map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
+        try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
+        _log_uri = f"{base_url}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+
         return _log_uri
 
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
-        base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}"
-            "/confirm"
-            f"?task_id={self.task_id}"
-            f"&dag_id={self.dag_id}"
-            f"&dag_run_id={quote(self.run_id)}"
-            "&upstream=false"
-            "&downstream=false"
-            "&state=success"
-        )
-
-    @provide_session
-    def current_state(self, session: Session = NEW_SESSION) -> str:
-        """
-        Get the very latest state from the database.
-
-        If a session is passed, we use and looking up the state becomes part of the session,
-        otherwise a new session is used.
-
-        sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
-        it will not regress
-
-        :param session: SQLAlchemy ORM Session
-        """
-        filters = (col == getattr(self, col.name) for col in inspect(TaskInstance).primary_key)
-        return session.query(TaskInstance.state).filter(*filters).scalar()
+        return self.log_url
 
     @provide_session
     def error(self, session: Session = NEW_SESSION) -> None:

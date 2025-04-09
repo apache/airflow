@@ -29,9 +29,9 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
-    from airflow.io.path import ObjectStoragePath
-    from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
-    from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
+    from airflow.sdk.definitions.asset import AssetUniqueKey
+    from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger

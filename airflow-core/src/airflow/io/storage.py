@@ -15,33 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-git
-name: GIT
-description: |
-    `Distributed version control system (GIT) <https://git-scm.com/>`__
+from __future__ import annotations
 
-state: ready
-source-date-epoch: 1742823216
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 0.0.1
+from airflow.sdk.io import attach
 
-integrations:
-  - integration-name: GIT (Git)
-    external-doc-url: https://git-scm.com/
-    tags: [software]
-
-hooks:
-  - integration-name: GIT
-    python-modules:
-      - airflow.providers.git.hooks.git
-bundles:
-  - integration-name: GIT
-    python-modules:
-      - airflow.providers.git.bundles.git
-
-
-connection-types:
-  - hook-class-name: airflow.providers.git.hooks.git.GitHook
-    connection-type: git
+__all__ = ["attach"]
