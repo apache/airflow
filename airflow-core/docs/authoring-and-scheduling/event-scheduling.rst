@@ -100,7 +100,7 @@ It might inherit from the existing trigger as well if both triggers share some c
 Avoid infinite scheduling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The reason why some triggers are not compatible with event-driven scheduling is, some triggers are waiting
+The reason why some triggers are not compatible with event-driven scheduling is that they are waiting
 for an external resource to reach a given state. Examples:
 
 * Wait for a file to exist in a storage service
