@@ -33,7 +33,7 @@ from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
-from tests_common.test_utils.api_client_helpers import generate_jwt_token
+from tests_common.test_utils.api_client_helpers import generate_access_token
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
 KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
@@ -142,7 +142,7 @@ class BaseK8STest:
                     jwt_token = None
                     while attempts < 5:
                         try:
-                            jwt_token = generate_jwt_token("admin", "admin", KUBERNETES_HOST_PORT)
+                            jwt_token = generate_access_token("admin", "admin", KUBERNETES_HOST_PORT)
                             break
                         except Exception:
                             attempts += 1
@@ -153,7 +153,7 @@ class BaseK8STest:
                     response = super().send(request, **kwargs)
                 return response
 
-        jwt_token = generate_jwt_token("admin", "admin", KUBERNETES_HOST_PORT)
+        jwt_token = generate_access_token("admin", "admin", KUBERNETES_HOST_PORT)
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(

@@ -32,7 +32,7 @@ from python_on_whales.exceptions import DockerException
 from docker_tests.command_utils import run_command
 from docker_tests.constants import AIRFLOW_ROOT_PATH
 
-from tests_common.test_utils.api_client_helpers import generate_jwt_token
+from tests_common.test_utils.api_client_helpers import generate_access_token
 
 # isort:on (needed to workaround isort bug)
 
@@ -46,7 +46,7 @@ DAG_RUN_ID = "test_dag_run_id"
 def api_request(
     method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2", **kwargs
 ) -> dict:
-    access_token = generate_jwt_token(
+    access_token = generate_access_token(
         AIRFLOW_WWW_USER_USERNAME, AIRFLOW_WWW_USER_PASSWORD, DOCKER_COMPOSE_HOST_PORT
     )
     response = requests.request(

@@ -33,7 +33,7 @@ import uuid
 import airflow_client.client
 import pytest
 
-from tests_common.test_utils.api_client_helpers import generate_jwt_token
+from tests_common.test_utils.api_client_helpers import generate_access_token
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -62,7 +62,7 @@ from airflow_client.client.model.dag_run import DAGRun
 # Used to initialize FAB and the auth manager, necessary for creating the token.
 
 
-access_token = generate_jwt_token("admin", "admin", "localhost:8080")
+access_token = generate_access_token("admin", "admin", "localhost:8080")
 configuration = airflow_client.client.Configuration(
     host="http://localhost:8080/api/v2",
 )

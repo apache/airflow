@@ -21,16 +21,16 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-def generate_jwt_token(username: str, password: str, host: str) -> str:
+def generate_access_token(username: str, password: str, host: str) -> str:
     """
-    Generate valid JWT token for the given username and password.
+    Generate valid access token for the given username and password.
 
     Note: API server is currently using Simple Auth Manager.
 
     :param username: The username to use for the login
     :param password: The password to use for the login
     :param host: The host to use for the login
-    :return: The JWT token
+    :return: The access token
     """
     Retry.DEFAULT_BACKOFF_MAX = 32
     # retry for rate limit errors (429) and server errors (500, 502, 503, 504)
@@ -45,7 +45,7 @@ def generate_jwt_token(username: str, password: str, host: str) -> str:
         url,
         json={"username": username, "password": password},
     )
-    jwt_token = login_response.json().get("jwt_token")
+    access_token = login_response.json().get("access_token")
 
-    assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
-    return jwt_token
+    assert access_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
+    return access_token
