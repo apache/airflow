@@ -20,14 +20,13 @@ import os
 import re
 import sys
 from itertools import chain
+from pathlib import Path
 from subprocess import DEVNULL
 
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     NONE_TEST_TYPE,
-    PIP_VERSION,
-    UV_VERSION,
     GroupOfTests,
     SelectiveCoreTestType,
     all_helm_test_packages,
@@ -39,10 +38,10 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
-DOCKER_TESTS_ROOT = AIRFLOW_ROOT_PATH / "docker_tests"
-DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
+DOCKER_TESTS_ROOT_PATH = AIRFLOW_ROOT_PATH / "docker-tests"
+DOCKER_TESTS_TESTS_MODULE_PATH = DOCKER_TESTS_ROOT_PATH / "tests" / "docker_tests"
+DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT_PATH / "requirements.txt"
 
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
@@ -75,22 +74,20 @@ def verify_an_image(
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
     if image_type == "PROD":
-        test_path = DOCKER_TESTS_ROOT / "test_prod_image.py"
+        test_path = DOCKER_TESTS_TESTS_MODULE_PATH / "test_prod_image.py"
     else:
-        test_path = DOCKER_TESTS_ROOT / "test_ci_image.py"
+        test_path = DOCKER_TESTS_TESTS_MODULE_PATH / "test_ci_image.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    with create_temp_venv(
-        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
-    ) as py_exe:
-        command_result = run_command(
-            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-            env=env,
-            output=output,
-            check=False,
-        )
+    command_result = run_command(
+        ["uv", "run", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        env=env,
+        output=output,
+        check=False,
+        cwd=DOCKER_TESTS_ROOT_PATH,
+    )
     return command_result.returncode, f"Testing {image_type} python {image_name}"
 
 
@@ -104,19 +101,17 @@ def run_docker_compose_tests(
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
     pytest_args = ("--color=yes",)
-    test_path = DOCKER_TESTS_ROOT / "test_docker_compose_quick_start.py"
+    test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    with create_temp_venv(
-        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
-    ) as py_exe:
-        command_result = run_command(
-            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-            env=env,
-            check=False,
-        )
+    command_result = run_command(
+        ["uv", "run", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+        env=env,
+        check=False,
+        cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),
+    )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
 
 
@@ -168,6 +163,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "airflow-core/tests/unit/serialization",
     ],
     "TaskSDK": ["task-sdk/tests"],
+    "CTL": ["airflow-ctl/tests"],
     "OpenAPI": ["clients/python"],
 }
 
@@ -194,7 +190,8 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["airflow-core/tests/unit/"],
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
-    GroupOfTests.HELM: ["helm_tests"],
+    GroupOfTests.CTL: ["airflow-ctl/tests"],
+    GroupOfTests.HELM: ["helm-tests"],
     GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
@@ -216,6 +213,7 @@ def find_all_other_tests() -> list[str]:
     all_named_test_folders = list(chain.from_iterable(TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.values()))
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.TASK_SDK])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.CTL])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE])
     all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS])
@@ -260,7 +258,7 @@ def convert_test_type_to_pytest_args(
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
-            return [f"{helm_folder}/{test_type}"]
+            return [f"{helm_folder}/tests/helm_tests/{test_type}"]
         else:
             return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
@@ -393,6 +391,9 @@ def generate_args_for_pytest(
             args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.SYSTEM:
+        # System tests will be inited when the api server is started
+        args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())

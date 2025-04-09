@@ -91,14 +91,9 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
         raise ValueError("'context' is not assigned a dictionary literal")
     yield from extract_keys_from_dict(context_assignment.value)
 
-    # Handle keys added conditionally in `if x := self._ti_context_from_server`
+    # Handle keys added conditionally in `if from_server`
     for stmt in fn_get_template_context.body:
-        if (
-            isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.NamedExpr)
-            and isinstance(stmt.test.value, ast.Attribute)
-            and stmt.test.value.attr == "_ti_context_from_server"
-        ):
+        if isinstance(stmt, ast.If) and isinstance(stmt.test, ast.Name) and stmt.test.id == "from_server":
             for sub_stmt in stmt.body:
                 # Get keys from `context_from_server` assignment
                 if (

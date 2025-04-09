@@ -172,7 +172,7 @@ Serving logs from workers and triggerer
 
 Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow starts an HTTP server to serve the logs in the following cases:
 
-- If ``SequentialExecutor`` or ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
+- If ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
 - If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.
 
 In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.

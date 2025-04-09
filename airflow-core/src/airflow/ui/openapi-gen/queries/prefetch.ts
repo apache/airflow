@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -38,14 +39,14 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient) =>
+export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenus(),
   });
 /**
  * Next Run Assets
@@ -842,6 +843,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -860,6 +862,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -876,6 +879,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -895,6 +899,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -913,6 +918,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -2510,4 +2516,24 @@ export const prefetchUseLoginServiceLogout = (
   queryClient.prefetchQuery({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDefaultServiceNotFoundHandler = (
+  queryClient: QueryClient,
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

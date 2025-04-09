@@ -1,0 +1,127 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import os
+from functools import total_ordering
+from pathlib import Path
+from typing import NamedTuple
+
+from rich.console import Console
+
+from airflow.utils.code_utils import prepare_code_snippet
+
+from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH  # isort:skip (needed to workaround isort bug)
+
+
+CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
+
+console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
+
+
+@total_ordering
+class DocBuildError(NamedTuple):
+    """Errors found in docs build."""
+
+    file_path: Path | None
+    line_no: int | None
+    message: str
+
+    def __eq__(self, other):
+        left = (self.file_path, self.line_no, self.message)
+        right = (other.file_path, other.line_no, other.message)
+        return left == right
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __lt__(self, other):
+        file_path_a: Path = self.file_path or Path("")
+        file_path_b: Path = other.file_path or Path("")
+        line_no_a: int = self.line_no or 0
+        line_no_b: int = other.line_no or 0
+        left = (file_path_a, line_no_a, self.message)
+        right = (file_path_b, line_no_b, other.message)
+        return left < right
+
+
+def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None:
+    """Displays summary of errors"""
+    console.print()
+    console.print("[red]" + "#" * 30 + " Start docs build errors summary " + "#" * 30 + "[/]")
+    console.print()
+    for package_name, errors in build_errors.items():
+        if package_name:
+            console.print("=" * 30 + f" [bright_blue]{package_name}[/] " + "=" * 30)
+        else:
+            console.print("=" * 30, " [bright_blue]General[/] ", "=" * 30)
+        for warning_no, error in enumerate(sorted(errors), 1):
+            console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
+            console.print(error.message)
+            console.print()
+            if error.file_path and not error.file_path.as_posix().endswith("<unknown>") and error.line_no:
+                console.print(f"File path: {error.file_path.resolve()}:{error.line_no}")
+                if os.path.isfile(error.file_path):
+                    console.print()
+                    console.print(prepare_code_snippet(error.file_path, error.line_no))
+            elif error.file_path:
+                console.print(f"File path: {error.file_path.resolve()}")
+    console.print()
+    console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
+    console.print()
+
+
+def parse_sphinx_warnings(warning_text: str, docs_dir: Path) -> list[DocBuildError]:
+    """
+    Parses warnings from Sphinx.
+
+    :param warning_text: warning to parse
+    :param docs_dir: documentation directory
+    :return: list of DocBuildErrors.
+    """
+    sphinx_build_errors = []
+    if "Traceback (most recent call last)" in warning_text:
+        sphinx_build_errors.append(
+            DocBuildError(
+                file_path=None,
+                line_no=None,
+                message=warning_text,
+            )
+        )
+        return sphinx_build_errors
+    for sphinx_warning in warning_text.splitlines():
+        if not sphinx_warning:
+            continue
+        warning_parts = sphinx_warning.split(":", 2)
+        if len(warning_parts) == 3:
+            try:
+                sphinx_build_errors.append(
+                    DocBuildError(
+                        file_path=docs_dir / warning_parts[0],
+                        line_no=int(warning_parts[1]),
+                        message=warning_parts[2],
+                    )
+                )
+            except Exception:
+                # If an exception occurred while parsing the warning message, display the raw warning message.
+                sphinx_build_errors.append(
+                    DocBuildError(file_path=None, line_no=None, message=sphinx_warning)
+                )
+        else:
+            sphinx_build_errors.append(DocBuildError(file_path=None, line_no=None, message=sphinx_warning))
+    return sphinx_build_errors

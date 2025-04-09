@@ -49,7 +49,7 @@ def provide_bucket_name(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 def unify_bucket_name_and_key(func: T) -> T:
@@ -73,7 +73,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 class OSSHook(BaseHook):

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
@@ -56,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
 )
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -65,9 +67,12 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DRCount,
     ErrorResponse,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
+    GetTICount,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -79,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TICount,
     TriggerDagRun,
     VariableResult,
     XComResult,
@@ -88,6 +94,7 @@ from airflow.sdk.execution_time.context import (
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TriggeringAssetEventsAccessor,
     VariableAccessor,
 )
 from airflow.sdk.execution_time.task_runner import (
@@ -138,9 +145,11 @@ class TestCommsDecoder:
         w.makefile("wb").write(
             b'{"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", '
-            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
+            b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b",'
+            b'"logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
-            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
+            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,'
+            b'"run_type":"manual","conf":null,"consumed_asset_events":[]},'
             b'"max_tries":0,"should_retry":false,"variables":null,"connections":null},"file": "/dev/null",'
             b'"start_date":"2024-12-01T01:00:00Z", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
             b'"any-name", "version": "any-version"}, "requests_fd": '
@@ -484,7 +493,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
         ),
         pytest.param(
             {"my_tup": (1, 2), "my_set": {1, 2, 3}},
-            {"my_tup": "(1, 2)", "my_set": "{1, 2, 3}"},
+            {"my_tup": [1, 2], "my_set": "{1, 2, 3}"},
             id="tuples_and_sets",
         ),
         pytest.param(
@@ -814,7 +823,7 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     asset_event_resp = AssetEventResponse(
         id=1,
         created_dagruns=[],
-        timestamp=datetime.now(),
+        timestamp=timezone.utcnow(),
         asset=AssetResponse(name="test", uri="test", group="asset"),
     )
     events_result = AssetEventsResult(asset_events=[asset_event_resp])
@@ -974,9 +983,10 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
             "dag_run": dr,
             "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
-            "data_interval_start": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "data_interval_start": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "task_reschedule_count": 0,
+            "triggering_asset_events": TriggeringAssetEventsAccessor.build(dr.consumed_asset_events),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
             "task_instance_key_str": "basic_task__hello__20241201",
@@ -1166,11 +1176,25 @@ class TestRuntimeTaskInstance:
             pytest.param(NOTSET, id="tid_not_set"),
         ],
     )
+    @pytest.mark.parametrize(
+        "xcom_values",
+        [
+            pytest.param("hello", id="string_value"),
+            pytest.param("'hello'", id="quoted_string_value"),
+            pytest.param({"key": "value"}, id="json_value"),
+            pytest.param((1, 2, 3), id="tuple_int_value"),
+            pytest.param([1, 2, 3], id="list_int_value"),
+            pytest.param(42, id="int_value"),
+            pytest.param(True, id="boolean_value"),
+            pytest.param(pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}), id="dataframe_value"),
+        ],
+    )
     def test_xcom_pull(
         self,
         create_runtime_ti,
         mock_supervisor_comms,
         spy_agency,
+        xcom_values,
         task_ids,
         map_indexes,
     ):
@@ -1193,7 +1217,8 @@ class TestRuntimeTaskInstance:
         extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
-        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
+        ser_value = BaseXCom.serialize_value(xcom_values)
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value=ser_value)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
@@ -1378,6 +1403,72 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
+
+    def test_get_ti_count(self, mock_supervisor_comms):
+        """Test that get_ti_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = TICount(count=2)
+
+        count = RuntimeTaskInstance.get_ti_count(
+            dag_id="test_dag",
+            task_ids=["task1", "task2"],
+            task_group_id="group1",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetTICount(
+                dag_id="test_dag",
+                task_ids=["task1", "task2"],
+                task_group_id="group1",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
+
+    def test_get_dr_count(self, mock_supervisor_comms):
+        """Test that get_dr_count sends the correct request and returns the count."""
+        mock_supervisor_comms.get_message.return_value = DRCount(count=2)
+
+        count = RuntimeTaskInstance.get_dr_count(
+            dag_id="test_dag",
+            logical_dates=[timezone.datetime(2024, 1, 1)],
+            run_ids=["run1"],
+            states=["success", "failed"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDRCount(
+                dag_id="test_dag",
+                logical_dates=[timezone.datetime(2024, 1, 1)],
+                run_ids=["run1"],
+                states=["success", "failed"],
+            ),
+        )
+        assert count == 2
+
+    def test_get_dagrun_state(self, mock_supervisor_comms):
+        """Test that get_dagrun_state sends the correct request and returns the state."""
+        mock_supervisor_comms.get_message.return_value = DagRunStateResult(state="running")
+
+        state = RuntimeTaskInstance.get_dagrun_state(
+            dag_id="test_dag",
+            run_id="run1",
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDagRunState(
+                dag_id="test_dag",
+                run_id="run1",
+            ),
+        )
+        assert state == "running"
 
 
 class TestXComAfterTaskExecution:
@@ -1577,6 +1668,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            include_prior_dates=False,
         )
 
         assert not any(
@@ -2307,3 +2399,40 @@ class TestTriggerDagRunOperator:
             ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["allowed_states", "failed_states", "intermediate_state"],
+        [
+            ([DagRunState.SUCCESS], None, IntermediateTIState.DEFERRED),
+        ],
+    )
+    def test_handle_trigger_dag_run_deferred(
+        self,
+        allowed_states,
+        failed_states,
+        intermediate_state,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=False,
+            allowed_states=allowed_states,
+            failed_states=failed_states,
+            deferrable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_deferred", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == intermediate_state

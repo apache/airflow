@@ -225,7 +225,7 @@ class OracleHook(DbApiHook):
         elif purity == "default":
             conn_config["purity"] = oracledb.PURITY_DEFAULT
 
-        conn = oracledb.connect(**conn_config)
+        conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
             conn.module = mod
 

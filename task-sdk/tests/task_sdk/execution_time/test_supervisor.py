@@ -52,7 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
     DeleteXCom,
+    DRCount,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
@@ -67,19 +68,23 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAssetAlias,
     GetConnection,
     GetDagRunState,
+    GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTICount,
     GetVariable,
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RetryTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TICount,
     TriggerDagRun,
     VariableResult,
     XComResult,
@@ -493,6 +498,7 @@ class TestWatchedSubprocess:
                 "status_code": 409,
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
+                "ti_id": ti_id,
             }
         ]
 
@@ -1016,7 +1022,7 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
@@ -1027,7 +1033,7 @@ class TestHandleRequest:
                 ),
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", 2),
+                ("test_dag", "test_run", "test_task", "test_key", 2, False),
                 {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom_map_index",
@@ -1036,10 +1042,25 @@ class TestHandleRequest:
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
                 b'{"key":"test_key","value":null,"type":"XComResult"}\n',
                 "xcoms.get",
-                ("test_dag", "test_run", "test_task", "test_key", None),
+                ("test_dag", "test_run", "test_task", "test_key", None, False),
                 {},
                 XComResult(key="test_key", value=None, type="XComResult"),
                 id="get_xcom_not_found",
+            ),
+            pytest.param(
+                GetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    include_prior_dates=True,
+                ),
+                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", None, True),
+                {},
+                XComResult(key="test_key", value=None, type="XComResult"),
+                id="get_xcom_include_prior_dates",
             ),
             pytest.param(
                 SetXCom(
@@ -1144,6 +1165,15 @@ class TestHandleRequest:
                 {},
                 "",
                 id="patch_task_instance_to_skipped",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "task_instances.retry",
+                (),
+                {"id": TI_ID, "end_date": timezone.parse("2024-10-31T12:00:00Z")},
+                "",
+                id="up_for_retry",
             ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),
@@ -1334,6 +1364,36 @@ class TestHandleRequest:
                 TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
                 id="get_task_reschedule_start_date",
             ),
+            pytest.param(
+                GetTICount(dag_id="test_dag", task_ids=["task1", "task2"]),
+                b'{"count":2,"type":"TICount"}\n',
+                "task_instances.get_count",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_dates": None,
+                    "run_ids": None,
+                    "states": None,
+                    "task_group_id": None,
+                    "task_ids": ["task1", "task2"],
+                },
+                TICount(count=2),
+                id="get_ti_count",
+            ),
+            pytest.param(
+                GetDRCount(dag_id="test_dag", states=["success", "failed"]),
+                b'{"count":2,"type":"DRCount"}\n',
+                "dag_runs.get_count",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "logical_dates": None,
+                    "run_ids": None,
+                    "states": ["success", "failed"],
+                },
+                DRCount(count=2),
+                id="get_dr_count",
+            ),
         ],
     )
     def test_handle_requests(
@@ -1389,3 +1449,42 @@ class TestHandleRequest:
             input_stream = BytesIO(val)
             decoder = CommsDecoder(input=input_stream)
             assert decoder.get_message() == mock_response
+
+    def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
+        """Test that API server errors are properly handled and sent back to the task."""
+        error = ServerResponseError(
+            message="API Server Error",
+            request=httpx.Request("GET", "http://test"),
+            response=httpx.Response(500, json={"detail": "Internal Server Error"}),
+        )
+
+        mock_client_method = mocker.Mock(side_effect=error)
+        watched_subprocess.client.task_instances.succeed = mock_client_method
+
+        # Simulate the generator
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+
+        next(generator)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump_json().encode() + b"\n"
+        generator.send(msg)
+
+        # Verify the error was sent back to the task
+        val = watched_subprocess.stdin.getvalue()
+
+        assert val == (
+            b'{"error":"API_SERVER_ERROR","detail":{"status_code":500,"message":"API Server Error",'
+            b'"detail":{"detail":"Internal Server Error"}},"type":"ErrorResponse"}\n'
+        )
+
+        # Verify the error can be decoded correctly
+        input_stream = BytesIO(val)
+        decoder = CommsDecoder(input=input_stream)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            decoder.get_message()
+
+        assert exc_info.value.error.error == ErrorType.API_SERVER_ERROR
+        assert exc_info.value.error.detail == {
+            "status_code": error.response.status_code,
+            "message": str(error),
+            "detail": error.response.json(),
+        }

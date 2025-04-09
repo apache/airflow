@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -38,6 +37,7 @@ from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -114,8 +114,10 @@ class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
 
-    :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
+    :param parallelism: how many jobs should run at one time.
     """
+
+    active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
     supports_sentry: bool = False
@@ -123,7 +125,6 @@ class BaseExecutor(LoggingMixin):
     is_local: bool = False
     is_production: bool = True
 
-    change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
 
     job_id: None | int | str = None
@@ -162,6 +163,10 @@ class BaseExecutor(LoggingMixin):
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
+
+        if self.parallelism <= 0:
+            raise ValueError("parallelism is set to 0 or lower")
+
         """
         Deque for storing task event log messages.
 
@@ -175,6 +180,10 @@ class BaseExecutor(LoggingMixin):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+
+    @classmethod
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -264,10 +273,7 @@ class BaseExecutor(LoggingMixin):
     @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+        open_slots = self.parallelism - len(self.running)
 
         num_running_tasks = len(self.running)
         num_queued_tasks = len(self.queued_tasks)
@@ -321,8 +327,7 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
         if open_slots == 0:
-            if self.parallelism:
-                self.log.info("Executor parallelism limit reached. 0 open slots.")
+            self.log.info("Executor parallelism limit reached. 0 open slots.")
         else:
             self.log.debug("%s open slots for executor %s", open_slots, name)
 
@@ -377,7 +382,7 @@ class BaseExecutor(LoggingMixin):
         """
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
-        workloads = []
+        workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, item = sorted_queue.pop(0)
@@ -421,16 +426,46 @@ class BaseExecutor(LoggingMixin):
                 # TODO: TaskSDK: Compat, remove when KubeExecutor is fully moved over to TaskSDK too.
                 # TODO: TaskSDK: We need to minimum version requirements on executors with Airflow 3.
                 # How/where do we do that? Executor loader?
+                from airflow.executors import workloads
+
+                if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
+                    ti = item.ti
+
+                    # If it's None, then the span for the current TaskInstanceKey hasn't been started.
+                    if self.active_spans is not None and self.active_spans.get(key) is None:
+                        from airflow.models.taskinstance import SimpleTaskInstance
+
+                        if isinstance(ti, SimpleTaskInstance):
+                            parent_context = Trace.extract(ti.parent_context_carrier)
+                        elif isinstance(ti, workloads.TaskInstance):
+                            parent_context = Trace.extract(ti.parent_context_carrier)
+                        else:
+                            parent_context = Trace.extract(ti.dag_run.context_carrier)
+                        # Start a new span using the context from the parent.
+                        # Attributes will be set once the task has finished so that all
+                        # values will be available (end_time, duration, etc.).
+
+                        span = Trace.start_child_span(
+                            span_name=f"{ti.task_id}",
+                            parent_context=parent_context,
+                            component="task",
+                            start_as_current=False,
+                        )
+                        self.active_spans.set(key, span)
+                        # Inject the current context into the carrier.
+                        carrier = Trace.inject()
+                        ti.context_carrier = carrier
+
                 if hasattr(self, "_process_workloads"):
-                    workloads.append(item)
+                    workload_list.append(item)
                 else:
                     (command, _, queue, ti) = item
                     task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:
             self._process_tasks(task_tuples)
-        elif workloads:
-            self._process_workloads(workloads)  # type: ignore[attr-defined]
+        elif workload_list:
+            self._process_workloads(workload_list)  # type: ignore[attr-defined]
 
     @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
@@ -643,10 +678,7 @@ class BaseExecutor(LoggingMixin):
     @property
     def slots_available(self):
         """Number of new tasks this executor instance can accept."""
-        if self.parallelism:
-            return self.parallelism - len(self.running) - len(self.queued_tasks)
-        else:
-            return sys.maxsize
+        return self.parallelism - len(self.running) - len(self.queued_tasks)
 
     @property
     def slots_occupied(self):

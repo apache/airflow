@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import UUID
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
@@ -100,6 +101,11 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         as batch message it can be set to True.
     :param azure_service_bus_conn_id: Reference to the
         :ref: `Azure Service Bus connection<howto/connection:azure_service_bus>`.
+    :param message_id: Message ID to set on message being sent to the queue. Please note, message_id may only be
+        set when a single message is sent.
+    :param reply_to: Name of queue or topic the receiver should reply to. Determination of if the reply will be sent to
+        a queue or a topic should be made out-of-band.
+    :param message_headers: Headers to add to the message's application_properties field for Azure Service Bus.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
@@ -112,6 +118,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         message: str | list[str],
         batch: bool = False,
         azure_service_bus_conn_id: str = "azure_service_bus_default",
+        message_id: str | None = None,
+        reply_to: str | None = None,
+        message_headers: dict[str | bytes, int | float | bytes | bool | str | UUID] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -119,6 +128,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self.batch = batch
         self.message = message
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
+        self.message_id = message_id
+        self.reply_to = reply_to
+        self.message_headers = message_headers
 
     def execute(self, context: Context) -> None:
         """Send Message to the specific queue in Service Bus namespace."""
@@ -126,7 +138,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # send message
-        hook.send_message(self.queue_name, self.message, self.batch)
+        hook.send_message(
+            self.queue_name, self.message, self.batch, self.message_id, self.reply_to, self.message_headers
+        )
 
 
 class AzureServiceBusReceiveMessageOperator(BaseOperator):

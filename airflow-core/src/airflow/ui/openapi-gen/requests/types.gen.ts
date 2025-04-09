@@ -415,6 +415,7 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  dashboard_alert: Array<UIAlert>;
 };
 
 /**
@@ -534,8 +535,8 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -598,8 +599,8 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -666,7 +667,7 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  triggered_by: DagRunTriggeredByType;
+  triggered_by: DagRunTriggeredByType | null;
   conf: {
     [key: string]: unknown;
   };
@@ -774,8 +775,8 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  bundle_name: string;
-  relative_fileloc: string;
+  bundle_name: string | null;
+  relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -970,12 +971,26 @@ export type ExtraLinksResponse = {
   [key: string]: string | null;
 };
 
+export type ExtraMenuItem = {
+  text: string;
+  href: string;
+};
+
 /**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
   app: string;
   url_prefix: string;
+  name: string;
+  [key: string]: unknown | string;
+};
+
+/**
+ * Serializer for Plugin FastAPI root middleware responses.
+ */
+export type FastAPIRootMiddlewareResponse = {
+  middleware: string;
   name: string;
   [key: string]: unknown | string;
 };
@@ -994,7 +1009,6 @@ export type GridDAGRunwithTIs = {
   logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -1004,6 +1018,7 @@ export type GridDAGRunwithTIs = {
  */
 export type GridResponse = {
   dag_runs: Array<GridDAGRunwithTIs>;
+  structure: StructureDataResponse;
 };
 
 /**
@@ -1072,7 +1087,7 @@ export type ImportErrorResponse = {
   import_error_id: number;
   timestamp: string;
   filename: string;
-  bundle_name: string;
+  bundle_name: string | null;
   stack_trace: string;
 };
 
@@ -1101,19 +1116,26 @@ export type JobResponse = {
 };
 
 /**
- * Menu Item for responses.
+ * Define all menu items defined in the menu.
  */
-export type MenuItem = {
-  text: string;
-  href: string;
-};
+export type MenuItem =
+  | "Assets"
+  | "Audit log"
+  | "Connections"
+  | "Dags"
+  | "Docs"
+  | "Plugins"
+  | "Pools"
+  | "Providers"
+  | "Variables"
+  | "XComs";
 
 /**
  * Menu Item Collection serializer for responses.
  */
 export type MenuItemCollectionResponse = {
-  menu_items: Array<MenuItem>;
-  total_entries: number;
+  authorized_menu_items: Array<MenuItem>;
+  extra_menu_items: Array<ExtraMenuItem>;
 };
 
 /**
@@ -1159,6 +1181,7 @@ export type PluginResponse = {
   macros: Array<string>;
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
+  fastapi_root_middlewares: Array<FastAPIRootMiddlewareResponse>;
   appbuilder_views: Array<AppBuilderViewResponse>;
   appbuilder_menu_items: Array<AppBuilderMenuItemResponse>;
   global_operator_extra_links: Array<string>;
@@ -1565,6 +1588,16 @@ export type TriggererInfoResponse = {
   latest_triggerer_heartbeat: string | null;
 };
 
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category: "info" | "warning" | "error";
+};
+
+export type category = "info" | "warning" | "error";
+
 export type ValidationError = {
   loc: Array<string | number>;
   msg: string;
@@ -1672,7 +1705,7 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
-export type GetAuthLinksResponse = MenuItemCollectionResponse;
+export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type NextRunAssetsData = {
   dagId: string;
@@ -2017,6 +2050,7 @@ export type GetDagRunsData = {
   orderBy?: string;
   runAfterGte?: string | null;
   runAfterLte?: string | null;
+  runType?: Array<string>;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2603,8 +2637,14 @@ export type LogoutData = {
 
 export type LogoutResponse = unknown;
 
+export type NotFoundHandlerData = {
+  restOfPath: string;
+};
+
+export type NotFoundHandlerResponse = unknown;
+
 export type $OpenApiTs = {
-  "/ui/auth/links": {
+  "/ui/auth/menus": {
     get: {
       res: {
         /**
@@ -5422,6 +5462,21 @@ export type $OpenApiTs = {
          * Temporary Redirect
          */
         307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/{rest_of_path}": {
+    get: {
+      req: NotFoundHandlerData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Validation Error
          */

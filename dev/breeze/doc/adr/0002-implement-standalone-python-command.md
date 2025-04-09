@@ -104,8 +104,8 @@ SLOC    Directory         SLOC-by-Language (Sorted)
 6314    chart             python=6218,sh=96
 3665    top_dir           sh=2896,python=769
 3102    dev               python=2938,sh=164
-1723    kubernetes_tests  python=1723
-280     docker_tests      python=280
+1723    kubernetes-tests  python=1723
+280     docker-tests      python=280
 140     metastore_browser python=140
 109     clients           sh=109
 28      images              sh=28

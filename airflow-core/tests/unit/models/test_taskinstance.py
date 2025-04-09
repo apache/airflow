@@ -36,17 +36,14 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow import settings
-from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
-    AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
     UnmappableXComLengthPushed,
@@ -77,25 +74,27 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import BaseSensorOperator, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
-from airflow.sdk.definitions.notifier import BaseNotifier
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -370,7 +369,7 @@ class TestTaskInstance:
             session.add(ti)
             session.commit()
 
-        all_deps = RUNNING_DEPS | task.deps
+        all_deps = RUNNING_DEPS | {ReadyToRescheduleDep()}
         all_non_requeueable_deps = all_deps - REQUEUEABLE_DEPS
         patch_dict = {}
         for dep in all_non_requeueable_deps:
@@ -1574,7 +1573,7 @@ class TestTaskInstance:
         expect_state: State,
         expect_completed: bool,
     ):
-        from airflow.decorators import task
+        from airflow.sdk import task
 
         @task
         def do_something(i):
@@ -2210,9 +2209,9 @@ class TestTaskInstance:
 
         # check that the asset event has an earlier timestamp than the ADRQ's
         adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
-        assert all(
-            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
-        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        assert all(event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps), (
+            f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        )
 
     def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
@@ -2253,7 +2252,7 @@ class TestTaskInstance:
 
     def test_mapped_current_state(self, dag_maker):
         with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.decorators import task
+            from airflow.sdk import task
 
             @task()
             def raise_an_exception(placeholder: int):
@@ -2618,6 +2617,12 @@ class TestTaskInstance:
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
         asset_uri = "does_not_exist"
 
+        asset_model_chheck_stmt = select(AssetModel)
+        asset_event_check_stmt = select(AssetEvent)
+
+        assert session.scalar(asset_model_chheck_stmt) is None
+        assert session.scalar(asset_event_check_stmt) is None
+
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
 
             @task(outlets=AssetAlias(asset_alias_name))
@@ -2628,24 +2633,22 @@ class TestTaskInstance:
 
         (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
 
-        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as ctx:
-            ti.run(session=session)
-        assert str(ctx.value) == (
-            "The following assets accessed by an AssetAlias are inactive: "
-            "Asset(name='does_not_exist', uri='does_not_exist')"
-        )
+        ti.run(session=session)
 
-        assert session.scalar(select(AssetEvent)) is None
+        asset_model = session.scalars(asset_model_chheck_stmt).one()
+        assert asset_model.uri == asset_uri
+        assert asset_model.active is None, "dynamically created asset should be inactive"
+        assert session.scalars(asset_event_check_stmt).one().uri == asset_uri
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
-        asset_name = "did_not_exist"
-        asset = Asset(asset_name)
-        asset2 = Asset(asset_name, uri="test://asset")
-        asm = AssetModel.from_public(asset)
+        asset1 = Asset("asset1")
+        asset2 = Asset("asset2")
+        asm1 = AssetModel.from_public(asset1)
         asm2 = AssetModel.from_public(asset2)
-        session.add_all([asm, asm2, AssetActive.for_asset(asm)])
+        session.add_all([asm1, asm2, AssetActive.for_asset(asm1)])
+        session.flush()
 
         asset_alias_name = "alias_with_inactive_asset"
 
@@ -2653,41 +2656,54 @@ class TestTaskInstance:
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer_without_inactive(*, outlet_events):
-                outlet_events[AssetAlias(asset_alias_name)].add(asset, extra={"key": "value"})
+                outlet_events[AssetAlias(asset_alias_name)].add(asset1, extra={"key": "value1"})
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer_with_inactive(*, outlet_events):
-                outlet_events[AssetAlias(asset_alias_name)].add(asset2, extra={"key": "value"})
+                outlet_events[AssetAlias(asset_alias_name)].add(asset2, extra={"key": "value2"})
 
             producer_without_inactive() >> producer_with_inactive()
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
         tis["producer_without_inactive"].run(session=session)
-        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as exc:
-            tis["producer_with_inactive"].run(session=session)
+        tis["producer_with_inactive"].run(session=session)
 
-        assert "Asset(name='did_not_exist', uri='test://asset/')" in str(exc.value)
+        producer_events = {
+            e.source_task_id: e
+            for e in session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == "producer_dag"))
+        }
+        assert set(producer_events) == {"producer_without_inactive", "producer_with_inactive"}
 
-        producer_event = session.scalar(
-            select(AssetEvent).where(AssetEvent.source_task_id == "producer_without_inactive")
-        )
+        assert producer_events["producer_without_inactive"].source_task_id == "producer_without_inactive"
+        assert producer_events["producer_without_inactive"].source_dag_id == "producer_dag"
+        assert producer_events["producer_without_inactive"].source_run_id == "test"
+        assert producer_events["producer_without_inactive"].source_map_index == -1
+        assert producer_events["producer_without_inactive"].asset.uri == "asset1"
+        assert producer_events["producer_without_inactive"].extra == {"key": "value1"}
+        assert len(producer_events["producer_without_inactive"].source_aliases) == 1
+        assert producer_events["producer_without_inactive"].source_aliases[0].name == asset_alias_name
 
-        assert producer_event.source_task_id == "producer_without_inactive"
-        assert producer_event.source_dag_id == "producer_dag"
-        assert producer_event.source_run_id == "test"
-        assert producer_event.source_map_index == -1
-        assert producer_event.asset.uri == asset_name
-        assert producer_event.extra == {"key": "value"}
-        assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == asset_alias_name
+        assert producer_events["producer_with_inactive"].source_task_id == "producer_with_inactive"
+        assert producer_events["producer_with_inactive"].source_dag_id == "producer_dag"
+        assert producer_events["producer_with_inactive"].source_run_id == "test"
+        assert producer_events["producer_with_inactive"].source_map_index == -1
+        assert producer_events["producer_with_inactive"].asset.uri == "asset2"
+        assert producer_events["producer_with_inactive"].extra == {"key": "value2"}
+        assert len(producer_events["producer_with_inactive"].source_aliases) == 1
+        assert producer_events["producer_with_inactive"].source_aliases[0].name == asset_alias_name
 
-        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_name))
-        assert len(asset_obj.aliases) == 1
-        assert asset_obj.aliases[0].name == asset_alias_name
+        asset_obj_1 = session.scalar(select(AssetModel).where(AssetModel.name == "asset1"))
+        assert len(asset_obj_1.aliases) == 1
+        assert asset_obj_1.aliases[0].name == asset_alias_name
+        assert asset_obj_1.active is not None, "should stay active"
+
+        asset_obj_2 = session.scalar(select(AssetModel).where(AssetModel.name == "asset2"))
+        assert len(asset_obj_2.aliases) == 1
+        assert asset_obj_2.aliases[0].name == asset_alias_name
+        assert asset_obj_2.active is None, "should stay inactive"
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.assets) == 1
-        assert asset_alias_obj.assets[0].uri == asset_name
+        assert sorted(a.name for a in asset_alias_obj.assets) == ["asset1", "asset2"]
 
     @pytest.mark.want_activate_assets(True)
     @pytest.mark.need_serialized_dag
@@ -2699,7 +2715,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": f"write{i}"},
                     asset=AssetResponse(
                         name="test_inlet_asset_extra", uri="test_inlet_asset_extra", group="asset"
@@ -2775,7 +2791,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": f"write{i}"},
                     asset=AssetResponse(
                         name="test_inlet_asset_extra_ds", uri="test_inlet_asset_extra_ds", group="asset"
@@ -2898,7 +2914,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": i},
                     asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
                 )
@@ -2965,7 +2981,7 @@ class TestTaskInstance:
                 AssetEventResponse(
                     id=1,
                     created_dagruns=[],
-                    timestamp=datetime.datetime.now(),
+                    timestamp=timezone.utcnow(),
                     extra={"from": i},
                     asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
                 )
@@ -3078,7 +3094,7 @@ class TestTaskInstance:
             ti.set_state(state=State.SUCCESS, session=dag_maker.session)
             return ti
 
-        date = cast(pendulum.DateTime, pendulum.parse("2019-01-01T00:00:00+00:00"))
+        date = cast("pendulum.DateTime", pendulum.parse("2019-01-01T00:00:00+00:00"))
 
         ret = []
 
@@ -3983,6 +3999,8 @@ class TestTaskInstance:
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
+            "context_carrier": {},
+            "span_status": SpanStatus.ENDED,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -4012,9 +4030,9 @@ class TestTaskInstance:
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
             if key not in hybrid_props:
-                assert (
-                    getattr(ti, key) == expected_value
-                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                assert getattr(ti, key) == expected_value, (
+                    f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                )
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()
@@ -4110,6 +4128,9 @@ class TestTaskInstance:
         assert tih[0].try_id == try_id
         assert tih[0].try_id != ti.try_id
 
+    @pytest.mark.skip(
+        reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
+    )
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
@@ -4169,6 +4190,9 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
+    @pytest.mark.skip(
+        reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
+    )
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_in_different_dag(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset
@@ -4198,29 +4222,34 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
-    @pytest.mark.want_activate_assets(True)
+    @pytest.mark.want_activate_assets(False)
     def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
+        valid_asset = Asset("asset_first")
+        conflict_asset = Asset(name="asset_first", uri="test://asset/")
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
-            @task(inlets=Asset("asset_first"))
+            @task(inlets=valid_asset)
             def first_asset_task():
                 pass
 
-            @task(inlets=Asset(name="asset_first", uri="test://asset"))
-            def duplicate_asset_task():
+            @task(inlets=conflict_asset)
+            def conflict_asset_task():
                 pass
 
-            first_asset_task() >> duplicate_asset_task()
+            first_asset_task() >> conflict_asset_task()
+
+        session.execute(delete(AssetActive))
+        session.add(AssetActive.for_asset(valid_asset))
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
-            tis["first_asset_task"].run(session=session)
+            tis["conflict_asset_task"].run(session=session)
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            "Asset(name='asset_first', uri='asset_first')"
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4286,7 +4315,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         assert ti.pool == task.pool
 
     assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.priority_weight_total
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config
@@ -4319,89 +4348,6 @@ class TestRunRawTaskQueriesCount:
 
     def teardown_method(self) -> None:
         self._clean()
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.Mock(
-        __name__="mock_on_failure",
-        __call__=mock.MagicMock(),
-    )
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-            mode=mode,
-        )
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_timeout(mode, retries, dag_maker):
-    """
-    Test that AirflowSensorTimeout does not cause mapped sensor to retry.
-    """
-
-    def timeout():
-        raise AirflowSensorTimeout
-
-    mock_on_failure = mock.Mock(
-        __name__="mock_on_failure",
-        __call__=mock.MagicMock(),
-    )
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            on_failure_callback=mock_on_failure,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-
-    with pytest.raises(AirflowSensorTimeout):
-        ti.run()
-
-    assert mock_on_failure.called
-    assert ti.state == State.FAILED
-
-
-@pytest.mark.parametrize("mode", ["poke", "reschedule"])
-@pytest.mark.parametrize("retries", [0, 1])
-def test_mapped_sensor_works(mode, retries, dag_maker):
-    """
-    Test that mapped sensors reaches success state.
-    """
-
-    def timeout(ti):
-        return 1
-
-    with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}", serialized=True):
-        PythonSensor.partial(
-            task_id="test_raise_sensor_timeout",
-            python_callable=timeout,
-            retries=retries,
-        ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun().task_instances[0]
-
-    ti.run()
-    assert ti.state == State.SUCCESS
 
 
 class TestTaskInstanceRecordTaskMapXComPush:

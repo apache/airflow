@@ -3,7 +3,7 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  GetAuthLinksResponse,
+  GetAuthMenusResponse,
   NextRunAssetsData,
   NextRunAssetsResponse,
   GetAssetsData,
@@ -215,18 +215,20 @@ import type {
   LoginResponse,
   LogoutData,
   LogoutResponse,
+  NotFoundHandlerData,
+  NotFoundHandlerResponse,
 } from "./types.gen";
 
 export class AuthLinksService {
   /**
-   * Get Auth Links
+   * Get Auth Menus
    * @returns MenuItemCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getAuthLinks(): CancelablePromise<GetAuthLinksResponse> {
+  public static getAuthMenus(): CancelablePromise<GetAuthMenusResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/auth/links",
+      url: "/ui/auth/menus",
     });
   }
 }
@@ -1475,6 +1477,7 @@ export class DagRunService {
    * @param data.endDateLte
    * @param data.updatedAtGte
    * @param data.updatedAtLte
+   * @param data.runType
    * @param data.state
    * @param data.orderBy
    * @returns DAGRunCollectionResponse Successful Response
@@ -1500,6 +1503,7 @@ export class DagRunService {
         end_date_lte: data.endDateLte,
         updated_at_gte: data.updatedAtGte,
         updated_at_lte: data.updatedAtLte,
+        run_type: data.runType,
         state: data.state,
         order_by: data.orderBy,
       },
@@ -3578,6 +3582,29 @@ export class LoginService {
       },
       errors: {
         307: "Temporary Redirect",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DefaultService {
+  /**
+   * Not Found Handler
+   * Catch all route to handle invalid endpoints.
+   * @param data The data for the request.
+   * @param data.restOfPath
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static notFoundHandler(data: NotFoundHandlerData): CancelablePromise<NotFoundHandlerResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/{rest_of_path}",
+      path: {
+        rest_of_path: data.restOfPath,
+      },
+      errors: {
         422: "Validation Error",
       },
     });

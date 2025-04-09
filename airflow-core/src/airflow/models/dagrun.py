@@ -22,7 +22,15 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    NamedTuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from sqlalchemy import (
     JSON,
@@ -47,6 +55,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
@@ -56,31 +65,34 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
-from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.traces.tracer import Trace
+from airflow.traces.tracer import EmptySpan, Trace
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
+from airflow.utils.span_status import SpanStatus
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from opentelemetry.sdk.trace import Span
     from sqlalchemy.orm import Query, Session
     from sqlalchemy_utils import UUIDType
 
@@ -129,6 +141,8 @@ class DagRun(Base, LoggingMixin):
     external trigger (i.e. manual runs).
     """
 
+    active_spans = ThreadSafeDict()
+
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)
@@ -172,6 +186,11 @@ class DagRun(Base, LoggingMixin):
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
     bundle_version = Column(StringID())
+
+    scheduled_by_job_id = Column(Integer)
+    # Span context carrier, used for context propagation.
+    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -286,6 +305,8 @@ class DagRun(Base, LoggingMixin):
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
+        self.scheduled_by_job_id = None
+        self.context_carrier = {}
         super().__init__()
 
     def __repr__(self):
@@ -342,6 +363,10 @@ class DagRun(Base, LoggingMixin):
     @property
     def stats_tags(self) -> dict[str, str]:
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+
+    @classmethod
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def get_state(self):
         return self._state
@@ -897,6 +922,143 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
+    def set_dagrun_span_attrs(self, span: Span | EmptySpan):
+        if self._state == DagRunState.FAILED:
+            span.set_attribute("airflow.dag_run.error", True)
+
+        attribute_value_type = Union[
+            str,
+            bool,
+            int,
+            float,
+            Sequence[str],
+            Sequence[bool],
+            Sequence[int],
+            Sequence[float],
+        ]
+
+        # Explicitly set the value type to Union[...] to avoid a mypy error.
+        attributes: dict[str, attribute_value_type] = {
+            "airflow.category": "DAG runs",
+            "airflow.dag_run.dag_id": str(self.dag_id),
+            "airflow.dag_run.logical_date": str(self.logical_date),
+            "airflow.dag_run.run_id": str(self.run_id),
+            "airflow.dag_run.queued_at": str(self.queued_at),
+            "airflow.dag_run.run_start_date": str(self.start_date),
+            "airflow.dag_run.run_end_date": str(self.end_date),
+            "airflow.dag_run.run_duration": str(
+                (self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0
+            ),
+            "airflow.dag_run.state": str(self._state),
+            "airflow.dag_run.run_type": str(self.run_type),
+            "airflow.dag_run.data_interval_start": str(self.data_interval_start),
+            "airflow.dag_run.data_interval_end": str(self.data_interval_end),
+            "airflow.dag_run.conf": str(self.conf),
+        }
+        if span.is_recording():
+            span.add_event(name="airflow.dag_run.queued", timestamp=datetime_to_nano(self.queued_at))
+            span.add_event(name="airflow.dag_run.started", timestamp=datetime_to_nano(self.start_date))
+            span.add_event(name="airflow.dag_run.ended", timestamp=datetime_to_nano(self.end_date))
+        span.set_attributes(attributes)
+
+    def start_dr_spans_if_needed(self, tis: list[TI]):
+        # If there is no value in active_spans, then the span hasn't already been started.
+        if self.active_spans is not None and self.active_spans.get(self.run_id) is None:
+            if self.span_status == SpanStatus.NOT_STARTED or self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                dr_span = None
+                continue_ti_spans = False
+                if self.span_status == SpanStatus.NOT_STARTED:
+                    dr_span = Trace.start_root_span(
+                        span_name=f"{self.dag_id}",
+                        component="dag",
+                        start_time=self.queued_at,  # This is later converted to nano.
+                        start_as_current=False,
+                    )
+                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                    # Use the existing context_carrier to set the initial dag_run span as the parent.
+                    parent_context = Trace.extract(self.context_carrier)
+                    with Trace.start_child_span(
+                        span_name="new_scheduler", parent_context=parent_context
+                    ) as s:
+                        s.set_attribute("trace_status", "continued")
+
+                    dr_span = Trace.start_child_span(
+                        span_name=f"{self.dag_id}_continued",
+                        parent_context=parent_context,
+                        component="dag",
+                        # No start time
+                        start_as_current=False,
+                    )
+                    # After this span is started, the context_carrier will be replaced by the new one.
+                    # New task span will use this span as the parent.
+                    continue_ti_spans = True
+                carrier = Trace.inject()
+                self.context_carrier = carrier
+                self.span_status = SpanStatus.ACTIVE
+                # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
+                self.active_spans.set(self.run_id, dr_span)
+                self.log.debug(
+                    "DagRun span has been started and the injected context_carrier is: %s",
+                    self.context_carrier,
+                )
+                # Start TI spans that also need continuance.
+                if continue_ti_spans:
+                    new_dagrun_context = Trace.extract(self.context_carrier)
+                    for ti in tis:
+                        if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                            ti_span = Trace.start_child_span(
+                                span_name=f"{ti.task_id}_continued",
+                                parent_context=new_dagrun_context,
+                                start_as_current=False,
+                            )
+                            ti_carrier = Trace.inject()
+                            ti.context_carrier = ti_carrier
+                            ti.span_status = SpanStatus.ACTIVE
+                            self.active_spans.set(ti.key, ti_span)
+            else:
+                self.log.info(
+                    "Found span_status '%s', while updating state for dag_run '%s'",
+                    self.span_status,
+                    self.run_id,
+                )
+
+    def end_dr_span_if_needed(self):
+        if self.active_spans is not None:
+            active_span = self.active_spans.get(self.run_id)
+            if active_span is not None:
+                self.log.debug(
+                    "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
+                    active_span.get_span_context().span_id,
+                    self.dag_id,
+                    self.run_id,
+                    self.state,
+                )
+
+                self.set_dagrun_span_attrs(span=active_span)
+                active_span.end(end_time=datetime_to_nano(self.end_date))
+                # Remove the span from the dict.
+                self.active_spans.delete(self.run_id)
+                self.span_status = SpanStatus.ENDED
+            else:
+                if self.span_status == SpanStatus.ACTIVE:
+                    # Another scheduler has started the span.
+                    # Update the DB SpanStatus to notify the owner to end it.
+                    self.span_status = SpanStatus.SHOULD_END
+                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                    # This is a corner case where the scheduler exited gracefully
+                    # while the dag_run was almost done.
+                    # Since it reached this point, the dag has finished but there has been no time
+                    # to create a new span for the current scheduler.
+                    # There is no need for more spans, update the status on the db.
+                    self.span_status = SpanStatus.ENDED
+                else:
+                    self.log.debug(
+                        "No active span has been found for dag_id: %s, run_id: %s, state: %s",
+                        self.dag_id,
+                        self.run_id,
+                        self.state,
+                    )
+
     @provide_session
     def update_state(
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
@@ -1029,6 +1191,9 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the leaves aren't done, the dag is still running
         else:
+            # It might need to start TI spans as well.
+            self.start_dr_spans_if_needed(tis=tis)
+
             self.set_state(DagRunState.RUNNING)
 
         if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
@@ -1056,7 +1221,7 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
             )
 
-            self._trace_dagrun()
+            self.end_dr_span_if_needed()
 
             session.flush()
 
@@ -1067,33 +1232,6 @@ class DagRun(Base, LoggingMixin):
         # We do not flush here for performance reasons(It increases queries count by +20)
 
         return schedulable_tis, callback
-
-    def _trace_dagrun(self) -> None:
-        with Trace.start_span_from_dagrun(dagrun=self) as span:
-            if self._state == DagRunState.FAILED:
-                span.set_attribute("error", True)
-            attributes = {
-                "category": "DAG runs",
-                "dag_id": self.dag_id,
-                "logical_date": str(self.logical_date),
-                "run_id": self.run_id,
-                "queued_at": str(self.queued_at),
-                "run_start_date": str(self.start_date),
-                "run_end_date": str(self.end_date),
-                "run_duration": (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else 0,
-                "state": str(self._state),
-                "run_type": str(self.run_type),
-                "data_interval_start": str(self.data_interval_start),
-                "data_interval_end": str(self.data_interval_end),
-                "conf": str(self.conf),
-            }
-            if span.is_recording():
-                span.add_event(name="queued", timestamp=datetime_to_nano(self.queued_at))
-                span.add_event(name="started", timestamp=datetime_to_nano(self.start_date))
-                span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
-            span.set_attributes(attributes)
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
@@ -1146,12 +1284,15 @@ class DagRun(Base, LoggingMixin):
         )
 
     def notify_dagrun_state_changed(self, msg: str = ""):
-        if self.state == DagRunState.RUNNING:
-            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
-        elif self.state == DagRunState.SUCCESS:
-            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
-        elif self.state == DagRunState.FAILED:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        try:
+            if self.state == DagRunState.RUNNING:
+                get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+            elif self.state == DagRunState.SUCCESS:
+                get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+            elif self.state == DagRunState.FAILED:
+                get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+        except Exception:
+            self.log.exception("Error while calling listener")
         # deliberately not notifying on QUEUED
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that

@@ -22,6 +22,8 @@ from sqlalchemy import create_engine
 from airflow.configuration import conf
 
 pd = pytest.importorskip("pandas")
+pyarrow = pytest.importorskip("pyarrow")
+
 pytestmark = pytest.mark.db_test
 
 

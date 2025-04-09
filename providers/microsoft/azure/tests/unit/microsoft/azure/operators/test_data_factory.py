@@ -367,8 +367,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
 
     @pytest.mark.db_test
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
-        ".defer"
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator.defer"
     )
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
@@ -390,8 +389,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     @pytest.mark.db_test
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
-        ".defer"
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator.defer"
     )
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
@@ -430,9 +428,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         with pytest.raises(TaskDeferred) as exc:
             self.ti.task.execute(context=self.create_context(self.ti.task))
 
-        assert isinstance(
-            exc.value.trigger, AzureDataFactoryTrigger
-        ), "Trigger is not a AzureDataFactoryTrigger"
+        assert isinstance(exc.value.trigger, AzureDataFactoryTrigger), (
+            "Trigger is not a AzureDataFactoryTrigger"
+        )
 
     @pytest.mark.db_test
     def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(self):

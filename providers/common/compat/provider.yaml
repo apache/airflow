@@ -19,10 +19,10 @@
 package-name: apache-airflow-providers-common-compat
 name: Common Compat
 description: |
-  ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
+  Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 state: ready
-source-date-epoch: 1742480214
+source-date-epoch: 1743477800
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.6.0

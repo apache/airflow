@@ -17,31 +17,33 @@
  * under the License.
  */
 import {
-  HStack,
+  Flex,
   IconButton,
   ButtonGroup,
-  type StackProps,
-  Stack,
   createListCollection,
   type SelectValueChangeDetails,
+  Popover,
+  Portal,
+  Select,
 } from "@chakra-ui/react";
-import { FiGrid } from "react-icons/fi";
+import { FiChevronDown, FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
-import { Select } from "src/components/ui";
+import { Button } from "src/components/ui";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagView: string;
   readonly limit: number;
   readonly setDagView: (x: "graph" | "grid") => void;
-  readonly setLimit: (limit: number) => void;
-} & StackProps;
+  readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
+};
 
 const options = createListCollection({
   items: [
@@ -51,27 +53,28 @@ const options = createListCollection({
   ],
 });
 
+const displayRunOptions = createListCollection({
+  items: [
+    { label: "5", value: "5" },
+    { label: "10", value: "10" },
+    { label: "25", value: "25" },
+    { label: "50", value: "50" },
+    { label: "100", value: "100" },
+    { label: "365", value: "365" },
+  ],
+});
+
 const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: Props) => {
+export const PanelButtons = ({ dagView, limit, setDagView, setLimit }: Props) => {
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
-    "immediate",
+    "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
-  const displayRunOptions = createListCollection({
-    items: [
-      { label: "5", value: "5" },
-      { label: "10", value: "10" },
-      { label: "25", value: "25" },
-      { label: "50", value: "50" },
-      { label: "100", value: "100" },
-      { label: "365", value: "365" },
-    ],
-  });
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
@@ -79,7 +82,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   };
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "immediate" || !deps.includes(event.value[0])) {
+    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
       removeDependencies();
     } else {
       setDependencies(event.value[0]);
@@ -95,15 +98,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
   };
 
   return (
-    <HStack
-      alignItems="flex-start"
-      justifyContent="space-between"
-      position="absolute"
-      top={0}
-      width="100%"
-      zIndex={1}
-      {...rest}
-    >
+    <Flex justifyContent="space-between" position="absolute" top={1} width="100%" zIndex={1}>
       <ButtonGroup attached size="sm" variant="outline">
         <IconButton
           aria-label="Show Grid"
@@ -124,75 +119,114 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
           <MdOutlineAccountTree />
         </IconButton>
       </ButtonGroup>
-      <Stack alignItems="flex-end" gap={1} mr={2}>
-        <HStack>
-          <DagVersionSelect disabled={dagView !== "graph"} />
-          <Select.Root
-            bg="bg"
-            collection={displayRunOptions}
-            data-testid="display-dag-run-options"
-            onValueChange={handleLimitChange}
-            size="sm"
-            value={[limit.toString()]}
-            width="70px"
-          >
-            <Select.Trigger>
-              <Select.ValueText />
-            </Select.Trigger>
-            <Select.Content>
-              {displayRunOptions.items.map((option) => (
-                <Select.Item item={option} key={option.value}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </HStack>
-        {dagView === "graph" ? (
-          <>
-            <Select.Root
-              bg="bg"
-              collection={directionOptions}
-              onValueChange={handleDirectionUpdate}
-              size="sm"
-              value={[direction]}
-              width="150px"
-            >
-              <Select.Trigger>
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.Content>
-                {directionOptions.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            <Select.Root
-              bg="bg"
-              collection={options}
-              data-testid="filter-duration"
-              onValueChange={handleDepsChange}
-              size="sm"
-              value={[dependencies]}
-              width="210px"
-            >
-              <Select.Trigger>
-                <Select.ValueText placeholder="Dependencies" />
-              </Select.Trigger>
-              <Select.Content>
-                {options.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            <DagRunSelect limit={limit} />
-          </>
-        ) : undefined}
-      </Stack>
-    </HStack>
+      <Flex gap={1} mr={3}>
+        <ToggleGroups />
+        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+        <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
+          <Popover.Trigger asChild>
+            <Button size="sm" variant="outline">
+              Options
+              <FiChevronDown size="0.5rem" />
+            </Button>
+          </Popover.Trigger>
+          <Portal>
+            <Popover.Positioner>
+              <Popover.Content>
+                <Popover.Arrow />
+                <Popover.Body p={2}>
+                  {dagView === "graph" ? (
+                    <>
+                      <DagVersionSelect />
+                      <DagRunSelect limit={limit} />
+                      <Select.Root
+                        // @ts-expect-error The expected option type is incorrect
+                        collection={options}
+                        data-testid="dependencies"
+                        onValueChange={handleDepsChange}
+                        size="sm"
+                        value={[dependencies]}
+                      >
+                        <Select.Label fontSize="xs">Dependencies</Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText placeholder="Dependencies" />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {options.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                      <Select.Root
+                        // @ts-expect-error The expected option type is incorrect
+                        collection={directionOptions}
+                        onValueChange={handleDirectionUpdate}
+                        size="sm"
+                        value={[direction]}
+                      >
+                        <Select.Label fontSize="xs">Graph Direction</Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {directionOptions.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                {option.label}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                    </>
+                  ) : (
+                    <Select.Root
+                      // @ts-expect-error The expected option type is incorrect
+                      collection={displayRunOptions}
+                      data-testid="display-dag-run-options"
+                      onValueChange={handleLimitChange}
+                      size="sm"
+                      value={[limit.toString()]}
+                    >
+                      <Select.Label>Number of Dag Runs</Select.Label>
+                      <Select.Control>
+                        <Select.Trigger>
+                          <Select.ValueText />
+                        </Select.Trigger>
+                        <Select.IndicatorGroup>
+                          <Select.Indicator />
+                        </Select.IndicatorGroup>
+                      </Select.Control>
+                      <Select.Positioner>
+                        <Select.Content>
+                          {displayRunOptions.items.map((option) => (
+                            <Select.Item item={option} key={option.value}>
+                              {option.label}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Positioner>
+                    </Select.Root>
+                  )}
+                </Popover.Body>
+              </Popover.Content>
+            </Popover.Positioner>
+          </Portal>
+        </Popover.Root>
+      </Flex>
+    </Flex>
   );
 };

@@ -17,6 +17,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -37,16 +38,16 @@ import {
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 
-export type AuthLinksServiceGetAuthLinksDefaultResponse = Awaited<
-  ReturnType<typeof AuthLinksService.getAuthLinks>
+export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<
+  ReturnType<typeof AuthLinksService.getAuthMenus>
 >;
-export type AuthLinksServiceGetAuthLinksQueryResult<
-  TData = AuthLinksServiceGetAuthLinksDefaultResponse,
+export type AuthLinksServiceGetAuthMenusQueryResult<
+  TData = AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useAuthLinksServiceGetAuthLinksKey = "AuthLinksServiceGetAuthLinks";
-export const UseAuthLinksServiceGetAuthLinksKeyFn = (queryKey?: Array<unknown>) => [
-  useAuthLinksServiceGetAuthLinksKey,
+export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";
+export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) => [
+  useAuthLinksServiceGetAuthMenusKey,
   ...(queryKey ?? []),
 ];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;
@@ -635,6 +636,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -651,6 +653,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -672,6 +675,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -1794,6 +1798,22 @@ export const UseLoginServiceLogoutKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useLoginServiceLogoutKey, ...(queryKey ?? [{ next }])];
+export type DefaultServiceNotFoundHandlerDefaultResponse = Awaited<
+  ReturnType<typeof DefaultService.notFoundHandler>
+>;
+export type DefaultServiceNotFoundHandlerQueryResult<
+  TData = DefaultServiceNotFoundHandlerDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDefaultServiceNotFoundHandlerKey = "DefaultServiceNotFoundHandler";
+export const UseDefaultServiceNotFoundHandlerKeyFn = (
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDefaultServiceNotFoundHandlerKey, ...(queryKey ?? [{ restOfPath }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;

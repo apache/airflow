@@ -23,7 +23,6 @@ import { useMemo } from "react";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGrid } from "src/queries/useGrid";
 
@@ -42,9 +41,7 @@ type Props = {
 export const Grid = ({ limit }: Props) => {
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
-  const { data: structure } = useStructureServiceStructureData({
-    dagId,
-  });
+
   const { data: gridData, isLoading, runAfter } = useGrid(limit);
 
   const runs: Array<RunWithDuration> = useMemo(
@@ -69,12 +66,12 @@ export const Grid = ({ limit }: Props) => {
   );
 
   const { flatNodes } = useMemo(
-    () => flattenNodes(structure?.nodes ?? [], openGroupIds),
-    [structure?.nodes, openGroupIds],
+    () => flattenNodes(gridData === undefined ? [] : gridData.structure.nodes, openGroupIds),
+    [gridData, openGroupIds],
   );
 
   return (
-    <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
+    <Flex justifyContent="flex-end" position="relative" pt={50} width="100%">
       <Box position="absolute" top="150px" width="100%">
         <TaskNames nodes={flatNodes} />
       </Box>

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-celery``
 
-Release: ``3.10.4``
+Release: ``3.10.5``
 
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``celery`` provider. All classes for this provide
 are in ``airflow.providers.celery`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.5/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``celery[redis]``   ``>=5.4.0,<6``
+``celery[redis]``   ``>=5.5.0,<6``
 ``flower``          ``>=1.0.0``
 ==================  ==================
 
@@ -75,7 +75,8 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
+`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_                          ``fab``
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.5/changelog.html>`_.

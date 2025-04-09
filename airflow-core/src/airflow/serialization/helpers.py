@@ -36,11 +36,6 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     def is_jsonable(x):
         try:
             json.dumps(x)
-            if isinstance(x, tuple):
-                # Tuple is converted to list in json.dumps
-                # so while it is jsonable, it changes the type which might be a surprise
-                # for the user, so instead we return False here -- which will convert it to string
-                return False
         except (TypeError, OverflowError):
             return False
         else:
@@ -67,11 +62,13 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             rendered = redact(serialized, name)
             return (
                 "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[:max_length - 79]!r}... "
+                f"{rendered[: max_length - 79]!r}... "
             )
         return serialized
     else:
-        if not template_field:
+        if not template_field and not isinstance(template_field, tuple):
+            # Avoid unnecessary serialization steps for empty fields unless they are tuples
+            # and need to be converted to lists
             return template_field
         template_field = translate_tuples_to_lists(template_field)
         serialized = str(template_field)
@@ -79,6 +76,6 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             rendered = redact(serialized, name)
             return (
                 "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[:max_length - 79]!r}... "
+                f"{rendered[: max_length - 79]!r}... "
             )
         return template_field

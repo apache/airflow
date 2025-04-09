@@ -31,6 +31,7 @@ from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -73,6 +74,7 @@ def test_client():
             yield TestClient(create_app())
 
 
+@mock_plugin_manager(plugins=[])
 class TestLoginRouter:
     def test_login(self, test_client):
         response = test_client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login", follow_redirects=False)
@@ -90,6 +92,7 @@ class TestLoginRouter:
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
+                ("api", "ssl_cert"): "false",
             }
         ):
             with (

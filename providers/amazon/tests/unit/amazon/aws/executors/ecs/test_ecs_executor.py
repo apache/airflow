@@ -59,7 +59,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -124,11 +124,17 @@ def mock_queue():
     return _queue
 
 
+def _generate_mock_cmd():
+    _mock = mock.Mock(spec=list)
+    _mock.__len__ = mock.Mock(return_value=3)  # Simply some int greater than 1
+    return _mock
+
+
 # The following two fixtures look different because no existing test
 # cares if they have unique values, so the same value is always used.
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_cmd():
-    return mock.Mock(spec=list)
+    return _generate_mock_cmd()
 
 
 @pytest.fixture(autouse=True)
@@ -185,7 +191,7 @@ class TestEcsTaskCollection:
         self.key2 = mock_airflow_key()
         assert self.key1 != self.key2
 
-    def test_add_task(self):
+    def test_add_task(self, mock_cmd):
         # Add a task, verify that the collection has grown and the task arn matches.
         self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
         assert len(self.collection) == 1
@@ -197,21 +203,21 @@ class TestEcsTaskCollection:
         assert self.collection.tasks[ARN2].task_arn == ARN2
         assert self.collection.tasks[ARN2].task_arn != self.collection.tasks[ARN1].task_arn
 
-    def test_task_by_key(self):
+    def test_task_by_key(self, mock_cmd):
         self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1)
 
         task = self.collection.task_by_key(mock_airflow_key)
 
         assert task == self.collection.tasks[ARN1]
 
-    def test_task_by_arn(self):
+    def test_task_by_arn(self, mock_cmd):
         self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1)
 
         task = self.collection.task_by_arn(ARN1)
 
         assert task == self.collection.tasks[ARN1]
 
-    def test_info_by_key(self, mock_queue):
+    def test_info_by_key(self, mock_queue, mock_cmd):
         self.collection.add_task(mock_task(ARN1), self.key1, queue1 := mock_queue(), mock_cmd, mock_config, 1)
         self.collection.add_task(mock_task(ARN2), self.key2, queue2 := mock_queue(), mock_cmd, mock_config, 1)
         assert queue1 != queue2
@@ -228,19 +234,19 @@ class TestEcsTaskCollection:
 
         assert task1_info != task2_info
 
-    def test_get_all_arns(self):
+    def test_get_all_arns(self, mock_cmd):
         self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
         self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
 
         assert self.collection.get_all_arns() == [ARN1, ARN2]
 
-    def test_get_all_task_keys(self):
+    def test_get_all_task_keys(self, mock_cmd):
         self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
         self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
 
         assert self.collection.get_all_task_keys() == [self.key1, self.key2]
 
-    def test_pop_by_key(self):
+    def test_pop_by_key(self, mock_cmd):
         self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
         self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
         task1_as_saved = self.collection.tasks[ARN1]
@@ -256,7 +262,7 @@ class TestEcsTaskCollection:
         # Assert the remaining task is task2.
         assert self.collection.task_by_key(self.key2)
 
-    def test_update_task(self):
+    def test_update_task(self, mock_cmd):
         self.collection.add_task(
             initial_task := mock_task(), mock_airflow_key, mock_queue, mock_cmd, mock_config, 1
         )
@@ -266,7 +272,7 @@ class TestEcsTaskCollection:
         assert self.collection[ARN1] == updated_task
         assert initial_task != updated_task
 
-    def test_failure_count(self):
+    def test_failure_count(self, mock_cmd):
         # Create a new Collection and add a two tasks.
         self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_cmd, mock_config, 1)
         self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_cmd, mock_config, 1)
@@ -376,7 +382,7 @@ class TestAwsEcsExecutor:
 
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
-    def test_execute(self, change_state_mock, mock_airflow_key, mock_executor):
+    def test_execute(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test execution from end-to-end."""
         airflow_key = mock_airflow_key()
 
@@ -406,8 +412,98 @@ class TestAwsEcsExecutor:
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
+    def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
+        """Test task sdk execution from end-to-end."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.key = mock_airflow_key()
+        tags_exec_config = [{"key": "FOO", "value": "BAR"}]
+        workload.ti.executor_config = {"tags": tags_exec_config}
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        mock_executor.ecs.run_task.return_value = {
+            "tasks": [
+                {
+                    "taskArn": ARN1,
+                    "lastStatus": "",
+                    "desiredStatus": "",
+                    "containers": [{"name": "some-ecs-container"}],
+                }
+            ],
+            "failures": [],
+        }
+
+        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.running) == 0
+        mock_executor._process_workloads([workload])
+        assert len(mock_executor.queued_tasks) == 0
+        assert len(mock_executor.running) == 1
+        assert workload.ti.key in mock_executor.running
+        assert len(mock_executor.pending_tasks) == 1
+        assert mock_executor.pending_tasks[0].command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            '{"test_key": "test_value"}',
+        ]
+
+        mock_executor.attempt_task_runs()
+        mock_executor.ecs.run_task.assert_called_once()
+        assert len(mock_executor.pending_tasks) == 0
+        mock_executor.ecs.run_task.assert_called_once_with(
+            cluster="some-cluster",
+            count=1,
+            launchType="FARGATE",
+            platformVersion="LATEST",
+            taskDefinition="some-task-def",
+            tags=tags_exec_config,
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "assignPublicIp": "DISABLED",
+                    "securityGroups": ["sg1", "sg2"],
+                    "subnets": ["sub1", "sub2"],
+                },
+            },
+            overrides={
+                "containerOverrides": [
+                    {
+                        "command": [
+                            "python",
+                            "-m",
+                            "airflow.sdk.execution_time.execute_workload",
+                            "--json-string",
+                            ser_workload,
+                        ],
+                        "environment": [
+                            {
+                                "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                                "value": "true",
+                            },
+                        ],
+                        "name": "container-name",
+                    },
+                ],
+            },
+        )
+
+        # Task is stored in active worker.
+        assert len(mock_executor.active_workers) == 1
+        assert ARN1 in mock_executor.active_workers.task_by_key(workload.ti.key).task_arn
+        change_state_mock.assert_called_once_with(
+            workload.ti.key, TaskInstanceState.RUNNING, ARN1, remove_running=False
+        )
+
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_success_execute_api_exception(self, mock_backoff, mock_executor):
+    def test_success_execute_api_exception(self, mock_backoff, mock_executor, mock_cmd):
         """Test what happens when ECS throws an exception, but ultimately runs the task."""
         run_task_exception = Exception("Test exception")
         run_task_success = {
@@ -439,7 +535,7 @@ class TestAwsEcsExecutor:
         for attempt_number in range(1, expected_retry_count):
             mock_backoff.assert_has_calls([mock.call(attempt_number)])
 
-    def test_failed_execute_api_exception(self, mock_executor):
+    def test_failed_execute_api_exception(self, mock_executor, mock_cmd):
         """Test what happens when ECS refuses to execute a task and throws an exception"""
         mock_executor.ecs.run_task.side_effect = Exception("Test exception")
         mock_executor.execute_async(mock_airflow_key, mock_cmd)
@@ -450,7 +546,7 @@ class TestAwsEcsExecutor:
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
 
-    def test_failed_execute_api(self, mock_executor):
+    def test_failed_execute_api(self, mock_executor, mock_cmd):
         """Test what happens when ECS refuses to execute a task."""
         mock_executor.ecs.run_task.return_value = {
             "tasks": [],
@@ -480,8 +576,8 @@ class TestAwsEcsExecutor:
             TaskInstanceKey("a", "task_a", "c", 1, -1),
             TaskInstanceKey("a", "task_b", "c", 1, -1),
         ]
-        airflow_cmd1 = mock.Mock(spec=list)
-        airflow_cmd2 = mock.Mock(spec=list)
+        airflow_cmd1 = _generate_mock_cmd()
+        airflow_cmd2 = _generate_mock_cmd()
         commands = [airflow_cmd1, airflow_cmd2]
 
         failures = [Exception("Failure 1"), Exception("Failure 2")]
@@ -541,8 +637,8 @@ class TestAwsEcsExecutor:
             TaskInstanceKey("a", "task_a", "c", 1, -1),
             TaskInstanceKey("a", "task_b", "c", 1, -1),
         ]
-        airflow_cmd1 = mock.Mock(spec=list)
-        airflow_cmd2 = mock.Mock(spec=list)
+        airflow_cmd1 = _generate_mock_cmd()
+        airflow_cmd2 = _generate_mock_cmd()
         airflow_commands = [airflow_cmd1, airflow_cmd2]
         task = {
             "taskArn": ARN1,
@@ -573,7 +669,7 @@ class TestAwsEcsExecutor:
 
         # queue new task
         airflow_keys[1] = mock.Mock(spec=tuple)
-        airflow_commands[1] = mock.Mock(spec=list)
+        airflow_commands[1] = _generate_mock_cmd()
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
 
         assert len(mock_executor.pending_tasks) == 2
@@ -614,7 +710,7 @@ class TestAwsEcsExecutor:
         """
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "2"
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
-        airflow_commands = [mock.Mock(spec=list), mock.Mock(spec=list)]
+        airflow_commands = [_generate_mock_cmd(), _generate_mock_cmd()]
 
         mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
@@ -771,7 +867,9 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_failed_sync_cumulative_fail(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    def test_failed_sync_cumulative_fail(
+        self, _, success_mock, fail_mock, mock_airflow_key, mock_executor, mock_cmd
+    ):
         """Test that failure_count/attempt_number is cumulative for pending tasks and active workers."""
         AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "5"
         mock_executor.ecs.run_task.return_value = {
@@ -854,11 +952,10 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_failed_sync_api(self, _, success_mock, fail_mock, mock_executor):
+    def test_failed_sync_api(self, _, success_mock, fail_mock, mock_executor, mock_cmd):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
         airflow_key = "test-key"
-        airflow_cmd = mock.Mock(spec=list)
-        mock_executor.execute_async(airflow_key, airflow_cmd)
+        mock_executor.execute_async(airflow_key, mock_cmd)
         assert len(mock_executor.pending_tasks) == 1
 
         run_task_ret_val = {
@@ -999,7 +1096,7 @@ class TestAwsEcsExecutor:
             pytest.param({"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"),
         ],
     )
-    def test_executor_config_exceptions(self, bad_config, mock_executor):
+    def test_executor_config_exceptions(self, bad_config, mock_executor, mock_cmd):
         with pytest.raises(ValueError) as raised:
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 

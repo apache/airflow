@@ -53,7 +53,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=3.0.0.dev0``
+``apache-airflow``  ``>=3.0.0.dev``
 ``GitPython``       ``>=3.1.44``
 ==================  ==================
 

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-edge``
 
-Release: ``0.20.1pre0``
+Release: ``1.0.0``
 
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
@@ -36,7 +36,7 @@ This is a provider package for ``edge`` provider. All classes for this provider 
 are in ``airflow.providers.edge`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.1pre0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge/1.0.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package         Version required
 ==================  ===================
 ``apache-airflow``  ``>=2.10.0``
-``pydantic``        ``>=2.10.2``
+``pydantic``        ``>=2.11.0``
 ``retryhttp``       ``>=1.2.0,!=1.3.0``
 ==================  ===================
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==============================================================================================  =======
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.1pre0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/1.0.0/changelog.html>`_.

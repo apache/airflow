@@ -255,7 +255,7 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(args.subdir, args.dag_id, from_db=True)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.current_state())
@@ -299,7 +299,7 @@ def _guess_debugger() -> _SupportedDebugger:
     exc: Exception
     for mod_name in SUPPORTED_DEBUGGER_MODULES:
         try:
-            return cast(_SupportedDebugger, importlib.import_module(mod_name))
+            return cast("_SupportedDebugger", importlib.import_module(mod_name))
         except ImportError as e:
             exc = e
     raise exc
@@ -366,6 +366,8 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         os.environ.update(env_vars)
 
     dag = dag or get_dag(args.subdir, args.dag_id)
+
+    dag = DAG.from_sdk_dag(dag)
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
@@ -446,12 +448,12 @@ def task_render(args, dag: DAG | None = None) -> None:
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
-
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
-        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
+        # Reading from_db because clear method still not implemented in Task SDK DAG
+        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
         if args.task_regex:
             for idx, dag in enumerate(dags):

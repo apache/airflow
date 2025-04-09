@@ -41,6 +41,7 @@ class ErrorType(enum.Enum):
     ASSET_NOT_FOUND = "ASSET_NOT_FOUND"
     DAGRUN_ALREADY_EXISTS = "DAGRUN_ALREADY_EXISTS"
     GENERIC_ERROR = "GENERIC_ERROR"
+    API_SERVER_ERROR = "API_SERVER_ERROR"
 
 
 class XComForMappingNotPushed(TypeError):

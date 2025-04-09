@@ -372,6 +372,8 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "logical_date",  # Airflow 3
+        "run_after",  # Airflow 3
         "run_id",
         "run_type",
         "start_date",
@@ -442,7 +444,6 @@ class TaskInfo(InfoJsonEncodable):
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
-        "weight_rule",
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -757,7 +758,9 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception:
                 log.warning(
-                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    "OpenLineage event emission failed. "
+                    "Exception below is being caught but it's printed for visibility. "
+                    "This has no impact on actual task execution status.",
                     exc_info=True,
                 )
 

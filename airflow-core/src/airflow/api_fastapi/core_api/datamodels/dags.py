@@ -61,8 +61,8 @@ class DAGResponse(BaseModel):
     is_active: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
-    bundle_name: str
-    relative_fileloc: str
+    bundle_name: str | None
+    relative_fileloc: str | None
     fileloc: str
     description: str | None
     timetable_summary: str | None

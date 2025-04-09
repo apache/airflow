@@ -29,13 +29,23 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
-    from airflow.io.path import ObjectStoragePath
-    from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
-    from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
+    from airflow.sdk.definitions.asset import AssetUniqueKey
+    from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
+
+
+def _validate_asset_function_arguments(f: Callable) -> None:
+    for name, param in inspect.signature(f).parameters.items():
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            raise TypeError(f"wildcard '*{name}' is not supported in @asset")
+        if param.kind == inspect.Parameter.VAR_KEYWORD:
+            raise TypeError(f"wildcard '**{name}' is not supported in @asset")
+        if param.kind == inspect.Parameter.POSITIONAL_ONLY and param.default is inspect.Parameter.empty:
+            raise TypeError(f"positional-only argument '{name}' without a default is not supported in @asset")
 
 
 class _AssetMainOperator(PythonOperator):
@@ -45,6 +55,7 @@ class _AssetMainOperator(PythonOperator):
 
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
+        _validate_asset_function_arguments(definition._function)
         return cls(
             task_id=definition._function.__name__,
             inlets=[
@@ -168,7 +179,7 @@ class _DAGFactory:
     tags: Collection[str] = attrs.field(factory=set)
 
     def create_dag(self, *, default_dag_id: str) -> DAG:
-        from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
+        from airflow.sdk.definitions.dag import DAG
 
         dag_id = self.dag_id or default_dag_id
         return DAG(

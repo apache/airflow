@@ -41,14 +41,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+15.0.0
+......
+
+Latest change: 2025-04-04
+
+==================================================================================================  ===========  =================================================================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =================================================================================================================================================
+`1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+`9057c130e1 <https://github.com/apache/airflow/commit/9057c130e19692567d5e0e2926b947323b5e29cd>`__  2025-04-04   ``fix: remove extra slash character from file URI formation in 'MetastoreHivePartitionSensor.poke' method. (#48731)``
+`c1088b6720 <https://github.com/apache/airflow/commit/c1088b672025aae5706034c601c1d54811448e54>`__  2025-04-02   ``Rework remote task log handling for the structlog era. (#48491)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`3a4fa6108c <https://github.com/apache/airflow/commit/3a4fa6108c33c2bde3a79d0c3a72c3d01e09c13a>`__  2025-04-02   ``Disallowing types-protobuf 5.29.1.20250402 for google to fix mypy (#48666)``
+`b7603b5b60 <https://github.com/apache/airflow/commit/b7603b5b6084d37e7ada44799823a19c4330482f>`__  2025-04-01   ``SFTPToGCSOperator: Added option to stream data directly to GCS without saving to disk (#48107)``
+`b5ccbe50f5 <https://github.com/apache/airflow/commit/b5ccbe50f5bfac27b597af80105aad922a20543e>`__  2025-03-31   ``Remove deprecated for February and March 2025 in providers/google. Deprecation period for LifeScienceHook extended to july 08, 2025. (#48018)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`fde5051eac <https://github.com/apache/airflow/commit/fde5051eaca10b81364cca43307c30f49bc7e529>`__  2025-03-28   ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+==================================================================================================  ===========  =================================================================================================================================================
+
 14.1.0
 ......
 
-Latest change: 2025-03-25
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ====================================================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `dfb6a89df7 <https://github.com/apache/airflow/commit/dfb6a89df7906421309ab6275aef76775e51d2db>`__  2025-03-25   ``Vendor-in json-merge-patch and add '--no-dev' to direct uv tool install (#48210)``
 `84aa6539e6 <https://github.com/apache/airflow/commit/84aa6539e6bf7e315597148b1e88f8fdecac2a4b>`__  2025-03-22   ``Add DNS endpoint support for GKE Hooks and Operators (#48075)``

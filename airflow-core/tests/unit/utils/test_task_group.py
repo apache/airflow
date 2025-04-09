@@ -22,20 +22,20 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import (
+from airflow.exceptions import TaskAlreadyInTaskGroup
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import (
     dag,
     setup,
     task as task_decorator,
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import TaskGroup, task_group_to_dict, task_group_to_dict_legacy
+from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from unit.models import DEFAULT_DATE
@@ -244,7 +244,6 @@ def test_build_task_group_context_manager():
     assert set(dag.task_group.children.keys()) == {"task1", "group234", "task5"}
     assert group34.group_id == "group234.group34"
 
-    assert task_group_to_dict_legacy(dag.task_group) == EXPECTED_JSON_LEGACY
     assert task_group_to_dict(dag.task_group) == EXPECTED_JSON
 
 
@@ -266,21 +265,17 @@ def test_build_task_group():
     task1 >> group234
     group34 >> task5
 
-    assert task_group_to_dict_legacy(dag.task_group) == EXPECTED_JSON_LEGACY
     assert task_group_to_dict(dag.task_group) == EXPECTED_JSON
 
 
-def extract_node_id(node, include_label=False, from_legacy=False):
+def extract_node_id(node, include_label=False):
     ret = {"id": node["id"]}
     if include_label:
-        if from_legacy:
-            ret["label"] = node["value"]["label"]
-        else:
-            ret["label"] = node["label"]
+        ret["label"] = node["label"]
     if "children" in node:
         children = []
         for child in node["children"]:
-            children.append(extract_node_id(child, include_label=include_label, from_legacy=from_legacy))
+            children.append(extract_node_id(child, include_label=include_label))
 
         ret["children"] = children
 
@@ -347,10 +342,6 @@ def test_build_task_group_with_prefix():
         ],
     }
 
-    assert (
-        extract_node_id(task_group_to_dict_legacy(dag.task_group), include_label=True, from_legacy=True)
-        == expected_node_id
-    )
     assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == expected_node_id
 
 
@@ -358,7 +349,7 @@ def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def task_1():
@@ -415,7 +406,6 @@ def test_build_task_group_with_task_decorator():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(dag.task_group), from_legacy=True) == expected_node_id
     assert extract_node_id(task_group_to_dict(dag.task_group)) == expected_node_id
 
     edges = dag_edges(dag)
@@ -479,7 +469,6 @@ def test_sub_dag_task_group():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(subdag.task_group), from_legacy=True) == expected_node_id
     assert extract_node_id(task_group_to_dict(subdag.task_group)) == expected_node_id
 
     edges = dag_edges(subdag)
@@ -547,8 +536,7 @@ def test_dag_edges():
 
         group_d << group_c
 
-    nodes_legacy = task_group_to_dict_legacy(dag.task_group)
-    nodes = task_group_to_dict_legacy(dag.task_group)
+    nodes = task_group_to_dict(dag.task_group)
     edges = dag_edges(dag)
 
     expected_node_id = {
@@ -595,8 +583,7 @@ def test_dag_edges():
         ],
     }
 
-    assert extract_node_id(nodes_legacy) == expected_node_id
-    assert extract_node_id(nodes, from_legacy=False) == expected_node_id
+    assert extract_node_id(nodes) == expected_node_id
 
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
         ("group_a.downstream_join_id", "group_c.upstream_join_id"),
@@ -651,9 +638,9 @@ def test_dag_edges_setup_teardown():
 
 
 def test_dag_edges_setup_teardown_nested():
-    from airflow.decorators import task, task_group
     from airflow.models.dag import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import task, task_group
 
     logical_date = pendulum.parse("20200101")
 
@@ -759,7 +746,7 @@ def test_build_task_group_deco_context_manager():
     2. TaskGroup consisting Tasks created using task decorator.
     3. Node Ids of dags created with taskgroup decorator.
     """
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     # Creating Tasks
     @task
@@ -852,13 +839,12 @@ def test_build_task_group_deco_context_manager():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(dag.task_group), from_legacy=True) == node_ids
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
 def test_build_task_group_depended_by_task():
     """A decorator-based task group should be able to be used as a relative to operators."""
-    from airflow.decorators import dag as dag_decorator, task
+    from airflow.sdk import dag as dag_decorator, task
 
     @dag_decorator(schedule=None, start_date=pendulum.now())
     def build_task_group_depended_by_task():
@@ -893,7 +879,7 @@ def test_build_task_group_depended_by_task():
 
 def test_build_task_group_with_operators():
     """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -952,7 +938,7 @@ def test_build_task_group_with_operators():
 
 def test_task_group_context_mix():
     """Test cases to check nested TaskGroup context manager with taskgroup decorator"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     def task_start():
         """Dummy Task which is First Task of Dag"""
@@ -1031,7 +1017,6 @@ def test_task_group_context_mix():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(dag.task_group), from_legacy=True) == node_ids
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
@@ -1056,7 +1041,7 @@ def test_default_args():
 
 def test_duplicate_task_group_id():
     """Testing automatic suffix assignment for duplicate group_id"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1124,13 +1109,12 @@ def test_duplicate_task_group_id():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(dag.task_group), from_legacy=True) == node_ids
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
 def test_call_taskgroup_twice():
     """Test for using same taskgroup decorated function twice"""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task(task_id="start_task")
     def task_start():
@@ -1187,13 +1171,12 @@ def test_call_taskgroup_twice():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict_legacy(dag.task_group), from_legacy=True) == node_ids
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
 def test_pass_taskgroup_output_to_task():
     """Test that the output of a task group can be passed to a task."""
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @task
     def one():
@@ -1232,7 +1215,7 @@ def test_decorator_unknown_args():
 
 
 def test_decorator_multiple_use_task():
-    from airflow.decorators import task
+    from airflow.sdk import task
 
     @dag("test-dag", schedule=None, start_date=DEFAULT_DATE)
     def _test_dag():
@@ -1657,24 +1640,12 @@ def test_task_group_arrow_with_setup_group():
     assert set(t1.operator.downstream_task_ids) == set()
     assert set(t2.operator.downstream_task_ids) == set()
 
-    def get_nodes(group, from_legacy=False):
-        if from_legacy:
-            d = task_group_to_dict_legacy(group)
-        else:
-            d = task_group_to_dict(group)
+    def get_nodes(group):
+        d = task_group_to_dict(group)
         new_d = {}
         new_d["id"] = d["id"]
         new_d["children"] = [{"id": x["id"]} for x in d["children"]]
         return new_d
-
-    assert get_nodes(g1, from_legacy=True) == {
-        "id": "group_1",
-        "children": [
-            {"id": "group_1.setup_1"},
-            {"id": "group_1.setup_2"},
-            {"id": "group_1.downstream_join_id"},
-        ],
-    }
 
     assert get_nodes(g1) == {
         "id": "group_1",
