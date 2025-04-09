@@ -1430,8 +1430,6 @@ class TestHandleRequest:
         generator = watched_subprocess.handle_requests(log=mocker.Mock())
         # Initialize the generator
         next(generator)
-
-        # Send a message
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
         time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)

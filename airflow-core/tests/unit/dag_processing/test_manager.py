@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import logging
 import os
@@ -31,6 +30,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from pathlib import Path
+from socket import socket
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -54,6 +54,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk.execution_time.supervisor import mkpipe
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -132,22 +133,23 @@ class TestDagFileProcessorManager:
         clear_db_import_errors()
         clear_db_dag_bundles()
 
-    def mock_processor(self) -> DagFileProcessorProcess:
+    def mock_processor(self) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
         logger_filehandle = MagicMock()
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
+        read_end, write_end = mkpipe(remote_read=True)
         ret = DagFileProcessorProcess(
             process_log=MagicMock(),
             id=uuid7(),
             pid=1234,
             process=proc,
-            stdin=io.BytesIO(),
+            stdin=write_end,
             requests_fd=123,
             logger_filehandle=logger_filehandle,
         )
         ret._num_open_sockets = 0
-        return ret
+        return ret, read_end
 
     @pytest.fixture
     def clear_parse_import_errors(self):
@@ -517,7 +519,7 @@ class TestDagFileProcessorManager:
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
 
-        processor = self.mock_processor()
+        processor, _ = self.mock_processor()
         processor._process.create_time.return_value = timezone.make_aware(datetime.min).timestamp()
         manager._processors = {
             DagFileInfo(
@@ -536,7 +538,7 @@ class TestDagFileProcessorManager:
             processor_timeout=5,
         )
 
-        processor = self.mock_processor()
+        processor, _ = self.mock_processor()
         processor._process.create_time.return_value = timezone.make_aware(datetime.max).timestamp()
         manager._processors = {
             DagFileInfo(
@@ -596,11 +598,21 @@ class TestDagFileProcessorManager:
         ],
     )
     def test_serialize_callback_requests(self, callbacks, path, expected_buffer):
-        processor = self.mock_processor()
+        processor, read_socket = self.mock_processor()
         processor._on_child_started(callbacks, path, bundle_path=Path("/opt/airflow/dags"))
 
-        # Verify the response was added to the buffer
-        val = processor.stdin.getvalue()
+        read_socket.settimeout(0.1)
+        val = b""
+        try:
+            while not val.endswith(b"\n"):
+                chunk = read_socket.recv(4096)
+                if not chunk:
+                    break
+                val += chunk
+        except (BlockingIOError, TimeoutError):
+            # no response written, valid for some message types.
+            pass
+
         assert val == expected_buffer
 
     @conf_vars({("core", "load_examples"): "False"})
