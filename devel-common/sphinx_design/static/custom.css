@@ -58,11 +58,11 @@ section ol li p:last-child, section ul li p:last-child {
 }
 
 a.headerlink {
-  content: "" !important;
+   /*content: "" !important;*/
   font-size: 75% !important;
 }
 
 a.headerlink::after {
-  content: " [link]" !important;  /* Theme image not existing */
+   /*content: " [link]" !important;  Theme image not existing */
   visibility: visible !important;
 }
