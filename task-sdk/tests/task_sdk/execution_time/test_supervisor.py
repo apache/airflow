@@ -23,6 +23,7 @@ import logging
 import os
 import selectors
 import signal
+import socket
 import sys
 import time
 from io import BytesIO
@@ -776,9 +777,6 @@ class TestWatchedSubprocessKill:
     def test_kill_process_already_exited(self, watched_subprocess, mock_process):
         """Test behavior when the process has already exited."""
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
-
-        watched_subprocess, _ = watched_subprocess
-
         watched_subprocess.kill(signal.SIGINT, force=True)
 
         mock_process.send_signal.assert_called_once_with(signal.SIGINT)
@@ -790,7 +788,6 @@ class TestWatchedSubprocessKill:
         mock_process.wait.return_value = 0
 
         signal_to_send = signal.SIGUSR1
-        watched_subprocess, _ = watched_subprocess
         watched_subprocess.kill(signal_to_send, force=False)
 
         mock_process.send_signal.assert_called_once_with(signal_to_send)
@@ -917,7 +914,6 @@ class TestWatchedSubprocessKill:
         # Mock selector to return events
         mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
         mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
-        watched_subprocess, _ = watched_subprocess
         watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
 
         # Mock to simulate process exited successfully
@@ -1447,7 +1443,7 @@ class TestHandleRequest:
                 if not chunk:
                     break
                 val += chunk
-        except (BlockingIOError, TimeoutError):
+        except (BlockingIOError, TimeoutError, socket.timeout):
             # no response written, valid for some message types like setters and TI operations.
             pass
 
