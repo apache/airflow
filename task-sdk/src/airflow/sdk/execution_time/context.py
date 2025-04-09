@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
+from airflow.sdk.api.datamodels._generated import AssetEventResponse
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -414,6 +415,19 @@ class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetA
     def __len__(self) -> int:
         return len(self._dict)
 
+    def get_asset(self, *, name: str | None = None, uri: str | None = None) -> OutletEventAccessor:
+        if name and uri:
+            return self[Asset(name=name, uri=uri)]
+        elif name:
+            return self[Asset.ref(name=name)]
+        elif uri:
+            return self[Asset.ref(uri=uri)]
+        else:
+            raise ValueError("name and uri cannot both be None")
+
+    def get_asset_alias(self, *, name: str) -> OutletEventAccessor:
+        return self[AssetAlias(name=name)]
+
     def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
         hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
@@ -461,7 +475,20 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
+    def get_asset(self, *, name: str | None = None, uri: str | None = None) -> list[AssetEventResponse]:
+        if name and uri:
+            return self[Asset(name=name, uri=uri)]
+        elif name:
+            return self[Asset.ref(name=name)]
+        elif uri:
+            return self[Asset.ref(uri=uri)]
+        else:
+            raise ValueError("name and uri cannot both be None")
+
+    def get_asset_alias(self, *, name: str) -> list[AssetEventResponse]:
+        return self[AssetAlias(name=name)]
+
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
