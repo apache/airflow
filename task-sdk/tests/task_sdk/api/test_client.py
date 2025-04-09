@@ -441,6 +441,7 @@ class TestTaskInstanceOperations:
         logical_dates = [timezone.parse(d) for d in logical_dates_str]
         task_ids = ["task1", "task2"]
         states = ["success", "failed"]
+        return_task_group_count = False
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/task-instances/count"
@@ -461,6 +462,7 @@ class TestTaskInstanceOperations:
             task_group_id="group1",
             logical_dates=logical_dates,
             states=states,
+            return_task_group_count=return_task_group_count,
         )
         assert result.count == 10
 

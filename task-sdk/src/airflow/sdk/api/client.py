@@ -216,6 +216,7 @@ class TaskInstanceOperations:
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
+        return_task_group_count: bool = False,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
         params = {
@@ -225,6 +226,7 @@ class TaskInstanceOperations:
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
             "run_ids": run_ids,
             "states": states,
+            "return_task_group_count": return_task_group_count,
         }
 
         # Remove None values from params

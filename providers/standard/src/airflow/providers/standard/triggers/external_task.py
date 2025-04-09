@@ -142,6 +142,7 @@ class WorkflowTrigger(BaseTrigger):
                 task_group_id=self.external_task_group_id,
                 logical_dates=self.logical_dates,
                 run_ids=self.run_ids,
+                **{"return_task_group_count": True} if self.external_task_group_id else {},
                 states=states,
             )
         else:

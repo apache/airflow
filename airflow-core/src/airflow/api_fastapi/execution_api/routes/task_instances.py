@@ -593,9 +593,11 @@ def get_count(
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
     run_ids: Annotated[list[str] | None, Query()] = None,
     states: Annotated[list[str] | None, Query()] = None,
+    return_task_group_count: Annotated[bool | None, Query()] = False,
 ) -> int:
     """Get the count of task instances matching the given criteria."""
     query = select(func.count()).select_from(TI).where(TI.dag_id == dag_id)
+    task_map_pairs_count = 0
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -645,6 +647,8 @@ def get_count(
             # This matches the behavior in _get_external_task_group_task_ids
             task_map_pairs = [(task_group_id, -1)]
 
+        task_map_pairs_count = len(task_map_pairs)
+
         # Update query to use task_id, map_index pairs
         query = query.where(tuple_(TI.task_id, TI.map_index).in_(task_map_pairs))
 
@@ -658,8 +662,13 @@ def get_count(
         else:
             query = query.where(TI.state.in_(states))
 
-    count = session.scalar(query)
-    return count or 0
+    count = session.scalar(query) or 0
+
+    if return_task_group_count:
+        dttm_or_run_ids = logical_dates or run_ids
+        count = (count / task_map_pairs_count) * len(dttm_or_run_ids_count) if dttm_or_run_ids else 1
+
+    return count
 
 
 @ti_id_router.only_exists_in_older_versions

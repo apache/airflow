@@ -543,6 +543,7 @@ class GetTICount(BaseModel):
     logical_dates: list[AwareDatetime] | None = None
     run_ids: list[str] | None = None
     states: list[str] | None = None
+    return_task_group_count: bool = False
     type: Literal["GetTICount"] = "GetTICount"
 
 

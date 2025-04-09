@@ -1336,6 +1336,80 @@ class TestGetCount:
         assert response.status_code == 200
         assert response.json() == 2
 
+    def test_get_count_with_task_group_return_task_group_count_flag_single_run_ids(
+        self, client, session, dag_maker, create_task_instance
+    ):
+        """
+        One run id task group contain 3 tasks, when return_task_group_count flag is true
+        should return 1
+        """
+        with dag_maker(dag_id="test_dag_return_task_group_count", session=session, serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+                EmptyOperator(task_id="task3")
+
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task3")
+
+        dag_maker.create_dagrun(
+            logical_date=timezone.datetime(2017, 1, 1), run_id="test_return_task_group_count_flag_run_id_one"
+        )
+        session.flush()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={
+                "dag_id": "test_dag_return_task_group_count",
+                "task_group_id": "group1",
+                "run_ids": [
+                    "test_return_task_group_count_flag_run_id_one",
+                ],
+                "return_task_group_count": "true",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == 1
+
+    def test_get_count_with_task_group_return_task_group_count_flag_multiple_run_ids(
+        self, client, session, dag_maker, create_task_instance
+    ):
+        """
+        Two run ids task group contain 3 tasks, when return_task_group_count flag is true
+        should return 2
+        """
+        with dag_maker(dag_id="test_dag_return_task_group_count", session=session, serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+                EmptyOperator(task_id="task3")
+
+            with TaskGroup("group2"):
+                EmptyOperator(task_id="task3")
+
+        dag_maker.create_dagrun(
+            logical_date=timezone.datetime(2017, 1, 1), run_id="test_return_task_group_count_flag_run_id_one"
+        )
+        dag_maker.create_dagrun(
+            logical_date=timezone.datetime(2017, 1, 2), run_id="test_return_task_group_count_flag_run_id_two"
+        )
+        session.flush()
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={
+                "dag_id": "test_dag_return_task_group_count",
+                "task_group_id": "group1",
+                "run_ids": [
+                    "test_return_task_group_count_flag_run_id_one",
+                    "test_return_task_group_count_flag_run_id_two",
+                ],
+                "return_task_group_count": "true",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == 2
+
     def test_get_count_task_group_not_found(self, client, session, dag_maker):
         with dag_maker(dag_id="test_get_count_task_group_not_found", serialized=True):
             with TaskGroup("group1"):

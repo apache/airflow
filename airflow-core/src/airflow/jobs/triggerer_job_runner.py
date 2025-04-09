@@ -434,6 +434,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
+                return_task_group_count=msg.return_task_group_count,
             )
         else:
             raise ValueError(f"Unknown message type {type(msg)}")

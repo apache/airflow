@@ -320,6 +320,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     task_group_id=self.external_task_group_id,
                     logical_dates=dttm_filter,
                     states=states,
+                    return_task_group_count=True,
                 )
             else:
                 return ti.get_dr_count(

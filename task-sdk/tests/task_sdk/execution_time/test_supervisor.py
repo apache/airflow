@@ -1437,6 +1437,7 @@ class TestHandleRequest:
                 {
                     "dag_id": "test_dag",
                     "logical_dates": None,
+                    "return_task_group_count": False,
                     "run_ids": None,
                     "states": None,
                     "task_group_id": None,
