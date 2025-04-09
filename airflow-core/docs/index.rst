@@ -20,18 +20,17 @@ What is Airflow®?
 
 `Apache Airflow® <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
 and monitoring batch-oriented workflows. Airflow's extensible Python framework enables you to build workflows
-connecting with virtually any technology. A web interface helps manage the state of your workflows. Airflow is
-deployable in many ways, varying from a single process on your laptop to a distributed setup to support even
-the biggest workflows.
+connecting with virtually any technology. A web-based UI helps you visualize, manage, and debug your workflows.
+You can run Airflow in a variety of configurations — from a single process on your laptop to a distributed system
+capable of handling massive workloads.
 
 Workflows as code
 =========================================
-The main characteristic of Airflow workflows is that all workflows are defined in Python code. "Workflows as
-code" serves several purposes:
+Airflow workflows are defined entirely in Python. This "workflows as code" approach brings several advantages:
 
-- **Dynamic**: Airflow pipelines are configured as Python code, allowing for dynamic pipeline generation.
-- **Extensible**: The Airflow® framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
-- **Flexible**: Workflow parameterization is built-in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
+- **Dynamic**: Pipelines are defined in code, enabling dynamic dag generation and parameterization.
+- **Extensible**: The Airflow framework includes a wide range of built-in operators and can be extended to fit your needs.
+- **Flexible**: Airflow leverages the `Jinja <https://jinja.palletsprojects.com>`_ templating engine, allowing rich customizations.
 
 Dags
 -----------------------------------------
@@ -40,14 +39,13 @@ Dags
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
-Take a look at the following snippet of code:
+Let's look at a code snippet that defines a simple dag:
 
 .. code-block:: python
 
     from datetime import datetime
 
-    from airflow.sdk import DAG
-    from airflow.decorators import task
+    from airflow.sdk import DAG, task
     from airflow.providers.standard.operators.bash import BashOperator
 
     # A DAG represents a workflow, a collection of tasks
@@ -65,83 +63,73 @@ Take a look at the following snippet of code:
 
 Here you see:
 
-- A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
-- Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
-- ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
+- A dag named ``"demo"``, scheduled to run daily starting on January 1st, 2022. A dag is how Airflow represents a workflow.
+- Two tasks: One using a ``BashOperator`` to run a shell script, and another using the ``@task`` decorator to define a Python function.
+- The ``>>`` operator defines a dependency between the two tasks and controls execution order.
 
-Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
-of the "demo" DAG is visible in the web interface:
+Airflow parses the script, schedules the tasks, and executes them in the defined order. The status of the ``"demo"`` dag
+is displayed in the web interface:
 
-.. image:: /img/demo_graph_view.png
-  :alt: Demo DAG in the Graph View, showing the status of one DAG run
+.. image:: /img/demo_graph_and_code_view.png
+  :alt: Demo DAG in the Graph View, showing the status of one DAG run along with DAG code.
 
-This example demonstrates a simple Bash and Python script, but these tasks can run any arbitrary code. Think
-of running a Spark job, moving data between two buckets, or sending an email. The same structure can also be
-seen running over time:
+|
 
-.. image:: /img/demo_grid_view.png
-  :alt: Demo DAG in the Grid View, showing the status of all DAG runs
+This examples uses a simple Bash command and Python function, but Airflow tasks can run virtually any code. You might use
+tasks to run a Spark job, move files between storage buckets, or send a notification email. Here's what that same dag looks
+like over time, with multiple runs:
 
-Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
-other views which allow you to deep dive into the state of your workflows.
+.. image:: /img/demo_grid_view_with_task_logs.png
+  :alt: Demo DAG in the Grid View, showing the status of all DAG runs, as well as logs for a task instance
+
+|
+
+Each column in the grid represents a single dag run. While the graph and grid views are most commonly used, Airflow provides
+several other views to help you monitor and troubleshoot workflows — such as the ``DAG Overview`` view:
+
+.. image:: /img/demo_dag_overview_with_failed_tasks.png
+  :alt: Overview of a complex DAG in the Grid View, showing the status of all DAG runs, as well as quick links to recently failed task logs
+
+|
 
 .. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 
-
 Why Airflow®?
 =========================================
-Airflow® is a batch workflow orchestration platform. The Airflow framework contains operators to connect with
-many technologies and is easily extensible to connect with a new technology. If your workflows have a clear
-start and end, and run at regular intervals, they can be programmed as an Airflow DAG.
+Airflow is a platform for orchestrating batch workflows. It offers a flexible framework with a wide range of built-in operators
+and makes it easy to integrate with new technologies.
 
-If you prefer coding over clicking, Airflow is the tool for you. Workflows are defined as Python code which
-means:
+If your workflows have a clear start and end and run on a schedule, they're a great fit for Airflow DAGs.
 
-- Workflows can be stored in version control so that you can roll back to previous versions
-- Workflows can be developed by multiple people simultaneously
-- Tests can be written to validate functionality
-- Components are extensible and you can build on a wide collection of existing components
+If you prefer coding over clicking, Airflow is built for you. Defining workflows as Python code provides several key benefits:
 
-Rich scheduling and execution semantics enable you to easily define complex pipelines, running at regular
-intervals. Backfilling allows you to (re-)run pipelines on historical data after making changes to your logic.
-And the ability to rerun partial pipelines after resolving an error helps maximize efficiency.
+- **Version control**: Track changes, roll back to previous versions, and collaborate with your team.
+- **Team collaboration**: Multiple developers can work on the same workflow codebase.
+- **Testing**: Validate pipeline logic through unit and integration tests.
+- **Extensibility**: Customize workflows using a large ecosystem of existing components — or build your own.
 
-Airflow's user interface provides:
+Airflow's rich scheduling and execution semantics make it easy to define complex, recurring pipelines. From the web interface,
+you can manually trigger DAGs, inspect logs, and monitor task status. You can also backfill DAG runs to process historical
+data, or rerun only failed tasks to minimize cost and time.
 
-  1. In-depth views of two things:
+The Airflow platform is highly customizable. With the :doc:`public-airflow-interface` you can extend and adapt nearly
+every part of the system — from operators to UI plugins to execution logic.
 
-    i. Pipelines
-    ii. Tasks
-
-  2. Overview of your pipelines over time
-
-From the interface, you can inspect logs and manage tasks, for example retrying a task in
-case of failure.
-
-The open-source nature of Airflow ensures you work on components developed, tested, and used by many other
-`companies <https://github.com/apache/airflow/blob/main/INTHEWILD.md>`_ around the world. In the active
-`community <https://airflow.apache.org/community>`_ you can find plenty of helpful resources in the form of
-blog posts, articles, conferences, books, and more. You can connect with other peers via several channels
-such as `Slack <https://s.apache.org/airflow-slack>`_ and mailing lists.
-
-Airflow as a Platform is highly customizable. By utilizing :doc:`public-airflow-interface` you can extend
-and customize almost every aspect of Airflow.
+Because Airflow is open source, you're building on components developed, tested, and maintained by a global community.
+You'll find a wealth of learning resources, including blog posts, books, and conference talks — and you can connect with
+others via the `community <https://airflow.apache.org/community>`_, `Slack <https://s.apache.org/airflow-slack>`_, and mailing lists.
 
 Why not Airflow®?
 =================
 
-Airflow® was built for finite batch workflows. While the CLI and REST API do allow triggering workflows,
-Airflow was not built for infinitely running event-based workflows. Airflow is not a streaming solution.
-However, a streaming system such as Apache Kafka is often seen working together with Apache Airflow. Kafka can
-be used for ingestion and processing in real-time, event data is written to a storage location, and Airflow
-periodically starts a workflow processing a batch of data.
+Airflow® is designed for finite, batch-oriented workflows. While you can trigger DAGs using the CLI or REST API, Airflow is not
+intended for continuously running, event-driven, or streaming workloads. That said, Airflow often complements streaming systems like Apache Kafka.
+Kafka handles real-time ingestion, writing data to storage. Airflow can then periodically pick up that data and process it in batch.
 
-If you prefer clicking over coding, Airflow is probably not the right solution. The web interface aims to make
-managing workflows as easy as possible and the Airflow framework is continuously improved to make the
-developer experience as smooth as possible. However, the philosophy of Airflow is to define workflows as code
-so coding will always be required.
+If you prefer clicking over coding, Airflow might not be the best fit. The web UI simplifies workflow management, and the developer
+experience is continuously improving, but defining workflows as code is central to how Airflow works — so some coding is always required.
 
 
 .. toctree::

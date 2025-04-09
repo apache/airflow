@@ -25,10 +25,9 @@ from opentelemetry import trace
 from sqlalchemy import select
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.models import TaskInstance
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk import chain
+from airflow.sdk import chain, task
 from airflow.traces import otel_tracer
 from airflow.traces.tracer import Trace
 from airflow.utils.session import create_session

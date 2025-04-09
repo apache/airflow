@@ -87,6 +87,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RetryTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -125,6 +126,7 @@ MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 STATES_SENT_DIRECTLY = [
     IntermediateTIState.DEFERRED,
     IntermediateTIState.UP_FOR_RESCHEDULE,
+    IntermediateTIState.UP_FOR_RETRY,
     TerminalTIState.SUCCESS,
 ]
 
@@ -912,6 +914,13 @@ class ActivitySubprocess(WatchedSubprocess):
                 when=msg.end_date,
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
+            )
+        elif isinstance(msg, RetryTask):
+            self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
+            self.client.task_instances.retry(
+                id=self.id,
+                end_date=msg.end_date,
             )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
