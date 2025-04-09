@@ -1114,6 +1114,7 @@ class TestExternalTaskSensorV3:
         self.context["ti"].get_ti_count.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
+            return_task_group_count=True,
             states=["success"],
             task_group_id="test_group",
         )
@@ -1234,6 +1235,7 @@ class TestExternalTaskSensorV3:
         self.context["ti"].get_ti_count.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
+            return_task_group_count=True,
             states=[State.FAILED],
             task_group_id="test_group",
         )
