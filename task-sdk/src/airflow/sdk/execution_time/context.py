@@ -20,7 +20,7 @@ import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 import attrs
 import structlog
@@ -94,6 +94,8 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 
 log = structlog.get_logger(logger_name="task")
+
+T = TypeVar("T")
 
 
 def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection:
@@ -397,7 +399,29 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
         self.asset_alias_events.append(event)
 
 
-class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+class _AssetEventAccessorsMixin(Generic[T]):
+    def get_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
+        if name and uri:
+            return self[Asset(name=name, uri=uri)]
+        elif name:
+            return self[Asset.ref(name=name)]
+        elif uri:
+            return self[Asset.ref(uri=uri)]
+        else:
+            raise ValueError("name and uri cannot both be None")
+
+    def get_asset_alias(self, *, name: str) -> T:
+        return self[AssetAlias(name=name)]
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> T:
+        raise NotImplementedError
+
+
+class OutletEventAccessors(
+    _AssetRefResolutionMixin,
+    Mapping[Union[Asset, AssetAlias], OutletEventAccessor],
+    _AssetEventAccessorsMixin,
+):
     """Lazy mapping of outlet asset event accessors."""
 
     def __init__(self) -> None:
@@ -413,19 +437,6 @@ class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetA
 
     def __len__(self) -> int:
         return len(self._dict)
-
-    def get_asset(self, *, name: str | None = None, uri: str | None = None) -> OutletEventAccessor:
-        if name and uri:
-            return self[Asset(name=name, uri=uri)]
-        elif name:
-            return self[Asset.ref(name=name)]
-        elif uri:
-            return self[Asset.ref(uri=uri)]
-        else:
-            raise ValueError("name and uri cannot both be None")
-
-    def get_asset_alias(self, *, name: str) -> OutletEventAccessor:
-        return self[AssetAlias(name=name)]
 
     def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
         hashable_key: BaseAssetUniqueKey
@@ -444,7 +455,7 @@ class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetA
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]):
+class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any], _AssetEventAccessorsMixin):
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
@@ -473,19 +484,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
 
     def __len__(self) -> int:
         return len(self._inlets)
-
-    def get_asset(self, *, name: str | None = None, uri: str | None = None) -> list[AssetEventResponse]:
-        if name and uri:
-            return self[Asset(name=name, uri=uri)]
-        elif name:
-            return self[Asset.ref(name=name)]
-        elif uri:
-            return self[Asset.ref(uri=uri)]
-        else:
-            raise ValueError("name and uri cannot both be None")
-
-    def get_asset_alias(self, *, name: str) -> list[AssetEventResponse]:
-        return self[AssetAlias(name=name)]
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
         from airflow.sdk.definitions.asset import Asset
