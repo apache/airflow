@@ -360,10 +360,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -373,10 +373,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -391,10 +391,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       dagIdPattern,
       dagIds,
       dagRunsLimit,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       tags,
@@ -778,10 +778,10 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -795,10 +795,10 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -817,10 +817,10 @@ export const UseDagServiceGetDagsKeyFn = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,
