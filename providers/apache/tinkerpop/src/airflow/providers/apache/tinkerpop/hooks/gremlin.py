@@ -19,10 +19,8 @@
 from __future__ import annotations
 
 import logging
-import sys
 from typing import TYPE_CHECKING, Any
 
-import nest_asyncio
 from gremlin_python.driver.client import Client
 
 from airflow.hooks.base import BaseHook
@@ -30,11 +28,6 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from airflow.models import Connection
 
-# Apply nest_asyncio to allow nested event loops.
-if sys.version_info[:2] == (3, 9):
-    import nest_asyncio
-
-    nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 
