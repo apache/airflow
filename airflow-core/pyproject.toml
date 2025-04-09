@@ -63,6 +63,7 @@ version = "3.0.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
+    "aiosqlite>=0.20.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -139,7 +140,6 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.24.1",
     "apache-airflow-providers-smtp>=2.0.1",
     "apache-airflow-providers-standard>=0.2.0",
-    "apache-airflow-providers-sqlite>=4.0.1",
 ]
 
 
