@@ -25,6 +25,7 @@ import oracledb
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
+DEFAULT_DB_PORT = 1521
 PARAM_TYPES = {bool, float, int, str}
 
 
@@ -183,7 +184,7 @@ class OracleHook(DbApiHook):
 
         # Set up DSN
         service_name = conn.extra_dejson.get("service_name")
-        port = conn.port if conn.port else 1521
+        port = conn.port if conn.port else DEFAULT_DB_PORT
         if conn.host and sid and not service_name:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
@@ -450,7 +451,7 @@ class OracleHook(DbApiHook):
         login = conn.login
         password = conn.password
         host = conn.host
-        port = conn.port or 1521
+        port = conn.port or DEFAULT_DB_PORT
         service_name = conn.extra_dejson.get("service_name")
         sid = conn.extra_dejson.get("sid")
 
