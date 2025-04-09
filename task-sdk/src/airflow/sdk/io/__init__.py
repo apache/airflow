@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.sdk import ObjectStoragePath
+from airflow.sdk.io.path import ObjectStoragePath
+from airflow.sdk.io.store import attach
 
-__all__ = ["ObjectStoragePath"]
+__all__ = ["ObjectStoragePath", "attach"]
