@@ -484,7 +484,7 @@ class TestDagFileProcessorManager:
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
                 .filter(
-                    DagModel.is_active,
+                    ~DagModel.is_stale,
                     DagModel.relative_fileloc == str(test_dag_path.rel_path),
                     DagModel.bundle_name == test_dag_path.bundle_name,
                 )
@@ -497,7 +497,7 @@ class TestDagFileProcessorManager:
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
                 .filter(
-                    DagModel.is_active,
+                    ~DagModel.is_stale,
                     DagModel.relative_fileloc == str(test_dag_path.rel_path),
                     DagModel.bundle_name == test_dag_path.bundle_name,
                 )
@@ -673,7 +673,7 @@ class TestDagFileProcessorManager:
         # assert code not deleted
         assert DagCode.has_dag(dag.dag_id)
         # assert dag still active
-        assert dag.get_is_active()
+        assert not dag.get_is_stale()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
@@ -697,7 +697,7 @@ class TestDagFileProcessorManager:
             assert DagCode.has_dag(dag_id)
             assert DagVersion.get_latest_version(dag_id)
             dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-            assert dag.is_active is True
+            assert dag.is_stale is False
 
             os.remove(zip_dag_path)
 
@@ -707,7 +707,7 @@ class TestDagFileProcessorManager:
             assert DagCode.has_dag(dag_id)
             assert DagVersion.get_latest_version(dag_id)
             dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
-            assert dag.is_active is False
+            assert dag.is_stale is True
 
     def test_deactivate_deleted_dags(self, dag_maker):
         with dag_maker("test_dag1") as dag1:

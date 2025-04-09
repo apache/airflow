@@ -544,7 +544,7 @@ export type DAGDetailsResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -608,7 +608,7 @@ export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -784,7 +784,7 @@ export type DAGWithLatestDagRunsResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -1915,10 +1915,10 @@ export type RecentDagRunsData = {
   dagIdPattern?: string | null;
   dagIds?: Array<string> | null;
   dagRunsLimit?: number;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
@@ -2135,10 +2135,10 @@ export type GetDagsData = {
   dagRunStartDateGte?: string | null;
   dagRunStartDateLte?: string | null;
   dagRunState?: Array<string>;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
@@ -2150,10 +2150,10 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
   dagIdPattern?: string | null;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   owners?: Array<string>;
   paused?: boolean | null;
   requestBody: DAGPatchBody;
