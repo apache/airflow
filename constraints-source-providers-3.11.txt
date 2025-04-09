@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-08T19:50:30.309009
+# This constraints file was automatically generated on 2025-04-09T02:21:38.414590
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -340,7 +340,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.6
+limits==4.7.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -372,7 +372,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.3.2
+multidict==6.2.0
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.21
 mypy-boto3-redshift-data==1.37.8
@@ -392,7 +392,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.71.0
+openai==1.72.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.30.1
@@ -644,7 +644,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.10
+uv==0.6.13
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0

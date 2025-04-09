@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-08T20:05:45.323286
+# This constraints file was automatically generated on 2025-04-09T02:35:58.272111
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -325,7 +325,7 @@ google-api-python-client==2.166.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.87.0
+google-cloud-aiplatform==1.88.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -449,7 +449,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.6
+limits==4.7.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -481,7 +481,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.3.2
+multidict==6.2.0
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.21
 mypy-boto3-redshift-data==1.37.8
@@ -641,6 +641,8 @@ rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.24.0
 rsa==4.9
+ruamel.yaml.clib==0.2.12
+ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
 s3transfer==0.11.3
@@ -766,7 +768,7 @@ weaviate-client==4.9.6
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
-wheel==0.45.1
+wheel==0.46.1
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.15
