@@ -92,7 +92,7 @@ class TestGetExtraLinks:
 
         DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {self.dag.dag_id: self.dag}
+        dag_bag.dags = {(self.dag.dag_id, None): self.dag}
         test_client.app.state.dag_bag = dag_bag
         dag_bag.sync_to_db("dags-folder", None)
 

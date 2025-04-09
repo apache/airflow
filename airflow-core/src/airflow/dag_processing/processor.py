@@ -251,7 +251,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         path: str | os.PathLike[str],
         bundle_path: Path,
-        bundle_version: str | None,
+        bundle_version: str | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),

@@ -593,7 +593,7 @@ class TestStringifiedDAGs:
                 break
             dag = SerializedDAG.from_json(v)
             assert isinstance(dag, DAG)
-            stringified_dags[dag.dag_id] = dag
+            stringified_dags[(dag.dag_id, None)] = dag
 
         dags, _ = collect_dags("airflow/example_dags")
         assert set(stringified_dags.keys()) == set(dags.keys())

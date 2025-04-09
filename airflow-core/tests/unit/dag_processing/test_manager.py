@@ -559,7 +559,8 @@ class TestDagFileProcessorManager:
                 b'"bundle_path":"/opt/airflow/dags",'
                 b'"requests_fd":123,'
                 b'"callback_requests":[],'
-                b'"type":"DagFileParseRequest"'
+                b'"type":"DagFileParseRequest",'
+                b'"bundle_version":null'
                 b"}\n",
             ),
             pytest.param(
@@ -590,7 +591,8 @@ class TestDagFileProcessorManager:
                 b'"type":"DagCallbackRequest"'
                 b"}"
                 b"],"
-                b'"type":"DagFileParseRequest"'
+                b'"type":"DagFileParseRequest",'
+                b'"bundle_version":null'
                 b"}\n",
             ),
         ],
@@ -883,6 +885,7 @@ class TestDagFileProcessorManager:
                     id=mock.ANY,
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
+                    bundle_version=None,
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
@@ -892,6 +895,7 @@ class TestDagFileProcessorManager:
                     id=mock.ANY,
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
+                    bundle_version=None,
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,

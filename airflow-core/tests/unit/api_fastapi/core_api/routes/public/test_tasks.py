@@ -66,9 +66,9 @@ class TestTaskEndpoint:
         task4 >> task5
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {
-            dag.dag_id: dag,
-            mapped_dag.dag_id: mapped_dag,
-            unscheduled_dag.dag_id: unscheduled_dag,
+            (dag.dag_id, None): dag,
+            (mapped_dag.dag_id, None): mapped_dag,
+            (unscheduled_dag.dag_id, None): unscheduled_dag,
         }
         test_client.app.state.dag_bag = dag_bag
 

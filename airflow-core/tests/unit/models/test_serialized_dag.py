@@ -141,7 +141,7 @@ class TestSerializedDagModel:
     def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
-        example_bash_op_dag = example_dags.get("example_bash_operator")
+        example_bash_op_dag = example_dags.get(("example_bash_operator", None))
         dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
         assert dag_updated is True
 
@@ -194,7 +194,7 @@ class TestSerializedDagModel:
         serialized_dags = SDM.read_all_dags()
         assert len(example_dags) == len(serialized_dags)
 
-        dag = example_dags.get("example_bash_operator")
+        dag = example_dags.get(("example_bash_operator", None))
 
         # DAGs are serialized and deserialized to access create_dagrun object
         sdag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag))
@@ -219,7 +219,7 @@ class TestSerializedDagModel:
         the serialized DAG JSON.
         """
         example_dags = make_example_dags(example_dags_module)
-        example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
+        example_params_trigger_ui = example_dags.get(("example_params_trigger_ui", None))
         before = list(example_params_trigger_ui.params.keys())
 
         SDM.write_dag(example_params_trigger_ui, bundle_name="testing")
@@ -285,7 +285,7 @@ class TestSerializedDagModel:
             example_dags = self._write_example_dags()
             ordered_example_dags = dict(sorted(example_dags.items()))
             hashes = set()
-            for dag_id in ordered_example_dags.keys():
+            for dag_id, _ in ordered_example_dags.keys():
                 smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
                 hashes.add(smd.dag_hash)
             return hashes
