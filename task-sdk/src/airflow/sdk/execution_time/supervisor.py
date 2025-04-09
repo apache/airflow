@@ -124,7 +124,8 @@ STATES_SENT_DIRECTLY = [
     TerminalTIState.SUCCESS,
 ]
 
-
+# Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
+# that is big enough to handle small to medium messages while not enforcing hard latency issues
 BUFFER_SIZE = 4096
 
 
