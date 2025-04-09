@@ -1946,8 +1946,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     @property
     def access_control(self) -> Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None:
-        # This function is complex to implement, for now we delegate deserialize the dag and delegate to that.
-        return self._real_dag.access_control
+        return BaseSerialization.deserialize(self.data["dag"].get("access_control"))
 
     @cached_property
     def _real_dag(self):
