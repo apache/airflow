@@ -54,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable],
+    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable],
     Field(discriminator="type"),
 ]
 
