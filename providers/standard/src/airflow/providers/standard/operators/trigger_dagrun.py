@@ -192,20 +192,21 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def execute(self, context: Context):
+        if self.logical_date is NOTSET:
+            # If no logical_date is provided we will set utcnow()
+            parsed_logical_date = timezone.utcnow()
+        elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
+            parsed_logical_date = self.logical_date  # type: ignore
+        elif isinstance(self.logical_date, str):
+            parsed_logical_date = timezone.parse(self.logical_date)
+        # parsed_logical_date: datetime.datetime | None
         # if self.logical_date is NOTSET:
         #     # If no logical_date is provided we will set utcnow()
         #     parsed_logical_date = timezone.utcnow()
-        # elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
-        #     parsed_logical_date = self.logical_date
         # elif isinstance(self.logical_date, str):
         #     parsed_logical_date = timezone.parse(self.logical_date)
-        parsed_logical_date: datetime.datetime | None
-        if self.logical_date is NOTSET:
-            parsed_logical_date = timezone.utcnow()
-        elif isinstance(self.logical_date, str):
-            parsed_logical_date = timezone.parse(self.logical_date)
-        else:
-            parsed_logical_date = self.logical_date  # type: ignore
+        # else:
+        #     parsed_logical_date = self.logical_date  # type: ignore
 
         try:
             json.dumps(self.conf)
