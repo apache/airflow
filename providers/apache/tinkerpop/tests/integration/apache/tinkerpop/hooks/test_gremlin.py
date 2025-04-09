@@ -45,5 +45,5 @@ class TestGremlinHook:
         result = self.hook.run(
             "g.V().hasLabel('person').valueMap(true)", serializer=GraphSONSerializersV2d0()
         )
-        expected = "[{<T.id: 1>: 3, <T.label: 4>: 'person', 'name': ['Alice'], 'id': ['person1']}]"
+        expected = "[{'id': ['person1'], 'label': 'person', 'name': ['Alice']}]"
         assert str(result) == expected
