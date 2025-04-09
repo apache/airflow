@@ -7742,6 +7742,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
@@ -10198,7 +10200,8 @@ components:
       type: string
       enum:
       - Assets
-      - Audit log
+      - Audit Log
+      - Config
       - Connections
       - Dags
       - Docs
@@ -10243,6 +10246,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger

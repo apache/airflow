@@ -84,7 +84,6 @@ dependencies = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
