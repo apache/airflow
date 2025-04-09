@@ -56,6 +56,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
+ARG AIRFLOW_SETUPTOOLS_VERSION=78.1.0
 ARG AIRFLOW_UV_VERSION=0.6.13
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
@@ -553,6 +554,12 @@ function common::install_packaging_tools() {
             echo
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
+    fi
+    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
     fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
@@ -1513,12 +1520,14 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION
+ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 ARG UV_HTTP_TIMEOUT
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
+    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1744,6 +1753,7 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"$(echo -n ${AIRFLOW_USER
 
 ARG AIRFLOW_VERSION
 ARG AIRFLOW_PIP_VERSION
+ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 
@@ -1757,6 +1767,7 @@ ENV DUMB_INIT_SETSID="1" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
+    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 
 # Add protection against running pip as root user

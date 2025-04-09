@@ -1681,6 +1681,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
+            # Start a mock span so that one is present and not started downstream. We
+            # don't care about otel in dag.test and starting the span during dagrun update
+            # is not functioning properly in this context anyway.
+            dr.start_dr_spans_if_needed(tis=[])
 
             tasks = self.task_dict
             self.log.debug("starting dagrun")
