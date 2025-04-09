@@ -845,6 +845,11 @@ class ActivitySubprocess(WatchedSubprocess):
         if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
             return
 
+        if self._terminal_state:
+            # If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't
+            # heartbeat
+            return
+
         self._last_heartbeat_attempt = time.monotonic()
         try:
             self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
