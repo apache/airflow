@@ -163,7 +163,17 @@ export type BaseInfoResponse = {
 export type BaseNodeResponse = {
   id: string;
   label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
 };
 
 export type type =
@@ -172,6 +182,8 @@ export type type =
   | "asset-condition"
   | "asset"
   | "asset-alias"
+  | "asset-name-ref"
+  | "asset-uri-ref"
   | "dag"
   | "sensor"
   | "trigger";
@@ -1144,7 +1156,17 @@ export type MenuItemCollectionResponse = {
 export type NodeResponse = {
   id: string;
   label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
   children?: Array<NodeResponse> | null;
   is_mapped?: boolean | null;
   tooltip?: string | null;
