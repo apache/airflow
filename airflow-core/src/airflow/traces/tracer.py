@@ -50,8 +50,15 @@ def add_span(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        with Trace.start_span(span_name=func_name, component=component):
-            return func(*args, **kwargs)
+        if conf.has_option("traces", "otel_debug_traces_on") and conf.getboolean(
+            "traces", "otel_debug_traces_on"
+        ):
+            with Trace.start_span(span_name=func_name, component=component):
+                return func(*args, **kwargs)
+        else:
+            # Disable decorated function spans.
+            with EmptyTrace.start_span(span_name=func_name, component=component):
+                return func(*args, **kwargs)
 
     return wrapper
 
