@@ -38,6 +38,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
+    PutVariable,
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -287,6 +288,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 resp = var_result.model_dump_json(exclude_unset=True).encode()
             else:
                 resp = var.model_dump_json().encode()
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
         else:
             log.error("Unhandled request", msg=msg)
             return
