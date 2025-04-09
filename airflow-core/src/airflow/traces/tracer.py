@@ -24,6 +24,9 @@ from typing import TYPE_CHECKING, Any, Callable, Protocol
 
 from airflow.configuration import conf
 
+if TYPE_CHECKING:
+    from airflow.typing_compat import Self
+
 log = logging.getLogger(__name__)
 
 
@@ -66,7 +69,7 @@ class EmptyContext:
 class EmptySpan:
     """If no Tracer is configured, EmptySpan is used as a fallback."""
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         """Enter."""
         return self
 

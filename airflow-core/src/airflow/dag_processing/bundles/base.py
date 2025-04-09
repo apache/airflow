@@ -40,6 +40,8 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.typing_compat import Self
+
 log = logging.getLogger(__name__)
 
 
@@ -406,7 +408,7 @@ class BundleVersionLock:
             self.lock_file.close()
             self.lock_file = None
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # wrapping in try except here is just extra cautious since this is in task execution path
         try:
             self.acquire()

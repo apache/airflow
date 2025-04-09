@@ -41,6 +41,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.types import TypeEngine
 
+    from airflow.typing_compat import Self
+
 
 log = logging.getLogger(__name__)
 
@@ -383,7 +385,7 @@ class CommitProhibitorGuard:
             return
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)
         return self
 

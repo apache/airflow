@@ -36,6 +36,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if typing.TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
+    from airflow.typing_compat import Self
+
 
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
@@ -70,7 +72,7 @@ class TrackingFileWrapper(LoggingMixin):
         # Intercept item access
         return self._obj[key]
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self._obj.__enter__()
         return self
 
