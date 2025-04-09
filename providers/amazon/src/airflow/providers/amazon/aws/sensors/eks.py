@@ -146,6 +146,7 @@ class EksClusterStateSensor(EksBaseSensor):
     ):
         super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -198,6 +199,7 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         self.fargate_profile_name = fargate_profile_name
         self.region = region
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -252,6 +254,7 @@ class EksNodegroupStateSensor(EksBaseSensor):
         self.region = region
         self.nodegroup_name = nodegroup_name
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,

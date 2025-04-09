@@ -264,6 +264,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         )
 
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -499,6 +500,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -630,6 +632,7 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
             **kwargs,
         )
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -732,6 +735,7 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -861,6 +865,7 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
@@ -949,6 +954,7 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
         self.deferrable = deferrable
         self.region = region
         if region is not None:
+            self.region_name = region
             warnings.warn(
                 message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
