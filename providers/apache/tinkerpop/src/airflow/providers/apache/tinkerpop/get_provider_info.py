@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-tinkerpop",
         "name": "Apache TinkerPop",
         "description": "`Apache TinkerPop <https://tinkerpop.apache.org/>`__.\nApache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic\nsystems (OLAP) and Gremlin is its graph traversal language.\n",
-        "state": "ready",
-        "source-date-epoch": 1686592800,
-        "versions": ["1.0.0"],
         "integrations": [
             {
                 "integration-name": "Apache TinkerPop",
@@ -55,6 +52,4 @@ def get_provider_info():
                 "connection-type": "gremlin",
             }
         ],
-        "dependencies": ["apache-airflow>=2.10.0", "gremlinpython>=3.7.0", "nest-asyncio>=1.6.0"],
-        "devel-dependencies": [],
     }
