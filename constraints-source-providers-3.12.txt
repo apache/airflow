@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-09T02:21:37.264578
+# This constraints file was automatically generated on 2025-04-09T07:47:51.169672
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -214,7 +214,7 @@ google-api-python-client==2.166.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.87.0
+google-cloud-aiplatform==1.88.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -530,6 +530,8 @@ rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.24.0
 rsa==4.9
+ruamel.yaml.clib==0.2.12
+ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
 s3transfer==0.11.3
