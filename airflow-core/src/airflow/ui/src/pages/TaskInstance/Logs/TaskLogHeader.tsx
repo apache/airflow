@@ -36,6 +36,7 @@ import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly downloadLog: () => void;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly sourceOptions?: Array<string>;
@@ -47,6 +48,7 @@ type Props = {
 };
 
 export const TaskLogHeader = ({
+  downloadLog,
   isFullscreen = false,
   onSelectTryNumber,
   sourceOptions,
@@ -181,6 +183,9 @@ export const TaskLogHeader = ({
         <HStack>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
+          </Button>
+          <Button aria-label="Download Log" bg="bg.panel" onClick={downloadLog} variant="outline">
+            Download Log
           </Button>
           {!isFullscreen && (
             <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
