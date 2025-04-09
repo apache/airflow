@@ -435,9 +435,7 @@ repos:
           (?x)
           ^providers/.*/src/airflow/providers/|
           ^airflow-core/src/airflow/exceptions\.py$|
-          ^airflow-core/src/airflow/exceptions\.py$|
           ^airflow-core/src/airflow/models/renderedtifields\.py$|
-          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/serialization/serializers/kubernetes\.py$|
           ^airflow-core/src/airflow/utils/sqlalchemy\.py$
