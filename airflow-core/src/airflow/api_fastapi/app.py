@@ -41,14 +41,14 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
-API_BASE_URL = conf.get("api", "base_url")
-if API_BASE_URL and not API_BASE_URL.endswith("/"):
+API_BASE_URL = conf.get("api", "base_url", fallback="")
+if not API_BASE_URL or not API_BASE_URL.endswith("/"):
     API_BASE_URL += "/"
     os.environ["AIRFLOW__API__BASE_URL"] = API_BASE_URL
 API_ROOT_PATH = urlsplit(API_BASE_URL).path
 
 # Define the full path on which the potential auth manager fastapi is mounted
-AUTH_MANAGER_FASTAPI_APP_PREFIX = f"/{API_ROOT_PATH}auth"
+AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
 log = logging.getLogger(__name__)
 

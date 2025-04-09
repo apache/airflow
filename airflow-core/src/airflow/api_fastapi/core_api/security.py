@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -336,23 +336,27 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
     is a valid normalized path.
     """
-    base_url: str | None = conf.get("api", "base_url")
+    parsed_bases: tuple[tuple[str, ParseResult], ...] = ()
 
-    if not base_url and request is not None:
-        # base_url not specified in the config, relative to referer is
-        # considered safe.
-        base_url = request.headers.get("Referer")
+    # Check if the target URL matches either the configured base URL, or the URL used to make the request
+    if request is not None:
+        url = str(request.base_url)
+        parsed_bases += ((url, urlparse(url)),)
+    if base_url := conf.get("api", "base_url", fallback=None):
+        parsed_bases += ((base_url, urlparse(base_url)),)
 
-    if not base_url:
+    if not parsed_bases:
         # Can't enforce any security check.
         return True
 
-    parsed_base = urlparse(base_url)
-    parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+    for base_url, parsed_base in parsed_bases:
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
-    target_path = Path(parsed_target.path).resolve()
+        target_path = Path(parsed_target.path).resolve()
 
-    if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
-        return False
+        if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
+            continue
 
-    return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
+        if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
+            return True
+    return False
