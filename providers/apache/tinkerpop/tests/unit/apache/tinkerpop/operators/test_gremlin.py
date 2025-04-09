@@ -37,10 +37,10 @@ class TestGremlinOperator:
         query = "g.V().limit(1)"
         op = GremlinOperator(task_id="basic_gremlin", query=query, gremlin_conn_id="gremlin_default")
 
-        # Create a dummy context (the operator doesn't use it in execute())
+        # Create a dummy context
         context = mock.MagicMock()
 
-        # Create a dummy connection to avoid the AirflowNotFoundException.
+        # Create a dummy connection
         dummy_conn = Connection(
             conn_id="gremlin_default",
             host="host",
@@ -50,13 +50,17 @@ class TestGremlinOperator:
             password="mypassword",
         )
 
-        # Override get_connection on the hook instance so that it returns the dummy connection.
-        mock_hook.return_value.get_connection.return_value = dummy_conn
+        # Mock hook instance
+        mock_hook_instance = mock_hook.return_value
+        mock_hook_instance.get_connection.return_value = dummy_conn
+        mock_hook_instance.run.return_value = None
+        mock_hook_instance.client = mock.MagicMock()  # Mock client attribute
+        mock_hook_instance.client.close = mock.MagicMock()  # Mock close method
 
-        # Execute the operator.
+        # Execute the operator
         op.execute(context)
 
-        # Ensure that the hook was instantiated with the expected connection ID.
+        # Verify hook instantiation and run call
         mock_hook.assert_called_once_with(conn_id="gremlin_default")
-        # Ensure that run() was called with the query.
-        mock_hook.return_value.run.assert_called_once_with(query)
+        mock_hook_instance.run.assert_called_once_with(query)
+        mock_hook_instance.client.close.assert_called_once()  # Verify cleanup

@@ -48,4 +48,8 @@ class GremlinOperator(BaseOperator):
         hook = GremlinHook(conn_id=self.gremlin_conn_id)
         # Note: the hook method is defined as run() in our hook implementation.
         # If you prefer, you can add an alias run_query = run in your hook.
-        return hook.run(self.query)
+        try:
+            return hook.run(self.query)
+        finally:
+            if hasattr(hook, "client") and hook.client:
+                hook.client.close()  # Ensure client cleanup

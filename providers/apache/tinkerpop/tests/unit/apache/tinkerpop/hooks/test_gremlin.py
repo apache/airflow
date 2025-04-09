@@ -24,6 +24,16 @@ from airflow.models import Connection
 from airflow.providers.apache.tinkerpop.hooks.gremlin import GremlinHook
 
 
+@pytest.fixture
+def gremlin_hook():
+    """Fixture to provide a GremlinHook instance with proper teardown."""
+    hook = GremlinHook()
+    yield hook
+    # Teardown: Ensure the client is closed if it exists
+    if hook.client:
+        hook.client.close()
+
+
 class TestGremlinHook:
     @pytest.mark.parametrize(
         "host, port, expected_uri",
@@ -33,7 +43,7 @@ class TestGremlinHook:
             ("localhost", 8888, "ws://localhost:8888/gremlin"),
         ],
     )
-    def test_get_uri(self, host, port, expected_uri):
+    def test_get_uri(self, host, port, expected_uri, gremlin_hook):
         """
         Test that get_uri builds the expected URI from the connection.
         """
@@ -44,12 +54,10 @@ class TestGremlinHook:
 
             assert uri == expected_uri
 
-    @mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client")
-    def test_get_conn(self, mock_client):
+    def test_get_conn(self, gremlin_hook):
         """
         Test that get_conn() retrieves the connection and creates a client correctly.
         """
-        hook = GremlinHook()
         conn = Connection(
             conn_type="gremlin",
             conn_id="gremlin_default",
@@ -59,19 +67,19 @@ class TestGremlinHook:
             login="login",
             password="mypassword",
         )
-        hook.get_connection = lambda conn_id: conn
+        gremlin_hook.get_connection = lambda conn_id: conn
 
-        hook.get_conn()
-        expected_uri = "wss://host:1234/"
-        expected_username = "/dbs/login/colls/mydb"
+        with mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client") as mock_client:
+            gremlin_hook.get_conn()
+            expected_uri = "wss://host:1234/"
+            expected_username = "/dbs/login/colls/mydb"
 
-        mock_client.assert_called_once()
-
-        call_args = mock_client.call_args.kwargs
-        assert call_args["url"] == expected_uri
-        assert call_args["traversal_source"] == hook.traversal_source
-        assert call_args["username"] == expected_username
-        assert call_args["password"] == "mypassword"
+            mock_client.assert_called_once_with(
+                url=expected_uri,
+                traversal_source=gremlin_hook.traversal_source,
+                username=expected_username,
+                password="mypassword",
+            )
 
     @pytest.mark.parametrize(
         "serializer, should_include",
@@ -80,12 +88,10 @@ class TestGremlinHook:
             ("dummy_serializer", True),
         ],
     )
-    @mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client")
-    def test_get_client_message_serializer(self, mock_client, serializer, should_include):
+    def test_get_client_message_serializer(self, serializer, should_include, gremlin_hook):
         """
         Test that get_client() includes message_serializer only when provided.
         """
-        hook = GremlinHook()
         conn = Connection(
             conn_id="gremlin_default",
             host="host",
@@ -96,13 +102,15 @@ class TestGremlinHook:
         )
         uri = "wss://test.uri"
         traversal_source = "g"
-        hook.get_client(conn, traversal_source, uri, message_serializer=serializer)
-        call_args = mock_client.call_args.kwargs
-        if should_include:
-            assert "message_serializer" in call_args
-            assert call_args["message_serializer"] == serializer
-        else:
-            assert "message_serializer" not in call_args
+
+        with mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client") as mock_client:
+            gremlin_hook.get_client(conn, traversal_source, uri, message_serializer=serializer)
+            call_args = mock_client.call_args.kwargs
+            if should_include:
+                assert "message_serializer" in call_args
+                assert call_args["message_serializer"] == serializer
+            else:
+                assert "message_serializer" not in call_args
 
     @pytest.mark.parametrize(
         "side_effect, expected_exception, expected_result",
@@ -111,24 +119,34 @@ class TestGremlinHook:
             (Exception("Test error"), Exception, None),
         ],
     )
-    @mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client")
-    def test_run(self, mock_client, side_effect, expected_exception, expected_result):
+    def test_run(self, side_effect, expected_exception, expected_result, gremlin_hook):
         """
-        Test that run() returns the expected result or propagates an exception.
+        Test that run() returns the expected result or propagates an exception, with proper cleanup.
         """
-        instance = mock_client.return_value
-
-        if side_effect is None:
-            instance.submit.return_value.all.return_value.result.return_value = expected_result
-        else:
-            instance.submit.return_value.all.return_value.result.side_effect = side_effect
-
-        hook = GremlinHook()
-        hook.client = instance
         query = "g.V().limit(1)"
-        if expected_exception:
-            with pytest.raises(expected_exception, match="Test error"):
-                hook.run(query)
-        else:
-            result = hook.run(query)
-            assert result == expected_result
+
+        # Mock the client instance
+        with mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client") as mock_client:
+            instance = mock_client.return_value
+            if side_effect is None:
+                instance.submit.return_value.all.return_value.result.return_value = expected_result
+            else:
+                instance.submit.return_value.all.return_value.result.side_effect = side_effect
+
+            # Mock get_connection to simplify setup
+            conn = Connection(
+                conn_id="gremlin_default",
+                host="host",
+                port=1234,
+                schema="mydb",
+                login="login",
+                password="mypassword",
+            )
+            gremlin_hook.get_connection = lambda conn_id: conn
+
+            if expected_exception:
+                with pytest.raises(expected_exception, match="Test error"):
+                    gremlin_hook.run(query)
+            else:
+                result = gremlin_hook.run(query)
+                assert result == expected_result

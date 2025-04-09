@@ -153,5 +153,9 @@ class GremlinHook(BaseHook):
         except Exception as e:
             logger.error("An error occurred while running the query: %s", str(e))
             raise e
+        finally:
+            if client is not None:
+                client.close()
+                self.client = None
 
         return results_list
