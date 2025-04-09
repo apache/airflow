@@ -4296,7 +4296,8 @@ export const $MenuItem = {
   type: "string",
   enum: [
     "Assets",
-    "Audit log",
+    "Audit Log",
+    "Config",
     "Connections",
     "Dags",
     "Docs",

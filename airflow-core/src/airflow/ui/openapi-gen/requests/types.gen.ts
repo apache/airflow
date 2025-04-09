@@ -1132,7 +1132,8 @@ export type JobResponse = {
  */
 export type MenuItem =
   | "Assets"
-  | "Audit log"
+  | "Audit Log"
+  | "Config"
   | "Connections"
   | "Dags"
   | "Docs"
