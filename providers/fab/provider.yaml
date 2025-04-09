@@ -83,6 +83,14 @@ config:
         type: string
         example: ~
         default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
+      session_lifetime_minutes:
+        description: |
+          The UI cookie lifetime in minutes. User will be logged out from UI after
+          ``[fab] session_lifetime_minutes`` of non-activity
+        version_added: 2.0.0
+        type: integer
+        example: ~
+        default: "43200"
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

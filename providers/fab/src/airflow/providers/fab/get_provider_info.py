@@ -58,6 +58,13 @@ def get_provider_info():
                         "example": None,
                         "default": "airflow.providers.fab.auth_manager.api.auth.backend.session",
                     },
+                    "session_lifetime_minutes": {
+                        "description": "The UI cookie lifetime in minutes. User will be logged out from UI after\n``[fab] session_lifetime_minutes`` of non-activity\n",
+                        "version_added": "2.0.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "43200",
+                    },
                 },
             }
         },

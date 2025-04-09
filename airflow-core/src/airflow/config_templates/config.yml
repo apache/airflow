@@ -1862,14 +1862,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    session_lifetime_minutes:
-      description: |
-        The UI cookie lifetime in minutes. User will be logged out from UI after
-        ``[webserver] session_lifetime_minutes`` of non-activity
-      version_added: 1.10.13
-      type: integer
-      example: ~
-      default: "43200"
     instance_name:
       description: |
         Sets a custom page title for the DAGs overview page and site title for all pages
