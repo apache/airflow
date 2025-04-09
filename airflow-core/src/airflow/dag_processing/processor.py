@@ -269,7 +269,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
-        resp: Any = None
+        resp: BaseModel | None = None
         dump_opts = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
