@@ -664,7 +664,7 @@ def get_count(
 
     count = session.scalar(query) or 0
 
-    if return_task_group_count:
+    if return_task_group_count and task_map_pairs_count:
         dttm_or_run_ids = logical_dates or run_ids
         count = (count / task_map_pairs_count) * len(dttm_or_run_ids) if dttm_or_run_ids else 1
 
