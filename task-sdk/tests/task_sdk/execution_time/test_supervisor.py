@@ -472,6 +472,8 @@ class TestWatchedSubprocess:
         Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
         in the running state. Instead, it logs the error and terminates the task process if it
         might be running in a different state or has already completed -- or running on a different worker.
+
+        Also verifies that the supervisor does not try to send the finish request (update_state) to the API server.
         """
         import airflow.sdk.execution_time.supervisor
 
@@ -501,12 +503,14 @@ class TestWatchedSubprocess:
                         409,
                         json={
                             "reason": "not_running",
-                            "message": "TI is no longer in the running state and task should terminate",
+                            "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
                             "current_state": "success",
                         },
                     )
             elif request.url.path == f"/task-instances/{ti_id}/run":
                 return httpx.Response(200, json=make_ti_context_dict())
+            elif request.url.path == f"/task-instances/{ti_id}/state":
+                pytest.fail("Should not have sent a state update request")
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
@@ -518,16 +522,18 @@ class TestWatchedSubprocess:
             bundle_info=FAKE_BUNDLE,
         )
 
-        # Wait for the subprocess to finish -- it should have been terminated
+        # Wait for the subprocess to finish -- it should have been terminated with SIGTERM
         assert proc.wait() == -signal.SIGTERM
+        assert proc._exit_code == -signal.SIGTERM
+        assert proc.final_state == "SERVER_TERMINATED"
 
         assert request_count["count"] == 2
-        # Verify the number of requests made
+        # Verify the error was logged
         assert captured_logs == [
             {
                 "detail": {
                     "reason": "not_running",
-                    "message": "TI is no longer in the running state and task should terminate",
+                    "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
                     "current_state": "success",
                 },
                 "event": "Server indicated the task shouldn't be running anymore",
@@ -536,7 +542,24 @@ class TestWatchedSubprocess:
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
                 "ti_id": ti_id,
-            }
+            },
+            {
+                "detail": {
+                    "current_state": "success",
+                    "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
+                    "reason": "not_running",
+                },
+                "event": "Server indicated the task shouldn't be running anymore. Terminating process",
+                "level": "error",
+                "logger": "task",
+                "timestamp": mocker.ANY,
+            },
+            {
+                "event": "Task killed!",
+                "level": "error",
+                "logger": "task",
+                "timestamp": mocker.ANY,
+            },
         ]
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
