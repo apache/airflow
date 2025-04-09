@@ -78,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RetryTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
@@ -1164,6 +1165,15 @@ class TestHandleRequest:
                 {},
                 "",
                 id="patch_task_instance_to_skipped",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "task_instances.retry",
+                (),
+                {"id": TI_ID, "end_date": timezone.parse("2024-10-31T12:00:00Z")},
+                "",
+                id="up_for_retry",
             ),
             pytest.param(
                 SetRenderedFields(rendered_fields={"field1": "rendered_value1", "field2": "rendered_value2"}),

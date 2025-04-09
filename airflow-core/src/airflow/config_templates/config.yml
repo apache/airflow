@@ -892,6 +892,14 @@ logging:
       type: string
       default: ""
       example: "urllib.parse.quote"
+    min_length_masked_secret:
+      description: |
+        The minimum length of a secret to be masked in log messages.
+        Secrets shorter than this length will not be masked.
+      version_added: 3.0.0
+      type: integer
+      default: "5"
+      example: ~
     task_log_prefix_template:
       description: |
         Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``

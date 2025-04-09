@@ -79,10 +79,8 @@ dependencies = [
     "flask-wtf>=1.1.0",
     "connexion[flask]>=2.14.2,<3.0",
     "jmespath>=0.7.0",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
     "werkzeug>=2.2,<4",
-
+    "wtforms>=3.0,<4",
 ]
 
 # The optional dependencies should be modified in place in the generated file

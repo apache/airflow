@@ -725,10 +725,11 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
-"scripts/ci/pre_commit/*.py" = ["E402"]
-"airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
-"airflow-core/src/airflow/security/kerberos.py" = ["E402"]
-"airflow-core/src/airflow/security/utils.py" = ["E402"]
+"scripts/ci/pre_commit/*.py" = [ "E402" ]
+"airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]
+"airflow-core/src/airflow/security/kerberos.py" = [ "E402" ]
+"airflow-core/src/airflow/security/utils.py" = [ "E402" ]
+"airflow-core/tests/unit/always/test_connection.py" = [ "E402" ]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
 "providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]

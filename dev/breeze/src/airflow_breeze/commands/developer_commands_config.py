@@ -150,7 +150,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-skip-constraints",
                 "--clean-airflow-installation",
                 "--excluded-providers",
-                "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--distribution-format",
