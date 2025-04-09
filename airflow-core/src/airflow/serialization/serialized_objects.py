@@ -1135,7 +1135,8 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-
+        if not dag.timetable:
+            return
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
@@ -1690,7 +1691,7 @@ class SerializedDAG(DAG, BaseSerialization):
         except SerializationError:
             raise
         except Exception as e:
-            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}")
+            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}") from e
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
@@ -1788,11 +1789,46 @@ class SerializedDAG(DAG, BaseSerialization):
         return json_dict
 
     @classmethod
+    def conversion_v1(cls, ser_obj:dict, to_version: int):
+        dag_dict = ser_obj["dag"]
+        dag_renames = [("_dag_id", "dag_id")]
+        task_renames = [("_task_type", "task_type")]
+        def reverse_dir():
+            nonlocal dag_renames, task_renames
+            dag_renames = [(b, a) for a, b in dag_renames]
+            task_renames = [(b, a) for a, b in task_renames]
+
+        if to_version == 1:
+            reverse_dir()
+        elif to_version == 2:
+            #dag_dict["timetable"]["asset_condition"] = None
+            ...
+        else:
+            raise RuntimeError(f"Conversion to version {to_version} unsupported.")
+        cls.convert_serdag_version(
+            dag_dict=dag_dict,
+            dag_renames=dag_renames,
+            task_renames=task_renames,
+        )
+
+    @classmethod
+    def convert_serdag_version(cls, dag_dict: dict, dag_renames, task_renames) -> dict:
+        for old, new in dag_renames:
+            dag_dict[new] = dag_dict.pop(old)
+        tasks = dag_dict["tasks"]
+        for task in tasks:
+            task_var = task["__var"]
+            for old, new in task_renames:
+                task_var[new] = task_var.pop(old)
+
+    @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
-        if ver != cls.SERIALIZER_VERSION:
+        if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
+        if ver == 1:
+            cls.conversion_v1(serialized_obj, to_version=2)
         return cls.deserialize_dag(serialized_obj["dag"])
 
 

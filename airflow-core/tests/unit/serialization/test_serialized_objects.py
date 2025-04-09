@@ -459,6 +459,7 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker):
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
+<<<<<<< HEAD
 def test_get_task_assets():
     asset1 = Asset("1")
     with DAG("testdag") as source_dag:
@@ -475,3 +476,18 @@ def test_get_task_assets():
         ("c", asset1),
         ("d", asset1),
     ]
+
+V1_SERDAG = '{"__version": 1, "dag": {"fileloc": "/Users/dstandish/code/try_2_10_5/dags/some_test.py", "tags": ["example"], "edge_info": {}, "catchup": false, "_task_group": {"_group_id": null, "prefix_group_id": true, "tooltip": "", "ui_color": "CornflowerBlue", "ui_fgcolor": "#000", "children": {"generate_value": ["operator", "generate_value"], "print_value": ["operator", "print_value"], "print_value__1": ["operator", "print_value__1"]}, "upstream_group_ids": [], "downstream_group_ids": [], "upstream_task_ids": [], "downstream_task_ids": []}, "timezone": "UTC", "_dag_id": "xcom", "start_date": 1609459200.0, "schedule_interval": null, "_processor_dags_folder": "/Users/dstandish/code/try_2_10_5/dags", "tasks": [{"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "generate_value", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": ["print_value"], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": [], "op_kwargs": {}}, "__type": "operator"}, {"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "print_value", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": ["print_value__1"], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): generate_value>),)", "op_kwargs": {}}, "__type": "operator"}, {"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "print_value__1", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": [], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): print_value>),)", "op_kwargs": {}}, "__type": "operator"}], "dag_dependencies": [], "params": []}}'
+
+
+def test_deser_v1_serdag():
+    V1_SERDAG_DICT = json.loads(V1_SERDAG)
+    # print(json.dumps(V1_SERDAG_DICT, indent=2))
+    dag = SerializedDAG.from_dict(V1_SERDAG_DICT)
+    v2_dag_dict = SerializedDAG.to_dict(dag)
+    v2_json = json.dumps(v2_dag_dict)
+    v1_dag_dict = json.loads(v2_json)
+    SerializedDAG.conversion_v1(v1_dag_dict, to_version=1)
+    v1_dag_dict = json.loads(json.dumps(v1_dag_dict,sort_keys=True))
+    v2_dag_dict = json.loads(json.dumps(v2_dag_dict,sort_keys=True))
+    assert v1_dag_dict == v2_dag_dict
