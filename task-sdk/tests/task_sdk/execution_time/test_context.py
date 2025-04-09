@@ -352,29 +352,13 @@ class TestCurrentContext:
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
-        (
-            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
-            (
-                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
-                [
-                    AssetAliasEvent(
-                        source_alias_name="test_alias",
-                        dest_asset_key=AssetUniqueKey(uri="test_uri", name="test_uri"),
-                        extra={},
-                    )
-                ],
-            ),
-        ),
+        "add_arg",
+        [
+            Asset("name", "uri"),
+            Asset.ref(name="name"),
+            Asset.ref(uri="uri"),
+        ],
     )
-    def test_add(self, key, asset_alias_events, mock_supervisor_comms):
-        asset = Asset("test_uri")
-        mock_supervisor_comms.get_message.return_value = asset
-
-        outlet_event_accessor = OutletEventAccessor(key=key, extra={})
-        outlet_event_accessor.add(asset)
-        assert outlet_event_accessor.asset_alias_events == asset_alias_events
-
     @pytest.mark.parametrize(
         "key, asset_alias_events",
         (
@@ -384,19 +368,49 @@ class TestOutletEventAccessor:
                 [
                     AssetAliasEvent(
                         source_alias_name="test_alias",
-                        dest_asset_key=AssetUniqueKey(name="test-asset", uri="test://asset-uri/"),
+                        dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
                         extra={},
                     )
                 ],
             ),
         ),
     )
-    def test_add_with_db(self, key, asset_alias_events, mock_supervisor_comms):
-        asset = Asset(uri="test://asset-uri", name="test-asset")
-        mock_supervisor_comms.get_message.return_value = asset
+    def test_add(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = AssetResponse(name="name", uri="uri", group="")
+
+        outlet_event_accessor = OutletEventAccessor(key=key, extra={})
+        outlet_event_accessor.add(add_arg)
+        assert outlet_event_accessor.asset_alias_events == asset_alias_events
+
+    @pytest.mark.parametrize(
+        "add_arg",
+        [
+            Asset("name", "uri"),
+            Asset.ref(name="name"),
+            Asset.ref(uri="uri"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "key, asset_alias_events",
+        (
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
+            (
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
+                        extra={},
+                    )
+                ],
+            ),
+        ),
+    )
+    def test_add_with_db(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = AssetResponse(name="name", uri="uri", group="")
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
-        outlet_event_accessor.add(asset, extra={})
+        outlet_event_accessor.add(add_arg, extra={})
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
 
