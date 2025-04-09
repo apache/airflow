@@ -329,11 +329,15 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "session_lifetime_days"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "force_log_out_after"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
