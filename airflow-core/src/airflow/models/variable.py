@@ -210,11 +210,10 @@ class Variable(Base, LoggingMixin):
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
-            from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
 
             # check if the secret exists in the custom secrets' backend.
             # passing the secrets backend initialized on the worker side
-            Variable.check_for_write_conflict(key=key, secrets_backends=SECRETS_BACKEND)
+            Variable.check_for_write_conflict(key=key)
             TaskSDKVariable.set(
                 key=key,
                 value=value,
