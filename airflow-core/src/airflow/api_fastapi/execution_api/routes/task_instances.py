@@ -284,6 +284,21 @@ def ti_update_state(
             },
         )
 
+    if previous_state != TaskInstanceState.RUNNING:
+        log.warning(
+            "Can not update Task Instance ('%s') in invalid state: %s",
+            ti_id_str,
+            previous_state,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "invalid_state",
+                "message": "TI was not in the running state so it cannot be updated",
+                "previous_state": previous_state,
+            },
+        )
+
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
 
