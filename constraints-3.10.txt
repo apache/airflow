@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-09T08:00:04.464667
+# This constraints file was automatically generated on 2025-04-09T14:10:15.969798
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -99,20 +99,20 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.9.0
 apache-airflow-providers-airbyte==5.0.1
-apache-airflow-providers-alibaba==3.0.1
-apache-airflow-providers-amazon==9.4.0
+apache-airflow-providers-alibaba==3.0.2
+apache-airflow-providers-amazon==9.5.0
 apache-airflow-providers-apache-beam==6.0.3
 apache-airflow-providers-apache-cassandra==3.7.1
 apache-airflow-providers-apache-drill==3.0.1
 apache-airflow-providers-apache-druid==4.1.0
 apache-airflow-providers-apache-flink==1.6.1
 apache-airflow-providers-apache-hdfs==4.7.1
-apache-airflow-providers-apache-hive==9.0.4
+apache-airflow-providers-apache-hive==9.0.5
 apache-airflow-providers-apache-iceberg==1.2.1
 apache-airflow-providers-apache-impala==1.6.1
 apache-airflow-providers-apache-kafka==1.8.0
 apache-airflow-providers-apache-kylin==3.8.2
-apache-airflow-providers-apache-livy==4.2.1
+apache-airflow-providers-apache-livy==4.3.0
 apache-airflow-providers-apache-pig==4.6.1
 apache-airflow-providers-apache-pinot==4.7.0
 apache-airflow-providers-apache-spark==5.1.1
@@ -120,25 +120,25 @@ apache-airflow-providers-apprise==2.0.2
 apache-airflow-providers-arangodb==2.7.3
 apache-airflow-providers-asana==2.9.1
 apache-airflow-providers-atlassian-jira==3.0.2
-apache-airflow-providers-celery==3.10.4
+apache-airflow-providers-celery==3.10.5
 apache-airflow-providers-cloudant==4.1.1
-apache-airflow-providers-cncf-kubernetes==10.4.0
+apache-airflow-providers-cncf-kubernetes==10.4.1
 apache-airflow-providers-cohere==1.4.3
 apache-airflow-providers-common-compat==1.6.0
 apache-airflow-providers-common-io==1.5.2
-apache-airflow-providers-common-sql==1.24.1
-apache-airflow-providers-databricks==7.2.2
+apache-airflow-providers-common-sql==1.25.0
+apache-airflow-providers-databricks==7.3.0
 apache-airflow-providers-datadog==3.8.3
-apache-airflow-providers-dbt-cloud==4.3.1
+apache-airflow-providers-dbt-cloud==4.3.2
 apache-airflow-providers-dingding==3.7.3
 apache-airflow-providers-discord==3.9.4
 apache-airflow-providers-docker==4.3.0
 apache-airflow-providers-elasticsearch==6.2.1
-apache-airflow-providers-exasol==4.7.3
+apache-airflow-providers-exasol==4.7.4
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
 apache-airflow-providers-github==2.8.3
-apache-airflow-providers-google==14.1.0
+apache-airflow-providers-google==15.0.0
 apache-airflow-providers-grpc==3.7.3
 apache-airflow-providers-hashicorp==4.1.0
 apache-airflow-providers-http==5.2.1
@@ -146,8 +146,8 @@ apache-airflow-providers-imap==3.8.3
 apache-airflow-providers-influxdb==2.8.3
 apache-airflow-providers-jdbc==5.0.1
 apache-airflow-providers-jenkins==4.0.3
-apache-airflow-providers-microsoft-azure==12.2.2
-apache-airflow-providers-microsoft-mssql==4.2.1
+apache-airflow-providers-microsoft-azure==12.3.0
+apache-airflow-providers-microsoft-mssql==4.2.2
 apache-airflow-providers-microsoft-psrp==3.0.1
 apache-airflow-providers-microsoft-winrm==3.9.2
 apache-airflow-providers-mongo==5.0.2
@@ -160,10 +160,10 @@ apache-airflow-providers-opensearch==1.6.2
 apache-airflow-providers-opsgenie==5.8.3
 apache-airflow-providers-oracle==4.0.2
 apache-airflow-providers-pagerduty==4.0.3
-apache-airflow-providers-papermill==3.9.2
+apache-airflow-providers-papermill==3.10.0
 apache-airflow-providers-pgvector==1.4.1
 apache-airflow-providers-pinecone==2.2.2
-apache-airflow-providers-postgres==6.1.1
+apache-airflow-providers-postgres==6.1.2
 apache-airflow-providers-presto==5.8.3
 apache-airflow-providers-qdrant==1.3.2
 apache-airflow-providers-redis==4.0.2
@@ -171,14 +171,14 @@ apache-airflow-providers-salesforce==5.10.1
 apache-airflow-providers-samba==4.9.2
 apache-airflow-providers-segment==3.7.2
 apache-airflow-providers-sendgrid==4.0.1
-apache-airflow-providers-sftp==5.1.1
+apache-airflow-providers-sftp==5.1.2
 apache-airflow-providers-singularity==3.7.1
 apache-airflow-providers-slack==9.0.3
 apache-airflow-providers-smtp==2.0.2
-apache-airflow-providers-snowflake==6.1.1
+apache-airflow-providers-snowflake==6.2.0
 apache-airflow-providers-sqlite==4.0.1
 apache-airflow-providers-ssh==4.0.1
-apache-airflow-providers-standard==0.2.0
+apache-airflow-providers-standard==0.3.0
 apache-airflow-providers-tableau==5.0.2
 apache-airflow-providers-telegram==4.7.2
 apache-airflow-providers-teradata==3.0.2
@@ -188,7 +188,7 @@ apache-airflow-providers-weaviate==3.0.2
 apache-airflow-providers-yandex==4.0.3
 apache-airflow-providers-ydb==2.1.1
 apache-airflow-providers-zendesk==4.9.1
-apache-beam==2.59.0
+apache-beam==2.64.0
 apispec==6.8.1
 apprise==1.9.3
 argcomplete==3.6.2
@@ -385,7 +385,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.71.0
+grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -445,6 +445,7 @@ jupyter_core==5.7.2
 jupyterlab_pygments==0.3.0
 kerberos==1.3.1
 keyring==25.6.0
+keyrings.alt==5.0.2
 kgb==7.2
 kombu==5.5.2
 krb5==0.7.1
@@ -467,11 +468,11 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.3.3
-microsoft-kiota-authentication-azure==1.1.0
-microsoft-kiota-http==1.3.3
-microsoft-kiota-serialization-json==1.0.0
-microsoft-kiota-serialization-text==1.0.0
+microsoft-kiota-abstractions==1.9.3
+microsoft-kiota-authentication-azure==1.9.3
+microsoft-kiota-http==1.9.3
+microsoft-kiota-serialization-json==1.9.3
+microsoft-kiota-serialization-text==1.9.3
 mistune==3.1.3
 mmh3==5.1.0
 mongomock==4.3.0
@@ -480,7 +481,7 @@ moto==5.1.3
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.32.0
-msgraph-core==1.2.1
+msgraph-core==1.3.3
 msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
@@ -775,7 +776,7 @@ websocket-client==1.8.0
 websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.2
-xmlsec==1.3.15
+xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.37.0
 yandex-query-client==0.1.4
