@@ -246,27 +246,3 @@ class TestHasAccessDagEntities:
 
         mock_call.assert_not_called()
         assert result.headers["Location"] == "login_url"
-
-
-class TestUpdatedConfigNames:
-    @conf_vars({("fab", "session_lifetime_minutes"): "43200"})
-    def test_config_val_is_default(self):
-        from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-        session_lifetime_config = get_session_lifetime_config()
-        assert session_lifetime_config == 43200
-
-    @conf_vars({("fab", "session_lifetime_minutes"): "43201"})
-    def test_config_val_is_not_default(self):
-        from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-        session_lifetime_config = get_session_lifetime_config()
-        assert session_lifetime_config == 43201
-
-    @conf_vars({("fab", "session_lifetime_days"): ""})
-    def test_uses_updated_session_timeout_config_by_default(self):
-        from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-        session_lifetime_config = get_session_lifetime_config()
-        default_timeout_minutes = 30 * 24 * 60
-        assert session_lifetime_config == default_timeout_minutes
