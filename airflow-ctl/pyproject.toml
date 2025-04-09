@@ -39,6 +39,11 @@ classifiers = [
   "Framework :: Apache Airflow",
 ]
 
+[project.optional-dependencies]
+"dev" = [
+    "keyrings.alt>=5.0.2",
+]
+
 [project.scripts]
 airflowctl = "airflowctl.__main__:main"
 
@@ -90,6 +95,9 @@ exclude_also = [
 ]
 
 [dependency-groups]
+dev = [
+    "apache-airflow-ctl[dev]",
+]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
 ]
