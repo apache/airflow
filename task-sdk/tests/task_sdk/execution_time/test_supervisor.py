@@ -121,6 +121,10 @@ def local_dag_bundle_cfg(path, name="my-bundle"):
 
 @pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
+    @pytest.fixture(autouse=True)
+    def disable_log_upload(self, spy_agency):
+        spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
+
     def test_reading_from_pipes(self, captured_logs, time_machine):
         def subprocess_main():
             # This is run in the subprocess!
@@ -285,6 +289,39 @@ class TestWatchedSubprocess:
         assert spy.called_with(ti_id, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
         assert 1 <= len(spy.calls) <= 4
+
+    def test_no_heartbeat_in_overtime(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
+        """Test that we don't try and send heartbeats for task that are in "overtime"."""
+        import airflow.sdk.execution_time.supervisor
+
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+
+        def subprocess_main():
+            sys.stdin.readline()
+
+            for _ in range(5):
+                print("output", flush=True)
+                sleep(0.05)
+
+        ti_id = uuid7()
+        _ = mocker.patch.object(sdk_client.TaskInstanceOperations, "start", return_value=make_ti_context())
+
+        @spy_agency.spy_for(ActivitySubprocess._on_child_started)
+        def _on_child_started(self, *args, **kwargs):
+            # Set it up so we are in overtime straight away
+            self._terminal_state = TerminalTIState.SUCCESS
+            ActivitySubprocess._on_child_started.call_original(self, *args, **kwargs)
+
+        heartbeat_spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            client=sdk_client.Client(base_url="", dry_run=True, token=""),
+            target=subprocess_main,
+        )
+        assert proc.wait() == 0
+        spy_agency.assert_spy_not_called(heartbeat_spy)
 
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, make_ti_context):
         """Test running a simple DAG in a subprocess and capturing the output."""
