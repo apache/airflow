@@ -181,7 +181,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
         self.logical_date = logical_date
-
         if logical_date is NOTSET:
             self.logical_date = NOTSET
         elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
@@ -199,14 +198,6 @@ class TriggerDagRunOperator(BaseOperator):
             parsed_logical_date = self.logical_date  # type: ignore
         elif isinstance(self.logical_date, str):
             parsed_logical_date = timezone.parse(self.logical_date)
-        # parsed_logical_date: datetime.datetime | None
-        # if self.logical_date is NOTSET:
-        #     # If no logical_date is provided we will set utcnow()
-        #     parsed_logical_date = timezone.utcnow()
-        # elif isinstance(self.logical_date, str):
-        #     parsed_logical_date = timezone.parse(self.logical_date)
-        # else:
-        #     parsed_logical_date = self.logical_date  # type: ignore
 
         try:
             json.dumps(self.conf)
