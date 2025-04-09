@@ -400,17 +400,17 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
 
 class _AssetEventAccessorsMixin(Generic[T]):
-    def get_through_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
+    def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
         if name and uri:
             return self[Asset(name=name, uri=uri)]
         elif name:
             return self[Asset.ref(name=name)]
         elif uri:
             return self[Asset.ref(uri=uri)]
-        else:
-            raise ValueError("name and uri cannot both be None")
 
-    def get_through_asset_alias(self, *, name: str) -> T:
+        raise ValueError("name and uri cannot both be None")
+
+    def for_asset_alias(self, *, name: str) -> T:
         return self[AssetAlias(name=name)]
 
     def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> T:

@@ -598,15 +598,15 @@ class TestOutletEventAccessors:
         ),
     )
     @mock.patch("airflow.sdk.execution_time.context.OutletEventAccessors.__getitem__")
-    def test_get_through_asset(self, mocked__getitem__, name, uri, expected_key):
+    def test_for_asset(self, mocked__getitem__, name, uri, expected_key):
         outlet_event_accessors = OutletEventAccessors()
-        outlet_event_accessors.get_from_asset(name=name, uri=uri)
+        outlet_event_accessors.for_asset(name=name, uri=uri)
         assert mocked__getitem__.call_args[0][0] == expected_key
 
     @mock.patch("airflow.sdk.execution_time.context.OutletEventAccessors.__getitem__")
-    def test_get_through_asset_alias(self, mocked__getitem__):
+    def test_for_asset_alias(self, mocked__getitem__):
         outlet_event_accessors = OutletEventAccessors()
-        outlet_event_accessors.get_from_asset_alias(name="name")
+        outlet_event_accessors.for_asset_alias(name="name")
         assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
 
 
@@ -657,13 +657,11 @@ class TestInletEventAccessor:
         ),
     )
     @mock.patch("airflow.sdk.execution_time.context.InletEventsAccessors.__getitem__")
-    def test_get_through_asset(
-        self, mocked__getitem__, sample_inlet_evnets_accessor, name, uri, expected_key
-    ):
-        sample_inlet_evnets_accessor.get_through_asset(name=name, uri=uri)
+    def test_for_asset(self, mocked__getitem__, sample_inlet_evnets_accessor, name, uri, expected_key):
+        sample_inlet_evnets_accessor.for_asset(name=name, uri=uri)
         assert mocked__getitem__.call_args[0][0] == expected_key
 
     @mock.patch("airflow.sdk.execution_time.context.InletEventsAccessors.__getitem__")
-    def test_get_through_asset_alias(self, mocked__getitem__, sample_inlet_evnets_accessor):
-        sample_inlet_evnets_accessor.get_through_asset_alias(name="name")
+    def test_for_asset_alias(self, mocked__getitem__, sample_inlet_evnets_accessor):
+        sample_inlet_evnets_accessor.for_asset_alias(name="name")
         assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
