@@ -31,6 +31,8 @@ from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
+BATCH_SIZE = 5000
+
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
 down_revision = "05234396c6fc"
@@ -203,11 +205,28 @@ def upgrade():
     if dialect_name == "postgresql":
         op.execute(pg_uuid7_fn)
 
-        # TODO: Add batching to handle updates in smaller chunks for large tables to avoid locking
         # Migrate existing rows with UUID v7 using a timestamp-based generation
-        op.execute(
-            "UPDATE task_instance SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))"
-        )
+        while True:
+            row_count = op.execute(
+                text(
+                    """
+               WITH batch AS (
+                    SELECT ctid
+                    FROM task_instance
+                    WHERE id IS NULL
+                    LIMIT :batch_size
+                )
+                UPDATE task_instance AS ti
+                SET id = uuid_generate_v7(COALESCE(ti.queued_dttm, ti.start_date, clock_timestamp()))
+                FROM batch
+                WHERE ti.ctid = batch.ctid
+                """,
+                    {"batch_size": BATCH_SIZE},
+                )
+            ).rowcount
+
+            if row_count == 0:
+                break
 
         op.execute(pg_uuid7_fn_drop)
 
