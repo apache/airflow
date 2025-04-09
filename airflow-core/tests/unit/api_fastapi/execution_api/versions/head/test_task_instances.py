@@ -1340,8 +1340,8 @@ class TestGetCount:
         self, client, session, dag_maker, create_task_instance
     ):
         """
-        One run id task group contain 3 tasks, when return_task_group_count flag is true
-        should return 1
+        One run id, task group contain 3 tasks, when return_task_group_count flag is true,
+        it should return 1 when success criteria is met
         """
         with dag_maker(dag_id="test_dag_return_task_group_count", session=session, serialized=True):
             with TaskGroup("group1"):
@@ -1375,8 +1375,8 @@ class TestGetCount:
         self, client, session, dag_maker, create_task_instance
     ):
         """
-        Two run ids task group contain 3 tasks, when return_task_group_count flag is true
-        should return 2
+        Two run ids, task group contain 3 tasks, when return_task_group_count flag is true,
+        it should return 2 when success criteria is met
         """
         with dag_maker(dag_id="test_dag_return_task_group_count", session=session, serialized=True):
             with TaskGroup("group1"):
