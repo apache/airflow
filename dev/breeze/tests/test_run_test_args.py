@@ -78,7 +78,7 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
         extra_pytest_args=(),
         python_version="3.9",
         output=None,
-        test_timeout=360,  # TODO: if it works, make this a variable.
+        test_timeout=60,
         skip_docker_compose_down=True,
     )
 
@@ -101,7 +101,7 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
         extra_pytest_args=tuple(f"--ignore=providers/{provider}/tests" for provider in test_providers),
         python_version="3.9",
         output=None,
-        test_timeout=360,
+        test_timeout=60,
         skip_docker_compose_down=True,
     )
 

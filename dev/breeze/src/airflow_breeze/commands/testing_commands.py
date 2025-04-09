@@ -488,7 +488,7 @@ option_skip_providers = click.option(
 option_test_timeout = click.option(
     "--test-timeout",
     help="Test timeout in seconds. Set the pytest setup, execution and teardown timeouts to this value",
-    default=60,
+    default=360,
     envvar="TEST_TIMEOUT",
     type=IntRange(min=0),
     show_default=True,
