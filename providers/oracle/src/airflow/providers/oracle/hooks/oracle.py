@@ -444,7 +444,7 @@ class OracleHook(DbApiHook):
 
         return result
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         """Get the URI for the Oracle connection."""
         conn = self.get_connection(self.oracle_conn_id)
         login = conn.login
@@ -455,18 +455,14 @@ class OracleHook(DbApiHook):
         sid = conn.extra_dejson.get("sid")
 
         if sid and service_name:
-            raise ValueError("Cannot specify both SID and Service Name. Choose one.")
-
-        if sid:
-            schema = sid
-        elif service_name:
-            schema = service_name
-        else:
-            schema = conn.schema or ""
+            raise ValueError("At most one allowed for 'sid', and 'service name'.")
 
         uri = f"oracle://{login}:{password}@{host}:{port}"
-
-        if schema:
-            uri += f"/{schema}"
+        if sid:
+            uri = f"{uri}/{sid}"
+        elif service_name:
+            uri = f"{uri}/{service_name}"
+        elif conn.schema:
+            uri = f"{uri}/{conn.schema}"
 
         return uri
