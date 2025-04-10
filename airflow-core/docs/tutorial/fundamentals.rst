@@ -213,7 +213,12 @@ on how to implement task and DAG docs, as well as screenshots:
     :start-after: [START documentation]
     :end-before: [END documentation]
 
+|
+
 .. image:: ../img/task_doc.png
+
+|
+
 .. image:: ../img/dag_doc.png
 
 Setting up Dependencies
