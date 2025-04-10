@@ -30,6 +30,7 @@ from sqlalchemy import select
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -3031,6 +3032,39 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     DAG_ID = "example_python_operator"
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
+
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
+        get_listener_manager().clear()
+
+    @pytest.mark.parametrize(
+        "state, listener_state",
+        [
+            ("success", [TaskInstanceState.SUCCESS]),
+            ("failed", [TaskInstanceState.FAILED]),
+            ("skipped", []),
+        ],
+    )
+    def test_patch_task_instance_notifies_listeners(self, test_client, session, state, listener_state):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session)
+
+        listener = ClassBasedListener()
+        get_listener_manager().add_listener(listener)
+        test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": state,
+            },
+        )
+
+        response2 = test_client.get(self.ENDPOINT_URL)
+        assert response2.status_code == 200
+        assert response2.json()["state"] == state
+        assert listener.state == listener_state
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
