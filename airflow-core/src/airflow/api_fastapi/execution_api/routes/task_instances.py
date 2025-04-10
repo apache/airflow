@@ -286,7 +286,7 @@ def ti_update_state(
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning(
-            "Can not update Task Instance ('%s') in invalid state: %s",
+            "Cannot update Task Instance ('%s') because it is in an invalid state: %s for an update",
             ti_id_str,
             previous_state,
         )
