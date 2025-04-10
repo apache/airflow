@@ -610,6 +610,7 @@ DEFAULT_EXTRAS = [
     "elasticsearch",
     "fab",
     "ftp",
+    "git",
     "google",
     "google-auth",
     "graphviz",
@@ -634,7 +635,15 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.messaging", "fab", "openlineage", "git"])
+CHICKEN_EGG_PROVIDERS = " ".join(
+    [
+        "amazon",
+        "common.messaging",
+        "fab",
+        "git",
+        "openlineage",
+    ]
+)
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
