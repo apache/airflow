@@ -23,7 +23,7 @@ from typing import Annotated
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, status
+from fastapi import Body, Depends, HTTPException, Query, Request, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -49,12 +49,12 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
+from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter()
 
@@ -213,7 +213,7 @@ def ti_run(
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
             )
-            .filter(TaskReschedule.ti_id == ti_id_str, TaskReschedule.try_number == ti.try_number)
+            .filter(TaskReschedule.ti_id == ti_id_str)
             .scalar()
             or 0
         )
@@ -255,6 +255,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
+    request: Request,
 ):
     """
     Update the state of a TaskInstance.
@@ -267,12 +268,13 @@ def ti_update_state(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.try_number, TI.max_tries).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.try_number, TI.max_tries, TI.dag_id).where(TI.id == ti_id_str).with_for_update()
     try:
         (
             previous_state,
             try_number,
             max_tries,
+            dag_id,
         ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
@@ -308,14 +310,19 @@ def ti_update_state(
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
-    elif isinstance(ti_patch_payload, TIRetryStatePayload):
-        from airflow.models.taskinstance import uuid7
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
+        if updated_state == TerminalTIState.FAILED:
+            ti = session.get(TI, ti_id_str)
+            ser_dag = request.app.state.dag_bag.get_dag(dag_id)
+            if ser_dag and getattr(ser_dag, "fail_fast", False):
+                task_dict = getattr(ser_dag, "task_dict")
+                task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
+                _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+
+    elif isinstance(ti_patch_payload, TIRetryStatePayload):
         ti = session.get(TI, ti_id_str)
-        TaskInstanceHistory.record_ti(ti, session=session)
-        ti.try_id = uuid7()
         updated_state = ti_patch_payload.state
+        ti.prepare_db_for_next_try(session)
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TISuccessStatePayload):
@@ -393,7 +400,6 @@ def ti_update_state(
         session.add(
             TaskReschedule(
                 task_instance.id,
-                task_instance.try_number,
                 actual_start_date,
                 ti_patch_payload.end_date,
                 ti_patch_payload.reschedule_date,

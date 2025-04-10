@@ -35,6 +35,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, task as task_decorator
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -385,6 +386,28 @@ class TestSerializedDagModel:
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
+
+    def test_get_dependencies_with_asset_ref(self, dag_maker, session):
+        with dag_maker(
+            dag_id="test_get_dependencies_with_asset_ref_example",
+            start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+            schedule=[Asset.ref(uri="test://asset1")],
+        ) as dag:
+            BashOperator(task_id="any", bash_command="sleep 5")
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+        dependencies = SDM.get_dag_dependencies(session=session)
+        assert dependencies == {
+            "test_get_dependencies_with_asset_ref_example": [
+                DagDependency(
+                    source="asset-uri-ref",
+                    target="test_get_dependencies_with_asset_ref_example",
+                    label="test://asset1",
+                    dependency_type="asset-uri-ref",
+                    dependency_id="test://asset1",
+                )
+            ]
+        }
 
     @pytest.mark.parametrize("min_update_interval", [0, 10])
     @mock.patch.object(DagVersion, "get_latest_version")
