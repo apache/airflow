@@ -177,6 +177,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+
     If compute is assigned the value of 'nodegroup':
 
     :param nodegroup_name: *REQUIRED* The unique name to give your Amazon EKS managed node group. (templated)
