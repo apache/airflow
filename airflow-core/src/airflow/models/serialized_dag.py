@@ -647,7 +647,7 @@ class SerializedDagModel(Base):
                     & (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
                 .join(cls.dag_model)
-                .where(DagModel.is_active)
+                .where(~DagModel.is_stale)
             )
             iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
         else:
@@ -662,7 +662,7 @@ class SerializedDagModel(Base):
                     & (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
                 .join(cls.dag_model)
-                .where(DagModel.is_active)
+                .where(~DagModel.is_stale)
             ).all()
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)

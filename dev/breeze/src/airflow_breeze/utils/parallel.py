@@ -328,6 +328,11 @@ class ParallelMonitor(Thread):
                     except Exception:
                         get_console().print(f"No disk usage info for {partition.mountpoint}")
             get_console().print(get_multi_tuple_array("Disk usage", disk_stats))
+            # Print CPU percent usage
+            get_console().print("CPU usage:")
+            usage = psutil.cpu_percent(percpu=True, interval=None)
+            for i, cpu_usage in enumerate(usage):
+                get_console().print(f"CPU {i}: {cpu_usage / 100:.0%}")
 
     def run(self):
         try:

@@ -36,7 +36,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
+from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -586,19 +586,6 @@ def prepare_syspath_for_dags_folder():
     """Update sys.path to include the DAGs folder."""
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
-
-
-def get_session_lifetime_config():
-    """Get session timeout configs and handle outdated configs gracefully."""
-    session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    minutes_per_day = 24 * 60
-    if not session_lifetime_minutes:
-        session_lifetime_days = 30
-        session_lifetime_minutes = minutes_per_day * session_lifetime_days
-
-    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
-
-    return int(session_lifetime_minutes)
 
 
 def import_local_settings():
