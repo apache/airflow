@@ -249,10 +249,10 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
-    # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-    # we need to make sure that we "atomically" send a request and get the response to that
-    # back so that two triggers don't end up interleaving requests and create a possible
-    # race condition where the wrong trigger reads the response.
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
 
