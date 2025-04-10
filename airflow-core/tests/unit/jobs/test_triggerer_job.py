@@ -202,11 +202,11 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
         # Spy on it so we can see what gets send, but also call the original.
         message = None
 
-        @spy_agency.spy_for(trigger_runner_supervisor.stdin.write)
-        def write_spy(self, line, *args, **kwargs):
+        @spy_agency.spy_for(TriggerRunnerSupervisor.send_msg)
+        def send_msg_spy(self, msg, *args, **kwargs):
             nonlocal message
-            message = messages.TriggerStateSync.model_validate_json(line)
-            trigger_runner_supervisor.stdin.write.call_original(line, *args, **kwargs)
+            message = msg
+            TriggerRunnerSupervisor.send_msg.call_original(self, msg, *args, **kwargs)
 
         trigger_runner_supervisor.load_triggers()
         trigger_runner_supervisor._service_subprocess(0.1)

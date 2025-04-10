@@ -23,6 +23,7 @@ import logging
 import os
 import selectors
 import signal
+import socket
 import sys
 import time
 from io import BytesIO
@@ -89,7 +90,8 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess, supervise
+from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+from airflow.sdk.execution_time.supervisor import BUFFER_SIZE, ActivitySubprocess, mkpipe, supervise
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
@@ -836,7 +838,6 @@ class TestWatchedSubprocessKill:
     def test_kill_process_already_exited(self, watched_subprocess, mock_process):
         """Test behavior when the process has already exited."""
         mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
-
         watched_subprocess.kill(signal.SIGINT, force=True)
 
         mock_process.send_signal.assert_called_once_with(signal.SIGINT)
@@ -1001,17 +1002,21 @@ class TestWatchedSubprocessKill:
 class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
-        """Fixture to provide a WatchedSubprocess instance."""
-        return ActivitySubprocess(
+        read_end, write_end = mkpipe(remote_read=True)
+
+        subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
-            stdin=BytesIO(),
+            stdin=write_end,  # this is the writer side
             client=mocker.Mock(),
             process=mocker.Mock(),
             requests_fd=-1,
         )
 
+        return subprocess, read_end
+
+    @patch("airflow.sdk.execution_time.secrets_masker._secrets_masker")
     @pytest.mark.parametrize(
         ["message", "expected_buffer", "client_attr_path", "method_arg", "method_kwarg", "mock_response"],
         [
@@ -1458,6 +1463,7 @@ class TestHandleRequest:
     )
     def test_handle_requests(
         self,
+        mock_secrets_masker,
         watched_subprocess,
         mocker,
         time_machine,
@@ -1479,6 +1485,9 @@ class TestHandleRequest:
             3. Checks that the buffer is updated with the expected response.
             4. Verifies that the response is correctly decoded.
         """
+        mock_secrets_masker.return_value = SecretsMasker()
+        watched_subprocess, read_socket = watched_subprocess
+
         # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
         mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)
         mock_client_method.return_value = mock_response
@@ -1495,8 +1504,20 @@ class TestHandleRequest:
         if client_attr_path:
             mock_client_method.assert_called_once_with(*method_arg, **method_kwarg)
 
+        # Read response from the read end of the socket
+        read_socket.settimeout(0.1)
+        val = b""
+        try:
+            while not val.endswith(b"\n"):
+                chunk = read_socket.recv(BUFFER_SIZE)
+                if not chunk:
+                    break
+                val += chunk
+        except (BlockingIOError, TimeoutError, socket.timeout):
+            # no response written, valid for some message types like setters and TI operations.
+            pass
+
         # Verify the response was added to the buffer
-        val = watched_subprocess.stdin.getvalue()
         assert val == expected_buffer
 
         # Verify the response is correctly decoded
@@ -1512,6 +1533,10 @@ class TestHandleRequest:
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""
+
+        # Unpack subprocess and the reader socket
+        watched_subprocess, read_socket = watched_subprocess
+
         error = ServerResponseError(
             message="API Server Error",
             request=httpx.Request("GET", "http://test"),
@@ -1521,15 +1546,22 @@ class TestHandleRequest:
         mock_client_method = mocker.Mock(side_effect=error)
         watched_subprocess.client.task_instances.succeed = mock_client_method
 
-        # Simulate the generator
+        # Initialize and send message
         generator = watched_subprocess.handle_requests(log=mocker.Mock())
 
         next(generator)
+
         msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump_json().encode() + b"\n"
         generator.send(msg)
 
-        # Verify the error was sent back to the task
-        val = watched_subprocess.stdin.getvalue()
+        # Read response directly from the reader socket
+        read_socket.settimeout(0.1)
+        val = b""
+        try:
+            while not val.endswith(b"\n"):
+                val += read_socket.recv(4096)
+        except (BlockingIOError, TimeoutError):
+            pass
 
         assert val == (
             b'{"error":"API_SERVER_ERROR","detail":{"status_code":500,"message":"API Server Error",'
