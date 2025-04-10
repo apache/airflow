@@ -127,7 +127,7 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.apiServer }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.apiServer (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- include "wait_for_airflow_migrations_container" (list . "apiServer") | nindent 8 }}
@@ -197,7 +197,7 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.apiServer.env) | indent 10 }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.apiServer (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if .Values.apiServer.extraContainers }}

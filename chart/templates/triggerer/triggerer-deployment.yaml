@@ -135,7 +135,7 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (.Values.dags.gitSync.initOnAllComponents) }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.triggerer (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- include "wait_for_airflow_migrations_container" (list . "triggerer") | nindent 8 }}

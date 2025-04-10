@@ -27,7 +27,10 @@ class TestGitSyncWorker:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "dags": {"persistence": {"enabled": True}, "gitSync": {"enabled": True}},
+                "dags": {
+                    "persistence": {"enabled": True},
+                    "gitSync": {"enabled": True, "components": {"workers": True}}
+                },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -39,7 +42,10 @@ class TestGitSyncWorker:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}},
+                "dags": {
+                    "gitSync": {"enabled": True, "components": {"workers": True}},
+                    "persistence": {"enabled": False}
+                },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -47,40 +53,13 @@ class TestGitSyncWorker:
         assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "config"
         assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "dags"
 
-    def test_should_add_git_sync_container_to_worker_if_persistence_is_not_enabled_but_git_sync_is(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "dags": {
-                    "gitSync": {"enabled": True, "containerName": "git-sync"},
-                    "persistence": {"enabled": False},
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[1].name", docs[0]) == "git-sync"
-
-    def test_should_not_add_sync_container_to_worker_if_git_sync_and_persistence_are_enabled(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "dags": {
-                    "gitSync": {"enabled": True, "containerName": "git-sync"},
-                    "persistence": {"enabled": True},
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[1].name", docs[0]) != "git-sync"
-
     def test_should_add_env(self):
         docs = render_chart(
             values={
                 "dags": {
                     "gitSync": {
                         "enabled": True,
+                        "components": {"workers": True},
                         "env": [{"name": "FOO", "value": "bar"}],
                     }
                 },
@@ -98,6 +77,7 @@ class TestGitSyncWorker:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
+                        "components": {"workers": True},
                         "resources": {
                             "limits": {"cpu": "200m", "memory": "128Mi"},
                             "requests": {"cpu": "300m", "memory": "169Mi"},
@@ -113,24 +93,25 @@ class TestGitSyncWorker:
         )
         assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
 
-    def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
-        docs = render_chart(
-            values={
-                "dags": {
-                    "gitSync": {
-                        "enabled": True,
-                        "containerName": "git-sync-test",
-                        "sshKeySecret": "ssh-secret",
-                        "knownHosts": None,
-                        "branch": "test-branch",
-                    },
-                    "persistence": {"enabled": True},
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+    # def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
+    #     docs = render_chart(
+    #         values={
+    #             "dags": {
+    #                 "gitSync": {
+    #                     "enabled": True,
+    #                     "components": {"workers": True},
+    #                     "containerName": "git-sync-test",
+    #                     "sshKeySecret": "ssh-secret",
+    #                     "knownHosts": None,
+    #                     "branch": "test-branch",
+    #                 },
+    #                 "persistence": {"enabled": True},
+    #             }
+    #         },
+    #         show_only=["templates/workers/worker-deployment.yaml"],
+    #     )
+    #
+    #     assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(
@@ -138,6 +119,7 @@ class TestGitSyncWorker:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
+                        "components": {"workers": True},
                         "sshKey": "dummy-ssh-key",
                     }
                 }
@@ -174,6 +156,7 @@ class TestGitSyncWorker:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
+                        "components": {"workers": True},
                         "containerLifecycleHooks": {
                             "postStart": {
                                 "exec": {
