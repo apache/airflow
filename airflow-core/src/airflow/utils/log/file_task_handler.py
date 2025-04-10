@@ -110,6 +110,8 @@ def _fetch_logs_from_service(url, log_relative_path):
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
         secret_key=get_signing_key("webserver", "secret_key"),
+        # Since we are using a secret key, we need to be explicit about the algorithm here too
+        algorithm="HS512",
         private_key=None,
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
@@ -638,5 +640,5 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        sources, logs = remote_io.read(path)
+        sources, logs = remote_io.read(path, ti)
         return sources, logs or []

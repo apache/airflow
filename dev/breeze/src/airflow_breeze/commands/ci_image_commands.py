@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import atexit
 import os
 import signal
 import subprocess
 import sys
 import time
 from copy import deepcopy
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING
 
 import click
 
@@ -198,21 +196,6 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
     if os.environ.get("GITHUB_ACTIONS", "false") != "true":
         get_console().print("::endgroup::")
     get_console().print()
-    get_console().print(
-        "[error]The build timed out. This is likely because `pip` "
-        "started to backtrack dependency resolution.\n"
-    )
-    get_console().print(
-        "[warning]Please follow the instructions in `dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
-    )
-    get_console().print(
-        "[warning]in the `How to figure out backtracking dependencies` "
-        "chapter as soon as possible. The longer it is delayed, "
-        "the more difficult it will be to find the culprit.\n"
-    )
-    from airflow_breeze.utils.backtracking import print_backtracking_candidates
-
-    print_backtracking_candidates()
     sys.exit(1)
 
 
@@ -236,14 +219,6 @@ def get_exitcode(status: int) -> int:
     else:
         return 1
 
-
-option_build_timeout_minutes = click.option(
-    "--build-timeout-minutes",
-    required=False,
-    type=int,
-    envvar="BUILD_TIMEOUT_MINUTES",
-    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
-)
 
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
@@ -303,7 +278,6 @@ option_ci_image_file_to_load = click.option(
 @option_airflow_constraints_reference_build
 @option_answer
 @option_build_progress
-@option_build_timeout_minutes
 @option_builder
 @option_commit_sha
 @option_debian_version
@@ -344,7 +318,6 @@ def build(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     build_progress: str,
-    build_timeout_minutes: int | None,
     builder: str,
     commit_sha: str | None,
     debian_version: str,
@@ -384,26 +357,6 @@ def build(
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
-
-    if build_timeout_minutes:
-        pid = os.fork()
-        if pid:
-            # Parent process - send signal to process group of the child process
-            handler: Callable[..., tuple[Any, Any]] = partial(build_timout_handler, pid)
-            # kill the child process group when we exit before - for example when we are Ctrl-C-ed
-            atexit.register(kill_process_group, pid)
-            signal.signal(signal.SIGALRM, handler)
-            signal.alarm(build_timeout_minutes * 60)
-            child_pid, status = os.waitpid(pid, 0)
-            exit_code = get_exitcode(status)
-            if exit_code:
-                get_console().print(f"[error]Exiting with exit code {exit_code}")
-            else:
-                get_console().print(f"[success]Exiting with exit code {exit_code}")
-            sys.exit(exit_code)
-        else:
-            # turn us into a process group leader
-            os.setpgid(0, 0)
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()

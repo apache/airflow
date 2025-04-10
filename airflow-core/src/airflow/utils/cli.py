@@ -381,10 +381,6 @@ def should_use_colors(args) -> bool:
     return is_terminal_support_colors()
 
 
-def should_ignore_depends_on_past(args) -> bool:
-    return args.depends_on_past == "ignore"
-
-
 def suppress_logs_and_warning(f: T) -> T:
     """Suppress logging and warning messages in cli functions."""
 

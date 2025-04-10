@@ -195,7 +195,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.10"
+UV_VERSION = "0.6.13"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -627,13 +627,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "common.messaging",
-        "fab",
-        "openlineage",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join(["common.messaging", "fab", "openlineage", "git"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
@@ -650,6 +644,9 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "run-tests": "true",
     },
 ]
+
+# Number of slices for low dep tests
+NUMBER_OF_LOW_DEP_SLICES = 5
 
 
 class GithubEvents(Enum):

@@ -58,7 +58,7 @@ class DAGResponse(BaseModel):
     dag_id: str
     dag_display_name: str
     is_paused: bool
-    is_active: bool
+    is_stale: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
     bundle_name: str | None

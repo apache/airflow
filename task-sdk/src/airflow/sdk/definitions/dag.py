@@ -70,7 +70,6 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
-    # TODO: Task-SDK: Remove pendulum core dep
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.decorators import TaskDecoratorCollection
@@ -1046,7 +1045,6 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_success_callback",
     "has_on_failure_callback",
     "auto_register",
-    "fail_fast",
     "schedule",
 }
 
@@ -1107,7 +1105,13 @@ def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **d
     DAG = __DAG_class
 
     def wrapper(f: Callable) -> Callable[..., DAG]:
-        dag_id = dag_id_or_func if isinstance(dag_id_or_func, str) and dag_id_or_func.strip() else f.__name__
+        # Determine dag_id: prioritize keyword arg, then positional string, fallback to function name
+        if "dag_id" in decorator_kwargs:
+            dag_id = decorator_kwargs.pop("dag_id", "")
+        elif isinstance(dag_id_or_func, str) and dag_id_or_func.strip():
+            dag_id = dag_id_or_func
+        else:
+            dag_id = f.__name__
 
         @functools.wraps(f)
         def factory(*args, **kwargs):

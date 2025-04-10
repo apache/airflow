@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+3.10.6
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bring back serve_logs to be in the core (#49031)``
+
+Misc
+~~~~
+
+* ``Remove fab from preinstalled providers (#48457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Improve documentation building iteration (#48760)``
+
+3.10.5
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery Executor on Airflow 2.x again. (#48806)``
+
+Misc
+~~~~
+
+* ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+* ``Update min version of Celery library to 5.5.0 (#43777)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
 3.10.4
 ......
 

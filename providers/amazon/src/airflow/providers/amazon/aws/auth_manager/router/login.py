@@ -80,7 +80,7 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    url = conf.get("api", "base_url")
+    url = conf.get("api", "base_url", fallback="/")
     token = get_auth_manager().generate_jwt(user)
     response = RedirectResponse(url=url, status_code=303)
 

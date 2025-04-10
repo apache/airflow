@@ -41,7 +41,6 @@ from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -63,6 +62,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
@@ -474,12 +474,13 @@ class TestSchedulerJob:
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
+        session.add(scheduler_job)
+        session.flush()
         self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.id = 1
 
         # ti is queued with another try number - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 1
+        ti1.queued_by_job_id = scheduler_job.id
         ti1.try_number = 2
         session.merge(ti1)
         session.commit()
@@ -493,7 +494,7 @@ class TestSchedulerJob:
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
-        ti1.queued_by_job_id = 2
+        ti1.queued_by_job_id = scheduler_job.id - 1
         session.merge(ti1)
         session.commit()
 
@@ -1710,19 +1711,21 @@ class TestSchedulerJob:
         # First pass we'll grab 6 of the 8 tasks (limited by max_tis_per_query)
         res = self.job_runner._critical_section_enqueue_task_instances(session)
         assert res == 6
+        session.flush()
         for ti in tis1[:3] + tis2[:3]:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == TaskInstanceState.QUEUED
         for ti in tis1[3:] + tis2[3:]:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == TaskInstanceState.SCHEDULED
 
         # The remaining TIs are queued
         res = self.job_runner._critical_section_enqueue_task_instances(session)
         assert res == 2
+        session.flush()
 
         for ti in tis1 + tis2:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
@@ -2223,7 +2226,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         old_job = Job()
-        old_job.id = 1
         old_job.job_type = SchedulerJobRunner.job_type
 
         session.add(old_job)
@@ -2232,8 +2234,9 @@ class TestSchedulerJob:
         assert old_job.is_alive() is False
 
         new_job = Job()
-        new_job.id = 2
         new_job.job_type = SchedulerJobRunner.job_type
+        session.add(new_job)
+        session.flush()
 
         self.job_runner = SchedulerJobRunner(job=new_job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2290,8 +2293,8 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
+        session.add(job)
 
         self.job_runner = SchedulerJobRunner(job=job)
         self.job_runner.active_spans = ThreadSafeDict()
@@ -2348,7 +2351,6 @@ class TestSchedulerJob:
         session = settings.Session()
 
         job = Job()
-        job.id = 1
         job.job_type = SchedulerJobRunner.job_type
 
         self.job_runner = SchedulerJobRunner(job=job)
@@ -2555,8 +2557,9 @@ class TestSchedulerJob:
         session = settings.Session()
         dr = dag_maker.create_dagrun()
 
-        ti = dr.get_task_instance("dummy")
+        ti = dr.get_task_instance("dummy", session)
         ti.set_state(state, session)
+        session.flush()
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.job_runner._do_scheduling(session)
@@ -2579,7 +2582,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
-    def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker):
+    def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
         """
@@ -2587,6 +2590,7 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
+            session=session,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2598,10 +2602,9 @@ class TestSchedulerJob:
 
         self.job_runner.dagbag = dag_maker.dagbag
 
-        session = settings.Session()
         dr = dag_maker.create_dagrun()
 
-        ti = dr.get_task_instance("dummy")
+        ti = dr.get_task_instance("dummy", session)
         ti.set_state(state, session)
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
@@ -2611,8 +2614,8 @@ class TestSchedulerJob:
 
         dag_listener.success = []
         dag_listener.failure = []
+
         session.rollback()
-        session.close()
 
     def test_dagrun_timeout_callbacks_are_stored_in_database(self, dag_maker, session):
         with dag_maker(
@@ -2700,12 +2703,13 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED])
-    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker):
+    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker, session):
         """
         Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
         """
         with dag_maker(
             dag_id="test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined",
+            session=session,
         ):
             BashOperator(task_id="test_task", bash_command="echo hi")
 
@@ -2714,9 +2718,8 @@ class TestSchedulerJob:
 
         self.job_runner._send_dag_callbacks_to_processor = mock.Mock()
 
-        session = settings.Session()
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("test_task")
+        ti = dr.get_task_instance("test_task", session)
         ti.set_state(state, session)
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
@@ -2729,7 +2732,6 @@ class TestSchedulerJob:
         assert call_args[1] is None
 
         session.rollback()
-        session.close()
 
     @pytest.mark.parametrize("state, msg", [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
@@ -3483,10 +3485,10 @@ class TestSchedulerJob:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
-        with create_session() as session:
-            ti.refresh_from_db(lock_for_update=True, session=session)
-            ti.state = State.SCHEDULED
-            session.merge(ti)
+        ti.refresh_from_db(lock_for_update=True, session=session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
 
         # To verify that task does get re-queued.
         executor.do_update = True
@@ -4012,7 +4014,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "disable, enable",
         [
-            pytest.param({"is_active": False}, {"is_active": True}, id="active"),
+            pytest.param({"is_stale": True}, {"is_stale": False}, id="active"),
             pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
         ],
     )
@@ -6223,12 +6225,10 @@ class TestSchedulerJob:
             run_type=DagRunType.SCHEDULED,
         )
         scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = scheduled_run.get_task_instances()[0]
+        ti = scheduled_run.get_task_instances(session=session)[0]
         ti.set_state(TaskInstanceState.RUNNING)
-        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm = DagModel.get_dagmodel(dag.dag_id, session)
         dm.is_paused = True
-        session.merge(dm)
-        session.merge(ti)
         session.flush()
 
         assert scheduled_run.state == State.RUNNING
@@ -6252,7 +6252,8 @@ class TestSchedulerJob:
         assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
 
         # Once the TI is in a terminal state though, DagRun goes to success
-        ti.set_state(TaskInstanceState.SUCCESS)
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
         self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.SUCCESS
@@ -6265,12 +6266,10 @@ class TestSchedulerJob:
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = backfill_run.get_task_instances()[0]
-        ti.set_state(TaskInstanceState.SUCCESS)
-        dm = DagModel.get_dagmodel(dag.dag_id)
+        ti = backfill_run.get_task_instances(session=session)[0]
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.is_paused = True
-        session.merge(dm)
-        session.merge(ti)
         session.flush()
 
         assert backfill_run.state == State.RUNNING
@@ -6278,7 +6277,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner._update_dag_run_state_for_paused_dags()
+        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         session.flush()
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
@@ -6296,7 +6295,6 @@ class TestSchedulerJob:
         ).all()
         return [a for a, v in assets if not v], [a for a, v in assets if v]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6309,27 +6307,22 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        # Assets not activated yet; asset5 is not even registered (since it's not used anywhere).
-        orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1, asset2, asset3, asset4]
-
-        self.job_runner._update_asset_orphanage(session=session)
-        session.flush()
-
-        # Assets are activated after scheduler loop.
+        # asset5 is not registered (since it's not used anywhere).
         orphaned, active = self._find_assets_activation(session)
         assert active == [asset1, asset2, asset3, asset4]
         assert orphaned == []
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
 
         # Now remove 2 asset references and add asset5.
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset5])
 
-        # The DAG parser finds asset5, but it's not activated yet.
+        # The DAG parser finds asset5.
         orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1, asset2, asset3, asset4]
-        assert orphaned == [asset5]
+        assert active == [asset1, asset2, asset3, asset4, asset5]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
@@ -6339,7 +6332,6 @@ class TestSchedulerJob:
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
 
-    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -6349,15 +6341,11 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1")
 
         orphaned, active = self._find_assets_activation(session)
-        assert active == []
-        assert orphaned == [asset1]
+        assert active == [asset1]
+        assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
-
-        orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1]
-        assert orphaned == []
 
         # now remove asset1 reference
         with dag_maker(dag_id="assets-1", schedule=None, session=session):

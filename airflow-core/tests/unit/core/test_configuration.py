@@ -740,7 +740,7 @@ key3 = value3
             run_command('bash -c "exit 1"')
 
     def test_confirm_unittest_mod(self):
-        assert conf.get("core", "unit_test_mode")
+        assert conf.getboolean("core", "unit_test_mode")
 
     def test_enum_default_task_weight_rule_from_conf(self):
         test_conf = AirflowConfigParser(default_config="")

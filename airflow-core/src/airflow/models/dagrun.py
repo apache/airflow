@@ -49,7 +49,6 @@ from sqlalchemy import (
     not_,
     or_,
     text,
-    tuple_,
     update,
 )
 from sqlalchemy.dialects import postgresql
@@ -57,7 +56,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import case, false, select, true
+from sqlalchemy.sql.expression import case, false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -65,13 +64,13 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
-from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -509,7 +508,7 @@ class DagRun(Base, LoggingMixin):
             .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
                 DagModel.is_paused == false(),
-                DagModel.is_active == true(),
+                DagModel.is_stale == false(),
             )
             .options(joinedload(cls.task_instances))
             .order_by(
@@ -560,7 +559,7 @@ class DagRun(Base, LoggingMixin):
                 and_(
                     DagModel.dag_id == cls.dag_id,
                     DagModel.is_paused == false(),
-                    DagModel.is_active == true(),
+                    DagModel.is_stale == false(),
                 ),
             )
             .join(
@@ -1831,7 +1830,7 @@ class DagRun(Base, LoggingMixin):
         """
         # Get list of TI IDs that do not need to executed, these are
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
-        dummy_ti_ids = []
+        empty_ti_ids = []
         schedulable_ti_ids = []
         for ti in schedulable_tis:
             if TYPE_CHECKING:
@@ -1842,7 +1841,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
-                dummy_ti_ids.append((ti.task_id, ti.map_index))
+                empty_ti_ids.append(ti.id)
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer
             # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
             # this task.
@@ -1857,9 +1856,9 @@ class DagRun(Base, LoggingMixin):
                         ti.try_number += 1
                     ti.defer_task(exception=None, session=session)
                 else:
-                    schedulable_ti_ids.append((ti.task_id, ti.map_index))
+                    schedulable_ti_ids.append(ti.id)
             else:
-                schedulable_ti_ids.append((ti.task_id, ti.map_index))
+                schedulable_ti_ids.append(ti.id)
 
         count = 0
 
@@ -1867,14 +1866,10 @@ class DagRun(Base, LoggingMixin):
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
-            for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
+            for id_chunk in schedulable_ti_ids_chunks:
                 count += session.execute(
                     update(TI)
-                    .where(
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.run_id,
-                        tuple_(TI.task_id, TI.map_index).in_(schedulable_ti_ids_chunk),
-                    )
+                    .where(TI.id.in_(id_chunk))
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
@@ -1890,16 +1885,12 @@ class DagRun(Base, LoggingMixin):
                 ).rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
-        if dummy_ti_ids:
-            dummy_ti_ids_chunks = chunks(dummy_ti_ids, max_tis_per_query or len(dummy_ti_ids))
-            for dummy_ti_ids_chunk in dummy_ti_ids_chunks:
+        if empty_ti_ids:
+            dummy_ti_ids_chunks = chunks(empty_ti_ids, max_tis_per_query or len(empty_ti_ids))
+            for id_chunk in dummy_ti_ids_chunks:
                 count += session.execute(
                     update(TI)
-                    .where(
-                        TI.dag_id == self.dag_id,
-                        TI.run_id == self.run_id,
-                        tuple_(TI.task_id, TI.map_index).in_(dummy_ti_ids_chunk),
-                    )
+                    .where(TI.id.in_(id_chunk))
                     .values(
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),

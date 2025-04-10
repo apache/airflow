@@ -59,7 +59,7 @@ def create_token_all_admins() -> LoginResponse:
 )
 def login_all_admins() -> RedirectResponse:
     """Login the user with no credentials."""
-    response = RedirectResponse(url=conf.get("api", "base_url"))
+    response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"))
     secure = conf.has_option("api", "ssl_cert")
     response.set_cookie(
         COOKIE_NAME_JWT_TOKEN,

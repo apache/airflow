@@ -59,7 +59,6 @@ def scheduler(args: Namespace):
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Start serve_logs sub-process."""
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None

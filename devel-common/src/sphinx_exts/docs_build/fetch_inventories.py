@@ -93,8 +93,13 @@ def _is_outdated(path: str):
     return delta > datetime.timedelta(hours=12)
 
 
-def fetch_inventories():
+def fetch_inventories(clean_build: bool) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
+    if clean_build:
+        shutil.rmtree(CACHE_PATH)
+        print()
+        print("[yellow]Inventory Cache cleaned!")
+        print()
     CACHE_PATH.mkdir(exist_ok=True, parents=True)
     to_download: list[tuple[str, str, str]] = []
 
@@ -164,3 +169,7 @@ def fetch_inventories():
             raise SystemExit(1)
 
     return [pkg_name for pkg_name, status in failed]
+
+
+if __name__ == "__main__":
+    fetch_inventories(clean_build=len(sys.argv) > 1 and sys.argv[1] == "clean")

@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
 
-API_VERSION: Final[str] = "2025-03-26"
+API_VERSION: Final[str] = "2025-04-10"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -350,9 +350,6 @@ class TaskInstance(BaseModel):
     Schema for TaskInstance model with minimal required fields needed for Runtime.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]

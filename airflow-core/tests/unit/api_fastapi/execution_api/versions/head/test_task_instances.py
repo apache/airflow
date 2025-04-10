@@ -596,8 +596,8 @@ class TestTIUpdateState:
             mock.patch(
                 "airflow.api_fastapi.common.db.common.Session.execute",
                 side_effect=[
-                    mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
-                    mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # First call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # Second call returns "queued"
                     SQLAlchemyError("Database error"),  # Last call raises an error
                 ],
             ),
@@ -707,7 +707,7 @@ class TestTIUpdateState:
         assert trs[0].task_instance.dag_id == "dag"
         assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
         assert trs[0].task_instance.run_id == "test"
-        assert trs[0].try_number == 0
+        assert trs[0].ti_id == tis[0].id
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
@@ -763,20 +763,21 @@ class TestTIUpdateState:
         assert response.status_code == 204
         assert response.text == ""
 
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
+        ti = session.scalar(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        )
+        # ti = session.get(TaskInstance, ti.id)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
         tih = (
             session.query(TaskInstanceHistory)
-            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id)
+            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id)
             .one()
         )
-        assert tih.try_id
-        assert tih.try_id != ti.try_id
+        assert tih.task_instance_id
+        assert tih.task_instance_id != ti.id
 
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
@@ -805,6 +806,33 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
+
+    def test_ti_update_state_not_running(self, client, session, create_task_instance):
+        """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_not_running",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "failed",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "invalid_state",
+            "message": "TI was not in the running state so it cannot be updated",
+            "previous_state": State.SUCCESS,
+        }
+
+        # Verify the task instance state hasn't changed
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
 
 
 class TestTISkipDownstream:
@@ -1177,8 +1205,7 @@ class TestGetRescheduleStartDate:
             session=session,
         )
         tr = TaskReschedule(
-            task_instance_id=ti.id,
-            try_number=1,
+            ti_id=ti.id,
             start_date=timezone.datetime(2024, 1, 1),
             end_date=timezone.datetime(2024, 1, 1, 1),
             reschedule_date=timezone.datetime(2024, 1, 1, 2),
@@ -1194,37 +1221,6 @@ class TestGetRescheduleStartDate:
         ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
         assert response.json() is None
-
-    def test_get_start_date_with_try_number(self, client, session, create_task_instance):
-        # Create multiple reschedules
-        dates = [
-            timezone.datetime(2024, 1, 1),
-            timezone.datetime(2024, 1, 2),
-            timezone.datetime(2024, 1, 3),
-        ]
-
-        ti = create_task_instance(
-            task_id="test_get_start_date_with_try_number",
-            state=State.RUNNING,
-            start_date=timezone.datetime(2024, 1, 1),
-            session=session,
-        )
-
-        for i, date in enumerate(dates, 1):
-            tr = TaskReschedule(
-                task_instance_id=ti.id,
-                try_number=i,
-                start_date=date,
-                end_date=date.replace(hour=1),
-                reschedule_date=date.replace(hour=2),
-            )
-            session.add(tr)
-        session.commit()
-
-        # Test getting start date for try_number 2
-        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date?try_number=2")
-        assert response.status_code == 200
-        assert response.json() == "2024-01-02T00:00:00Z"
 
 
 class TestGetCount:
