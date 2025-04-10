@@ -511,7 +511,7 @@ class TestDatabricksHook:
 
         assert run_id == "1"
         mock_requests.post.assert_called_once_with(
-            submit_run_endpoint(HOST),
+            submit_run_endpoint(HOST_WITH_SCHEME),
             json={
                 "notebook_task": NOTEBOOK_TASK,
                 "new_cluster": NEW_CLUSTER,
