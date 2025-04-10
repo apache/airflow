@@ -402,15 +402,22 @@ repos:
         files: ^airflow-core/src/airflow/.*\.py$
         require_serial: true
         exclude: ^airflow-core/src/airflow/kubernetes/
-        entry: ./scripts/ci/pre_commit/check_airflow_k8s_not_used.py
+        entry: ./scripts/ci/pre_commit/check_airflow_imports.py
+          --pattern '^airflow\.kubernetes'
+          --message "You should only import kubernetes code from `airflow.providers.cncf.kubernetes`."
         additional_dependencies: ['rich>=12.4.4']
       - id: check-common-compat-used-for-openlineage
         name: Check common.compat is used for OL deprecated classes
         language: python
         files: ^airflow-core/src/airflow/.*\.py$
         require_serial: true
-        exclude: ^airflow-core/src/airflow/openlineage/
-        entry: ./scripts/ci/pre_commit/check_common_compat_used_for_openlineage.py
+        exclude: >
+          (?x)
+          ^airflow-core/src/airflow/openlineage/|
+          ^airflow/providers/common/compat/openlineage/facet.py$
+        entry: ./scripts/ci/pre_commit/check_airflow_imports.py
+          --pattern '^openlineage\.client\.(facet|run)'
+          --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-providers-bug-report-template
         name: Sort airflow-bug-report provider list
@@ -424,8 +431,17 @@ repos:
         language: python
         files: ^airflow-core/src/airflow/.*\.py$
         require_serial: true
-        exclude: ^providers/.*/src/airflow/providers/
-        entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
+        exclude: >
+          (?x)
+          ^providers/.*/src/airflow/providers/|
+          ^airflow-core/src/airflow/exceptions\.py$|
+          ^airflow-core/src/airflow/models/renderedtifields\.py$|
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/serializers/kubernetes\.py$|
+          ^airflow-core/src/airflow/utils/sqlalchemy\.py$
+        entry: ./scripts/ci/pre_commit/check_airflow_imports.py
+            --pattern '^airflow\.providers\.cncf\.kubernetes'
+            --message "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -697,7 +713,10 @@ repos:
         name: Check providers import hook lineage code from compat
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
-        entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
+        entry: ./scripts/ci/pre_commit/check_airflow_imports.py
+          --pattern '^airflow\.lineage\.hook'
+          --message "Only TYPE_CHECKING imports from `airflow.lineage.hook` are allowed in providers."
+          --only_top_level
         files: ^providers/.*/src/airflow/providers/.*\.py$
         exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
