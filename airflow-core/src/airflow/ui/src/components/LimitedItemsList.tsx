@@ -36,6 +36,10 @@ export const LimitedItemsList = ({ icon, items, maxItems, separator = ", " }: Li
     .map((item) => (typeof item === "string" ? item : "item"))
     .join(", ");
 
+  if (!items.length) {
+    return undefined;
+  }
+
   return (
     <HStack align="center" gap={1}>
       {icon}
@@ -55,7 +59,7 @@ export const LimitedItemsList = ({ icon, items, maxItems, separator = ", " }: Li
           ) : (
             <Tooltip content={`More items: ${remainingItemsList}`}>
               <Text as="span" cursor="help">
-                +{remainingItems.length} more
+                , +{remainingItems.length} more
               </Text>
             </Tooltip>
           )
