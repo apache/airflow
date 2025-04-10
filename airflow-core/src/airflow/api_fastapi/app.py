@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
@@ -44,7 +43,6 @@ if TYPE_CHECKING:
 API_BASE_URL = conf.get("api", "base_url", fallback="")
 if not API_BASE_URL or not API_BASE_URL.endswith("/"):
     API_BASE_URL += "/"
-    os.environ["AIRFLOW__API__BASE_URL"] = API_BASE_URL
 API_ROOT_PATH = urlsplit(API_BASE_URL).path
 
 # Define the full path on which the potential auth manager fastapi is mounted
