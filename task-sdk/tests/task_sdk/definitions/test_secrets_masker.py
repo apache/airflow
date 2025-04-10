@@ -46,6 +46,11 @@ pytestmark = pytest.mark.enable_redact
 p = "password"
 
 
+def lineno():
+    """Returns the current line number in our program."""
+    return inspect.currentframe().f_back.f_lineno
+
+
 class MyEnum(str, Enum):
     testname = "testvalue"
 
@@ -227,7 +232,7 @@ class TestSecretsMasker:
             (None, "secret", {"secret"}),
             ("apikey", "secret", {"secret"}),
             # the value for "apikey", and "password" should end up masked
-            (None, {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}}, {"secret", "foo"}),
+            (None, {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}}, {"secret"}),
             (None, ["secret", "other"], {"secret", "other"}),
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
@@ -291,18 +296,18 @@ class TestSecretsMasker:
     @pytest.mark.parametrize(
         ("val", "expected", "max_depth"),
         [
-            (["abc"], ["***"], None),
-            (["abc"], ["***"], 1),
-            ([[[["abc"]]]], [[[["***"]]]], None),
-            ([[[[["abc"]]]]], [[[[["***"]]]]], None),
+            (["abcdef"], ["***"], None),
+            (["abcdef"], ["***"], 1),
+            ([[[["abcdef"]]]], [[[["***"]]]], None),
+            ([[[[["abcdef"]]]]], [[[[["***"]]]]], None),
             # Items below max depth aren't redacted
-            ([[[[[["abc"]]]]]], [[[[[["abc"]]]]]], None),
-            ([["abc"]], [["abc"]], 1),
+            ([[[[[["abcdef"]]]]]], [[[[[["abcdef"]]]]]], None),
+            ([["abcdef"]], [["abcdef"]], 1),
         ],
     )
     def test_redact_max_depth(self, val, expected, max_depth):
         secrets_masker = SecretsMasker()
-        secrets_masker.add_mask("abc")
+        secrets_masker.add_mask("abcdef")
         with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             got = redact(val, max_depth=max_depth)
             assert got == expected
@@ -426,11 +431,6 @@ class ShortExcFormatter(logging.Formatter):
         return formatted.replace(__file__, ".../" + os.path.basename(__file__))
 
 
-def lineno():
-    """Returns the current line number in our program."""
-    return inspect.currentframe().f_back.f_lineno
-
-
 class TestRedactedIO:
     @pytest.fixture(scope="class", autouse=True)
     def reset_secrets_masker(self):
@@ -502,3 +502,230 @@ class TestMaskSecretAdapter:
             mask_secret("a secret")
 
         assert self.secrets_masker.patterns == {"a secret"}
+
+    @pytest.mark.parametrize(
+        ("secret", "should_be_masked", "is_first_short", "comment"),
+        [
+            ("abc", False, True, "short secret with first warning"),
+            ("def", False, False, "short secret with no warning"),
+            ("airflow", False, False, "keyword that should be skipped"),
+            ("valid_secret", True, False, "valid secret that should be masked"),
+        ],
+    )
+    def test_add_mask_short_secrets_and_skip_keywords(
+        self, caplog, secret, should_be_masked, is_first_short, comment
+    ):
+        if is_first_short:
+            SecretsMasker._has_warned_short_secret = False
+        else:
+            SecretsMasker._has_warned_short_secret = True
+
+        filt = SecretsMasker()
+
+        with patch("airflow.sdk.execution_time.secrets_masker.get_min_secret_length", return_value=5):
+            caplog.clear()
+
+            filt.add_mask(secret)
+
+            if is_first_short:
+                assert "Skipping masking for a secret as it's too short" in caplog.text
+                assert len(caplog.records) == 1
+            else:
+                assert "Skipping masking for a secret as it's too short" not in caplog.text
+
+            if should_be_masked:
+                assert secret in filt.patterns
+            else:
+                assert secret not in filt.patterns
+
+            caplog.clear()
+
+        if should_be_masked:
+            assert filt.replacer is not None
+
+
+class TestStructuredVsUnstructuredMasking:
+    def test_structured_sensitive_fields_always_masked(self):
+        secrets_masker = SecretsMasker()
+
+        short_password = "pwd"
+        short_token = "tk"
+        short_api_key = "key"
+
+        test_data = {
+            "password": short_password,
+            "api_key": short_token,
+            "connection": {"secret": short_api_key},
+        }
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            with patch("airflow.sdk.execution_time.secrets_masker.get_min_secret_length", return_value=5):
+                redacted_data = redact(test_data)
+
+                assert redacted_data["password"] == "***"
+                assert redacted_data["api_key"] == "***"
+                assert redacted_data["connection"]["secret"] == "***"
+
+    def test_unstructured_text_min_length_enforced(self):
+        secrets_masker = SecretsMasker()
+        min_length = 5
+
+        short_secret = "abc"
+        long_secret = "abcdef"
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            with patch(
+                "airflow.sdk.execution_time.secrets_masker.get_min_secret_length", return_value=min_length
+            ):
+                secrets_masker.add_mask(short_secret)
+                secrets_masker.add_mask(long_secret)
+
+                assert short_secret not in secrets_masker.patterns
+                assert long_secret in secrets_masker.patterns
+
+                test_data = f"Containing {short_secret} and {long_secret}"
+                redacted = secrets_masker.redact(test_data)
+
+                assert short_secret in redacted
+                assert long_secret not in redacted
+                assert "***" in redacted
+
+
+class TestContainerTypesRedaction:
+    def test_kubernetes_env_var_redaction(self):
+        class MockV1EnvVar:
+            def __init__(self, name, value):
+                self.name = name
+                self.value = value
+
+            def to_dict(self):
+                return {"name": self.name, "value": self.value}
+
+        secret_env_var = MockV1EnvVar("password", "secret_password")
+        normal_env_var = MockV1EnvVar("app_name", "my_app")
+
+        secrets_masker = SecretsMasker()
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            with patch("airflow.sdk.execution_time.secrets_masker._is_v1_env_var", return_value=True):
+                redacted_secret = redact(secret_env_var)
+                redacted_normal = redact(normal_env_var)
+
+                assert redacted_secret["value"] == "***"
+                assert redacted_normal["value"] == "my_app"
+
+    def test_deeply_nested_mixed_structures(self):
+        nested_data = {
+            "level1": {
+                "normal_key": "normal_value",
+                "password": "secret_pass",
+                "level2": [
+                    {"api_key": "secret_key", "user": "normal_user"},
+                    ("token", "secret_token"),
+                    {"nested_list": ["normal", "password=secret"]},
+                ],
+            }
+        }
+
+        secrets_masker = SecretsMasker()
+
+        secrets_masker.add_mask("secret_token")
+        secrets_masker.add_mask("password=secret")
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            redacted_data = redact(nested_data)
+
+            assert redacted_data["level1"]["normal_key"] == "normal_value"
+            assert redacted_data["level1"]["password"] == "***"
+            assert redacted_data["level1"]["level2"][0]["api_key"] == "***"
+            assert redacted_data["level1"]["level2"][0]["user"] == "normal_user"
+            assert redacted_data["level1"]["level2"][1][1] == "***"
+
+            nested_list_str = str(redacted_data["level1"]["level2"][2]["nested_list"])
+            assert "password=secret" not in nested_list_str
+            assert "password=***" in nested_list_str or "***" in nested_list_str
+
+
+class TestEdgeCases:
+    def test_circular_references(self):
+        circular_dict: dict[str, any] = {"key": "value", "password": "secret_password"}
+        circular_dict["self_ref"] = circular_dict
+
+        secrets_masker = SecretsMasker()
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            redacted_data = redact(circular_dict)
+
+            assert redacted_data["key"] == "value"
+            assert redacted_data["password"] == "***"
+
+            assert isinstance(redacted_data["self_ref"], dict)
+
+    def test_regex_special_chars_in_secrets(self):
+        regex_secrets = ["password+with*chars", "token.with[special]chars", "api_key^that$needs(escaping)"]
+
+        secrets_masker = SecretsMasker()
+
+        for secret in regex_secrets:
+            secrets_masker.add_mask(secret)
+
+        test_string = f"Contains {regex_secrets[0]} and {regex_secrets[1]} and {regex_secrets[2]}"
+
+        redacted = secrets_masker.redact(test_string)
+
+        for secret in regex_secrets:
+            assert secret not in redacted
+
+        assert redacted.count("***") == 3
+        assert redacted.startswith("Contains ")
+        assert " and " in redacted
+
+
+class TestDirectMethodCalls:
+    def test_redact_all_directly(self):
+        secrets_masker = SecretsMasker()
+
+        test_data = {
+            "string": "should_be_masked",
+            "number": 12345,
+            "boolean": True,
+            "list": ["item1", "item2"],
+            "dict": {"k1": "v1", "k2": "v2"},
+            "nested": {"tuple": ("a", "b", "c"), "set": {"x", "y", "z"}},
+        }
+
+        result = secrets_masker._redact_all(test_data, depth=0)
+
+        assert result["string"] == "***"
+        assert result["number"] == 12345
+        assert result["boolean"] is True
+        assert all(val == "***" for val in result["list"])
+        assert all(val == "***" for val in result["dict"].values())
+        assert all(val == "***" for val in result["nested"]["tuple"])
+        assert isinstance(result["nested"]["set"], tuple)
+        assert all(val == "***" for val in result["nested"]["set"])
+
+
+class TestMixedDataScenarios:
+    def test_mixed_structured_unstructured_data(self):
+        secrets_masker = SecretsMasker()
+
+        unstructured_secret = "this_is_a_secret_pattern"
+        secrets_masker.add_mask(unstructured_secret)
+
+        mixed_data = {
+            "normal_field": "normal_value",
+            "password": "short_pw",
+            "description": f"Text containing {unstructured_secret} that should be masked",
+            "nested": {"token": "tk", "info": "No secrets here"},
+        }
+
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
+            redacted_data = redact(mixed_data)
+
+            assert redacted_data["normal_field"] == "normal_value"
+            assert redacted_data["password"] == "***"
+            assert unstructured_secret not in redacted_data["description"]
+            assert "***" in redacted_data["description"]
+            assert redacted_data["nested"]["token"] == "***"
+            assert redacted_data["nested"]["info"] == "No secrets here"

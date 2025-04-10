@@ -38,6 +38,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
+    PutVariable,
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable],
+    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable],
     Field(discriminator="type"),
 ]
 
@@ -255,7 +256,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             requests_fd=self._requests_fd,
             callback_requests=callbacks,
         )
-        self.stdin.write(msg.model_dump_json().encode() + b"\n")
+        self.send_msg(msg)
 
     @functools.cached_property
     def client(self) -> Client:
@@ -269,7 +270,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
         from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 
-        resp = None
+        resp: BaseModel | None = None
+        dump_opts = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
             return
@@ -277,22 +279,26 @@ class DagFileProcessorProcess(WatchedSubprocess):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+                resp = conn_result
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
-                resp = conn.model_dump_json().encode()
+                resp = conn
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 var_result = VariableResult.from_variable_response(var)
-                resp = var_result.model_dump_json(exclude_unset=True).encode()
+                resp = var_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = var.model_dump_json().encode()
+                resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
         else:
             log.error("Unhandled request", msg=msg)
             return
 
         if resp:
-            self.stdin.write(resp + b"\n")
+            self.send_msg(resp, **dump_opts)
 
     @property
     def is_ready(self) -> bool:

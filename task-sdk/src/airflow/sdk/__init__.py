@@ -35,6 +35,7 @@ __all__ = [
     "EdgeModifier",
     "Label",
     "Metadata",
+    "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
     "TaskGroup",
@@ -75,6 +76,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.io.path import ObjectStoragePath
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
@@ -92,6 +94,7 @@ __lazy_imports: dict[str, str] = {
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "TaskGroup": ".definitions.taskgroup",

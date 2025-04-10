@@ -992,7 +992,7 @@ class TestDag:
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
-        assert orm_dag.is_active
+        assert not orm_dag.is_stale
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
@@ -1000,7 +1000,7 @@ class TestDag:
         )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
-        assert not orm_dag.is_active
+        assert orm_dag.is_stale
 
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
@@ -2091,7 +2091,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2234,7 +2234,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
-            is_active=True,
+            is_stale=False,
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
@@ -2258,7 +2258,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2290,7 +2290,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         assert not orm_dag.has_import_errors
         session.add(orm_dag)

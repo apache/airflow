@@ -111,7 +111,7 @@ def remove_references_to_deleted_dags(session: Session):
     for model in models_to_check:
         session.execute(
             delete(model)
-            .where(model.dag_id.in_(select(DagModel.dag_id).where(~DagModel.is_active)))
+            .where(model.dag_id.in_(select(DagModel.dag_id).where(DagModel.is_stale)))
             .execution_options(synchronize_session="fetch")
         )
 

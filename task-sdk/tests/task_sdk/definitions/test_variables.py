@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
 
 from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
-from airflow.sdk.execution_time.comms import VariableResult
+from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -54,6 +55,39 @@ class TestVariables:
         var = Variable.get(key="my_key", deserialize_json=deserialize_json)
         assert var is not None
         assert var == expected_value
+
+    @pytest.mark.parametrize(
+        "key, value, description, serialize_json",
+        [
+            pytest.param(
+                "key",
+                "value",
+                "description",
+                False,
+                id="simple-value",
+            ),
+            pytest.param(
+                "key2",
+                {"hi": "there", "hello": 42, "flag": True},
+                "description2",
+                True,
+                id="serialize-json-value",
+            ),
+        ],
+    )
+    def test_var_set(self, key, value, description, serialize_json, mock_supervisor_comms):
+        Variable.set(key=key, value=value, description=description, serialize_json=serialize_json)
+
+        expected_value = value
+        if serialize_json:
+            expected_value = json.dumps(value, indent=2)
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=PutVariable(
+                key=key, value=expected_value, description=description, serialize_json=serialize_json
+            ),
+        )
 
 
 class TestVariableFromSecrets:

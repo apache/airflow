@@ -40,7 +40,7 @@ dependencies = [
     "time-machine>=2.13.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
-    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
+    "apache-airflow-devel-common[basic]"
 ]
 
 [project.optional-dependencies]

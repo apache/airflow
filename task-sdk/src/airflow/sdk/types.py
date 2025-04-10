@@ -21,8 +21,6 @@ import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, Union
 
-import attrs
-
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -109,7 +107,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
 
 
-class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):
+class OutletEventAccessorProtocol(Protocol):
     """Protocol for managing access to a specific outlet event accessor."""
 
     key: BaseAssetUniqueKey

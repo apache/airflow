@@ -74,6 +74,7 @@ res = subprocess.run(
         "prepare-provider-documentation",
         "--reapply-templates-only",
         "--skip-git-fetch",
+        "--skip-changelog",
         "--only-min-version-update",
         *list(providers),
     ],

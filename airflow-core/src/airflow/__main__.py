@@ -35,7 +35,6 @@ import argcomplete
 # any possible import cycles with settings downstream.
 from airflow import configuration
 from airflow.cli import cli_parser
-from airflow.configuration import write_webserver_configuration_if_needed
 
 
 def main():
@@ -53,8 +52,6 @@ def main():
         from airflow.configuration import write_default_airflow_configuration_if_needed
 
         conf = write_default_airflow_configuration_if_needed()
-        if args.subcommand in ["webserver", "internal-api", "worker"]:
-            write_webserver_configuration_if_needed(conf)
     args.func(args)
 
 

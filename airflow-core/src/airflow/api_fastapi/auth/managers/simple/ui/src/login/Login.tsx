@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Alert, CloseButton, Container, Heading, Span, Text } from "@chakra-ui/react";
+import { Flex, Alert, CloseButton, Container, Heading, Span, Text } from "@chakra-ui/react";
 import type { LoginResponse } from "openapi-gen/requests/types.gen";
 import { useState } from "react";
 import { useCookies } from "react-cookie";
 import { useSearchParams } from "react-router-dom";
 
+import { AirflowPin } from "src/AirflowPin";
 import { ErrorAlert } from "src/alert/ErrorAlert";
 import { LoginForm } from "src/login/LoginForm";
 import { useCreateToken } from "src/queries/useCreateToken";
@@ -61,9 +62,29 @@ export const Login = () => {
   };
 
   return (
-    <>
+    <Container
+      border="1px"
+      borderColor="gray.emphasized"
+      borderRadius={5}
+      borderStyle="solid"
+      borderWidth="1px"
+      maxW="2xl"
+      mt={2}
+      p="4"
+    >
+      <Flex gap={2} mb={6}>
+        <AirflowPin height="35px" width="35px" />
+        <Heading colorPalette="blue" fontWeight="normal" size="xl">
+          Sign into Airflow
+        </Heading>
+      </Flex>
+
+      {error === null && <ErrorAlert error={error} />}
+
+      <Text mb={4}>Enter your username and password below:</Text>
+      <LoginForm isPending={isPending} onLogin={onLogin} />
       {isBannerDisabled === null && (
-        <Alert.Root status="info">
+        <Alert.Root mt={5} status="info">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Simple auth manager enabled</Alert.Title>
@@ -93,25 +114,6 @@ export const Login = () => {
           />
         </Alert.Root>
       )}
-
-      <Container
-        border="1px"
-        borderColor="gray.500"
-        borderStyle="solid"
-        borderWidth="1px"
-        maxW="2xl"
-        mt={2}
-        p="4"
-      >
-        <Heading colorPalette="blue" fontWeight="normal" mb={6} size="lg">
-          Sign in
-        </Heading>
-
-        {error === null && <ErrorAlert error={error} />}
-
-        <Text mb={4}>Enter your login and password below:</Text>
-        <LoginForm isPending={isPending} onLogin={onLogin} />
-      </Container>
-    </>
+    </Container>
   );
 };

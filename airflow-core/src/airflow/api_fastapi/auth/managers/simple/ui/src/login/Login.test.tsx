@@ -28,8 +28,8 @@ describe("Login page", () => {
       wrapper: Wrapper,
     });
 
-    expect(getAllByText("Sign in")).toHaveLength(2);
-    expect(getAllByText("Enter your login and password below:")).toHaveLength(1);
+    expect(getAllByText("Sign into Airflow")).toHaveLength(1);
+    expect(getAllByText("Enter your username and password below:")).toHaveLength(1);
     expect(getAllByText("Username")).toHaveLength(1);
     expect(getAllByText("Password")).toHaveLength(1);
   });

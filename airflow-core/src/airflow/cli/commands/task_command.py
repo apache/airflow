@@ -258,7 +258,7 @@ def task_state(args) -> None:
     dag = get_dag(args.subdir, args.dag_id, from_db=True)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
-    print(ti.current_state())
+    print(ti.state)
 
 
 @cli_utils.action_cli(check_db=False)

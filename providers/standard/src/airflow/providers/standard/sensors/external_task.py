@@ -346,8 +346,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Calculate the normalized count based on the type of check."""
         if self.external_task_ids:
             return count / len(self.external_task_ids)
-        elif self.external_task_group_id:
-            return count / len(dttm_filter)
         else:
             return count
 
@@ -421,16 +419,22 @@ class ExternalTaskSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
+            dttm_filter = self._get_dttm_filter(context)
+            logical_or_execution_dates = (
+                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_date": dttm_filter}
+            )
             self.defer(
                 timeout=self.execution_timeout,
                 trigger=WorkflowTrigger(
                     external_dag_id=self.external_dag_id,
                     external_task_group_id=self.external_task_group_id,
                     external_task_ids=self.external_task_ids,
-                    logical_dates=self._get_dttm_filter(context),
                     allowed_states=self.allowed_states,
+                    failed_states=self.failed_states,
+                    skipped_states=self.skipped_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,
+                    **logical_or_execution_dates,
                 ),
                 method_name="execute_complete",
             )

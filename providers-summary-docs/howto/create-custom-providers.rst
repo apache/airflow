@@ -155,7 +155,7 @@ they define the extensions properly. See :doc:`apache-airflow:cli-and-env-variab
 sub-commands.
 
 When you write your own provider, consider following the
-`Naming conventions for providers <https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_distributions.rst#naming-conventions-for-provider-distributions>`_
+`Naming conventions for providers <https://github.com/apache/airflow/blob/main/contributing-docs/12_provider_distributions.rst#naming-conventions-for-provider-distributions>`_
 
 Special considerations
 ''''''''''''''''''''''

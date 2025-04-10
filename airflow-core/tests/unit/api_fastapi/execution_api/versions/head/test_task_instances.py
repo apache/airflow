@@ -806,6 +806,33 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
+    def test_ti_update_state_not_running(self, client, session, create_task_instance):
+        """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_not_running",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "failed",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "invalid_state",
+            "message": "TI was not in the running state so it cannot be updated",
+            "previous_state": State.SUCCESS,
+        }
+
+        # Verify the task instance state hasn't changed
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+
 
 class TestTISkipDownstream:
     def setup_method(self):

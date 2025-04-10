@@ -20,9 +20,6 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.io import get_fs, has_fs
-from airflow.utils.module_loading import qualname
-
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
@@ -30,7 +27,11 @@ if TYPE_CHECKING:
 
 
 class ObjectStore:
-    """Manages a filesystem or object storage."""
+    """
+    Manages a filesystem or object storage.
+
+    To use this class, call :meth:`.attach` instead.
+    """
 
     __version__: ClassVar[int] = 1
 
@@ -57,6 +58,8 @@ class ObjectStore:
 
     @cached_property
     def fs(self) -> AbstractFileSystem:
+        from airflow.io import get_fs
+
         # if the fs is provided in init, the next statement will be ignored
         return get_fs(self.protocol, self.conn_id)
 
@@ -76,6 +79,8 @@ class ObjectStore:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
     def serialize(self):
+        from airflow.utils.module_loading import qualname
+
         return {
             "protocol": self.protocol,
             "conn_id": self.conn_id,
@@ -85,6 +90,8 @@ class ObjectStore:
 
     @classmethod
     def deserialize(cls, data: dict[str, str], version: int):
+        from airflow.io import has_fs
+
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} for {cls.__name__}")
 

@@ -53,7 +53,6 @@
 
 # Async Operators & Triggerer
 /airflow-core/src/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
-/airflow-core/src/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
 /airflow-core/src/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
 /docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala
 
@@ -88,7 +87,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md @eladkal
+/dev/PROVIDER_DISTRIBUTIONS_DETAILS.md @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README_RELEASE_PROVIDERS.md  @eladkal

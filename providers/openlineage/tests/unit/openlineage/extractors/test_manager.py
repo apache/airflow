@@ -33,7 +33,6 @@ from openlineage.client.facet_v2 import (
 )
 from uuid6 import uuid7
 
-from airflow.io.path import ObjectStoragePath
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.lineage.entities import Column, File, Table, User
 from airflow.providers.openlineage.extractors import OperatorLineage
@@ -78,13 +77,15 @@ if AIRFLOW_V_2_10_PLUS:
 
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import ObjectStoragePath
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance as SDKTaskInstance
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import StartupDetails
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
 else:
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
 
     SDKTaskInstance = ...  # type: ignore
     task_runner = ...  # type: ignore

@@ -51,3 +51,13 @@ export const dagRunStateOptions = createListCollection({
     { label: "Success", value: "success" },
   ],
 });
+
+export const dagRunTypeOptions = createListCollection({
+  items: [
+    { label: "All Run Types", value: "all" },
+    { label: "Backfill", value: "backfill" },
+    { label: "Manual", value: "manual" },
+    { label: "Scheduled", value: "scheduled" },
+    { label: "Asset Triggered", value: "asset_triggered" },
+  ],
+});

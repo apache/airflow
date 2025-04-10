@@ -34,7 +34,18 @@ class BaseNodeResponse(BaseModel):
 
     id: str
     label: str
-    type: Literal["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"]
+    type: Literal[
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+    ]
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)

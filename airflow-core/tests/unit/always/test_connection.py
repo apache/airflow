@@ -31,7 +31,8 @@ from cryptography.fernet import Fernet
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
-from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
+sqlite = pytest.importorskip("airflow.providers.sqlite.hooks.sqlite")
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -594,6 +595,8 @@ class TestConnection:
         },
     )
     def test_using_env_var(self):
+        from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
         conn = SqliteHook.get_connection(conn_id="test_uri")
         assert conn.host == "ec2.compute.com"
         assert conn.schema == "the_database"
@@ -610,6 +613,8 @@ class TestConnection:
         },
     )
     def test_using_unix_socket_env_var(self):
+        from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
         conn = SqliteHook.get_connection(conn_id="test_uri_no_creds")
         assert conn.host == "ec2.compute.com"
         assert conn.schema == "the_database"
@@ -634,6 +639,8 @@ class TestConnection:
 
     @pytest.mark.db_test
     def test_env_var_priority(self):
+        from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
         conn = SqliteHook.get_connection(conn_id="airflow_db")
         assert conn.host != "ec2.compute.com"
 
@@ -687,6 +694,8 @@ class TestConnection:
         },
     )
     def test_get_connections_env_var(self):
+        from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
         conns = SqliteHook.get_connection(conn_id="test_uri")
         assert conns.host == "ec2.compute.com"
         assert conns.schema == "the_database"

@@ -146,7 +146,7 @@ def md5sum_check_if_build_is_needed(
                     "This might lead to out-dated results of the check![/]"
                 )
                 get_console().print(
-                    f"[info]Consider running `breeze ci-image build --python {build_ci_params.python} "
+                    f"[info]Consider running `breeze ci-image build --python {build_ci_params.python}` "
                     f"at earliest convenience![/]\n"
                 )
             return False
