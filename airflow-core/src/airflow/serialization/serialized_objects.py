@@ -1832,8 +1832,33 @@ class SerializedDAG(DAG, BaseSerialization):
         for old, new in dag_renames:
             dag_dict[new] = dag_dict.pop(old)
 
-        if sched := dag_dict.pop("schedule_interval"):
-            if sched.get("__type") == "timedelta":
+        if sched := dag_dict.pop("schedule_interval", None):
+            if sched is None:
+                dag_dict["timetable"] = {
+                    "__var": {},
+                    "__type": "airflow.timetables.simple.NullTimetable",
+                }
+            elif isinstance(sched, str):
+                # "@daily" etc
+                if sched == "@once":
+                    dag_dict["timetable"] = {
+                        "__var": {},
+                        "__type": "airflow.timetables.simple.OnceTimetable",
+                    }
+                if sched == "@daily":
+                    dag_dict["timetable"] = {
+                        "__var": {
+                            "interval": 0.0,
+                            "timezone": "UTC",
+                            "expression": "0 0 * * *",
+                            "run_immediately": False,
+                        },
+                        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                    }
+                else:
+                    # We should maybe convert this to None and warn instead
+                    raise ValueError(f"Unknown schedule_interval field {sched!r}")
+            elif sched.get("__type") == "timedelta":
                 dag_dict["timetable"] = {
                     "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
                     "__var": {"delta": sched["__var"], "interval": 0},
