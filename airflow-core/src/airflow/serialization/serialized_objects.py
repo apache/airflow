@@ -1831,10 +1831,47 @@ class SerializedDAG(DAG, BaseSerialization):
         tasks_remove,
         dags_remove,
     ) -> None:
+        def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
+            def replace_str(s):
+                return s.replace("Dataset", "Asset").replace("dataset", "asset")
+
+            if isinstance(obj, dict):
+                new_obj = {}
+                for k, v in obj.items():
+                    new_key = replace_str(k) if isinstance(k, str) else k
+                    # Don't replace uri values
+                    if new_key == "uri":
+                        new_obj[new_key] = v
+                    else:
+                        new_value = (
+                            replace_str(v)
+                            if isinstance(v, str)
+                            else _replace_dataset_with_asset_in_timetables(v, parent_key=new_key)
+                        )
+                        new_obj[new_key] = new_value
+                # Insert "name" and "group" if this is inside the 'objects' list
+                if parent_key == "objects":
+                    new_obj["name"] = None
+                    new_obj["group"] = None
+                return new_obj
+
+            elif isinstance(obj, list):
+                return [_replace_dataset_with_asset_in_timetables(i, parent_key=parent_key) for i in obj]
+
+            return obj
+
         for old, new in dag_renames:
             dag_dict[new] = dag_dict.pop(old)
         for k in dags_remove:
             dag_dict.pop(k, None)
+        if "timetable" in dag_dict:
+            if dag_dict["timetable"]["__type"] == "airflow.timetables.simple.DatasetTriggeredTimetable":
+                dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+        if "dag_dependencies" in dag_dict:
+            for dep in dag_dict["dag_dependencies"]:
+                if dep.get("dependency_type") == "dataset":
+                    dep["dependency_type"] = "asset"
+
         tasks = dag_dict["tasks"]
         for task in tasks:
             task_var: dict = task["__var"]
@@ -1842,6 +1879,14 @@ class SerializedDAG(DAG, BaseSerialization):
                 task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
+            if "outlets" in task_var:
+                outlets = task_var["outlets"]
+                for item in outlets:
+                    if item.get("__type") == "dataset":
+                        item["__type"] = "asset"
+                    var_ = item["__var"]
+                    var_["name"] = None
+                    var_["group"] = None
 
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
