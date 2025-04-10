@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class MwaaHook(AwsBaseHook):
     """
-    Interact with AWS Manager Workflows for Apache Airflow.
+    Interact with AWS Managed Workflows for Apache Airflow.
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("mwaa") <MWAA.Client>`
 
