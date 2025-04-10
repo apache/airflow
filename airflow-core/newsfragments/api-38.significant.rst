@@ -20,8 +20,8 @@
 
   * ``airflow config lint``
 
-    * [ ] ``core.dag_default_view``
-    * [ ] ``core.dag_orientation``
+    * [x] ``core.dag_default_view``
+    * [x] ``core.dag_orientation``
 
   * ruff
 
