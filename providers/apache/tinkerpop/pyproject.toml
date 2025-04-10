@@ -59,7 +59,6 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "gremlinpython>=3.7.0",
-    "nest-asyncio>=1.6.0",
 ]
 
 [dependency-groups]
