@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -45,7 +45,8 @@ class TestGetLogin(TestAuthEndpoint):
             {"next": "http://localhost:8080", "other_param": "something_else"},
         ],
     )
-    def test_should_respond_307(self, test_client, params):
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_should_respond_307(self, mock_is_safe_url, test_client, params):
         response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307

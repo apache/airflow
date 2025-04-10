@@ -533,6 +533,10 @@ class AirflowAppBuilder:
     def get_url_for_login_with(self, next_url: str | None = None) -> str:
         return get_auth_manager().get_url_login(next_url=next_url)
 
+    @property
+    def get_url_for_login(self):
+        return get_auth_manager().get_url_login()
+
     def get_url_for_locale(self, lang):
         return url_for(
             f"{self.bm.locale_view.endpoint}.{self.bm.locale_view.default_view}",

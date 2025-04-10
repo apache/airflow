@@ -456,7 +456,7 @@ export const prefetchUseConnectionServiceGetConnections = (
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -469,10 +469,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -482,10 +482,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -498,10 +498,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       dagIdPattern,
       dagIds,
       dagRunsLimit,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       tags,
@@ -513,10 +513,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -1035,7 +1035,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1057,10 +1057,10 @@ export const prefetchUseDagServiceGetDags = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1074,10 +1074,10 @@ export const prefetchUseDagServiceGetDags = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1094,10 +1094,10 @@ export const prefetchUseDagServiceGetDags = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,
@@ -1113,10 +1113,10 @@ export const prefetchUseDagServiceGetDags = (
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,

@@ -749,7 +749,12 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
+        return session.scalar(select(~DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_is_stale(self, session=NEW_SESSION) -> None:
+        """Return a boolean indicating whether this DAG is stale."""
+        return session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
@@ -1939,7 +1944,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
         session.commit()
 
@@ -1955,14 +1960,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         :return: None
         """
         for dag in session.scalars(
-            select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
+            select(DagModel).where(DagModel.last_parsed_time < expiration_date, ~DagModel.is_stale)
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
                 dag.last_parsed_time.isoformat(),
             )
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
             session.commit()
 
@@ -2155,7 +2160,7 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_active = Column(Boolean, default=False)
+    is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
@@ -2304,7 +2309,7 @@ class DagModel(Base):
 
     def get_is_active(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
-        return self.is_active
+        return not self.is_stale
 
     @staticmethod
     @provide_session
@@ -2389,14 +2394,14 @@ class DagModel(Base):
             .options(
                 load_only(
                     cls.relative_fileloc,
-                    cls.is_active,
+                    cls.is_stale,
                 ),
             )
         )
 
         for dm in dag_models:
             if dm.relative_fileloc not in rel_filelocs:
-                dm.is_active = False
+                dm.is_stale = True
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
@@ -2469,7 +2474,7 @@ class DagModel(Base):
             select(cls)
             .where(
                 cls.is_paused == expression.false(),
-                cls.is_active == expression.true(),
+                cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),

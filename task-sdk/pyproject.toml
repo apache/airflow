@@ -20,7 +20,31 @@ name = "apache-airflow-task-sdk"
 dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
+license-files.globs = ["LICENSE"]
 requires-python = ">=3.9, <3.13"
+
+authors = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+maintainers = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+keywords = [ "airflow", "orchestration", "workflow", "dag", "pipelines", "automation", "data" ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+]
+
 dependencies = [
     "aiologic>=0.14.0",
     "attrs>=24.2.0, !=25.2.0",
@@ -36,9 +60,17 @@ dependencies = [
     "structlog>=25.2.0",
     "retryhttp>=1.2.0,!=1.3.0",
 ]
-classifiers = [
-  "Framework :: Apache Airflow",
-]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/"
+Homepage = "https://airflow.apache.org/"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
 
 [build-system]
 requires = ["hatchling"]

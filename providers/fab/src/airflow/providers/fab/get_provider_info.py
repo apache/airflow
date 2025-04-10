@@ -53,10 +53,24 @@ def get_provider_info():
                     },
                     "auth_backends": {
                         "description": "Comma separated list of auth backends to authenticate users of the API.\n",
-                        "version_added": "2.3.0",
+                        "version_added": "2.0.0",
                         "type": "string",
                         "example": None,
                         "default": "airflow.providers.fab.auth_manager.api.auth.backend.session",
+                    },
+                    "config_file": {
+                        "description": "Path of webserver config file used for configuring the webserver parameters\n",
+                        "version_added": "2.0.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "{AIRFLOW_HOME}/webserver_config.py",
+                    },
+                    "session_backend": {
+                        "description": "The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the\n``database`` backend, sessions are store in the database and they can be\nmanaged there (for example when you reset password of the user, all sessions for that user are\ndeleted). For the ``securecookie`` backend, sessions are stored in encrypted cookies on the client\nside. The ``securecookie`` mechanism is 'lighter' than database backend, but sessions are not\ndeleted when you reset password of the user, which means that other than waiting for expiry time,\nthe only way to invalidate all sessions for a user is to change secret_key and restart webserver\n(which also invalidates and logs out all other user's sessions).\n\nWhen you are using ``database`` backend, make sure to keep your database session table small\nby periodically running ``airflow db clean --table session`` command, especially if you have\nautomated API calls that will create a new session for each call rather than reuse the sessions\nstored in browser cookies.\n",
+                        "version_added": "2.0.0",
+                        "type": "string",
+                        "example": "securecookie",
+                        "default": "database",
                     },
                     "session_lifetime_minutes": {
                         "description": "The UI cookie lifetime in minutes. User will be logged out from UI after\n``[fab] session_lifetime_minutes`` of non-activity\n",

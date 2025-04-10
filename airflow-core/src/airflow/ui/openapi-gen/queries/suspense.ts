@@ -567,7 +567,7 @@ export const useConnectionServiceGetConnectionsSuspense = <
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -583,10 +583,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -596,10 +596,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -615,10 +615,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -632,10 +632,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -1247,7 +1247,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1272,10 +1272,10 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1289,10 +1289,10 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1312,10 +1312,10 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -1333,10 +1333,10 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,

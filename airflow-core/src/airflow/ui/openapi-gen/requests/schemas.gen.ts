@@ -1704,9 +1704,9 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2037,7 +2037,7 @@ export const $DAGDetailsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2105,9 +2105,9 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2293,7 +2293,7 @@ export const $DAGResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2925,9 +2925,9 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -3132,7 +3132,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
