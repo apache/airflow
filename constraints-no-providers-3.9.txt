@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-09T19:46:38.069802
+# This constraints file was automatically generated on 2025-04-10T02:20:17.821777
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -107,7 +107,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
 azure-mgmt-storage==22.1.1
 azure-nspkg==3.0.2
-azure-servicebus==7.14.1
+azure-servicebus==7.14.2
 azure-storage-blob==12.25.1
 azure-storage-file-datalake==12.20.0
 azure-storage-file-share==12.21.0
@@ -349,7 +349,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.4.0
+multidict==6.4.2
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
@@ -585,7 +585,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.6.13
+uv==0.6.14
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
