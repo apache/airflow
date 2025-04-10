@@ -89,7 +89,7 @@ class DAGSchema(SQLAlchemySchema):
     bundle_name = auto_field(dump_only=True)
     bundle_version = auto_field(dump_only=True)
     is_paused = auto_field()
-    is_active = auto_field(dump_only=True)
+    is_stale = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
@@ -293,7 +293,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "bundle_name": dag.get_bundle_name(),
         "bundle_version": dag.get_bundle_version(),
         "is_paused": dag.get_is_paused(),
-        "is_active": dag.get_is_active(),
+        "is_stale": dag.get_is_stale(),
         "last_parsed_time": None,
         "last_expired": None,
         "fileloc": dag.fileloc,

@@ -60,7 +60,7 @@ class TestDagEndpoint:
             dag_id=DAG3_ID,
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
