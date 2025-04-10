@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-10T02:31:17.622730
+# This constraints file was automatically generated on 2025-04-10T20:01:48.761874
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Js2Py==0.74
-Mako==1.3.9
+Mako==1.3.10
 Markdown==3.7
 MarkupSafe==3.0.2
 PyAthena==3.12.2
@@ -136,7 +136,6 @@ apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.4
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
-apache-airflow-providers-github==2.8.3
 apache-airflow-providers-google==15.0.0
 apache-airflow-providers-grpc==3.7.3
 apache-airflow-providers-hashicorp==4.1.0
@@ -279,7 +278,7 @@ databricks-sql-connector==4.0.2
 dataclasses-json==0.6.7
 datadog==0.51.0
 db-dtypes==1.4.2
-debugpy==1.8.13
+debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
 deltalake==0.25.5
@@ -508,9 +507,9 @@ objsize==0.7.1
 openai==1.72.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.30.1
-openlineage-python==1.30.1
-openlineage_sql==1.30.1
+openlineage-integration-common==1.31.0
+openlineage-python==1.31.0
+openlineage_sql==1.31.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
