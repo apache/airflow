@@ -372,9 +372,9 @@ class TestTIUpdateState:
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),
         [
-            # (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS),
+            (State.SUCCESS, DEFAULT_END_DATE, State.SUCCESS),
             (State.FAILED, DEFAULT_END_DATE, State.FAILED),
-            # (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED),
+            (State.SKIPPED, DEFAULT_END_DATE, State.SKIPPED),
         ],
     )
     def test_ti_update_state_to_terminal(
