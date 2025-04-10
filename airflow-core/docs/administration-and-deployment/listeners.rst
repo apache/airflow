@@ -40,6 +40,8 @@ DagRun State Change Events
 --------------------------
 
 DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` changes state.
+Beginning with Airflow 3, listeners are also notified whenever a state change is triggered through the API
+(for ``on_dag_run_success`` and ``on_dag_run_failed``) e.g., when a DagRun is marked as success from the Airflow UI.
 
 - ``on_dag_run_running``
 
@@ -66,8 +68,12 @@ DagRun state change events occur when a :class:`~airflow.models.dagrun.DagRun` c
 TaskInstance State Change Events
 --------------------------------
 
-TaskInstance state change events occur when a :class:`~airflow.models.taskinstance.TaskInstance` changes state.
+TaskInstance state change events occur when a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` changes state.
 You can use these events to react to ``LocalTaskJob`` state changes.
+Starting with Airflow 3, listeners are also notified when a state change is triggered through the API
+(for ``on_task_instance_success`` and ``on_task_instance_failed``) e.g., when marking a task instance as success from the Airflow UI.
+In such cases, the listener will receive a :class:`~airflow.models.taskinstance.TaskInstance` instance instead
+of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instance.
 
 - ``on_task_instance_running``
 
@@ -182,12 +188,14 @@ For example if you want to implement a listener that uses the ``error`` field in
 List of changes in the listener interfaces since 2.8.0 when they were introduced:
 
 
-+-----------------+--------------------------------------------+-------------------------------------------------------------------------+
-| Airflow Version | Affected method                            | Change                                                                  |
-+=================+============================================+=========================================================================+
-| 2.10.0          | ``on_task_instance_failed``                | An error field added to the interface                                   |
-+-----------------+--------------------------------------------+-------------------------------------------------------------------------+
-| 3.0.0           | ``on_task_instance_running``,              | ``session`` argument removed from task instance listeners,              |
-|                 | ``on_task_instance_success``,              | ``task_instance`` object is now an instance of ``RuntimeTaskInstance``  |
-|                 | ``on_task_instance_failed``                |                                                                         |
-+-----------------+--------------------------------------------+-------------------------------------------------------------------------+
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+| Airflow Version | Affected method                            | Change                                                                                                                        |
++=================+============================================+===============================================================================================================================+
+| 2.10.0          | ``on_task_instance_failed``                | An error field added to the interface                                                                                         |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+| 3.0.0           | ``on_task_instance_running``               | ``session`` argument removed from task instance listeners,                                                                    |
+|                 |                                            | ``task_instance`` object is now an instance of ``RuntimeTaskInstance``                                                        |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
+| 3.0.0           | ``on_task_instance_failed``,               | ``session`` argument removed from task instance listeners,                                                                    |
+|                 | ``on_task_instance_success``               | ``task_instance`` object is now an instance of ``RuntimeTaskInstance`` when on worker and ``TaskInstance`` when on API server |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
