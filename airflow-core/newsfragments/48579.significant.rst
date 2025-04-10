@@ -19,4 +19,4 @@ Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
 
   * ``airflow config lint``
 
-    * [ ] Convert all ``DebugExecutor`` to ``dag.test()`` when present in ``[core] executor``
+    * [ ] Convert all ``DebugExecutor`` to ``LocalExecutor`` when present in ``[core] executor``
