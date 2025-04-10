@@ -439,17 +439,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = ti_count.model_dump_json().encode()
 
         elif isinstance(msg, GetTGCount):
-            tg_count = self.client.task_instances.get_tg_count(
+            resp = self.client.task_instances.get_tg_count(
                 dag_id=msg.dag_id,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = tg_count.model_dump_json().encode()
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
