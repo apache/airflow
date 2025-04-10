@@ -69,7 +69,7 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
       onValueChange={handleStateChange}
       size="sm"
       value={selectedVersionNumber === undefined ? [] : [selectedVersionNumber.toString()]}
-      width="225px"
+      width="250px"
     >
       {showLabel ? <Select.Label fontSize="xs">Dag Version</Select.Label> : undefined}
       <Select.Control>
