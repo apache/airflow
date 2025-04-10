@@ -1,0 +1,181 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "apache-airflow-devel-common"
+version = "0.1.0"
+description = "Devel common package for Apache Airflow where shared test and development code is stored"
+classifiers = [
+    "Private :: Do Not Upload",
+]
+
+dependencies = [
+    "aioresponses>=0.7.6",
+    "black>=23.12.0",
+    "filelock>=3.13.0",
+    "jmespath>=0.7.0",
+    "kgb>=7.2.0",
+    "requests_mock>=1.11.0",
+    "rich>=13.6.0",
+    "ruff==0.11.2",
+    "semver>=3.0.2",
+    "time-machine>=2.13.0",
+    "wheel>=0.42.0",
+    "yamllint>=1.33.0",
+    "apache-airflow-devel-common[basic]"
+]
+
+[project.optional-dependencies]
+"coverage" = [
+    "coverage>=7.4.0",
+]
+"duckdb" = [
+    # Python 3.12 support was added in 0.10.0
+    "duckdb>=0.10.0; python_version >= '3.12'",
+    "duckdb>=0.9.0; python_version < '3.12'",
+]
+"debuggers" = [
+    "ipdb>=0.13.13",
+    "pdbr>=0.8.9",
+]
+"devscripts" = [
+    "click>=8.1.8",
+    "gitpython>=3.1.40",
+    "incremental>=24.7.2",
+    "pipdeptree>=2.13.1",
+    "pygithub>=2.1.1",
+    "restructuredtext-lint>=1.4.0",
+    "rich-click>=1.7.1",
+    "semver>=3.0.2",
+    "towncrier>=23.11.0",
+    "twine>=4.0.2",
+]
+"docs" = [
+    "astroid>=3",
+    "checksumdir>=1.2.0",
+    "rich-click>=1.7.1",
+    "click>=8.1.8",
+    "docutils>=0.21",
+    "sphinx-airflow-theme>=0.1.0",
+    "sphinx-argparse>=0.4.0",
+    "sphinx-autoapi>=3",
+    "sphinx-autobuild>=2024.10.2",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.5.0",
+    "sphinx-jinja>=2.0.2",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx>=7",
+    "sphinxcontrib-applehelp>=1.0.4",
+    "sphinxcontrib-devhelp>=1.0.2",
+    "sphinxcontrib-htmlhelp>=2.0.1",
+    "sphinxcontrib-httpdomain>=1.8.1",
+    "sphinxcontrib-jquery>=4.1",
+    "sphinxcontrib-jsmath>=1.0.1",
+    "sphinxcontrib-qthelp>=1.0.3",
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-serializinghtml>=1.1.5",
+    "sphinxcontrib-spelling>=8.0.0",
+]
+"docs-gen" = [
+    "diagrams>=0.23.4",
+    "eralchemy2>=1.3.8",
+]
+"mypy" = [
+    # Mypy dependencies
+    # TODO: upgrade to newer versions of MyPy continuously as they are released
+    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
+    # when you upgrade it here !!!!
+    "mypy==1.9.0",
+    "types-Deprecated>=1.2.9.20240311",
+    "types-Markdown>=3.6.0.20240316",
+    "types-PyMySQL>=1.1.0.20240425",
+    "types-PyYAML>=6.0.12.20240724",
+    "types-aiofiles>=23.2.0.20240403",
+    "types-certifi>=2021.10.8.3",
+    "types-croniter>=2.0.0.20240423",
+    "types-docutils>=0.21.0.20240704",
+    "types-paramiko>=3.4.0.20240423",
+    "types-protobuf>=5.26.0.20240422",
+    "types-python-dateutil>=2.9.0.20240316",
+    "types-python-slugify>=8.0.2.20240310",
+    "types-pytz>=2024.1.0.20240417",
+    "types-redis>=4.6.0.20240425",
+    "types-requests>=2.31.0.6",
+    "types-setuptools>=69.5.0.20240423",
+    "types-tabulate>=0.9.0.20240106",
+    "types-toml>=0.10.8.20240310",
+]
+"pytest" = [
+    # General pytest devel tools
+    # We need to adjust all our tests to work with "proper" handling of the async loops in pytest-asyncio
+    # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
+    "pytest-asyncio>=0.24.0,<0.25.1",
+    "pytest-cov>=4.1.0",
+    "pytest-custom-exit-code>=0.3.0",
+    "pytest-icdiff>=0.9",
+    "pytest-instafail>=0.5.0",
+    "pytest-mock>=3.14.0",
+    "pytest-rerunfailures>=13.0",
+    "pytest-timeouts>=1.2.1",
+    "pytest-unordered>=0.6.1",
+    "pytest-xdist>=3.5.0",
+    "pytest>=8.3.3,<9",
+]
+"sentry" = [
+    "blinker>=1.7.0",
+    "beautifulsoup4>=4.7.1",
+]
+"basic" = [
+    "apache-airflow-devel-common[coverage,debuggers,mypy,pytest]"
+]
+"no-doc" = [
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,mypy,pytest,sentry]"
+]
+"all" = [
+    "apache-airflow-devel-common[coverage,duckdb,debuggers,devscripts,doc,docs-gen,mypy,pytest,sentry]",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow-core",
+]
+docs = [
+    "apache-airflow-devel-common[docs]",
+]
+docs-gen = [
+    "apache-airflow-devel-common[docs-gen]",
+]
+
+[project.scripts]
+build-docs = "docs.build_docs:build_docs"
+
+[tool.ruff]
+extend = "../pyproject.toml"
+src = ["src"]
+
+[tool.flit.module]
+name = "tests_common"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"src/tests_common/*" = ["S101", "TRY002"]
+# Test compat imports banned imports to allow testing against older airflow versions
+"src/tests_common/test_utils/compat.py" = ["TID251", "F401"]
+"src/tests_common/pytest_plugin.py" = ["F811"]

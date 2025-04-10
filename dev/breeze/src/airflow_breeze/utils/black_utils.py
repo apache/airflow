@@ -21,12 +21,12 @@ import os
 from black import Mode, TargetVersion, format_str, parse_pyproject_toml
 
 from airflow_breeze.utils.functools_cache import clearable_cache
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 
 @clearable_cache
 def _black_mode() -> Mode:
-    config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT, "pyproject.toml"))
+    config = parse_pyproject_toml(os.path.join(AIRFLOW_ROOT_PATH, "pyproject.toml"))
     target_versions = {TargetVersion[val.upper()] for val in config.get("target_version", ())}
     return Mode(
         target_versions=target_versions,

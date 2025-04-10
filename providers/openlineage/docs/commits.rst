@@ -34,6 +34,68 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.2
+.....
+
+Latest change: 2025-04-05
+
+==================================================================================================  ===========  ===========================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===========================================================================================
+`e84a745bd9 <https://github.com/apache/airflow/commit/e84a745bd99e2a0d40de68b1c220c43ccf787ed9>`__  2025-04-05   ``Fix OL tests due to decorators move to std provider (#48808)``
+`25cf4145a4 <https://github.com/apache/airflow/commit/25cf4145a485e25e7667d2e2fc6432973388b2e0>`__  2025-04-04   ``fix: remove use of get_inlet_defs and get_outlet_defs from OpenLineage (#48792)``
+`1b98450c0b <https://github.com/apache/airflow/commit/1b98450c0b1aaa171387f0b006f37de7b6bd3d75>`__  2025-04-03   ``Implement triggering_asset_events in task sdk (#48650)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`e7daa6794c <https://github.com/apache/airflow/commit/e7daa6794c3375cceb6372748c757510cde3eaa8>`__  2025-04-01   ``Make datetime objects in Context as Pendulum objects (#48592)``
+`f851c14f6d <https://github.com/apache/airflow/commit/f851c14f6d7b7f234f6057128ac94291513c2039>`__  2025-03-31   ``docs: Update OL docs after BaseExtractor changes (#48585)``
+`cfb08bb3be <https://github.com/apache/airflow/commit/cfb08bb3befee1b1ed642ad8a50a3d0f3a53a100>`__  2025-03-31   ``Remove auto lineage from Airflow (#48421)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`fb67e128cf <https://github.com/apache/airflow/commit/fb67e128cf2bb2ab7df24b0958ed45761c779e7f>`__  2025-03-29   ``Move BaseOperator to 'airflow/sdk/bases/operator.py' (#48529)``
+`fde5051eac <https://github.com/apache/airflow/commit/fde5051eaca10b81364cca43307c30f49bc7e529>`__  2025-03-28   ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+`0063cd7b08 <https://github.com/apache/airflow/commit/0063cd7b08326f50e542be3caa9ffc21f50bf04d>`__  2025-03-28   ``nit: log more details about OpenLineage exceptions being caught (#48459)``
+`fe1be40957 <https://github.com/apache/airflow/commit/fe1be4095736244f2f567ec1cd3c4063fb1e87fd>`__  2025-03-27   ``fix: OpenLineage BaseExtractor's on_failure should call on_complete by default (#48456)``
+`d30dde27ea <https://github.com/apache/airflow/commit/d30dde27eac835473756d754fcd5e87ae4e00f3c>`__  2025-03-26   ``Add backcompat to openlineage provider method (#48406)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`6d0e00c73c <https://github.com/apache/airflow/commit/6d0e00c73c03ace0d0b94174272a3443cd83244a>`__  2025-03-25   ``Implement task-level "on" callbacks in sdk (#48002)``
+`27a3944da6 <https://github.com/apache/airflow/commit/27a3944da6781d8564c5f1d9da7c97ae7173b633>`__  2025-03-24   ``add OpenLineage configuration injection to SparkSubmitOperator (#47508)``
+`b96547dedc <https://github.com/apache/airflow/commit/b96547dedc497bc3001fb3a3f30682b046dc7735>`__  2025-03-22   ``serialize http transports contained in composite transport (#47444)``
+`5eca6c6aa7 <https://github.com/apache/airflow/commit/5eca6c6aa7879cc20c1e284cd9773abcee7fc312>`__  2025-03-22   ``Calculate retry eligibility before task runs (#47996)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`2b082e670a <https://github.com/apache/airflow/commit/2b082e670a9689edfd734cd8b3296d62170c62ed>`__  2025-03-21   ``fix: Re-add configuring orm for OpenLineage's listener on scheduler (#48049)``
+`cf74518131 <https://github.com/apache/airflow/commit/cf745181315ec2c4185a0ba465660885f37ee11f>`__  2025-03-20   ``Bump OL provider for Airflow 3.0.0b4 release (#48011)``
+`7b20f331a8 <https://github.com/apache/airflow/commit/7b20f331a86dfbc5930ca22c755c7998d867bed1>`__  2025-03-18   ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
+`807bdca29c <https://github.com/apache/airflow/commit/807bdca29c634a04be85637902db680f567f8e73>`__  2025-03-17   ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
+`5e1f39c488 <https://github.com/apache/airflow/commit/5e1f39c488164a2bb77661ad9c7afb3f2241a0bf>`__  2025-03-16   ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`eb18f87f09 <https://github.com/apache/airflow/commit/eb18f87f091116a9b7db5ae30fdb40f6e0a6377f>`__  2025-03-10   ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+==================================================================================================  ===========  ===========================================================================================
+
+2.1.1
+.....
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  ==========================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==========================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`afcfb86106 <https://github.com/apache/airflow/commit/afcfb86106bdc92753edfe4fc45111cf9d836893>`__  2025-03-07   ``chore: Update description of 'execution_timeout' in OpenLineage provider.yaml (#47448)``
+`58c6a49565 <https://github.com/apache/airflow/commit/58c6a4956512fb35bebc645fbeed2ff79cdbe6ee>`__  2025-03-07   ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+`fbe3fc927e <https://github.com/apache/airflow/commit/fbe3fc927ea38d88132db231c71494fef71dfff2>`__  2025-03-06   ``Move task_sdk to a standalone task-sdk distribution (#47451)``
+`f47ba94ca8 <https://github.com/apache/airflow/commit/f47ba94ca856268b4dbbb4e07eb125b657579df7>`__  2025-03-06   ``Move uuid6 to be devel dependency of openlineage (#47464)``
+`fca1c3020e <https://github.com/apache/airflow/commit/fca1c3020edb82798ff72014158072c3676ea306>`__  2025-03-06   ``revert removing 'external_trigger' from OpenLineage provider (#47383)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`57986c0f24 <https://github.com/apache/airflow/commit/57986c0f24769d92a092cf588c7f4890b23c4a08>`__  2025-03-02   ``fix: OpenLineage serialization of dataset timetables for Airflow 2.9 (#47150)``
+`10da1a02f3 <https://github.com/apache/airflow/commit/10da1a02f30713e1a29a34f881334b25f498f017>`__  2025-02-28   ``Implement stale dag bundle cleanup (#46503)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`811fa2b016 <https://github.com/apache/airflow/commit/811fa2b016ca613061e5d4d32fee005e53c1bf1d>`__  2025-02-25   ``Replace 'external_trigger' check with DagRunType (#45961)``
+`518287ce7f <https://github.com/apache/airflow/commit/518287ce7fbb7bb70df499239523b1b2e9ac7656>`__  2025-02-24   ``Runtime context shouldn't have start_date as a key (#46961)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ==========================================================================================
+
 2.1.0
 .....
 
@@ -42,6 +104,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `36ae4683d3 <https://github.com/apache/airflow/commit/36ae4683d38576d34246535388e474d9a2d8e453>`__  2025-02-21   ``pass error for on_task_instance_failed in task sdk (#46941)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `b4d27074f6 <https://github.com/apache/airflow/commit/b4d27074f601e938ec5e10d957aef1de7c659c2f>`__  2025-02-17   ``Remove remnants of old provider's structure (#46829)``

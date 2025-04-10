@@ -55,12 +55,12 @@ ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
 # Make sure that asset compilation is completed before we proceed
 function wait_for_asset_compilation() {
-    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+    if [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; then
         echo
         echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
         echo
         local counter=0
-        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+        while [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; do
             if (( counter % 5 == 2 )); then
                 echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
             fi
@@ -72,7 +72,7 @@ function wait_for_asset_compilation() {
                 echo """
 If it does not complete soon, you might want to stop it and remove file lock:
    * press Ctrl-C
-   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+   * run 'rm ${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock'
 """
             fi
             if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
@@ -84,12 +84,12 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
-    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+    if [ -f "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out" ]; then
         echo
         echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
         echo
-        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
-        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        cat "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
         echo
         exit 1
     fi
@@ -118,7 +118,7 @@ function environment_initialization() {
 
     if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
         echo
-        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing scheduler/standalone_dag_processor to True${COLOR_RESET}"
         echo
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
@@ -128,9 +128,6 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
-
-    # Directory where simple auth manager store generated passwords
-    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -202,7 +199,7 @@ function handle_mount_sources() {
 # Determine which airflow version to use
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_PACKAGES_FROM_DIST=} != "true" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_DISTRIBUTIONS_FROM_DIST=} != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -222,18 +219,27 @@ function determine_airflow_to_use() {
                 xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
             # shellcheck disable=SC2086
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click --python "/usr/local/bin/python" \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click \
                 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         fi
-        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
+        # Use uv run to install necessary dependencies automatically
+        # in the future we will be able to use uv sync when `uv.lock` is supported
+        uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
+        echo
+        echo "${COLOR_BLUE}Installing airflow and providers ${COLOR_RESET}"
+        echo
+        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+    fi
+    if [[ "${USE_AIRFLOW_VERSION}" =~ ^2.* ]]; then
+        # Remove auth manager setting
+        unset AIRFLOW__CORE__AUTH_MANAGER
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -263,7 +269,8 @@ function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    local min_sqlalchemy_version
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" airflow-core/pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -277,12 +284,13 @@ function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
         return
     fi
-    local MIN_PENDULUM_VERSION="2.1.2"
+    local min_pendulum_version
+    min_pendulum_version=$(grep "pendulum>=" airflow-core/pyproject.toml | head -1 | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
-    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${MIN_PENDULUM_VERSION}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${MIN_PENDULUM_VERSION}"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
     pip check
 }
 
@@ -310,28 +318,28 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
+        local provider_id
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
-        export EXTRA
+        provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
         echo
-        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo
-        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py "${provider_id}"; then
             echo
-            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo "S${COLOR_YELLOW}Skipping ${provider_id} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!${COLOR_RESET}"
             echo
             exit 0
         fi
+        cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
+        uv sync --resolution lowest-direct
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
+        cd "${AIRFLOW_SOURCES}/airflow-core"
+        uv sync --resolution lowest-direct
     fi
-    set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
-    set +x
 }
 
 function check_airflow_python_client_installation() {
@@ -341,12 +349,13 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
-function start_webserver_with_examples(){
-    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+function start_api_server_with_examples(){
+    # check if we should not start the api server with examples by checking if both
+    # START_API_SERVER_WITH_EXAMPLES is false AND the TEST_GROUP env var is not equal to "system"
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
     echo
     echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
@@ -359,26 +368,30 @@ function start_webserver_with_examples(){
     echo
     airflow dags reserialize
     echo "Example dags parsing finished"
-    echo "Create admin user"
-    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
-    echo "Admin user created"
+    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        echo "Create admin user"
+        airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain || true
+        echo "Admin user created"
+    else
+        echo "Skipping user creation as auth manager different from Fab is used"
+    fi
     echo
-    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow webserver --port 8080 --daemon
+    airflow api-server --port 8080 --daemon
     echo
-    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
+    check_service_connection "Airflow api-server" "run_nc localhost 8080" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo
-        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo "${COLOR_RED}Api server did not start properly${COLOR_RESET}"
         echo
         exit ${EXIT_CODE}
     fi
     echo
-    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
+    echo "${COLOR_BLUE}Airflow api-server started${COLOR_RESET}"
 }
 
 handle_mount_sources
@@ -389,7 +402,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
-start_webserver_with_examples
+start_api_server_with_examples
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

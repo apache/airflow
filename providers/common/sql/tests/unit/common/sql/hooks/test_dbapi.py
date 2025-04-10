@@ -29,7 +29,8 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -484,7 +485,10 @@ class TestDbApiHook:
             )
         )
         assert self.db_hook.placeholder == "?"
-        assert not caplog.messages
+        filtered_messages = [
+            msg for msg in caplog.messages if "Skipping masking for a secret as it's too short" not in msg
+        ]
+        assert not filtered_messages
 
     def test_placeholder_with_invalid_placeholder_in_extra(self, caplog):
         self.db_hook.get_connection = mock.MagicMock(

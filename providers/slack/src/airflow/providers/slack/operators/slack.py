@@ -145,7 +145,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
             "https://www.youtube.com/watch?v=J---aiyznGQ"
         ),
         icon_url: str = (
-            "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+            "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
         ),
         blocks: list | None = None,
         attachments: list | None = None,

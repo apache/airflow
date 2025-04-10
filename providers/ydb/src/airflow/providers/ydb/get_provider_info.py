@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-ydb",
         "name": "YDB",
         "description": "`YDB <https://ydb.tech/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734537521,
-        "versions": ["2.1.0", "2.0.0", "1.4.0", "1.3.0", "1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "YDB",
@@ -42,11 +39,5 @@ def get_provider_info():
         "hooks": [{"integration-name": "YDB", "python-modules": ["airflow.providers.ydb.hooks.ydb"]}],
         "connection-types": [
             {"hook-class-name": "airflow.providers.ydb.hooks.ydb.YDBHook", "connection-type": "ydb"}
-        ],
-        "dependencies": [
-            "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-sql>=1.20.0",
-            "ydb>=3.18.8",
-            "ydb-dbapi>=0.1.0",
         ],
     }

@@ -67,13 +67,8 @@ Therefore, some people who are regularly contributing and helping other users an
 in the project can be invited to join the triage team.
 `the .asf.yaml <.asf.yaml>`_ file in the ``collaborators`` section.
 
-Committers can invite people to become members of the triage team if they see that the users are already
-helping and responding to issues and when they see the users are involved regularly. But you can also ask
-to become a member of the team (on devlist) if you can show that you have done that and when you want to have
-more ways to help others.
 
-The triage team members do not have committer privileges but they can
-assign, edit, and close issues and pull requests without having capabilities to merge the code. They can
+The triage team members do not have committer privileges but they can assign, edit, and close issues and pull requests without having capabilities to merge the code. They can
 also convert issues into discussions and back. The expectation for the issue triage team is that they
 spend a bit of their time on those efforts. Triaging means not only assigning the labels but often responding
 to the issues and answering user concerns or if additional input is needed - tagging the committers or other community members who might be able to help provide more complete answers.
@@ -87,8 +82,29 @@ are super valuable components of being eligible to `become a committer <COMMITTE
 If you are a member of the triage team and not able to make any commitment, it's best to ask to have yourself
 removed from the triage team.
 
-BTW. Every committer is pretty much automatically part of the "Issue Triage Team" - so if you are committer,
+Every committer is pretty much automatically part of the "Issue Triage Team" - so if you are committer,
 feel free to follow the process for every issue you stumble upon.
+
+Joining Issue Triage Team
+'''''''''''''''''''''''''
+
+Joining the team is only by invitation from PMC member.
+A [LAZY CONSENSUS] vote must be passed in the PMC private list prior to invitation.
+The thread should present data points for candidate already helping and responding to issues, other activities in the project may also be considered.
+Activity in areas/project that is external to Apache-Airflow open source will not be considered.
+Note: the numbers of people in the triage team is limited by ASF. See `list < https://github.com/apache/arflow/blob/main/.asf.yaml#L143>`_
+
+An exception to the above rule would be re-adding previous member of the team.
+In that case adding may be done directly by PMC member without the need for [LAZY CONSENSUS].
+The PR to add should clarify that the person is a previous member and quote the original PR that added.
+
+Removal from Issue Triage Team
+''''''''''''''''''''''''''''''
+
+Inactive members will be removed without notice.
+Due to the members limit we and the number of issues in the project we are looking only for active members.
+Note that removal from the team doesn't have any negative impact on you. It's very OK if you moved towards other kind of contributions.
+Removal from the team is not permanent. See above paragraph of Joining the team for clarification about the protocol.
 
 Actions that can be taken by the issue triager
 ''''''''''''''''''''''''''''''''''''''''''''''
@@ -129,7 +145,7 @@ There are several actions an issue triager might take:
 Labels
 ''''''
 
-Since Apache Airflow uses "GitHub Issues" and "Github Discussions" as the
+Since Apache Airflow uses "GitHub Issues" and "GitHub Discussions" as the
 issue tracking systems, the use of labels is extensive. Though issue
 labels tend to change over time based on components within the project,
 the majority of the ones listed below should stand the test of time.
@@ -256,7 +272,7 @@ once the issue is accepted (and assigned with relevant kind and area labels). Th
 ask for other members of the community for consultation or ask for further information from the issue author.
 Removing the ``needs-triage`` label means that the issue has been accepted and awaits implementation (no further triage action required),
 as long as the ``needs-triage`` label remains the triage team will keep an eye on the issue and check periodically
-if it needs to be accepted or closed/converted to Github Discussion.
+if it needs to be accepted or closed/converted to GitHub Discussion.
 ``needs-triage`` label may also be applied manually by committers if they think a further action from the triage team is required.
 
 **area Label**

@@ -51,7 +51,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
-* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
+* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm-tests` folder.
 * `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
   build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
   The dependencies are automatically generated from the `provider.yaml` files in provider by
@@ -71,7 +71,6 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Airflow Python files` - files that are checked by `mypy-airflow` static checks
 * `All Providers Python files` - files that are checked by `mypy-providers` static checks
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
-* `All Docs Python files` - files that are checked by `mypy-docs` static checks
 * `All Provider Yaml files` - all provider yaml files
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
@@ -107,7 +106,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
-  (`API`, `CLI`, `WWW`, `Providers`, `Operators` etc.). The `Always` test type is added always if any unit
+  (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
@@ -142,7 +141,6 @@ when some files are not changed. Those are the rules implemented:
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
   * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
-  * if no `All Docs Python files` changed - `mypy-docs` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
@@ -163,7 +161,7 @@ providers.
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
 separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
-Github Actions to pass the list of parameters to a command to execute
+GitHub Actions to pass the list of parameters to a command to execute
 
 
 | Output                                         | Meaning of the output                                                                                  | Example value                           | List |
@@ -175,7 +173,7 @@ Github Actions to pass the list of parameters to a command to execute
 | build_system_changed_in_pyproject_toml         | When builds system dependencies changed in pyproject.toml changed in the PR.                           | false                                   |      |
 | chicken-egg-providers                          | List of providers that should be considered as "chicken-egg" - expecting development Airflow version   |                                         |      |
 | ci-image-build                                 | Whether CI image build is needed                                                                       | true                                    |      |
-| core-test-types-list-as-string                 | Which test types should be run for unit tests for core                                                 | API Always Providers                    | *    |
+| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core                                                 | API Always Providers                    | *    |
 | debug-resources                                | Whether resources usage should be printed during parallel job execution ("true"/ "false")              | false                                   |      |
 | default-branch                                 | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)          | main                                    |      |
 | default-constraints-branch                     | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)     | constraints-main                        |      |
@@ -198,7 +196,7 @@ Github Actions to pass the list of parameters to a command to execute
 | helm-test-packages-list-as-string              | List of helm packages to test as JSON array                                                            | \["airflow_aux", "airflow_core"\]       | *    |
 | helm-version                                   | Which Helm version to use for tests                                                                    | v3.15.3                                 |      |
 | include-success-outputs                        | Whether to include outputs of successful parallel tests ("true"/"false")                               | false                                   |      |
-| individual-providers-test-types-list-as-string | Which test types should be run for unit tests for providers (individually listed)                      | Providers[\amazon\] Providers\[google\] | *    |
+| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                      | Providers[\amazon\] Providers\[google\] | *    |
 | is-airflow-runner                              | Whether runner used is an airflow or infrastructure runner (true if airflow/false if infrastructure)   | false                                   |      |
 | is-amd-runner                                  | Whether runner used is an AMD one                                                                      | true                                    |      |
 | is-arm-runner                                  | Whether runner used is an ARM one                                                                      | false                                   |      |
@@ -226,7 +224,7 @@ Github Actions to pass the list of parameters to a command to execute
 | postgres-versions                              | Which versions of Postgres to use for tests as JSON array                                              | \['12'\]                                |      |
 | prod-image-build                               | Whether PROD image build is needed                                                                     | true                                    |      |
 | providers-compatibility-tests-matrix           | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)          | \[{}\]                                  |      |
-| providers-test-types-list-as-string            | Which test types should be run for unit tests for providers                                            | Providers Providers\[-google\]          | *    |
+| providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                            | Providers Providers\[-google\]          | *    |
 | pyproject-toml-changed                         | When pyproject.toml changed in the PR.                                                                 | false                                   |      |
 | python-versions                                | List of python versions to use for that build                                                          | \['3.9'\]                               |      |
 | python-versions-list-as-string                 | Which versions of MySQL to use for tests as space-separated string                                     | 3.9                                     | *    |
@@ -246,7 +244,6 @@ Github Actions to pass the list of parameters to a command to execute
 | skip-pre-commits                               | Which pre-commits should be skipped during the static-checks run                                       | flynt,identity                          |      |
 | skip-providers-tests                           | When provider tests should be skipped (on non-main branch or when no provider changes detected)        | true                                    |      |
 | sqlite-exclude                                 | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                      |      |
-| test-groups                                    | List of test groups that are valid for this run                                                        | \['core', 'providers'\]                 |      |
 | testable-core-integrations                     | List of core integrations that are testable in the build as JSON array                                 | \['celery', 'kerberos'\]                |      |
 | testable-providers-integrations                | List of core integrations that are testable in the build as JSON array                                 | \['mongo', 'kafka'\]                    |      |
 | upgrade-to-newer-dependencies                  | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)         | false                                   |      |

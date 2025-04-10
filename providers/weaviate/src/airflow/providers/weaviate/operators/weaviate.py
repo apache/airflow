@@ -26,7 +26,6 @@ from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from weaviate.types import UUID
 
     try:

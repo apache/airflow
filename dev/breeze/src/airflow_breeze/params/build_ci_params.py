@@ -22,7 +22,7 @@ from pathlib import Path
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
 
 @dataclass
@@ -33,11 +33,10 @@ class BuildCiParams(CommonBuildParams):
 
     airflow_constraints_mode: str = "constraints-source-providers"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    airflow_extras: str = "devel-ci"
+    airflow_extras: str = "all"
     force_build: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
-    eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
     skip_image_upgrade_check: bool = False
     use_uv: bool = True
@@ -53,7 +52,7 @@ class BuildCiParams(CommonBuildParams):
 
     @property
     def md5sum_cache_dir(self) -> Path:
-        return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
+        return Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, "CI")
 
     def prepare_arguments_for_docker_build_command(self) -> list[str]:
         self.build_arg_values: list[str] = []
@@ -74,13 +73,7 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         if self.upgrade_to_newer_dependencies:
-            self._opt_arg("UPGRADE_INVALIDATION_STRING", f"{random.randrange(2**32):x}")
-            if self.eager_upgrade_additional_requirements:
-                # in case eager upgrade additional requirements have EOL, connect them together
-                self._opt_arg(
-                    "EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
-                    self.eager_upgrade_additional_requirements.replace("\n", ""),
-                )
+            self._opt_arg("UPGRADE_RANDOM_INDICATOR_STRING", f"{random.randrange(2**32):x}")
         # optional build args
         self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)

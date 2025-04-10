@@ -1,0 +1,171 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[project]
+name = "apache-airflow-ctl"
+dynamic = ["version"]
+description = "Apache Airflow command line tool for communicating with an Apache Airflow, using the API."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.9, <3.13"
+dependencies = [
+    # TODO there could be still missing deps such as airflow-core
+    "argcomplete>=1.10",
+    "httpx>=0.27.0",
+    "keyring>=25.6.0",
+    "lazy-object-proxy>=1.2.0",
+    "methodtools>=0.4.7",
+    "platformdirs>=4.3.6",
+    "pydantic>=2.11.0",
+    "rich-argparse>=1.0.0",
+    "structlog>=25.2.0",
+    "uuid6>=2024.7.10",
+]
+
+classifiers = [
+  "Framework :: Apache Airflow",
+]
+
+[project.optional-dependencies]
+"dev" = [
+    "keyrings.alt>=5.0.2",
+]
+
+[project.scripts]
+airflowctl = "airflowctl.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/airflowctl/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflowctl"]
+
+[tool.ruff]
+extend = "../pyproject.toml"
+src = ["src"]
+namespace-packages = ["src/airflowctl"]
+
+[tool.ruff.lint.per-file-ignores]
+
+# Ignore Doc rules et al for anything outside of tests
+"!src/*" = ["D", "TID253", "S101", "TRY002"]
+
+# Ignore the pytest rules outside the tests folder - https://github.com/astral-sh/ruff/issues/14205
+"!tests/*" = ["PT"]
+
+# Pycharm barfs if this "stub" file has future imports
+"src/airflowctl/__init__.py" = ["I002"]
+
+# Generated file, be less strict
+"src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/auth_generated.py" = ["UP007", "D101", "D200"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["src/airflowctl"]
+include_namespace_packages = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+    "@(typing(_extensions)?\\.)?overload",
+    "if (typing(_extensions)?\\.)?TYPE_CHECKING:",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow-ctl[dev]",
+]
+codegen = [
+    "datamodel-code-generator[http]==0.28.2",
+]
+
+# To use:
+#
+# TODO: Automate this in CI via pre-commit hook and generate the file each time
+# The API should be running in the background to serve the OpenAPI schema
+# uv run --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
+# Auth related datamodel generation we need to override the URL and output file
+# uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
+[tool.datamodel-codegen]
+capitalise-enum-members=true # `State.RUNNING` not `State.running`
+disable-timestamp=true
+enable-version-header=true
+enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
+input-file-type='openapi'
+output-model-type='pydantic_v2.BaseModel'
+output-datetime-class='datetime'
+target-python-version='3.9'
+use-annotated=true
+use-default=true
+use-double-quotes=true
+use-schema-description=true  # Desc becomes class doc comment
+use-standard-collections=true # list[] not List[]
+use-subclass-enum=true # enum, not union of Literals
+use-union-operator=true # 3.9+annotations, not `Union[]`
+
+url = "http://0.0.0.0:28080/openapi.json"
+output = "src/airflowctl/api/datamodels/generated.py"
+
+## pytest settings ##
+[tool.pytest.ini_options]
+addopts = [
+    "--tb=short",
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
+
+
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+pythonpath = "tests"
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"

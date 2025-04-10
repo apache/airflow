@@ -41,6 +41,74 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+15.0.0
+......
+
+Latest change: 2025-04-04
+
+==================================================================================================  ===========  =================================================================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =================================================================================================================================================
+`1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+`9057c130e1 <https://github.com/apache/airflow/commit/9057c130e19692567d5e0e2926b947323b5e29cd>`__  2025-04-04   ``fix: remove extra slash character from file URI formation in 'MetastoreHivePartitionSensor.poke' method. (#48731)``
+`c1088b6720 <https://github.com/apache/airflow/commit/c1088b672025aae5706034c601c1d54811448e54>`__  2025-04-02   ``Rework remote task log handling for the structlog era. (#48491)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`3a4fa6108c <https://github.com/apache/airflow/commit/3a4fa6108c33c2bde3a79d0c3a72c3d01e09c13a>`__  2025-04-02   ``Disallowing types-protobuf 5.29.1.20250402 for google to fix mypy (#48666)``
+`b7603b5b60 <https://github.com/apache/airflow/commit/b7603b5b6084d37e7ada44799823a19c4330482f>`__  2025-04-01   ``SFTPToGCSOperator: Added option to stream data directly to GCS without saving to disk (#48107)``
+`b5ccbe50f5 <https://github.com/apache/airflow/commit/b5ccbe50f5bfac27b597af80105aad922a20543e>`__  2025-03-31   ``Remove deprecated for February and March 2025 in providers/google. Deprecation period for LifeScienceHook extended to july 08, 2025. (#48018)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`fde5051eac <https://github.com/apache/airflow/commit/fde5051eaca10b81364cca43307c30f49bc7e529>`__  2025-03-28   ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+==================================================================================================  ===========  =================================================================================================================================================
+
+14.1.0
+......
+
+Latest change: 2025-03-26
+
+==================================================================================================  ===========  ====================================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`dfb6a89df7 <https://github.com/apache/airflow/commit/dfb6a89df7906421309ab6275aef76775e51d2db>`__  2025-03-25   ``Vendor-in json-merge-patch and add '--no-dev' to direct uv tool install (#48210)``
+`84aa6539e6 <https://github.com/apache/airflow/commit/84aa6539e6bf7e315597148b1e88f8fdecac2a4b>`__  2025-03-22   ``Add DNS endpoint support for GKE Hooks and Operators (#48075)``
+`b96547dedc <https://github.com/apache/airflow/commit/b96547dedc497bc3001fb3a3f30682b046dc7735>`__  2025-03-22   ``serialize http transports contained in composite transport (#47444)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`48f00a7093 <https://github.com/apache/airflow/commit/48f00a7093e5da53a61fc97afdecd8fe97bfe170>`__  2025-03-14   ``FIX: BigQuery traceability labels missing in TaskGroup (#47583)``
+`8d0203ba24 <https://github.com/apache/airflow/commit/8d0203ba24d4097c84e9b4c19983af01d792e96e>`__  2025-03-14   ``misc: update API version of Google ADS (#47772)``
+`2862775eb0 <https://github.com/apache/airflow/commit/2862775eb0b0ff5e04e113ecb0ef8ea127e4927f>`__  2025-03-13   ``Introduce operation helper class and refactor (#45354)``
+`ec39ba4810 <https://github.com/apache/airflow/commit/ec39ba481061ba1621ec14d846adf7cc8ad27ec1>`__  2025-03-12   ``Remove auth backends from core Airflow (#47399)``
+`7727db55b7 <https://github.com/apache/airflow/commit/7727db55b7ef27084e8ab04d241049ff3c579d02>`__  2025-03-12   ``Mark Google Oauth2 backend as Airflow 2 only (#47622)``
+`2dcb15f3d1 <https://github.com/apache/airflow/commit/2dcb15f3d1ffa8fa1474d6833a39a81dc3500a96>`__  2025-03-09   ``Add Dataflow Apache Beam Java streaming system test (#47209)``
+`4bc7ffb86d <https://github.com/apache/airflow/commit/4bc7ffb86df0515bee5703ffe4d2be97412ddb5d>`__  2025-03-09   ``feat: allow to set task/dag labels for 'DataprocCreateBatchOperator' (#46781)``
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+`5484b7b624 <https://github.com/apache/airflow/commit/5484b7b624471fb368c2e7ab6f6984daa08e36dc>`__  2025-03-07   ``Bugfix typing after google-ads release 26.0.0 release (#47471)``
+`9f344f2730 <https://github.com/apache/airflow/commit/9f344f27309f85b23fd30b5a7e7b3de13639053c>`__  2025-03-06   ``Remove extra string interpolation from fstrings (#47436)``
+`c50541142b <https://github.com/apache/airflow/commit/c50541142b91269c2afc55bd666293500da1102b>`__  2025-03-05   ``Base AWS classes - S3 (#47321)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`96c0df6673 <https://github.com/apache/airflow/commit/96c0df667395c4299a9d998b72ddd7948a74a879>`__  2025-03-04   ``Remove unused methods from auth managers (#47316)``
+`8f4fc4f107 <https://github.com/apache/airflow/commit/8f4fc4f107697079841c1f63c3feb00b58b8c12a>`__  2025-03-04   ``Remove 'airflow.www' module (#47318)``
+`6008483efe <https://github.com/apache/airflow/commit/6008483efe83b149d0fd3732e4889aba06b2e5c0>`__  2025-03-03   ``Create operators for working with Consumer Groups for GCP Apache Kafka (#47056)``
+`a1df83bacf <https://github.com/apache/airflow/commit/a1df83bacf60bcaa11fbbb17a04592aaec5c0615>`__  2025-03-02   ``doc: Add GCSListObjectsOperator to operators listed in documentation in Google Provider for GCS  #39290 (#47002)``
+`001f25a3b8 <https://github.com/apache/airflow/commit/001f25a3b883c700ff235e26eb46b6ddc40f8fd9>`__  2025-03-02   ``Deprecating email, email_on_retry, email_on_failure in BaseOperator (#47146)``
+`10da1a02f3 <https://github.com/apache/airflow/commit/10da1a02f30713e1a29a34f881334b25f498f017>`__  2025-02-28   ``Implement stale dag bundle cleanup (#46503)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c3c56e6b24 <https://github.com/apache/airflow/commit/c3c56e6b244dad314a8800dec1ef68db8809ede2>`__  2025-02-27   ``doc: fix the typo for glob regex  #47116 (#47134)``
+`aa61371a07 <https://github.com/apache/airflow/commit/aa61371a071c92214bcc1bd29842fc8d4b0e33a2>`__  2025-02-27   ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+`51415547d6 <https://github.com/apache/airflow/commit/51415547d681942ec389f143125e8f9f163d690c>`__  2025-02-26   ``Remove old UI and webserver (#46942)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`1abd63731a <https://github.com/apache/airflow/commit/1abd63731ae07352514f03c54a9d68a8b22376dc>`__  2025-02-25   ``Remove example_dags folder (#47052)``
+`94145446d1 <https://github.com/apache/airflow/commit/94145446d1a803af3dc2424b4d3bee30c91d795d>`__  2025-02-24   ``Update documentation for Dataflow operators (#46954)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`a215880563 <https://github.com/apache/airflow/commit/a21588056367699bb83a838ba67ff58c7e7030c0>`__  2025-02-23   ``Fix 'exists' method to support using Requester Pays (#46759)``
+`0883f21f3d <https://github.com/apache/airflow/commit/0883f21f3d0db259a197c8b0815f9809a6eef23b>`__  2025-02-22   ``Bump min. 'google-cloud-pubsub' ver. to v2.21.3 (#46984)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ====================================================================================================================
+
 14.0.0
 ......
 
@@ -49,6 +117,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `6557e7a474 <https://github.com/apache/airflow/commit/6557e7a47484deefdb847388bc791b1553092024>`__  2025-02-21   ``Bump cloud build to 3.31.0 (#46953)``
 `a54d1d9a2e <https://github.com/apache/airflow/commit/a54d1d9a2eb2517f4ba6501a06972ac9a5fe4c38>`__  2025-02-21   ``Add dependencies section to gcp cloud build instance response (#46947)``

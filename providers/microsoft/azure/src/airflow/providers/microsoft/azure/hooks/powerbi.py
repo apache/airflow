@@ -187,6 +187,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         try:
             response = await self.run(
                 url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+                response_type=None,
                 method="POST",
                 path_parameters={
                     "group_id": group_id,

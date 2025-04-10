@@ -147,9 +147,11 @@ paths:
           content:
             application/json:
               schema:
-                format: date-time
-                title: Response Register
-                type: string
+                $ref: "#/components/schemas/WorkerRegistrationReturn"
+                description: Registration response with the last update time of the worker.
+                examples:
+                - last_update: "2025-04-04T13:59:58.773870"
+                title: Worker Registration
           description: Successful Response
         '400':
           content:
@@ -617,6 +619,13 @@ components:
           description: System information of the worker.
           title: Sysinfo
           type: object
+        maintenance_comments:
+          description: Comments about the maintenance state of the worker.
+          title: Maintenance Comments
+          anyOf:
+          - type: string
+          - type: object
+            nullable: true
       title: WorkerStateBody
     WorkerQueuesBody:
       description: Queues that a worker supports to run jobs on.
@@ -640,6 +649,15 @@ components:
       - free_concurrency
       title: WorkerQueuesBody
       type: object
+    WorkerRegistrationReturn:
+      description: The response of the worker registration.
+      properties:
+        last_update:
+          description: Time of the last update of the worker.
+          format: date-time
+          title: Last Update
+          type: string
+      title: WorkerRegistrationReturn
     WorkerSetStateReturn:
       description: The state written in the database
       properties:
@@ -656,6 +674,13 @@ components:
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
+        maintenance_comments:
+          description: Comments about the maintenance state of the worker.
+          title: Maintenance Comments
+          anyOf:
+          - type: string
+          - type: object
+            nullable: true
       title: WorkerSetStateReturn
     EdgeJobFetched:
       description: Job that is to be executed on the edge worker.

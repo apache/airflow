@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunFullOperator,
 )
 from airflow.providers.standard.operators.bash import BashOperator
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

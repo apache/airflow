@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.triggers.comprehend import (
     ComprehendPiiEntitiesDetectionJobCompletedTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.comprehend."
@@ -56,7 +57,7 @@ class TestComprehendPiiEntitiesDetectionJobCompletedTrigger(TestBaseComprehendTr
 
     @pytest.mark.asyncio
     @mock.patch.object(ComprehendHook, "get_waiter")
-    @mock.patch.object(ComprehendHook, "async_conn")
+    @mock.patch.object(ComprehendHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -87,7 +88,7 @@ class TestComprehendCreateDocumentClassifierCompletedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(ComprehendHook, "get_waiter")
-    @mock.patch.object(ComprehendHook, "async_conn")
+    @mock.patch.object(ComprehendHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()

@@ -46,15 +46,18 @@ class TestS3KeyTrigger:
             "poke_interval": 5.0,
             "should_check_fn": False,
             "use_regex": False,
+            "verify": None,
+            "region_name": None,
+            "botocore_config": None,
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
     async def test_run_success(self, mock_client):
         """
         Test if the task is run is in triggerr successfully.
         """
-        mock_client.return_value.check_key.return_value = True
+        mock_client.return_value.return_value.check_key.return_value = True
         trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
@@ -64,7 +67,7 @@ class TestS3KeyTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
     async def test_run_pending(self, mock_client, mock_check_key_async):
         """
         Test if the task is run is in trigger successfully and set check_key to return false.
@@ -106,14 +109,16 @@ class TestS3KeysUnchangedTrigger:
             "last_activity_time": None,
             "hook_params": {},
             "verify": None,
+            "region_name": None,
+            "botocore_config": None,
             "polling_period_seconds": 0,
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
     async def test_run_wait(self, mock_client):
         """Test if the task is run in trigger successfully."""
-        mock_client.return_value.check_key.return_value = True
+        mock_client.return_value.return_value.check_key.return_value = True
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         with mock_client:
             task = asyncio.create_task(trigger.run().__anext__())
@@ -130,7 +135,7 @@ class TestS3KeysUnchangedTrigger:
             S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test", inactivity_period=-100)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
     async def test_run_success(self, mock_is_keys_unchanged, mock_client):
         """
@@ -143,7 +148,7 @@ class TestS3KeysUnchangedTrigger:
         assert TriggerEvent({"status": "success"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
     async def test_run_pending(self, mock_is_keys_unchanged, mock_client):
         """Test if the task is run in triggerer successfully."""

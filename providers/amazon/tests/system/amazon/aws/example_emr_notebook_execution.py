@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrStopNotebookExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr_notebook"

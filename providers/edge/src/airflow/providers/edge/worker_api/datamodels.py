@@ -142,6 +142,10 @@ class WorkerStateBody(WorkerQueuesBase):
             ],
         ),
     ]
+    maintenance_comments: Annotated[
+        str | None,
+        Field(description="Comments about the maintenance state of the worker."),
+    ] = None
 
 
 class WorkerQueueUpdateBody(BaseModel):
@@ -164,6 +168,12 @@ class PushLogsBody(BaseModel):
     log_chunk_data: Annotated[str, Field(description="Log chunk data as incremental log text.")]
 
 
+class WorkerRegistrationReturn(BaseModel):
+    """The return class for the worker registration."""
+
+    last_update: Annotated[datetime, Field(description="Time of the last update of the worker.")]
+
+
 class WorkerSetStateReturn(BaseModel):
     """The return class for the worker set state."""
 
@@ -174,3 +184,7 @@ class WorkerSetStateReturn(BaseModel):
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues."
         ),
     ]
+    maintenance_comments: Annotated[
+        str | None,
+        Field(description="Comments about the maintenance state of the worker."),
+    ] = None

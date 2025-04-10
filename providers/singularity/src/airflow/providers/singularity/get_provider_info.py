@@ -26,29 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-singularity",
         "name": "Singularity",
         "description": "`Singularity <https://sylabs.io/guides/latest/user-guide/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734536576,
-        "versions": [
-            "3.7.0",
-            "3.6.0",
-            "3.5.1",
-            "3.5.0",
-            "3.4.0",
-            "3.3.0",
-            "3.2.2",
-            "3.2.1",
-            "3.2.0",
-            "3.1.0",
-            "3.0.0",
-            "2.0.4",
-            "2.0.3",
-            "2.0.2",
-            "2.0.1",
-            "2.0.0",
-            "1.1.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Singularity",
@@ -63,5 +40,4 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.singularity.operators.singularity"],
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "spython>=0.0.56"],
     }

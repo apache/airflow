@@ -25,9 +25,6 @@ from typing import (
     cast,
 )
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -35,9 +32,12 @@ from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.cloud.translate_v3.types.translation_service import GlossaryInputConfig
 
-if TYPE_CHECKING:
-    from proto import Message
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
+if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.cloud.translate_v3.services.translation_service import pagers
     from google.cloud.translate_v3.types import (
@@ -155,7 +155,7 @@ class CloudTranslateHook(GoogleBaseHook):
         )
 
 
-class TranslateHook(GoogleBaseHook):
+class TranslateHook(GoogleBaseHook, OperationHelper):
     """
     Hook for Google Cloud translation (Advanced) using client version V3.
 
@@ -218,15 +218,6 @@ class TranslateHook(GoogleBaseHook):
         except GoogleAPICallError:
             if timeout:
                 timeout = int(timeout)
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
-
-    @staticmethod
-    def wait_for_operation_result(operation: Operation, timeout: int | None = None) -> Message:
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except GoogleAPICallError:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
 
@@ -320,7 +311,7 @@ class TranslateHook(GoogleBaseHook):
             retry=retry,
             metadata=metadata,
         )
-        return cast(dict, type(result).to_dict(result))
+        return cast("dict", type(result).to_dict(result))
 
     def batch_translate_text(
         self,

@@ -40,9 +40,17 @@ from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
-from airflow.cli.commands.local_commands.info_command import Architecture
+from airflow.cli.commands.info_command import Architecture
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
+
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
+from in_container_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_DOCS_PATH,
+    AIRFLOW_PROVIDERS_PATH,
+    AIRFLOW_ROOT_PATH,
+)
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -68,12 +76,8 @@ if __name__ != "__main__":
         "This file is intended to be executed as an executable program. You cannot use it as a module."
     )
 
-ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
-PROVIDERS_DIR_PATH = ROOT_DIR / "providers"
-PROVIDERS_SRC_DIR_PATH = PROVIDERS_DIR_PATH / "src"
-DOCS_DIR_PATH = ROOT_DIR / "docs"
-PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "provider.yaml.schema.json")
-PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
+PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH.joinpath("airflow", "provider.yaml.schema.json")
+PROVIDER_ISSUE_TEMPLATE_PATH = AIRFLOW_ROOT_PATH.joinpath(
     ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
@@ -104,8 +108,8 @@ def _filepath_to_module(filepath: pathlib.Path | str) -> str:
         if parent.name == "src":
             break
     else:
-        if filepath.is_relative_to(PROVIDERS_DIR_PATH.resolve()):
-            p = filepath.relative_to(PROVIDERS_DIR_PATH.resolve()).with_suffix("")
+        if filepath.is_relative_to(AIRFLOW_PROVIDERS_PATH.resolve()):
+            p = filepath.relative_to(AIRFLOW_PROVIDERS_PATH.resolve()).with_suffix("")
             return "airflow.providers." + p.as_posix().replace("/", ".")
         raise ValueError(f"The file {filepath} does no have `src` in the path")
     p = filepath.relative_to(parent).with_suffix("")
@@ -125,7 +129,7 @@ def _load_package_data(package_paths: Iterable[str]):
     for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
-        rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
+        rel_path = pathlib.Path(provider_yaml_path).relative_to(AIRFLOW_ROOT_PATH).as_posix()
         try:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError as ex:
@@ -280,7 +284,7 @@ def check_if_objects_exist_and_belong_to_package(
 
 def parse_module_data(provider_data, resource_type, yaml_file_path):
     provider_dir = pathlib.Path(yaml_file_path).parent
-    package_dir = ROOT_DIR.joinpath(provider_dir)
+    package_dir = AIRFLOW_ROOT_PATH.joinpath(provider_dir)
     py_files = itertools.chain(
         package_dir.glob(f"**/{resource_type}/*.py"),
         package_dir.glob(f"{resource_type}/*.py"),
@@ -291,7 +295,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     expected_modules = {
         _filepath_to_module(f)
         for f in py_files
-        if f.name != "__init__.py" and f"{module.replace('.','/')}/tests/" not in f.as_posix()
+        if f.name != "__init__.py" and f"{module.replace('.', '/')}/tests/" not in f.as_posix()
     }
     resource_data = provider_data.get(resource_type, [])
     return expected_modules, _filepath_to_module(provider_dir), resource_data
@@ -360,7 +364,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
                 f"Currently configured list of {resource_type} modules in {yaml_file_path}",
                 extra_message="[yellow]Additional check[/]: If there are deprecated modules in the list,"
                 "please add them to DEPRECATED_MODULES in "
-                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}",
+                f"{pathlib.Path(__file__).relative_to(AIRFLOW_ROOT_PATH)}",
             )
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), "  ")
@@ -578,30 +582,30 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(
-        DOCS_DIR_PATH.glob("apache-airflow-providers-*/operators/**/*.rst"),
-        DOCS_DIR_PATH.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators/**/*.rst"),
+        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/transfer/**/*.rst"),
     )
 
     expected_doc_urls = {
-        f"/docs/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
+        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
         for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
-        and not f.relative_to(DOCS_DIR_PATH).as_posix().startswith(tuple(suspended_providers))
+        and not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
     } | {
-        f"/docs/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
-        for f in DOCS_DIR_PATH.glob("apache-airflow-providers-*/operators.rst")
-        if not f.relative_to(DOCS_DIR_PATH).as_posix().startswith(tuple(suspended_providers))
+        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
+        for f in AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators.rst")
+        if not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
     }
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
         console.print()
     expected_logo_urls = {
-        f"/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
-        for f in (DOCS_DIR_PATH / "integration-logos").rglob("*")
+        f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
+        for f in (AIRFLOW_DOCS_PATH / "integration-logos").rglob("*")
         if f.is_file()
-        and not f"/{f.relative_to(DOCS_DIR_PATH).as_posix()}".startswith(tuple(suspended_logos))
+        and not f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}".startswith(tuple(suspended_logos))
     }
 
     try:
@@ -688,7 +692,8 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
         num_providers += 1
         package_name = package_info["package-name"]
         provider_dir = (
-            PROVIDERS_DIR_PATH.joinpath(*package_name[len("apache-airflow-providers-") :].split("-")) / "docs"
+            AIRFLOW_PROVIDERS_PATH.joinpath(*package_name[len("apache-airflow-providers-") :].split("-"))
+            / "docs"
         )
         for file in expected_files:
             if not (provider_dir / file).is_file():
@@ -706,12 +711,14 @@ if __name__ == "__main__":
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = [
         path
-        for path in pathlib.Path(ROOT_DIR, "providers", "src", "airflow", "providers").rglob("provider.yaml")
+        for path in pathlib.Path(AIRFLOW_ROOT_PATH, "providers", "src", "airflow", "providers").rglob(
+            "provider.yaml"
+        )
         if "/.venv/" not in path.as_posix()
     ]
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
     if len(sys.argv) > 1:
-        paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]
+        paths = [os.fspath(AIRFLOW_ROOT_PATH / f) for f in sorted(sys.argv[1:])]
     else:
         paths = all_provider_files
 

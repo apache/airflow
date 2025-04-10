@@ -22,12 +22,19 @@ from io import StringIO as StringBuffer
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
+from airflow.providers.docker.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -341,6 +348,7 @@ class TestDockerDecorator:
             with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
                 f()
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
         "serializer",
         [

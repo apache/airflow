@@ -23,33 +23,13 @@ The `Google Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__ is 
 series of compute engine containers on the Google Cloud. It is used to process, analyze and annotate genomics
 and biomedical data at scale.
 
+.. warning::
+    The Cloud Life Sciences will be discontinued on July 8, 2025. Please, use Google Cloud Batch instead.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
-
-
-Pipeline Configuration
-^^^^^^^^^^^^^^^^^^^^^^
-In order to run the pipeline, it is necessary to configure the request body.
-Here is an example of the pipeline configuration with a single action.
-
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/life_sciences/example_life_sciences.py
-    :language: python
-    :dedent: 0
-    :start-after: [START howto_configure_simple_action_pipeline]
-    :end-before: [END howto_configure_simple_action_pipeline]
-
-The pipeline can also be configured with multiple action.
-
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/life_sciences/example_life_sciences.py
-    :language: python
-    :dedent: 0
-    :start-after: [START howto_configure_multiple_action_pipeline]
-    :end-before: [END howto_configure_multiple_action_pipeline]
-
-Read about the `request body parameters <https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.pipelines/run?authuser=1#request-body/>`__
-to understand all the fields you can include in the configuration
 
 .. _howto/operator:LifeSciencesRunPipelineOperator:
 
@@ -59,11 +39,15 @@ Use the
 :class:`~airflow.providers.google.cloud.operators.life_sciences.LifeSciencesRunPipelineOperator`
 to execute pipelines.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/life_sciences/example_life_sciences.py
+This operator is deprecated and will be removed after July 08, 2025.
+All the functionality and new features are available on the Google Cloud Batch platform. Please use
+:class:`~airflow.providers.google.cloud.operators.CloudBatchSubmitJobOperator`
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 0
-    :start-after: [START howto_run_pipeline]
-    :end-before: [END howto_run_pipeline]
+    :start-after: [START howto_operator_batch_job_creation]
+    :end-before: [END howto_operator_batch_job_creation]
 
 Reference
 ^^^^^^^^^

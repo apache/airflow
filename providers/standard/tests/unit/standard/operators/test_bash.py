@@ -60,8 +60,6 @@ class TestBashOperator:
         assert op.output_encoding == "utf-8"
         assert op.skip_on_exit_code == [99]
         assert op.cwd is None
-        assert op._init_bash_command_not_set is False
-        assert op._unrendered_bash_command == "echo"
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -113,7 +111,6 @@ class TestBashOperator:
             logical_date=logical_date,
             start_date=utc_now,
             state=State.RUNNING,
-            external_trigger=False,
             data_interval=(logical_date, logical_date),
         )
 

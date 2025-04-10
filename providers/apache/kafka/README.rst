@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.7.0``
+Release: ``1.8.0``
 
 
 `Apache Kafka  <https://kafka.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.7.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.8.0/>`_.
 
 Installation
 ------------
@@ -58,5 +58,24 @@ PIP package          Version required
 ``confluent-kafka``  ``>=2.3.0``
 ===================  ==================
 
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-kafka[google]
+
+
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+====================================================================================================  ==========
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.7.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.8.0/changelog.html>`_.

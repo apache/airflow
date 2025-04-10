@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-exasol``
 
-Release: ``4.7.2``
+Release: ``4.7.4``
 
 
 `Exasol <https://www.exasol.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``exasol`` provider. All classes for this provide
 are in ``airflow.providers.exasol`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.7.4/>`_.
 
 Installation
 ------------
@@ -63,7 +63,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -79,4 +79,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.7.4/changelog.html>`_.

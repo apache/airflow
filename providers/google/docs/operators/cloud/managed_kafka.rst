@@ -27,7 +27,7 @@ Interacting with Apache Kafka Cluster
 To create an Apache Kafka cluster you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaCreateClusterOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_create_cluster_operator]
@@ -36,7 +36,7 @@ To create an Apache Kafka cluster you can use
 To delete cluster you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaDeleteClusterOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_delete_cluster_operator]
@@ -45,7 +45,7 @@ To delete cluster you can use
 To get cluster you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaGetClusterOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_get_cluster_operator]
@@ -54,7 +54,7 @@ To get cluster you can use
 To get a list of clusters you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaListClustersOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_list_cluster_operator]
@@ -63,7 +63,7 @@ To get a list of clusters you can use
 To update cluster you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaUpdateClusterOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_cluster.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_update_cluster_operator]
@@ -75,7 +75,7 @@ Interacting with Apache Kafka Topics
 To create an Apache Kafka topic you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaCreateTopicOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_create_topic_operator]
@@ -84,7 +84,7 @@ To create an Apache Kafka topic you can use
 To delete topic you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaDeleteTopicOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_delete_topic_operator]
@@ -93,7 +93,7 @@ To delete topic you can use
 To get topic you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaGetTopicOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_get_topic_operator]
@@ -102,7 +102,7 @@ To get topic you can use
 To get a list of topics you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaListTopicsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_list_topic_operator]
@@ -111,11 +111,71 @@ To get a list of topics you can use
 To update topic you can use
 :class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaUpdateTopicOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_managed_kafka_update_topic_operator]
     :end-before: [END how_to_cloud_managed_kafka_update_topic_operator]
+
+Interacting with Apache Kafka Consumer Groups
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To delete consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaDeleteConsumerGroupOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_delete_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_delete_consumer_group_operator]
+
+To get consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaGetConsumerGroupOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_get_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_get_consumer_group_operator]
+
+To get a list of consumer groups you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaListConsumerGroupsOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_list_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_list_consumer_group_operator]
+
+To update consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaUpdateConsumerGroupOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_update_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_update_consumer_group_operator]
+
+Using Apache Kafka provider with Google Cloud Managed Service for Apache Kafka
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To produce data to topic you can use
+:class:`~airflow.providers.apache.kafka.operators.produce.ProduceToTopicOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_produce_to_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_produce_to_topic_operator]
+
+To consume data from topic you can use
+:class:`~airflow.providers.apache.kafka.operators.produce.ConsumeFromTopicOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_consume_from_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_consume_from_topic_operator]
 
 Reference
 ^^^^^^^^^

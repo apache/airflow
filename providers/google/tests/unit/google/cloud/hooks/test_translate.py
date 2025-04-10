@@ -23,6 +23,7 @@ from google.cloud.translate_v3.types import TranslateTextResponse
 
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = "project-id"

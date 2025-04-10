@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from contextlib import closing
 from unittest import mock
 
@@ -87,12 +86,95 @@ class TestMySqlHookConn:
         assert kwargs["db"] == "schema"
 
     @mock.patch("MySQLdb.connect")
-    def test_get_uri(self, mock_connect):
-        self.connection.extra = json.dumps({"charset": "utf-8"})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
+    @pytest.mark.parametrize(
+        "connection_params, expected_uri",
+        [
+            pytest.param(
+                {
+                    "login": "login",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"charset": "utf-8"}),
+                },
+                "mysql://login:password@host/schema?charset=utf-8",
+                id="basic_connection_with_charset",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "pass/word!",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"charset": "utf-8"}),
+                },
+                "mysql://user%40domain:pass%2Fword%21@host/schema?charset=utf-8",
+                id="special_chars_in_credentials",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host/schema",
+                id="mysql_connector_python",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": 3307,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/schema",
+                id="mysql_connector_with_port",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "db/name",
+                    "port": 3307,
+                    "extra": json.dumps({"client": "mysql-connector-python"}),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/db%2Fname",
+                id="special_chars_in_schema",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": 3307,
+                    "extra": json.dumps(
+                        {
+                            "client": "mysql-connector-python",
+                            "ssl_ca": "/path/to/ca",
+                            "ssl_cert": "/path/to/cert with space",
+                        }
+                    ),
+                },
+                "mysql+mysqlconnector://user%40domain:password@host:3307/schema?ssl_ca=%2Fpath%2Fto%2Fca&ssl_cert=%2Fpath%2Fto%2Fcert+with+space",
+                id="ssl_parameters",
+            ),
+        ],
+    )
+    def test_get_uri(self, mock_connect, connection_params, expected_uri):
+        """Test get_uri method with various connection parameters."""
+        for key, value in connection_params.items():
+            setattr(self.connection, key, value)
+
+        assert self.db_hook.get_uri() == expected_uri
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection(self, mock_connect):
@@ -302,18 +384,21 @@ class TestMySqlHook:
 
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with(
+            "LOAD DATA LOCAL INFILE %s INTO TABLE `table`", ("/tmp/file",)
+        )
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM `table`", ("/tmp/file",))
 
     def test_serialize_cell(self):
         assert self.db_hook._serialize_cell("foo", None) == "foo"
 
-    def test_bulk_load_custom(self):
+    @pytest.mark.parametrize("table", ["table", "where"])
+    def test_bulk_load_custom(self, table):
         self.db_hook.bulk_load_custom(
-            "table",
+            table,
             "/tmp/file",
             "IGNORE",
             """FIELDS TERMINATED BY ';'
@@ -321,7 +406,7 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            "LOAD DATA LOCAL INFILE %s %s INTO TABLE table %s",
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (
                 "/tmp/file",
                 "IGNORE",
@@ -441,13 +526,14 @@ class TestMySql:
                     cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
+    @pytest.mark.parametrize("table", ["test_airflow", "where"])
     @mock.patch.dict(
         "os.environ",
         {
             "AIRFLOW_CONN_AIRFLOW_DB": "mysql://root@mysql/airflow?charset=utf8mb4",
         },
     )
-    def test_mysql_hook_test_bulk_load(self, client, tmp_path):
+    def test_mysql_hook_test_bulk_load(self, client, table, tmp_path):
         with MySqlContext(client):
             records = ("foo", "bar", "baz")
             path = tmp_path / "testfile"
@@ -456,34 +542,17 @@ class TestMySql:
             hook = MySqlHook("airflow_db", local_infile=True)
             with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
                 cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS test_airflow (
+                    f"""
+                    CREATE TABLE IF NOT EXISTS `{table}`(
                         dummy VARCHAR(50)
                     )
                 """
                 )
-                cursor.execute("TRUNCATE TABLE test_airflow")
-                hook.bulk_load("test_airflow", os.fspath(path))
-                cursor.execute("SELECT dummy FROM test_airflow")
+                cursor.execute(f"TRUNCATE TABLE `{table}`")
+                hook.bulk_load(table, os.fspath(path))
+                cursor.execute(f"SELECT dummy FROM `{table}`")
                 results = tuple(result[0] for result in cursor.fetchall())
                 assert sorted(results) == sorted(records)
-
-    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
-    def test_mysql_hook_test_bulk_dump(self, client):
-        with MySqlContext(client):
-            hook = MySqlHook("airflow_db")
-            priv = hook.get_first("SELECT @@global.secure_file_priv")
-            # Use random names to allow re-running
-            if priv and priv[0]:
-                # Confirm that no error occurs
-                hook.bulk_dump(
-                    "INFORMATION_SCHEMA.TABLES",
-                    os.path.join(priv[0], f"TABLES_{client}-{uuid.uuid1()}"),
-                )
-            elif priv == ("",):
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
-            else:
-                raise pytest.skip("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     @mock.patch("airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn")
@@ -498,5 +567,5 @@ class TestMySql:
             hook.bulk_dump(table, tmp_file)
 
             assert mock_execute.call_count == 1
-            query = f"SELECT * INTO OUTFILE %s FROM {table}"
+            query = f"SELECT * INTO OUTFILE %s FROM `{table}`"
             assert_equal_ignore_multiple_spaces(mock_execute.call_args.args[0], query)

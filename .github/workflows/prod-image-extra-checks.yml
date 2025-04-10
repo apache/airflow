@@ -40,8 +40,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
-      build-provider-packages:
-        description: "Whether to build provider packages (true/false). If false providers are from PyPI"
+      build-provider-distributions:
+        description: "Whether to build provider distributions (true/false). If false providers are from PyPI"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -82,7 +82,7 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: ${{ inputs.use-uv }}
-      build-provider-packages: ${{ inputs.build-provider-packages }}
+      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
@@ -107,7 +107,7 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "false"
-      build-provider-packages: ${{ inputs.build-provider-packages }}
+      build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}

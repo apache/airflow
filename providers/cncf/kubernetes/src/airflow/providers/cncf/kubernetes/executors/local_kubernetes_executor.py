@@ -58,7 +58,6 @@ class LocalKubernetesExecutor(BaseExecutor):
     is_production: bool = True
 
     serve_logs: bool = True
-    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 
@@ -85,7 +84,8 @@ class LocalKubernetesExecutor(BaseExecutor):
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
         """Return queued tasks from local and kubernetes executor."""
         queued_tasks = self.local_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)
+        # TODO: fix this, there is misalignment between the types of queued_tasks so it is likely wrong
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
 
         return queued_tasks
 

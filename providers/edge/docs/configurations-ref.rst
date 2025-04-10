@@ -15,4 +15,5 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../exts/includes/providers-configurations-ref.rst
+.. include:: /../../../devel-common/src/sphinx_exts/includes/providers-configurations-ref.rst
+.. include:: /../../../devel-common/src/sphinx_exts/includes/sections-and-options.rst

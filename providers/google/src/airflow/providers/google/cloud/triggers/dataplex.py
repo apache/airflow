@@ -22,9 +22,10 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 
+from google.cloud.dataplex_v1.types import DataScanJob
+
 from airflow.providers.google.cloud.hooks.dataplex import DataplexAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.dataplex_v1.types import DataScanJob
 
 
 class DataplexDataQualityJobTrigger(BaseTrigger):

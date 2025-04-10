@@ -19,10 +19,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
+import ydb
 from sqlalchemy.engine import URL
 from ydb_dbapi import Connection as DbApiConnection
 
-import ydb
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection

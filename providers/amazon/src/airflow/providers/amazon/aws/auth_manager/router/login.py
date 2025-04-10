@@ -25,7 +25,8 @@ from fastapi import HTTPException, Request
 from starlette import status
 from starlette.responses import RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
@@ -79,12 +80,18 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    return RedirectResponse(url=f"/webapp?token={get_auth_manager().get_jwt_token(user)}", status_code=303)
+    url = conf.get("api", "base_url")
+    token = get_auth_manager().generate_jwt(user)
+    response = RedirectResponse(url=url, status_code=303)
+
+    secure = conf.has_option("api", "ssl_cert")
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    return response
 
 
 def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
     request_data = _prepare_request(request)
-    base_url = conf.get(section="fastapi", key="base_url")
+    base_url = conf.get(section="api", key="base_url")
     settings = {
         # We want to keep this flag on in case of errors.
         # It provides an error reasons, if turned off, it does not
@@ -92,7 +99,7 @@ def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
         "sp": {
             "entityId": "aws-auth-manager-saml-client",
             "assertionConsumerService": {
-                "url": f"{base_url}/auth/login_callback",
+                "url": f"{base_url}{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login_callback",
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
             },
         },

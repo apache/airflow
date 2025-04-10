@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -33,15 +34,16 @@ from common_precommit_utils import (
 initialize_breeze_precommit(__name__, __file__)
 
 files_to_test = pre_process_files(sys.argv[1:])
-if files_to_test == ["--namespace-packages"] or files_to_test == []:
+if not files_to_test:
     print("No files to tests. Quitting")
     sys.exit(0)
 
+# TODO(potiuk): add suspended providers exclusion
+
+cmd = ["bash", "-c", f"TERM=ansi mypy {' '.join([shlex.quote(file) for file in files_to_test])}"]
+
 res = run_command_via_breeze_shell(
-    [
-        "/opt/airflow/scripts/in_container/run_mypy.sh",
-        *files_to_test,
-    ],
+    cmd=cmd,
     warn_image_upgrade_needed=True,
     extra_env={
         "INCLUDE_MYPY_VOLUME": "true",

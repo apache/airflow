@@ -34,7 +34,7 @@ New Contributor
 If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
 guide for a step-by-step introduction to setting up the development environment and making your
 first contribution.
-We also suggest you to check out `Contribution Workflow <16_contribution_workflow.rst>`__ in order to get an overview of how to
+We also suggest you to check out `Contribution Workflow <18_contribution_workflow.rst>`__ in order to get an overview of how to
 contribute to Airflow.
 
 If you are new to the project, you might need some help in understanding how the dynamics
@@ -81,20 +81,21 @@ To learn how to setup your environment for development and how to develop and te
 
 * `Testing <09_testing.rst>`__ describes what kind of tests we have and how to run them.
 
-* `Building documentation <../docs/README.rst>`__ describes how to build the documentation locally.
-
 * `Working with Git <10_working_with_git.rst>`__ describes the Git branches used in Airflow,
   how to sync your fork and how to rebase your PR.
+
+* `Building documentation <11_documentation_building.rst>`__ describes how to build the documentation.
+
 
 Advanced Topics
 ----------------
 Developing Providers
 .....................
 
-You can learn how Airflow repository is a monorepo split into airflow and provider packages,
+You can learn how Airflow repository is a monorepo split into airflow and providers,
 and how to contribute to the providers:
 
-* `Provider packages <11_provider_packages.rst>`__ describes the provider packages and how they
+* `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they
   are used in Airflow.
 
 
@@ -103,14 +104,17 @@ Airflow Deep Dive
 
 You can also dive deeper into more specific areas that are important for contributing to Airflow:
 
-* `Airflow dependencies and extras <12_airflow_dependencies_and_extras.rst>`__ describes
+* `Airflow dependencies and extras <13_airflow_dependencies_and_extras.rst>`__ describes
   the dependencies - both required and optional (extras) used in Airflow.
 
-* `Metadata database updates <13_metadata_database_updates.rst>`__ describes
+* `Metadata database updates <14_metadata_database_updates.rst>`__ describes
   how to make changes in the metadata database.
 
-* `Node environment setup <14_node_environment_setup.rst>`__ describes how to set up
+* `Node environment setup <15_node_environment_setup.rst>`__ describes how to set up
   the node environment for Airflow UI.
 
-* `Architecture diagram <15_architecture_diagrams.rst>`__ describes how to create and
+* `Adding API endpoints <16_adding_api_endpoints.rst>`__ describes how to add API endpoints
+  to the Airflow REST API.
+
+* `Architecture diagram <17_architecture_diagrams.rst>`__ describes how to create and
   update the architecture diagrams embedded in Airflow documentation.

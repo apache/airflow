@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from os.path import isabs
 
 from flask import Flask
@@ -25,6 +26,7 @@ from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
@@ -39,6 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
 
@@ -49,15 +52,23 @@ csrf = CSRFProtect()
 
 def create_app(enable_plugins: bool):
     """Create a new instance of Airflow WWW app."""
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
+
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
+    # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+    with flask_app.app_context():
+        flask_app.config.from_pyfile(webserver_config, silent=True)
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
-            f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+            f"Cannot use relative path: `{conf.get('database', 'SQL_ALCHEMY_CONN')}` to connect to sqlite. "
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
@@ -77,9 +88,16 @@ def create_app(enable_plugins: bool):
     with flask_app.app_context():
         init_appbuilder(flask_app, enable_plugins=enable_plugins)
         init_error_handlers(flask_app)
+        # In two scenarios a Flask application can be created:
+        # - To support Airflow 2 plugins relying on Flask (``enable_plugins`` is True)
+        # - To support FAB auth manager (``enable_plugins`` is False)
+        # There are some edge cases where ``enable_plugins`` is False but the auth manager configured is not
+        # FAB auth manager. One example is ``run_update_fastapi_api_spec``, it calls
+        # ``FabAuthManager().get_fastapi_app()`` to generate the openapi documentation regardless of the
+        # configured auth manager.
         if enable_plugins:
             init_plugins(flask_app)
-        else:
+        elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)

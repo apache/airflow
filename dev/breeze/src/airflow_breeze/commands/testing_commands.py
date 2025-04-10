@@ -21,7 +21,6 @@ import os
 import signal
 import sys
 from datetime import datetime
-from subprocess import CalledProcessError, CompletedProcess
 from time import sleep
 
 import click
@@ -64,9 +63,9 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_install_airflow_with_constraints,
     option_providers_constraints_location,
     option_providers_skip_constraints,
-    option_use_packages_from_dist,
+    option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_management_commands import option_package_format
+from airflow_breeze.commands.release_management_commands import option_distribution_format
 from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
@@ -92,19 +91,21 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
 )
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+
+logs_already_dumped = False
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -152,7 +153,9 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = (
+    r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|airflow-ctl/tests/.*|.*=====.*"
+)
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -170,8 +173,7 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
-    project_name = file_name_from_test_type(shell_params.test_type)
-    compose_project_name = f"airflow-test-{project_name}"
+    compose_project_name, project_name = _get_project_names(shell_params)
     env = shell_params.env_variables_for_docker_commands
     down_cmd = [
         "docker",
@@ -232,31 +234,9 @@ def _run_test(
             notify_on_unhealthy_backend_container(
                 project_name=project_name, backend=shell_params.backend, output=output
             )
-        if os.environ.get("CI") == "true" and result.returncode != 0:
-            ps_result = run_command(
-                ["docker", "ps", "--all", "--format", "{{.Names}}"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            container_ids = ps_result.stdout.splitlines()
-            get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
-            sleep(10)
-            get_console(output=output).print(
-                f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
-            )
-            date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
-            for container_id in container_ids:
-                if compose_project_name not in container_id:
-                    continue
-                dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
-                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
-                with open(dump_path, "w") as outfile:
-                    run_command(
-                        ["docker", "logs", "--details", "--timestamps", container_id],
-                        check=False,
-                        stdout=outfile,
-                    )
+        if os.environ.get("CI") == "true" and result.returncode != 0 and not logs_already_dumped:
+            get_console(output=output).print(f"[error]Test failed with {result.returncode}. Dumping logs[/]")
+            _dump_container_logs(output=output, shell_params=shell_params)
     finally:
         if not skip_docker_compose_down:
             run_command(
@@ -277,6 +257,41 @@ def _run_test(
             )
             remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {shell_params.test_type}"
+
+
+def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
+    """Return compose project name and project name."""
+    project_name = file_name_from_test_type(shell_params.test_type)
+    compose_project_name = f"airflow-test-{project_name}"
+    return compose_project_name, project_name
+
+
+def _dump_container_logs(output: Output | None, shell_params: ShellParams):
+    global logs_already_dumped
+    ps_result = run_command(
+        ["docker", "ps", "--all", "--format", "{{.Names}}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    container_ids = ps_result.stdout.splitlines()
+    get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+    sleep(10)
+    compose_project_name, project_name = _get_project_names(shell_params)
+    get_console(output=output).print(f"[info]Dumping containers: {container_ids} for {project_name}.\n")
+    date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
+    for container_id in container_ids:
+        if compose_project_name not in container_id:
+            continue
+        dump_path = FILES_PATH / f"container_logs_{container_id}_{date_str}.log"
+        get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
+        with open(dump_path, "w") as outfile:
+            run_command(
+                ["docker", "logs", "--details", "--timestamps", container_id],
+                check=False,
+                stdout=outfile,
+            )
+    logs_already_dumped = True
 
 
 def _run_tests_in_pool(
@@ -506,13 +521,19 @@ option_test_type_helm = click.option(
 )
 option_test_type_task_sdk_group = click.option(
     "--test-type",
-    help="Type of test to run. With Providers, you can specify tests of which providers "
-    "should be run: `Providers[airbyte,http]` or "
-    "excluded from the full test suite: `Providers[-amazon,google]`",
+    help="Type of test to run for task SDK",
     default=ALL_TEST_TYPE,
     envvar="TEST_TYPE",
     show_default=True,
     type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.TASK_SDK]),
+)
+option_test_type_airflow_ctl_group = click.option(
+    "--test-type",
+    help="Type of CTL tests to run",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.CTL]),
 )
 option_use_xdist = click.option(
     "--use-xdist",
@@ -574,7 +595,7 @@ option_total_test_timeout = click.option(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
-@option_package_format
+@option_distribution_format
 @option_parallel_core_test_types
 @option_parallelism
 @option_postgres_version
@@ -590,7 +611,7 @@ option_total_test_timeout = click.option(
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
@@ -636,7 +657,7 @@ def core_tests(**kwargs):
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
-@option_package_format
+@option_distribution_format
 @option_parallel_providers_test_types
 @option_parallelism
 @option_postgres_version
@@ -655,7 +676,7 @@ def core_tests(**kwargs):
 @option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
@@ -707,7 +728,7 @@ def task_sdk_tests(**kwargs):
         no_db_cleanup=True,
         parallel_test_types="",
         parallelism=0,
-        package_format="wheel",
+        distribution_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
         remove_arm_packages=False,
@@ -717,7 +738,66 @@ def task_sdk_tests(**kwargs):
         total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
         use_airflow_version=None,
-        use_packages_from_dist=False,
+        use_distributions_from_dist=False,
+        **kwargs,
+    )
+
+
+@group_for_testing.command(
+    name="airflow-ctl-tests",
+    help="Run airflow-ctl tests - all Airflow CTL tests are non-DB bound tests.",
+    context_settings=dict(
+        ignore_unknown_options=False,
+        allow_extra_args=False,
+    ),
+)
+@option_collect_only
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_keep_env_variables
+@option_mount_sources
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def airflow_ctl_tests(**kwargs):
+    _run_test_command(
+        test_group=GroupOfTests.CTL,
+        airflow_constraints_reference="constraints-main",
+        backend="none",
+        clean_airflow_installation=False,
+        debug_resources=False,
+        downgrade_pendulum=False,
+        downgrade_sqlalchemy=False,
+        db_reset=False,
+        include_success_outputs=False,
+        integration=(),
+        install_airflow_with_constraints=False,
+        run_db_tests_only=False,
+        run_in_parallel=False,
+        skip_db_tests=True,
+        use_xdist=True,
+        excluded_parallel_test_types="",
+        excluded_providers="",
+        force_lowest_dependencies=False,
+        no_db_cleanup=True,
+        parallel_test_types="",
+        parallelism=0,
+        distribution_format="wheel",
+        providers_constraints_location="",
+        providers_skip_constraints=False,
+        remove_arm_packages=False,
+        skip_cleanup=False,
+        skip_providers="",
+        test_type=ALL_TEST_TYPE,
+        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
+        upgrade_boto=False,
+        use_airflow_version=None,
+        use_distributions_from_dist=False,
         **kwargs,
     )
 
@@ -934,7 +1014,7 @@ def system_tests(
         collect_only=collect_only,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
-        forward_ports=False,
+        forward_ports=True,
         github_repository=github_repository,
         integration=(),
         keep_env_variables=keep_env_variables,
@@ -1082,7 +1162,7 @@ def python_api_client_tests(
         db_reset=db_reset,
         no_db_cleanup=no_db_cleanup,
         install_airflow_python_client=True,
-        start_webserver_with_examples=True,
+        start_api_server_with_examples=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
@@ -1101,10 +1181,13 @@ def python_api_client_tests(
 
 
 @contextlib.contextmanager
-def run_with_timeout(timeout: int):
+def run_with_timeout(timeout: int, shell_params: ShellParams):
     def timeout_handler(signum, frame):
         get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
         _print_all_containers()
+        if os.environ.get("CI") == "true":
+            get_console().print("[warning]Dumping container logs first[/]:")
+            _dump_container_logs(output=None, shell_params=shell_params)
         list_of_containers = _get_running_containers().stdout.splitlines()
         get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
         get_console().print(list_of_containers)
@@ -1134,7 +1217,7 @@ def run_with_timeout(timeout: int):
             text=True,
         )
 
-    def _get_running_containers() -> CompletedProcess | CalledProcessError:
+    def _get_running_containers() -> RunCommandResult:
         return run_command(
             ["docker", "ps", "-q"],
             check=True,
@@ -1183,7 +1266,7 @@ def _run_test_command(
     no_db_cleanup: bool,
     parallel_test_types: str,
     parallelism: int,
-    package_format: str,
+    distribution_format: str,
     providers_constraints_location: str,
     providers_skip_constraints: bool,
     python: str,
@@ -1199,7 +1282,7 @@ def _run_test_command(
     total_test_timeout: int,
     upgrade_boto: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_xdist: bool,
     mysql_version: str = "",
     postgres_version: str = "",
@@ -1231,7 +1314,7 @@ def _run_test_command(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
-        package_format=package_format,
+        distribution_format=distribution_format,
         parallel_test_types_list=test_list,
         parallelism=parallelism,
         postgres_version=postgres_version,
@@ -1245,7 +1328,7 @@ def _run_test_command(
         test_group=test_group,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_xdist=use_xdist,
         run_tests=True,
         db_reset=db_reset if not skip_db_tests else False,
@@ -1257,7 +1340,7 @@ def _run_test_command(
     if skip_providers:
         ignored_path_list = [
             *[
-                f"--ignore=providers/{provider_id.replace('.','/')}/tests"
+                f"--ignore=providers/{provider_id.replace('.', '/')}/tests"
                 for provider_id in skip_providers.split(" ")
             ],
         ]
@@ -1269,7 +1352,7 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        with run_with_timeout(total_test_timeout):
+        with run_with_timeout(total_test_timeout, shell_params=shell_params):
             run_tests_in_parallel(
                 shell_params=shell_params,
                 extra_pytest_args=extra_pytest_args,

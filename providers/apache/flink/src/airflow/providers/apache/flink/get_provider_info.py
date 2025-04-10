@@ -26,24 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-flink",
         "name": "Apache Flink",
         "description": "`Apache Flink <https://flink.apache.org/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734527925,
-        "versions": [
-            "1.6.0",
-            "1.5.1",
-            "1.5.0",
-            "1.4.2",
-            "1.4.1",
-            "1.4.0",
-            "1.3.0",
-            "1.2.0",
-            "1.1.3",
-            "1.1.2",
-            "1.1.1",
-            "1.1.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Apache Flink",
@@ -64,10 +46,5 @@ def get_provider_info():
                 "integration-name": "Apache Flink",
                 "python-modules": ["airflow.providers.apache.flink.sensors.flink_kubernetes"],
             }
-        ],
-        "dependencies": [
-            "apache-airflow>=2.9.0",
-            "cryptography>=41.0.0",
-            "apache-airflow-providers-cncf-kubernetes>=5.1.0",
         ],
     }

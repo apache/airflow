@@ -22,22 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
-from airflow.providers.google.cloud.links.data_loss_prevention import (
-    CloudDLPDeidentifyTemplateDetailsLink,
-    CloudDLPDeidentifyTemplatesListLink,
-    CloudDLPInfoTypeDetailsLink,
-    CloudDLPInfoTypesListLink,
-    CloudDLPInspectTemplateDetailsLink,
-    CloudDLPInspectTemplatesListLink,
-    CloudDLPJobDetailsLink,
-    CloudDLPJobsListLink,
-    CloudDLPJobTriggerDetailsLink,
-    CloudDLPJobTriggersListLink,
-    CloudDLPPossibleInfoTypesListLink,
-)
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dlp_v2.types import (
@@ -61,10 +45,28 @@ from google.cloud.dlp_v2.types import (
     StoredInfoTypeConfig,
 )
 
+from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
+from airflow.providers.google.cloud.links.data_loss_prevention import (
+    CloudDLPDeidentifyTemplateDetailsLink,
+    CloudDLPDeidentifyTemplatesListLink,
+    CloudDLPInfoTypeDetailsLink,
+    CloudDLPInfoTypesListLink,
+    CloudDLPInspectTemplateDetailsLink,
+    CloudDLPInspectTemplatesListLink,
+    CloudDLPJobDetailsLink,
+    CloudDLPJobsListLink,
+    CloudDLPJobTriggerDetailsLink,
+    CloudDLPJobTriggersListLink,
+    CloudDLPPossibleInfoTypesListLink,
+)
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):

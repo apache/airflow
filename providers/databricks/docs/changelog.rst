@@ -26,6 +26,59 @@
 Changelog
 ---------
 
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksSQLStatementsOperator (#48507)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+7.2.2
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Move 'airflow.www.auth' to 'airflow.providers.fab.www.auth' (#47307)``
+* ``Remove 'api_connexion' (#47171)``
+* ``Remove old UI and webserver (#46942)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 7.2.0
 .....
 
@@ -421,7 +474,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 5.0.0

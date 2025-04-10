@@ -19,7 +19,7 @@
 In this DAG is a demonstrator how to interact with a Windows Worker via Notepad.
 
 The DAG is created in conjunction with the documentation in
-https://github.com/apache/airflow/blob/main/docs/apache-airflow-providers-edge/install_on_windows.rst
+https://github.com/apache/airflow/blob/main/providers/edge/docs/install_on_windows.rst
 and serves as a PoC test for the Windows worker.
 """
 

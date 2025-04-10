@@ -22,9 +22,10 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 state: ready
-source-date-epoch: 1734529058
+source-date-epoch: 1743477795
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.1.1
   - 4.1.0
   - 4.0.3
   - 4.0.2

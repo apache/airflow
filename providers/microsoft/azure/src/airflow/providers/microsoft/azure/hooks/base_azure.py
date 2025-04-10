@@ -18,14 +18,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.common.credentials import ServicePrincipalCredentials
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
 )
-from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
-from azure.common.credentials import ServicePrincipalCredentials
 
 
 class AzureBaseHook(BaseHook):

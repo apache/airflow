@@ -33,28 +33,6 @@ from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
-from googleapiclient.discovery import build
-from pandas_gbq import read_gbq
-from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
-from requests import Session
-from sqlalchemy import create_engine
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.google.cloud.utils.bigquery import bq_cast
-from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID,
-    GoogleBaseAsyncHook,
-    GoogleBaseHook,
-    get_field,
-)
-from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.log.logging_mixin import LoggingMixin
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -75,12 +53,33 @@ from google.cloud.bigquery.table import (
     TableReference,
 )
 from google.cloud.exceptions import NotFound
+from googleapiclient.discovery import build
+from pandas_gbq import read_gbq
+from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
+from sqlalchemy import create_engine
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.google.cloud.utils.bigquery import bq_cast
+from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+    get_field,
+)
+from airflow.utils.hashlib_wrapper import md5
+from airflow.utils.helpers import convert_camel_to_snake
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
+    from requests import Session
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +120,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         from wtforms import validators
         from wtforms.fields.simple import BooleanField, StringField
 
-        from airflow.www.validators import ValidJson
+        from airflow.providers.google.cloud.utils.validators import ValidJson
 
         connection_form_widgets = super().get_connection_form_widgets()
         connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)
@@ -2117,7 +2116,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_id=job_id,
             project=project_id,
             token=token,
-            session=cast(Session, session),
+            session=cast("Session", session),
         )
 
     async def _get_job(
@@ -2182,7 +2181,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         async with ClientSession() as session:
             self.log.info("Executing get_job_output..")
             job_client = await self.get_job_instance(project_id, job_id, session)
-            job_query_response = await job_client.get_query_results(cast(Session, session))
+            job_query_response = await job_client.get_query_results(cast("Session", session))
             return job_query_response
 
     async def create_job_for_partition_get(
@@ -2202,7 +2201,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 + (f" WHERE table_name='{table_id}'" if table_id else ""),
                 "useLegacySql": False,
             }
-            job_query_resp = await job_client.query(query_request, cast(Session, session))
+            job_query_resp = await job_client.query(query_request, cast("Session", session))
             return job_query_resp["jobReference"]["jobId"]
 
     async def cancel_job(self, job_id: str, project_id: str | None, location: str | None) -> None:
@@ -2382,12 +2381,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 test_results[metric] = float(ratios[metric]) < threshold
 
             self.log.info(
-                (
-                    "Current metric for %s: %s\n"
-                    "Past metric for %s: %s\n"
-                    "Ratio for %s: %s\n"
-                    "Threshold: %s\n"
-                ),
+                ("Current metric for %s: %s\nPast metric for %s: %s\nRatio for %s: %s\nThreshold: %s\n"),
                 metric,
                 cur,
                 metric,
@@ -2452,5 +2446,5 @@ class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
             table_name=table_id,
             project=project_id,
             token=token,
-            session=cast(Session, session),
+            session=cast("Session", session),
         )

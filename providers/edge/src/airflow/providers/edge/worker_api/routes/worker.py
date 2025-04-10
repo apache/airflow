@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Annotated
 
 from sqlalchemy import select
@@ -27,6 +26,7 @@ from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorke
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge.worker_api.datamodels import (
     WorkerQueueUpdateBody,
+    WorkerRegistrationReturn,
     WorkerSetStateReturn,
     WorkerStateBody,
 )
@@ -113,9 +113,7 @@ _worker_queue_doc = Body(
 )
 
 
-def redefine_state_if_maintenance(
-    worker_state: EdgeWorkerState, body_state: EdgeWorkerState
-) -> EdgeWorkerState:
+def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -> EdgeWorkerState:
     """Redefine the state of the worker based on maintenance request."""
     if (
         worker_state == EdgeWorkerState.MAINTENANCE_REQUEST
@@ -138,24 +136,41 @@ def redefine_state_if_maintenance(
     return body_state
 
 
+def redefine_maintenance_comments(
+    worker_maintenance_comment: str | None, body_maintenance_comments: str | None
+) -> str | None:
+    """Add new maintenance comments or overwrite the old ones if it is too long."""
+    if body_maintenance_comments:
+        if (
+            worker_maintenance_comment
+            and len(body_maintenance_comments) + len(worker_maintenance_comment) < 1020
+        ):
+            return f"{worker_maintenance_comment}\n\n{body_maintenance_comments}"
+        return body_maintenance_comments
+    return worker_maintenance_comment
+
+
 @worker_router.post("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
 def register(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
-) -> datetime:
+) -> WorkerRegistrationReturn:
     """Register a new worker to the backend."""
     _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
-    worker.state = redefine_state_if_maintenance(worker.state, body.state)
+    worker.state = redefine_state(worker.state, body.state)
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
     session.add(worker)
-    return worker.last_update
+    return WorkerRegistrationReturn(last_update=worker.last_update)
 
 
 @worker_router.patch("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
@@ -167,7 +182,10 @@ def set_state(
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    worker.state = redefine_state_if_maintenance(worker.state, body.state)
+    worker.state = redefine_state(worker.state, body.state)
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
@@ -183,7 +201,9 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return WorkerSetStateReturn(state=worker.state, queues=worker.queues)
+    return WorkerSetStateReturn(
+        state=worker.state, queues=worker.queues, maintenance_comments=worker.maintenance_comment
+    )
 
 
 @worker_router.patch(

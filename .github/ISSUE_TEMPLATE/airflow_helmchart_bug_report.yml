@@ -7,7 +7,7 @@ body:
     attributes:
       # yamllint disable rule:line-length
       value: "
-        <img src='https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='120' height='120'>
+        <img src='https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='120' height='120'>
         Thank you for finding the time to report the problem!
 
         We really appreciate the community's efforts to improve Airflow.
@@ -28,7 +28,8 @@ body:
         What Apache Airflow Helm Chart version are you using?
       multiple: false
       options:
-        - "1.15.0 (latest released)"
+        - "1.16.0 (latest released)"
+        - "1.15.0"
         - "1.14.0"
         - "1.13.1"
         - "1.13.0"

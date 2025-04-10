@@ -35,6 +35,7 @@ from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any
 
+from celery import states as celery_states
 from deprecated import deprecated
 
 from airflow.cli.cli_config import (
@@ -56,7 +57,6 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
-from celery import states as celery_states
 
 log = logging.getLogger(__name__)
 

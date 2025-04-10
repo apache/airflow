@@ -20,15 +20,15 @@ import pytest
 
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
+
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    assert_401,
     create_role,
     create_user,
     delete_role,
     delete_user,
 )
-
-from tests_common.test_utils.api_connexion_utils import assert_401
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import Role
@@ -80,14 +80,12 @@ class TestRoleEndpoint:
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json["name"] == "Admin"
 
     def test_should_respond_404(self):
-        response = self.client.get(
-            "/auth/fab/v1/roles/invalid-role", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/fab/v1/roles/invalid-role", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert response.json == {
             "detail": "Role with name 'invalid-role' was not found",
@@ -97,12 +95,12 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         }
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/auth/fab/v1/roles/Admin")
+        response = self.client.get("/fab/v1/roles/Admin")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/fab/v1/roles/Admin", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -112,13 +110,13 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         indirect=["set_auth_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
-        response = self.client.get("/auth/fab/v1/roles/Admin")
+        response = self.client.get("/fab/v1/roles/Admin")
         assert response.status_code == expected_status_code, response.json
 
 
 class TestGetRolesEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/roles", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/roles", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(["Test", "TestNoPermissions"])
@@ -127,21 +125,19 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         assert roles == existing_roles
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/auth/fab/v1/roles")
+        response = self.client.get("/fab/v1/roles")
         assert_401(response)
 
     def test_should_raises_400_for_invalid_order_by(self):
         response = self.client.get(
-            "/auth/fab/v1/roles?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
+            "/fab/v1/roles?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
         msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
         assert response.json["detail"] == msg
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "/auth/fab/v1/roles", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
+        response = self.client.get("/fab/v1/roles", environ_overrides={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -150,7 +146,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         indirect=["set_auth_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
-        response = self.client.get("/auth/fab/v1/roles")
+        response = self.client.get("/fab/v1/roles")
         assert response.status_code == expected_status_code, response.json
 
 
@@ -158,20 +154,20 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     @pytest.mark.parametrize(
         "url, expected_roles",
         [
-            ("/auth/fab/v1/roles?limit=1", ["Admin"]),
-            ("/auth/fab/v1/roles?limit=2", ["Admin", "Op"]),
+            ("/fab/v1/roles?limit=1", ["Admin"]),
+            ("/fab/v1/roles?limit=2", ["Admin", "Op"]),
             (
-                "/auth/fab/v1/roles?offset=1",
+                "/fab/v1/roles?offset=1",
                 ["Op", "Public", "Test", "TestNoPermissions", "User", "Viewer"],
             ),
             (
-                "/auth/fab/v1/roles?offset=0",
+                "/fab/v1/roles?offset=0",
                 ["Admin", "Op", "Public", "Test", "TestNoPermissions", "User", "Viewer"],
             ),
-            ("/auth/fab/v1/roles?limit=1&offset=2", ["Public"]),
-            ("/auth/fab/v1/roles?limit=1&offset=1", ["Op"]),
+            ("/fab/v1/roles?limit=1&offset=2", ["Public"]),
+            ("/fab/v1/roles?limit=1&offset=1", ["Op"]),
             (
-                "/auth/fab/v1/roles?limit=2&offset=2",
+                "/fab/v1/roles?limit=2&offset=2",
                 ["Public", "Test"],
             ),
         ],
@@ -189,7 +185,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
 
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test"})
         actions = {i[0] for i in self.app.appbuilder.sm.get_all_permissions() if i}
         assert response.status_code == 200
         assert response.json["total_entries"] == len(actions)
@@ -197,12 +193,12 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
         assert actions == returned_actions
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get("/auth/fab/v1/permissions")
+        response = self.client.get("/fab/v1/permissions")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/auth/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/fab/v1/permissions", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -212,7 +208,7 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
         indirect=["set_auth_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
-        response = self.client.get("/auth/fab/v1/permissions")
+        response = self.client.get("/fab/v1/permissions")
         assert response.status_code == expected_status_code, response.json
 
 
@@ -222,9 +218,7 @@ class TestPostRole(TestRoleEndpoint):
             "name": "Test2",
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
-        response = self.client.post(
-            "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         role = self.app.appbuilder.sm.find_role("Test2")
         assert role is not None
@@ -295,9 +289,7 @@ class TestPostRole(TestRoleEndpoint):
         ],
     )
     def test_post_should_respond_400_for_invalid_payload(self, payload, error_message):
-        response = self.client.post(
-            "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert response.json == {
             "detail": error_message,
@@ -311,9 +303,7 @@ class TestPostRole(TestRoleEndpoint):
             "name": "Test",
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
-        response = self.client.post(
-            "/auth/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/fab/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 409
         assert response.json == {
             "detail": "Role with name 'Test' already exists; please update with the PATCH endpoint",
@@ -324,7 +314,7 @@ class TestPostRole(TestRoleEndpoint):
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
-            "/auth/fab/v1/roles",
+            "/fab/v1/roles",
             json={
                 "name": "Test2",
                 "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -335,7 +325,7 @@ class TestPostRole(TestRoleEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.post(
-            "/auth/fab/v1/roles",
+            "/fab/v1/roles",
             json={
                 "name": "mytest2",
                 "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -354,23 +344,21 @@ class TestPostRole(TestRoleEndpoint):
             "name": "Test2",
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
-        response = self.client.post("/auth/fab/v1/roles", json=payload)
+        response = self.client.post("/fab/v1/roles", json=payload)
         assert response.status_code == expected_status_code, response.json
 
 
 class TestDeleteRole(TestRoleEndpoint):
     def test_delete_should_respond_204(self, session):
         role = create_role(self.app, "mytestrole")
-        response = self.client.delete(
-            f"/auth/fab/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.delete(f"/fab/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 204
         role_obj = session.query(Role).filter(Role.name == role.name).all()
         assert len(role_obj) == 0
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
-            "/auth/fab/v1/roles/invalidrolename", environ_overrides={"REMOTE_USER": "test"}
+            "/fab/v1/roles/invalidrolename", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
         assert response.json == {
@@ -381,13 +369,13 @@ class TestDeleteRole(TestRoleEndpoint):
         }
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.delete("/auth/fab/v1/roles/test")
+        response = self.client.delete("/fab/v1/roles/test")
 
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
         response = self.client.delete(
-            "/auth/fab/v1/roles/test", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/fab/v1/roles/test", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -398,7 +386,7 @@ class TestDeleteRole(TestRoleEndpoint):
     )
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         role = create_role(self.app, "mytestrole")
-        response = self.client.delete(f"/auth/fab/v1/roles/{role.name}")
+        response = self.client.delete(f"/fab/v1/roles/{role.name}")
         assert response.status_code == expected_status_code, response.location
 
 
@@ -420,7 +408,7 @@ class TestPatchRole(TestRoleEndpoint):
     def test_patch_should_respond_200(self, payload, expected_name, expected_actions):
         role = create_role(self.app, "mytestrole")
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            f"/fab/v1/roles/{role.name}", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         assert response.json["name"] == expected_name
@@ -431,7 +419,7 @@ class TestPatchRole(TestRoleEndpoint):
         create_role(self.app, "already_exists")
 
         response = self.client.patch(
-            "/auth/fab/v1/roles/role_to_change",
+            "/fab/v1/roles/role_to_change",
             json={
                 "name": "already_exists",
                 "actions": [{"action": {"name": "can_delete"}, "resource": {"name": "XComs"}}],
@@ -476,7 +464,7 @@ class TestPatchRole(TestRoleEndpoint):
         role = create_role(self.app, "mytestrole")
         assert role.permissions == []
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}{update_mask}",
+            f"/fab/v1/roles/{role.name}{update_mask}",
             json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -488,7 +476,7 @@ class TestPatchRole(TestRoleEndpoint):
         role = create_role(self.app, "mytestrole")
         payload = {"name": "testme"}
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}?update_mask=invalid_name",
+            f"/fab/v1/roles/{role.name}?update_mask=invalid_name",
             json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -548,7 +536,7 @@ class TestPatchRole(TestRoleEndpoint):
     def test_patch_should_respond_400_for_invalid_update(self, payload, expected_error):
         role = create_role(self.app, "mytestrole")
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}",
+            f"/fab/v1/roles/{role.name}",
             json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -557,7 +545,7 @@ class TestPatchRole(TestRoleEndpoint):
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.patch(
-            "/auth/fab/v1/roles/test",
+            "/fab/v1/roles/test",
             json={
                 "name": "mytest2",
                 "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -568,7 +556,7 @@ class TestPatchRole(TestRoleEndpoint):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.patch(
-            "/auth/fab/v1/roles/test",
+            "/fab/v1/roles/test",
             json={
                 "name": "mytest2",
                 "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
@@ -585,7 +573,7 @@ class TestPatchRole(TestRoleEndpoint):
     def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         role = create_role(self.app, "mytestrole")
         response = self.client.patch(
-            f"/auth/fab/v1/roles/{role.name}",
+            f"/fab/v1/roles/{role.name}",
             json={"name": "mytest"},
         )
         assert response.status_code == expected_status_code, response.json

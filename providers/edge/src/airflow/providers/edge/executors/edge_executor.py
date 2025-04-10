@@ -35,6 +35,7 @@ from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
@@ -65,7 +66,7 @@ class EdgeExecutor(BaseExecutor):
         """
         Check if already existing table matches the newest table schema.
 
-        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider packages.
+        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider distributions.
         """
         inspector = inspect(engine)
         edge_job_columns = None
@@ -195,7 +196,11 @@ class EdgeExecutor(BaseExecutor):
 
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
-        heartbeat_interval: int = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+        if AIRFLOW_V_3_0_PLUS:
+            heartbeat_interval_config_name = "task_instance_heartbeat_timeout"
+        else:
+            heartbeat_interval_config_name = "scheduler_zombie_task_threshold"
+        heartbeat_interval: int = conf.getint("scheduler", heartbeat_interval_config_name)
         lifeless_jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
             .with_for_update(skip_locked=True)
@@ -215,6 +220,21 @@ class EdgeExecutor(BaseExecutor):
                 session=session,
             )
             job.state = ti.state if ti else TaskInstanceState.REMOVED
+
+            if job.state != TaskInstanceState.RUNNING:
+                # Edge worker does not backport emitted Airflow metrics, so export some metrics
+                # Export metrics as failed as these jobs will be deleted in the future
+                tags = {
+                    "dag_id": job.dag_id,
+                    "task_id": job.task_id,
+                    "queue": job.queue,
+                    "state": str(TaskInstanceState.FAILED),
+                }
+                Stats.incr(
+                    f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
+                    tags=tags,
+                )
+                Stats.incr("edge_worker.ti.finish", tags=tags)
 
         return bool(lifeless_jobs)
 
