@@ -65,6 +65,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
+    TGCount,
     TICount,
 )
 from airflow.utils.net import get_hostname
@@ -216,7 +217,6 @@ class TaskInstanceOperations:
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
-        return_task_group_count: bool = False,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
         params = {
@@ -226,7 +226,6 @@ class TaskInstanceOperations:
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
             "run_ids": run_ids,
             "states": states,
-            "return_task_group_count": return_task_group_count,
         }
 
         # Remove None values from params
@@ -234,6 +233,29 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
+
+    def get_tg_count(
+        self,
+        dag_id: str,
+        task_group_id: str,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> TGCount:
+        """Get count of task group instances matching the given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "task_group_id": task_group_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+            "states": states,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        resp = self.client.get("task-instances/task-group-count", params=params)
+        return TGCount(count=resp.json())
 
 
 class ConnectionOperations:

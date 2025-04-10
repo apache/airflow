@@ -77,6 +77,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTGCount,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -1034,7 +1035,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
-                return_task_group_count=msg.return_task_group_count,
+            )
+        elif isinstance(msg, GetTGCount):
+            resp = self.client.task_instances.get_tg_count(
+                dag_id=msg.dag_id,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
             )
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(

@@ -135,15 +135,21 @@ class WorkflowTrigger(BaseTrigger):
     async def _get_count_af_3(self, states):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if self.external_task_ids or self.external_task_group_id:
+        params = {
+            "dag_id": self.external_dag_id,
+            "logical_dates": self.logical_dates,
+            "run_ids": self.run_ids,
+            "states": states,
+        }
+        if self.external_task_ids:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
-                dag_id=self.external_dag_id,
-                task_ids=self.external_task_ids,
+                task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                **params,
+            )
+        elif self.external_task_group_id:
+            count = await sync_to_async(RuntimeTaskInstance.get_tg_count)(
                 task_group_id=self.external_task_group_id,
-                logical_dates=self.logical_dates,
-                run_ids=self.run_ids,
-                **{"return_task_group_count": True} if self.external_task_group_id else {},
-                states=states,
+                **params,
             )
         else:
             count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(

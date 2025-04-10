@@ -1416,7 +1416,6 @@ class TestRuntimeTaskInstance:
             logical_dates=[timezone.datetime(2024, 1, 1)],
             run_ids=["run1"],
             states=["success", "failed"],
-            return_task_group_count=False,
         )
 
         mock_supervisor_comms.send_request.assert_called_once_with(
@@ -1428,7 +1427,6 @@ class TestRuntimeTaskInstance:
                 logical_dates=[timezone.datetime(2024, 1, 1)],
                 run_ids=["run1"],
                 states=["success", "failed"],
-                return_task_group_count=False,
             ),
         )
         assert count == 2

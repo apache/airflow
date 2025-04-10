@@ -315,12 +315,11 @@ class ExternalTaskSensor(BaseSensorOperator):
                     states=states,
                 )
             elif self.external_task_group_id:
-                return ti.get_ti_count(
+                return ti.get_tg_count(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
                     logical_dates=dttm_filter,
                     states=states,
-                    return_task_group_count=True,
                 )
             else:
                 return ti.get_dr_count(

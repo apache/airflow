@@ -93,7 +93,15 @@ class RuntimeTaskInstanceProtocol(Protocol):
         logical_dates: list[AwareDatetime] | None = None,
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
-        return_task_group_count: bool = False,
+    ) -> int: ...
+
+    @staticmethod
+    def get_tg_count(
+        dag_id: str,
+        task_group_id: str,
+        logical_dates: list[AwareDatetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
     ) -> int: ...
 
     @staticmethod

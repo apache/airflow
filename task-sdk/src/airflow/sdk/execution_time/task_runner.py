@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetTaskRescheduleStartDate,
+    GetTGCount,
     GetTICount,
     RescheduleTask,
     RetryTask,
@@ -73,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TGCount,
     TICount,
     ToSupervisor,
     ToTask,
@@ -412,7 +414,6 @@ class RuntimeTaskInstance(TaskInstance):
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
-        return_task_group_count: bool = False,
     ) -> int:
         """Return the number of task instances matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
@@ -427,13 +428,41 @@ class RuntimeTaskInstance(TaskInstance):
                     logical_dates=logical_dates,
                     run_ids=run_ids,
                     states=states,
-                    return_task_group_count=return_task_group_count,
                 ),
             )
             response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TICount)
+
+        return response.count
+
+    @staticmethod
+    def get_tg_count(
+        dag_id: str,
+        task_group_id: str,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> int:
+        """Return the number of task group instances matching the given criteria."""
+        log = structlog.get_logger(logger_name="task")
+
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTGCount(
+                    dag_id=dag_id,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                    states=states,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(response, TGCount)
 
         return response.count
 

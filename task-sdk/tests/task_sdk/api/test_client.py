@@ -441,7 +441,6 @@ class TestTaskInstanceOperations:
         logical_dates = [timezone.parse(d) for d in logical_dates_str]
         task_ids = ["task1", "task2"]
         states = ["success", "failed"]
-        return_task_group_count = False
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/task-instances/count"
@@ -462,9 +461,48 @@ class TestTaskInstanceOperations:
             task_group_id="group1",
             logical_dates=logical_dates,
             states=states,
-            return_task_group_count=return_task_group_count,
         )
         assert result.count == 10
+
+    def test_get_tg_count_basic(self):
+        """Test basic get_tg_count functionality with just dag_id and task_group_id."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/task-group-count"
+            assert request.url.params.get("dag_id") == "test_dag"
+            assert request.url.params.get("task_group_id") == "test_task_group"
+            return httpx.Response(200, json=2)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_tg_count(dag_id="test_dag", task_group_id="test_task_group")
+        assert result.count == 2
+
+    def test_get_tg_count_with_all_params(self):
+        """Test get_tg_count with all optional parameters."""
+
+        logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
+        logical_dates = [timezone.parse(d) for d in logical_dates_str]
+        states = ["success", "failed"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/task-group-count"
+            assert request.method == "GET"
+            params = request.url.params
+            assert params["dag_id"] == "test_dag"
+            assert params["task_group_id"] == "group1"
+            assert params.get_list("logical_dates") == logical_dates_str
+            assert params.get_list("run_ids") == []
+            assert params.get_list("states") == states
+            return httpx.Response(200, json=2)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_tg_count(
+            dag_id="test_dag",
+            task_group_id="group1",
+            logical_dates=logical_dates,
+            states=states,
+        )
+        assert result.count == 2
 
 
 class TestVariableOperations:

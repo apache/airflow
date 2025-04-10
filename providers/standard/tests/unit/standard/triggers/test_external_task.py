@@ -75,7 +75,6 @@ class TestWorkflowTrigger:
         mock_get_count.assert_called_once_with(
             dag_id="external_task",
             task_ids=["external_task_op"],
-            task_group_id=None,
             logical_dates=[self.LOGICAL_DATE],
             run_ids=None,
             states=["success", "fail"],
@@ -112,7 +111,6 @@ class TestWorkflowTrigger:
         mock_get_count.assert_called_once_with(
             dag_id="external_task",
             task_ids=["external_task_op"],
-            task_group_id=None,
             logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             states=["success", "fail"],
@@ -145,7 +143,6 @@ class TestWorkflowTrigger:
         mock_get_count.assert_called_once_with(
             dag_id="external_task",
             task_ids=["external_task_op"],
-            task_group_id=None,
             logical_dates=[self.LOGICAL_DATE],
             run_ids=[self.RUN_ID],
             states=["success", "fail"],
@@ -181,7 +178,6 @@ class TestWorkflowTrigger:
         mock_get_count.assert_called_once_with(
             dag_id="external_task",
             task_ids=["external_task_op"],
-            task_group_id=None,
             logical_dates=[self.LOGICAL_DATE],
             run_ids=None,
             states=["success", "fail"],
@@ -218,7 +214,7 @@ class TestWorkflowTrigger:
         assert mock_sleep.await_count == 1
 
     @pytest.mark.parametrize(
-        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_dag_count, expected",
+        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_tg_count, mock_dag_count, expected",
         [
             (
                 ["task_id_one", "task_id_two"],
@@ -229,6 +225,7 @@ class TestWorkflowTrigger:
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                 ],
                 4,
+                2,
                 2,
                 2,
             ),
@@ -243,6 +240,7 @@ class TestWorkflowTrigger:
                 2,
                 2,
                 2,
+                2,
             ),
             (
                 [],
@@ -255,6 +253,7 @@ class TestWorkflowTrigger:
                 2,
                 2,
                 2,
+                2,
             ),
         ],
         ids=[
@@ -264,17 +263,20 @@ class TestWorkflowTrigger:
         ],
     )
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_tg_count")
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
     @pytest.mark.asyncio
     async def test_get_count_af_3(
         self,
         mock_get_dr_count,
+        mock_get_tg_count,
         mock_get_ti_count,
         task_ids,
         task_group_id,
         states,
         logical_dates,
         mock_ti_count,
+        mock_tg_count,
         mock_dag_count,
         expected,
     ):
@@ -287,6 +289,7 @@ class TestWorkflowTrigger:
 
         mock_get_ti_count.return_value = mock_ti_count
         mock_get_dr_count.return_value = mock_dag_count
+        mock_get_tg_count.return_value = mock_tg_count
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
@@ -300,9 +303,19 @@ class TestWorkflowTrigger:
         get_count_af_3 = await trigger._get_count_af_3(states)
         assert get_count_af_3 == expected
 
-        if task_ids or task_group_id:
+        if task_ids:
             mock_get_ti_count.assert_called_once()
             assert mock_get_ti_count.call_count == 1
+            mock_get_tg_count.assert_not_called()
+            assert mock_get_tg_count.call_count == 0
+            mock_get_dr_count.assert_not_called()
+            assert mock_get_dr_count.call_count == 0
+
+        elif task_group_id:
+            mock_get_tg_count.assert_called_once()
+            assert mock_get_tg_count.call_count == 1
+            mock_get_ti_count.assert_not_called()
+            assert mock_get_ti_count.call_count == 0
             mock_get_dr_count.assert_not_called()
             assert mock_get_dr_count.call_count == 0
 
@@ -311,6 +324,8 @@ class TestWorkflowTrigger:
             assert mock_get_dr_count.call_count == 1
             mock_get_ti_count.assert_not_called()
             assert mock_get_ti_count.call_count == 0
+            mock_get_tg_count.assert_not_called()
+            assert mock_get_tg_count.call_count == 0
 
     def test_serialization(self):
         """

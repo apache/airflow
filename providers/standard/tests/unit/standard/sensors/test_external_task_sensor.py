@@ -1108,13 +1108,12 @@ class TestExternalTaskSensorV3:
                 allowed_states=["success"],
             )
 
-        self.context["ti"].get_ti_count.return_value = 1
+        self.context["ti"].get_tg_count.return_value = 1
         op.execute(context=self.context)
 
-        self.context["ti"].get_ti_count.assert_called_once_with(
+        self.context["ti"].get_tg_count.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
-            return_task_group_count=True,
             states=["success"],
             task_group_id="test_group",
         )
@@ -1227,15 +1226,14 @@ class TestExternalTaskSensorV3:
                 failed_states=[State.FAILED],
             )
 
-        self.context["ti"].get_ti_count.return_value = 1
+        self.context["ti"].get_tg_count.return_value = 1
 
         with pytest.raises(AirflowException):
             op.execute(context=self.context)
 
-        self.context["ti"].get_ti_count.assert_called_once_with(
+        self.context["ti"].get_tg_count.assert_called_once_with(
             dag_id="test_dag_parent",
             logical_dates=[DEFAULT_DATE],
-            return_task_group_count=True,
             states=[State.FAILED],
             task_group_id="test_group",
         )

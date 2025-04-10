@@ -304,6 +304,13 @@ class TICount(BaseModel):
     type: Literal["TICount"] = "TICount"
 
 
+class TGCount(BaseModel):
+    """Response containing count of Task group Instances matching certain filters."""
+
+    count: int
+    type: Literal["TGCount"] = "TGCount"
+
+
 class DRCount(BaseModel):
     """Response containing count of DAG Runs matching certain filters."""
 
@@ -334,6 +341,7 @@ ToTask = Annotated[
         StartupDetails,
         TaskRescheduleStartDate,
         TICount,
+        TGCount,
         VariableResult,
         XComResult,
         XComCountResponse,
@@ -543,8 +551,16 @@ class GetTICount(BaseModel):
     logical_dates: list[AwareDatetime] | None = None
     run_ids: list[str] | None = None
     states: list[str] | None = None
-    return_task_group_count: bool = False
     type: Literal["GetTICount"] = "GetTICount"
+
+
+class GetTGCount(BaseModel):
+    dag_id: str
+    task_group_id: str
+    logical_dates: list[AwareDatetime] | None = None
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    type: Literal["GetTGCount"] = "GetTGCount"
 
 
 class GetDRCount(BaseModel):
@@ -569,6 +585,7 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetTaskRescheduleStartDate,
         GetTICount,
+        GetTGCount,
         GetVariable,
         GetXCom,
         GetXComCount,
