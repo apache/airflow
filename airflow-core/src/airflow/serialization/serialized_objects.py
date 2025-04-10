@@ -1861,14 +1861,18 @@ class SerializedDAG(DAG, BaseSerialization):
                     "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
                     "__var": {"delta": sched["__var"], "interval": 0},
                 }
-        if "timetable" in dag_dict:
-            if dag_dict["timetable"]["__type"] == "airflow.timetables.simple.DatasetTriggeredTimetable":
+        elif timetable := dag_dict.get("timetable"):
+            if timetable["__type"] in {
+                "airflow.timetables.simple.DatasetTriggeredTimetable",
+                "airflow.timetables.datasets.DatasetOrTimeSchedule",
+            }:
                 dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
 
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:
-                if dep.get("dependency_type") == "dataset":
-                    dep["dependency_type"] = "asset"
+                for fld in ("dependency_type", "target", "source"):
+                    if dep.get(fld) == "dataset":
+                        dep[fld] = "asset"
 
         for task in dag_dict["tasks"]:
             task_var: dict = task["__var"]
@@ -1876,14 +1880,12 @@ class SerializedDAG(DAG, BaseSerialization):
                 task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
-            if "outlets" in task_var:
-                outlets = task_var["outlets"]
-                for item in outlets:
-                    if item.get("__type") == "dataset":
-                        item["__type"] = "asset"
-                    var_ = item["__var"]
-                    var_["name"] = None
-                    var_["group"] = None
+            for item in task_var.get("outlets", []):
+                if item.get("__type") == "dataset":
+                    item["__type"] = "asset"
+                var_ = item["__var"]
+                var_["name"] = None
+                var_["group"] = None
 
         # Set on the root TG
         dag_dict["task_group"]["group_display_name"] = ""
