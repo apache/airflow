@@ -1350,7 +1350,7 @@ repos:
         language: python
         entry: uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
         pass_filenames: false
-        files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
+        files: ^airflow-core/src/airflow/api_fastapi/core_api/.*\.py$
         require_serial: true
       - id: update-er-diagram
         name: Update ER diagram
