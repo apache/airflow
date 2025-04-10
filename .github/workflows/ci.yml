@@ -104,6 +104,8 @@ jobs:
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
+      only-pyproject-toml-files-changed: >-
+        ${{ steps.selective-checks.outputs.only-pyproject-toml-files-changed }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -288,6 +290,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
       needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      only-pyproject-toml-files-changed: $${ needs.build-info.outputs.only-pyproject-toml-files-changed }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
