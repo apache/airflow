@@ -75,6 +75,7 @@ namespace-packages = ["src/airflowctl"]
 
 # Generated file, be less strict
 "src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/auth_generated.py" = ["UP007", "D101", "D200"]
 
 [tool.coverage.run]
 branch = true
@@ -107,6 +108,8 @@ codegen = [
 # TODO: Automate this in CI via pre-commit hook and generate the file each time
 # The API should be running in the background to serve the OpenAPI schema
 # uv run --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
+# Auth related datamodel generation we need to override the URL and output file
+# uv run --verbose --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --url="http://0.0.0.0:28080/auth/openapi.json" --output=src/airflowctl/api/datamodels/auth_generated.py
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true
@@ -124,7 +127,7 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
-url = "http://0.0.0.0:8080/openapi.json"
+url = "http://0.0.0.0:28080/openapi.json"
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##

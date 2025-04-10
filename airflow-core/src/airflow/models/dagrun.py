@@ -57,7 +57,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import case, false, select, true
+from sqlalchemy.sql.expression import case, false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -509,7 +509,7 @@ class DagRun(Base, LoggingMixin):
             .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
             .where(
                 DagModel.is_paused == false(),
-                DagModel.is_active == true(),
+                DagModel.is_stale == false(),
             )
             .options(joinedload(cls.task_instances))
             .order_by(
@@ -560,7 +560,7 @@ class DagRun(Base, LoggingMixin):
                 and_(
                     DagModel.dag_id == cls.dag_id,
                     DagModel.is_paused == false(),
-                    DagModel.is_active == true(),
+                    DagModel.is_stale == false(),
                 ),
             )
             .join(

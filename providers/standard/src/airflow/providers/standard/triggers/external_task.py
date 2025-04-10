@@ -50,6 +50,7 @@ class WorkflowTrigger(BaseTrigger):
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
     :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
+    :param logical_dates: A list of logical dates for the external dag.
     """
 
     def __init__(
@@ -57,6 +58,7 @@ class WorkflowTrigger(BaseTrigger):
         external_dag_id: str,
         run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
+        logical_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
         failed_states: typing.Iterable[str] | None = None,
@@ -76,6 +78,7 @@ class WorkflowTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.execution_dates = execution_dates
+        self.logical_dates = logical_dates
         super().__init__(**kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -92,6 +95,7 @@ class WorkflowTrigger(BaseTrigger):
         }
         if AIRFLOW_V_3_0_PLUS:
             data["run_ids"] = self.run_ids
+            data["logical_dates"] = self.logical_dates
         else:
             data["execution_dates"] = self.execution_dates
 
@@ -99,9 +103,16 @@ class WorkflowTrigger(BaseTrigger):
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
+        if AIRFLOW_V_3_0_PLUS:
+            get_count_func = self._get_count_af_3
+            run_id_or_dates = (self.run_ids or self.logical_dates) or []
+        else:
+            get_count_func = self._get_count
+            run_id_or_dates = self.execution_dates or []
+
         while True:
             if self.failed_states:
-                failed_count = await self._get_count(self.failed_states)
+                failed_count = await get_count_func(self.failed_states)
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
@@ -109,17 +120,42 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "success"})
                     return
             if self.skipped_states:
-                skipped_count = await self._get_count(self.skipped_states)
+                skipped_count = await get_count_func(self.skipped_states)
                 if skipped_count > 0:
                     yield TriggerEvent({"status": "skipped"})
                     return
-            allowed_count = await self._get_count(self.allowed_states)
-            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if allowed_count == len(_dates):  # type: ignore[arg-type]
+            allowed_count = await get_count_func(self.allowed_states)
+
+            if allowed_count == len(run_id_or_dates):  # type: ignore[arg-type]
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
+
+    async def _get_count_af_3(self, states):
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        if self.external_task_ids or self.external_task_group_id:
+            count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+                dag_id=self.external_dag_id,
+                task_ids=self.external_task_ids,
+                task_group_id=self.external_task_group_id,
+                logical_dates=self.logical_dates,
+                run_ids=self.run_ids,
+                states=states,
+            )
+        else:
+            count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+                dag_id=self.external_dag_id,
+                logical_dates=self.logical_dates,
+                run_ids=self.run_ids,
+                states=states,
+            )
+
+        if self.external_task_ids:
+            return count / len(self.external_task_ids)
+        else:
+            return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:
