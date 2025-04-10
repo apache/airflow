@@ -314,8 +314,8 @@ def ti_update_state(
         if updated_state == TerminalTIState.FAILED:
             ti = session.get(TI, ti_id_str)
             ser_dag = request.app.state.dag_bag.get_dag(dag_id)
-            if ser_dag and ser_dag.__dict__.get("fail_fast", False):
-                task_dict = ser_dag.__dict__.get("task_dict", {})
+            if ser_dag and getattr(ser_dag, "fail_fast", False):
+                task_dict = getattr(ser_dag, "task_dict")
                 task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
                 _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
 

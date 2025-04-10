@@ -30,22 +30,12 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
-
-
-def init_dag_bag(app: FastAPI) -> None:
-    """
-    Create global DagBag for the FastAPI application.
-
-    To access it use ``request.app.state.dag_bag``.
-    """
-    app.state.dag_bag = get_dag_bag()
 
 
 def init_views(app: FastAPI) -> None:
