@@ -580,7 +580,7 @@ class BaseSerialization:
 
     _CONSTRUCTOR_PARAMS: dict[str, Parameter] = {}
 
-    SERIALIZER_VERSION = 1
+    SERIALIZER_VERSION = 2
 
     @classmethod
     def to_json(cls, var: DAG | BaseOperator | dict | list | set | tuple) -> str:
@@ -1789,10 +1789,16 @@ class SerializedDAG(DAG, BaseSerialization):
         return json_dict
 
     @classmethod
-    def conversion_v1(cls, ser_obj:dict, to_version: int):
+    def conversion_v1(cls, ser_obj: dict, to_version: int):
         dag_dict = ser_obj["dag"]
-        dag_renames = [("_dag_id", "dag_id")]
+        dag_renames = [
+            ("_dag_id", "dag_id"),
+            ("_task_group", "task_group"),
+        ]
         task_renames = [("_task_type", "task_type")]
+        tasks_remove = []
+        dags_remove = []
+
         def reverse_dir():
             nonlocal dag_renames, task_renames
             dag_renames = [(b, a) for a, b in dag_renames]
@@ -1800,24 +1806,40 @@ class SerializedDAG(DAG, BaseSerialization):
 
         if to_version == 1:
             reverse_dir()
+            tasks_remove = ["_can_skip_downstream"]
+            dags_remove = ["disable_bundle_versioning"]
+            ser_obj["__version"] = 1
         elif to_version == 2:
-            #dag_dict["timetable"]["asset_condition"] = None
-            ...
+            ser_obj["__version"] = 2
         else:
             raise RuntimeError(f"Conversion to version {to_version} unsupported.")
         cls.convert_serdag_version(
             dag_dict=dag_dict,
             dag_renames=dag_renames,
             task_renames=task_renames,
+            tasks_remove=tasks_remove,
+            dags_remove=dags_remove,
         )
+        return
 
     @classmethod
-    def convert_serdag_version(cls, dag_dict: dict, dag_renames, task_renames) -> dict:
+    def convert_serdag_version(
+        cls,
+        dag_dict: dict,
+        dag_renames,
+        task_renames,
+        tasks_remove,
+        dags_remove,
+    ) -> None:
         for old, new in dag_renames:
             dag_dict[new] = dag_dict.pop(old)
+        for k in dags_remove:
+            dag_dict.pop(k, None)
         tasks = dag_dict["tasks"]
         for task in tasks:
-            task_var = task["__var"]
+            task_var: dict = task["__var"]
+            for k in tasks_remove:
+                task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
 
@@ -1882,8 +1904,9 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "group_display_name"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
             group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)

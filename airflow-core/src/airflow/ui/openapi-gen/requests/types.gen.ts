@@ -911,7 +911,7 @@ export type DagVersionResponse = {
   id: string;
   version_number: number;
   dag_id: string;
-  bundle_name: string;
+  bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
   readonly bundle_url: string | null;

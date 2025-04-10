@@ -459,7 +459,6 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker):
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
-<<<<<<< HEAD
 def test_get_task_assets():
     asset1 = Asset("1")
     with DAG("testdag") as source_dag:
@@ -477,17 +476,32 @@ def test_get_task_assets():
         ("d", asset1),
     ]
 
-V1_SERDAG = '{"__version": 1, "dag": {"fileloc": "/Users/dstandish/code/try_2_10_5/dags/some_test.py", "tags": ["example"], "edge_info": {}, "catchup": false, "_task_group": {"_group_id": null, "prefix_group_id": true, "tooltip": "", "ui_color": "CornflowerBlue", "ui_fgcolor": "#000", "children": {"generate_value": ["operator", "generate_value"], "print_value": ["operator", "print_value"], "print_value__1": ["operator", "print_value__1"]}, "upstream_group_ids": [], "downstream_group_ids": [], "upstream_task_ids": [], "downstream_task_ids": []}, "timezone": "UTC", "_dag_id": "xcom", "start_date": 1609459200.0, "schedule_interval": null, "_processor_dags_folder": "/Users/dstandish/code/try_2_10_5/dags", "tasks": [{"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "generate_value", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": ["print_value"], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": [], "op_kwargs": {}}, "__type": "operator"}, {"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "print_value", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": ["print_value__1"], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): generate_value>),)", "op_kwargs": {}}, "__type": "operator"}, {"__var": {"doc_md": "Empty function.", "is_setup": false, "_log_config_logger_name": "airflow.task.operators", "pool": "default_pool", "task_id": "print_value__1", "weight_rule": "downstream", "is_teardown": false, "ui_color": "#ffefeb", "template_fields": ["templates_dict", "op_args", "op_kwargs"], "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "start_from_trigger": false, "template_ext": [], "downstream_task_ids": [], "_needs_expansion": false, "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): print_value>),)", "op_kwargs": {}}, "__type": "operator"}], "dag_dependencies": [], "params": []}}'
+
+V1_SERDAG = '{"__version": 1, "dag": {"fileloc": "/Users/dstandish/code/try_2_10_5/dags/some_test.py", "_task_group": {"_group_id": null, "prefix_group_id": true, "tooltip": "", "ui_color": "CornflowerBlue", "ui_fgcolor": "#000", "children": {"generate_value": ["operator", "generate_value"], "print_value": ["operator", "print_value"], "print_value__1": ["operator", "print_value__1"]}, "upstream_group_ids": [], "downstream_group_ids": [], "upstream_task_ids": [], "downstream_task_ids": []}, "catchup": false, "timezone": "UTC", "edge_info": {}, "timetable": {"__type": "airflow.timetables.interval.CronDataIntervalTimetable", "__var": {"expression": "0 0 * * *", "timezone": "UTC"}}, "start_date": 1609459200.0, "tags": ["example"], "_dag_id": "my_dag", "_processor_dags_folder": "/Users/dstandish/code/try_2_10_5/dags", "tasks": [{"__var": {"template_fields": ["templates_dict", "op_args", "op_kwargs"], "doc_md": "Empty function.", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "downstream_task_ids": ["print_value"], "ui_color": "#ffefeb", "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "_log_config_logger_name": "airflow.task.operators", "task_id": "generate_value", "weight_rule": "downstream", "start_from_trigger": false, "_needs_expansion": false, "is_teardown": false, "pool": "default_pool", "is_setup": false, "template_ext": [], "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": [], "op_kwargs": {}}, "__type": "operator"}, {"__var": {"template_fields": ["templates_dict", "op_args", "op_kwargs"], "doc_md": "Empty function.", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "downstream_task_ids": ["print_value__1"], "ui_color": "#ffefeb", "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "_log_config_logger_name": "airflow.task.operators", "task_id": "print_value", "weight_rule": "downstream", "start_from_trigger": false, "_needs_expansion": false, "is_teardown": false, "pool": "default_pool", "is_setup": false, "template_ext": [], "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): generate_value>),)", "op_kwargs": {}}, "__type": "operator"}, {"__var": {"template_fields": ["templates_dict", "op_args", "op_kwargs"], "doc_md": "Empty function.", "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}, "downstream_task_ids": [], "ui_color": "#ffefeb", "on_failure_fail_dagrun": false, "ui_fgcolor": "#000", "_log_config_logger_name": "airflow.task.operators", "task_id": "print_value__1", "weight_rule": "downstream", "start_from_trigger": false, "_needs_expansion": false, "is_teardown": false, "pool": "default_pool", "is_setup": false, "template_ext": [], "_task_type": "_PythonDecoratedOperator", "_task_module": "airflow.decorators.python", "_operator_name": "@task", "_is_empty": false, "start_trigger_args": null, "op_args": "(XComArg(<Task(_PythonDecoratedOperator): print_value>),)", "op_kwargs": {}}, "__type": "operator"}], "dag_dependencies": [], "params": []}}'
 
 
-def test_deser_v1_serdag():
-    V1_SERDAG_DICT = json.loads(V1_SERDAG)
+@pytest.mark.parametrize("serdag_json", [V1_SERDAG])
+def test_deser_v1_serdag(serdag_json):
+    V1_SERDAG_DICT = json.loads(serdag_json)
+    v1_dag_json = json.dumps(V1_SERDAG_DICT, sort_keys=True, indent=2)
     # print(json.dumps(V1_SERDAG_DICT, indent=2))
     dag = SerializedDAG.from_dict(V1_SERDAG_DICT)
-    v2_dag_dict = SerializedDAG.to_dict(dag)
-    v2_json = json.dumps(v2_dag_dict)
-    v1_dag_dict = json.loads(v2_json)
-    SerializedDAG.conversion_v1(v1_dag_dict, to_version=1)
-    v1_dag_dict = json.loads(json.dumps(v1_dag_dict,sort_keys=True))
-    v2_dag_dict = json.loads(json.dumps(v2_dag_dict,sort_keys=True))
-    assert v1_dag_dict == v2_dag_dict
+    new_dag_dict = SerializedDAG.to_dict(dag)
+    assert new_dag_dict["__version"] == 2
+    SerializedDAG.conversion_v1(new_dag_dict, to_version=1)
+    # now, the things we won't try to convert back
+    # this is inadvertently updated
+    v1_serdag_dict = json.loads(v1_dag_json)
+    del new_dag_dict["dag"]["_processor_dags_folder"]
+    del v1_serdag_dict["dag"]["_processor_dags_folder"]
+    # group_display_name does not exist in v1 schema
+    tg = new_dag_dict["dag"]["_task_group"]
+    del tg["group_display_name"]
+    # # v2 has no top level `schedule_interval`
+    # del v1_serdag_dict["dag"]["schedule_interval"]
+    for task_raw in v1_serdag_dict["dag"]["tasks"]:
+        task = task_raw["__var"]
+        del task["_log_config_logger_name"]
+    v1_dag_json = json.dumps(v1_serdag_dict, sort_keys=True, indent=2)
+    converted_back = json.dumps(new_dag_dict, sort_keys=True, indent=2)
+    assert converted_back == v1_dag_json
