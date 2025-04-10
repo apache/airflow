@@ -1843,7 +1843,12 @@ class SerializedDAG(DAG, BaseSerialization):
                         "__var": {},
                         "__type": "airflow.timetables.simple.OnceTimetable",
                     }
-                if sched == "@daily":
+                elif sched == "@continuous":
+                    dag_dict["timetable"] = {
+                        "__var": {},
+                        "__type": "airflow.timetables.simple.ContinuousTimetable",
+                    }
+                elif sched == "@daily":
                     dag_dict["timetable"] = {
                         "__var": {
                             "interval": 0.0,
