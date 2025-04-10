@@ -344,10 +344,11 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         # Helper function to find leaves from a task list or task group
-        def find_leaves(group_or_task) -> list:
+        def find_leaves(group_or_task) -> list[Any]:
             while group_or_task:
-                if list(group_or_task.get_leaves()):
-                    return list(group_or_task.get_leaves())
+                group_or_task_leaves = list(group_or_task.get_leaves())
+                if group_or_task_leaves:
+                    return group_or_task_leaves
                 if group_or_task.upstream_task_ids:
                     upstream_task_ids_list = list(group_or_task.upstream_task_ids)
                     return [self.dag.get_task(task_id) for task_id in upstream_task_ids_list]
