@@ -139,7 +139,7 @@ class TestDagRunOperator:
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
-        base_url = conf.get_mandatory_value("api", "base_url").lower()
+        base_url = conf.get("api", "base_url", fallback="/").lower()
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 

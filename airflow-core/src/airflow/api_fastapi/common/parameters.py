@@ -111,17 +111,17 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
         return cls().set_value(offset)
 
 
-class _OnlyActiveFilter(BaseParam[bool]):
-    """Filter on is_active."""
+class _ExcludeStaleFilter(BaseParam[bool]):
+    """Filter on is_stale."""
 
     def to_orm(self, select: Select) -> Select:
         if self.value and self.skip_none:
-            return select.where(DagModel.is_active == self.value)
+            return select.where(DagModel.is_stale != self.value)
         return select
 
     @classmethod
-    def depends(cls, only_active: bool = True) -> _OnlyActiveFilter:
-        return cls().set_value(only_active)
+    def depends(cls, exclude_stale: bool = True) -> _ExcludeStaleFilter:
+        return cls().set_value(exclude_stale)
 
 
 class _SearchParam(BaseParam[str]):
@@ -518,7 +518,7 @@ QueryPausedFilter = Annotated[
     FilterParam[Optional[bool]],
     Depends(filter_param_factory(DagModel.is_paused, Optional[bool], filter_name="paused")),
 ]
-QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter.depends)]
+QueryExcludeStaleFilter = Annotated[_ExcludeStaleFilter, Depends(_ExcludeStaleFilter.depends)]
 QueryDagIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern"))
 ]

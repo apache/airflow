@@ -180,13 +180,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -3219,13 +3219,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -3388,13 +3388,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -8525,9 +8525,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8704,7 +8704,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name
@@ -8763,9 +8763,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8867,7 +8867,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name
@@ -9288,9 +9288,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -9403,7 +9403,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name

@@ -39,7 +39,6 @@ import attrs
 import dill
 import jinja2
 import lazy_object_proxy
-import pendulum
 import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -134,6 +133,7 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Update
@@ -1106,45 +1106,6 @@ def _get_previous_dagrun(
     return None
 
 
-def _get_previous_logical_date(
-    *,
-    task_instance: TaskInstance,
-    state: DagRunState | None,
-    session: Session,
-) -> pendulum.DateTime | None:
-    """
-    Get logical date from property previous_ti_success.
-
-    :param task_instance: the task instance
-    :param session: SQLAlchemy ORM Session
-    :param state: If passed, it only take into account instances of a specific state.
-
-    :meta private:
-    """
-    log.debug("previous_logical_date was called")
-    prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    return pendulum.instance(prev_ti.logical_date) if prev_ti and prev_ti.logical_date else None
-
-
-def _get_previous_start_date(
-    *,
-    task_instance: TaskInstance,
-    state: DagRunState | None,
-    session: Session,
-) -> pendulum.DateTime | None:
-    """
-    Return the start date from property previous_ti_success.
-
-    :param task_instance: the task instance
-    :param state: If passed, it only take into account instances of a specific state.
-    :param session: SQLAlchemy ORM Session
-    """
-    log.debug("previous_start_date was called")
-    prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    # prev_ti may not exist and prev_ti.start_date may be None.
-    return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
-
-
 def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) -> None:
     """
     Send alert email with exception information.
@@ -1915,10 +1876,10 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
+        _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
         return _log_uri
 
@@ -2159,32 +2120,6 @@ class TaskInstance(Base, LoggingMixin):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
     @provide_session
-    def get_previous_logical_date(
-        self,
-        state: DagRunState | None = None,
-        session: Session = NEW_SESSION,
-    ) -> pendulum.DateTime | None:
-        """
-        Return the logical date from property previous_ti_success.
-
-        :param state: If passed, it only take into account instances of a specific state.
-        :param session: SQLAlchemy ORM Session
-        """
-        return _get_previous_logical_date(task_instance=self, state=state, session=session)
-
-    @provide_session
-    def get_previous_start_date(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
-    ) -> pendulum.DateTime | None:
-        """
-        Return the start date from property previous_ti_success.
-
-        :param state: If passed, it only take into account instances of a specific state.
-        :param session: SQLAlchemy ORM Session
-        """
-        return _get_previous_start_date(task_instance=self, state=state, session=session)
-
-    @provide_session
     def are_dependencies_met(
         self, dep_context: DepContext | None = None, session: Session = NEW_SESSION, verbose: bool = False
     ) -> bool:
@@ -2334,20 +2269,6 @@ class TaskInstance(Base, LoggingMixin):
         set_committed_value(self, "dag_run", dr)
 
         return dr
-
-    @classmethod
-    @provide_session
-    def ensure_dag(cls, task_instance: TaskInstance, session: Session = NEW_SESSION) -> DAG:
-        """Ensure that task has a dag object associated, might have been removed by serialization."""
-        if TYPE_CHECKING:
-            assert task_instance.task
-        if task_instance.task.dag is None:
-            task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
-                dag_id=task_instance.dag_id, session=session
-            )
-        if TYPE_CHECKING:
-            assert task_instance.task.dag
-        return task_instance.task.dag
 
     @classmethod
     @provide_session

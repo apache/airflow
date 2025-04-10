@@ -28,7 +28,6 @@ from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -36,17 +35,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
     """Start serve_logs sub-process."""
-    if AIRFLOW_V_3_0_PLUS:
-        try:
-            from airflow.providers.fab.www.serve_logs import serve_logs
-        except ImportError:
-            raise ImportError(
-                "Celery requires FAB provider to be installed in order to run this command. "
-                "Please install the FAB provider by running: "
-                "pip install apache-airflow-providers-celery[fab]"
-            )
-    else:
-        from airflow.utils.serve_logs import serve_logs  # type: ignore[no-redef]
+    from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
     if skip_serve_logs is False:
