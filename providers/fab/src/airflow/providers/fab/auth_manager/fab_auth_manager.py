@@ -181,7 +181,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cached_property
     def apiserver_endpoint(self) -> str:
-        return conf.get("api", "base_url")
+        return conf.get("api", "base_url", fallback="/")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

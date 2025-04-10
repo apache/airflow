@@ -947,7 +947,7 @@ export class DagsService {
    * @param data.dagIds
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
-   * @param data.onlyActive
+   * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
    * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -967,7 +967,7 @@ export class DagsService {
         dag_ids: data.dagIds,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
-        only_active: data.onlyActive,
+        exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
       },
@@ -1709,7 +1709,7 @@ export class DagService {
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
-   * @param data.onlyActive
+   * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
    * @param data.dagRunStartDateGte
@@ -1733,7 +1733,7 @@ export class DagService {
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
-        only_active: data.onlyActive,
+        exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
         dag_run_start_date_gte: data.dagRunStartDateGte,
@@ -1763,7 +1763,7 @@ export class DagService {
    * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
-   * @param data.onlyActive
+   * @param data.excludeStale
    * @param data.paused
    * @param data.lastDagRunState
    * @returns DAGCollectionResponse Successful Response
@@ -1781,7 +1781,7 @@ export class DagService {
         tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
-        only_active: data.onlyActive,
+        exclude_stale: data.excludeStale,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
       },

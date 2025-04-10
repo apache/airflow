@@ -1780,13 +1780,13 @@
 <text text-anchor="start" x="651" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <text text-anchor="start" x="735" y="-1997.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="444,-1962.5 444,-1987.5 848,-1987.5 848,-1962.5 444,-1962.5"/>
-<text text-anchor="start" x="449" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00">is_active</text>
-<text text-anchor="start" x="509" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="514" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="449" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00">is_paused</text>
+<text text-anchor="start" x="519" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="524" y="-1972.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <polygon fill="none" stroke="black" points="444,-1937.5 444,-1962.5 848,-1962.5 848,-1937.5 444,-1937.5"/>
-<text text-anchor="start" x="449" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00">is_paused</text>
-<text text-anchor="start" x="519" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="524" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="449" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00">is_stale</text>
+<text text-anchor="start" x="501" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="506" y="-1947.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <polygon fill="none" stroke="black" points="444,-1912.5 444,-1937.5 848,-1937.5 848,-1912.5 444,-1912.5"/>
 <text text-anchor="start" x="449" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00">last_expired</text>
 <text text-anchor="start" x="533" y="-1922.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

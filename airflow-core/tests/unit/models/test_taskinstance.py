@@ -3107,65 +3107,6 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_logical_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-        # vivify
-        for ti in ti_list:
-            ti.logical_date
-
-        assert ti_list[0].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) == ti_list[1].logical_date
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) != ti_list[2].logical_date
-
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-
-        assert ti_list[0].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) == ti_list[1].start_date
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) != ti_list[2].start_date
-
-    def test_get_previous_start_date_none(self, dag_maker):
-        """
-        Test that get_previous_start_date() can handle TaskInstance with no start_date.
-        """
-        with dag_maker("test_get_previous_start_date_none", schedule=None, serialized=True):
-            task = EmptyOperator(task_id="op")
-
-        day_1 = DEFAULT_DATE
-        day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
-
-        # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
-        # should return the start_date of ti_1 (which is None because ti_1 was not run).
-        # It should not raise an error.
-        dagrun_1 = dag_maker.create_dagrun(
-            logical_date=day_1,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-        )
-
-        dagrun_2 = dag_maker.create_dagrun(
-            logical_date=day_2,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-            data_interval=(day_1, day_2),
-        )
-
-        ti_1 = dagrun_1.get_task_instance(task.task_id)
-        ti_2 = dagrun_2.get_task_instance(task.task_id)
-        ti_1.task = task
-        ti_2.task = task
-
-        assert ti_2.get_previous_start_date() == ti_1.start_date
-        assert ti_1.start_date is None
-
     def test_context_triggering_asset_events_none(self, session, create_task_instance):
         ti = create_task_instance()
         template_context = ti.get_template_context()

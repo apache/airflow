@@ -328,6 +328,14 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "auth_rate_limit"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "config_file"),
+        renamed_to=ConfigParameter("fab", "config_file"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_backend"),
+        renamed_to=ConfigParameter("fab", "session_backend"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "session_lifetime_days"),
         renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
@@ -338,6 +346,10 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "session_lifetime_minutes"),
         renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "base_url"),
+        renamed_to=ConfigParameter("api", "base_url"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
