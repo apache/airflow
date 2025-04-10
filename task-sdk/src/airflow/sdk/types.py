@@ -96,13 +96,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
     ) -> int: ...
 
     @staticmethod
-    def get_tg_count(
+    def get_task_states(
         dag_id: str,
-        task_group_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
         logical_dates: list[AwareDatetime] | None = None,
         run_ids: list[str] | None = None,
-        states: list[str] | None = None,
-    ) -> int: ...
+    ) -> dict[str, Any]: ...
 
     @staticmethod
     def get_dr_count(

@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
-from math import floor
-from typing import Annotated
+from collections import defaultdict
+from typing import Annotated, Any
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
@@ -29,12 +29,13 @@ from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import Select, select
+from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PrevSuccessfulDagRunResponse,
+    TaskStatesResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -608,29 +609,49 @@ def get_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        task_map_pairs = _get_task_map_pairs(dag_id, task_group_id, session, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+
+        # Get unique (task_id, map_index) pairs
+        task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
+        if not task_map_pairs:
+            # If no task group tasks found, default to checking the task group ID itself
+            # This matches the behavior in _get_external_task_group_task_ids
+            task_map_pairs = [(task_group_id, -1)]
 
         # Update query to use task_id, map_index pairs
         query = query.where(tuple_(TI.task_id, TI.map_index).in_(task_map_pairs))
 
-    query = _filter_by_states(states, query)
+    if states:
+        if "null" in states:
+            not_none_states = [s for s in states if s != "null"]
+            if not_none_states:
+                query = query.where(or_(TI.state.is_(None), TI.state.in_(not_none_states)))
+            else:
+                query = query.where(TI.state.is_(None))
+        else:
+            query = query.where(TI.state.in_(states))
 
-    count = session.scalar(query) or 0
+    count = session.scalar(query)
 
-    return count
+    return count or 0
 
 
-@router.get("/task-group-count", status_code=status.HTTP_200_OK)
-def get_tg_count(
+@router.get("/states", status_code=status.HTTP_200_OK)
+def get_task_states(
     dag_id: str,
     session: SessionDep,
-    task_group_id: Annotated[str, Query()],
+    task_ids: Annotated[list[str] | None, Query()] = None,
+    task_group_id: Annotated[str | None, Query()] = None,
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
     run_ids: Annotated[list[str] | None, Query()] = None,
-    states: Annotated[list[str] | None, Query()] = None,
-) -> int:
-    """Get the count of task-group instances matching the given criteria."""
-    query = select(func.count()).select_from(TI).where(TI.dag_id == dag_id)
+) -> TaskStatesResponse:
+    """Get the task states for the given criteria."""
+    run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
+
+    query = select(TI).where(TI.dag_id == dag_id)
+
+    if task_ids:
+        query = query.where(TI.task_id.in_(task_ids))
 
     if logical_dates:
         query = query.where(TI.logical_date.in_(logical_dates))
@@ -638,19 +659,16 @@ def get_tg_count(
     if run_ids:
         query = query.where(TI.run_id.in_(run_ids))
 
-    task_map_pairs = _get_task_map_pairs(dag_id, task_group_id, session, logical_dates, run_ids)
+    results = session.scalars(query).all()
 
-    # Update query to use task_id, map_index pairs
-    query = query.where(tuple_(TI.task_id, TI.map_index).in_(task_map_pairs))
+    [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in results]
 
-    query = _filter_by_states(states, query)
+    if task_group_id:
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
-    count = session.scalar(query) or 0
+        [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
 
-    dttm_or_run_ids = logical_dates or run_ids
-    count = (count / len(task_map_pairs)) * len(dttm_or_run_ids) if dttm_or_run_ids else 1
-
-    return floor(count)
+    return TaskStatesResponse(task_states=run_id_task_state_map)
 
 
 @ti_id_router.only_exists_in_older_versions
@@ -693,22 +711,7 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _filter_by_states(states: list[str] | None, query: Select):
-    if states:
-        if "null" in states:
-            not_none_states = [s for s in states if s != "null"]
-            if not_none_states:
-                query = query.where(or_(TI.state.is_(None), TI.state.in_(not_none_states)))
-            else:
-                query = query.where(TI.state.is_(None))
-        else:
-            query = query.where(TI.state.in_(states))
-    return query
-
-
-def _get_task_map_pairs(
-    dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None
-):
+def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
     # Get all tasks in the task group
     dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
     if not dag:
@@ -740,14 +743,7 @@ def _get_task_map_pairs(
         )
     ).all()
 
-    # Get unique (task_id, map_index) pairs
-    task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-    if not task_map_pairs:
-        # If no task group tasks found, default to checking the task group ID itself
-        # This matches the behavior in _get_external_task_group_task_ids
-        task_map_pairs = [(task_group_id, -1)]
-
-    return task_map_pairs
+    return group_tasks
 
 
 # This line should be at the end of the file to ensure all routes are registered

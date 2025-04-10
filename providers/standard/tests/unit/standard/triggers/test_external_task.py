@@ -214,7 +214,7 @@ class TestWorkflowTrigger:
         assert mock_sleep.await_count == 1
 
     @pytest.mark.parametrize(
-        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_tg_count, mock_dag_count, expected",
+        "task_ids, task_group_id, states, logical_dates, mock_ti_count, mock_task_states, mock_dag_count, expected",
         [
             (
                 ["task_id_one", "task_id_two"],
@@ -225,8 +225,8 @@ class TestWorkflowTrigger:
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                 ],
                 4,
-                2,
-                2,
+                None,
+                None,
                 2,
             ),
             (
@@ -237,10 +237,42 @@ class TestWorkflowTrigger:
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                 ],
+                None,
+                {"run_id_one": {"group1.task_id": "success"}, "run_id_two": {"group1.task_id": "success"}},
+                None,
                 2,
-                2,
-                2,
-                2,
+            ),
+            (
+                [],
+                "task_group_id",
+                ["success"],
+                [
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                ],
+                None,
+                {
+                    "run_id_one": {"task_group_id.task_id": "success"},
+                    "run_id_two": {"task_group_id.task_id": "failed"},
+                },
+                None,
+                1,
+            ),
+            (
+                [],
+                "task_group_id",
+                ["success"],
+                [
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                    timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
+                ],
+                None,
+                {
+                    "run_id_one": {"task_group_id.task_id": "success"},
+                    "run_id_two": {"task_group_id.task_id": "skipped"},
+                },
+                None,
+                1,
             ),
             (
                 [],
@@ -250,8 +282,8 @@ class TestWorkflowTrigger:
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                     timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                 ],
-                2,
-                2,
+                None,
+                None,
                 2,
                 2,
             ),
@@ -259,24 +291,26 @@ class TestWorkflowTrigger:
         ids=[
             "with_task_ids",
             "with task_group_id only",
+            "with task_group_id and some task_ids failed",
+            "without task_group_id and some task_ids skipped",
             "no task_ids or task_group_id",
         ],
     )
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
-    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_tg_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states")
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
     @pytest.mark.asyncio
     async def test_get_count_af_3(
         self,
         mock_get_dr_count,
-        mock_get_tg_count,
+        mock_get_task_states,
         mock_get_ti_count,
         task_ids,
         task_group_id,
         states,
         logical_dates,
         mock_ti_count,
-        mock_tg_count,
+        mock_task_states,
         mock_dag_count,
         expected,
     ):
@@ -289,7 +323,7 @@ class TestWorkflowTrigger:
 
         mock_get_ti_count.return_value = mock_ti_count
         mock_get_dr_count.return_value = mock_dag_count
-        mock_get_tg_count.return_value = mock_tg_count
+        mock_get_task_states.return_value = mock_task_states
 
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
@@ -306,14 +340,14 @@ class TestWorkflowTrigger:
         if task_ids:
             mock_get_ti_count.assert_called_once()
             assert mock_get_ti_count.call_count == 1
-            mock_get_tg_count.assert_not_called()
-            assert mock_get_tg_count.call_count == 0
+            mock_get_task_states.assert_not_called()
+            assert mock_get_task_states.call_count == 0
             mock_get_dr_count.assert_not_called()
             assert mock_get_dr_count.call_count == 0
 
         elif task_group_id:
-            mock_get_tg_count.assert_called_once()
-            assert mock_get_tg_count.call_count == 1
+            mock_get_task_states.assert_called_once()
+            assert mock_get_task_states.call_count == 1
             mock_get_ti_count.assert_not_called()
             assert mock_get_ti_count.call_count == 0
             mock_get_dr_count.assert_not_called()
@@ -324,8 +358,8 @@ class TestWorkflowTrigger:
             assert mock_get_dr_count.call_count == 1
             mock_get_ti_count.assert_not_called()
             assert mock_get_ti_count.call_count == 0
-            mock_get_tg_count.assert_not_called()
-            assert mock_get_tg_count.call_count == 0
+            mock_get_task_states.assert_not_called()
+            assert mock_get_task_states.call_count == 0
 
     def test_serialization(self):
         """

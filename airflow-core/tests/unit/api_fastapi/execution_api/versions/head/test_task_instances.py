@@ -1387,14 +1387,22 @@ class TestGetCount:
         assert response.json() == 2
 
 
-class TestGetTGCount:
+class TestGetTaskStates:
     def setup_method(self):
         clear_db_runs()
 
     def teardown_method(self):
         clear_db_runs()
 
-    def test_get_tg_count_basic(self, client, dag_maker, session):
+    def test_get_task_states_basic(self, client, session, create_task_instance):
+        create_task_instance(task_id="test_task", state=State.SUCCESS)
+        session.commit()
+
+        response = client.get("/execution/task-instances/states", params={"dag_id": "dag"})
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"test": {"test_task": "success"}}}
+
+    def test_get_task_states_group_id_basic(self, client, dag_maker, session):
         with dag_maker(dag_id="test_dag", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
@@ -1403,15 +1411,55 @@ class TestGetTGCount:
         session.commit()
 
         response = client.get(
-            "/execution/task-instances/task-group-count",
+            "/execution/task-instances/states",
             params={"dag_id": "test_dag", "task_group_id": "group1"},
         )
         assert response.status_code == 200
-        assert response.json() == 1
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": None,
+                },
+            },
+        }
 
-    def test_get_tg_count_with_states(self, client, session, dag_maker):
+    def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
         """Test counting tasks in specific states."""
-        with dag_maker("test_get_tg_count_with_states", serialized=True):
+        with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+
+        # Set different states for the task instances
+        for ti, state in zip(tis, [State.SUCCESS, State.FAILED]):
+            ti.state = state
+            session.merge(ti)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
+                "task_group_id": "group1",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": "success",
+                    "task2": "failed",
+                },
+            },
+        }
+
+    def test_get_task_group_states_with_multiple_task_tasks(self, client, session, dag_maker):
+        """Test counting tasks in specific states."""
+        with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
                 EmptyOperator(task_id="task2")
@@ -1428,18 +1476,25 @@ class TestGetTGCount:
         session.commit()
 
         response = client.get(
-            "/execution/task-instances/task-group-count",
+            "/execution/task-instances/states",
             params={
-                "dag_id": "test_get_tg_count_with_states",
-                "states": [State.SUCCESS, State.FAILED],
+                "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
                 "task_group_id": "group1",
             },
         )
         assert response.status_code == 200
-        assert response.json() == 1
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": "success",
+                    "group1.task2": "failed",
+                    "group1.task3": "skipped",
+                },
+            },
+        }
 
-    def test_get_tg_count_with_logical_dates(self, client, session, dag_maker, serialized=True):
-        with dag_maker("test_get_tg_count_with_logical_dates", serialized=True):
+    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker, serialized=True):
+        with dag_maker("test_get_task_group_states_with_logical_dates", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
 
@@ -1452,46 +1507,27 @@ class TestGetTGCount:
         session.commit()
 
         response = client.get(
-            "/execution/task-instances/task-group-count",
+            "/execution/task-instances/states",
             params={
-                "dag_id": "test_get_tg_count_with_logical_dates",
+                "dag_id": "test_get_task_group_states_with_logical_dates",
                 "logical_dates": [date1.isoformat(), date2.isoformat()],
                 "task_group_id": "group1",
             },
         )
         assert response.status_code == 200
-        assert response.json() == 2
-
-    def test_get_tg_count_with_logical_dates_with_multiple_tasks_in_tg_group(
-        self, client, session, dag_maker, serialized=True
-    ):
-        with dag_maker("test_get_tg_count_with_logical_dates", serialized=True):
-            with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
-                EmptyOperator(task_id="task3")
-
-        date1 = timezone.datetime(2025, 1, 1)
-        date2 = timezone.datetime(2025, 1, 2)
-
-        dag_maker.create_dagrun(run_id="test_run_id1", logical_date=date1)
-        dag_maker.create_dagrun(run_id="test_run_id2", logical_date=date2)
-
-        session.commit()
-
-        response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={
-                "dag_id": "test_get_tg_count_with_logical_dates",
-                "logical_dates": [date1.isoformat(), date2.isoformat()],
-                "task_group_id": "group1",
+        assert response.json() == {
+            "task_states": {
+                "test_run_id1": {
+                    "group1.task1": None,
+                },
+                "test_run_id2": {
+                    "group1.task1": None,
+                },
             },
-        )
-        assert response.status_code == 200
-        assert response.json() == 2
+        }
 
-    def test_get_tg_count_with_run_ids(self, client, session, dag_maker):
-        with dag_maker("test_get_tg_count_with_run_ids", serialized=True):
+    def test_get_task_group_states_with_run_ids(self, client, session, dag_maker):
+        with dag_maker("test_get_task_group_states_with_run_ids", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
 
@@ -1501,63 +1537,47 @@ class TestGetTGCount:
         session.commit()
 
         response = client.get(
-            "/execution/task-instances/task-group-count",
+            "/execution/task-instances/states",
             params={
-                "dag_id": "test_get_tg_count_with_run_ids",
+                "dag_id": "test_get_task_group_states_with_run_ids",
                 "run_ids": ["run1", "run2"],
                 "task_group_id": "group1",
             },
         )
         assert response.status_code == 200
-        assert response.json() == 2
-
-    def test_get_tg_count_single_run_id(self, client, session, dag_maker, create_task_instance):
-        with dag_maker(dag_id="test_dag_return_task_group_count", serialized=True):
-            with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
-                EmptyOperator(task_id="task3")
-
-            with TaskGroup("group2"):
-                EmptyOperator(task_id="task3")
-
-        dag_maker.create_dagrun(
-            logical_date=timezone.datetime(2017, 1, 1), run_id="test_return_task_group_count_single_run_id"
-        )
-        session.commit()
-
-        response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={
-                "dag_id": "test_dag_return_task_group_count",
-                "task_group_id": "group1",
-                "run_ids": [
-                    "test_return_task_group_count_single_run_id",
-                ],
+        assert response.json() == {
+            "task_states": {
+                "run1": {
+                    "group1.task1": None,
+                },
+                "run2": {
+                    "group1.task1": None,
+                },
             },
-        )
-        assert response.status_code == 200
-        assert response.json() == 1
+        }
 
-    def test_get_tg_count_task_group_not_found(self, client, session, dag_maker):
-        with dag_maker(dag_id="test_get_count_task_group_not_found", serialized=True):
+    def test_get_task_states_task_group_not_found(self, client, session, dag_maker):
+        with dag_maker(dag_id="test_get_task_states_task_group_not_found", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(session=session)
 
         response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={"dag_id": "test_get_count_task_group_not_found", "task_group_id": "non_existent_group"},
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_states_task_group_not_found",
+                "task_group_id": "non_existent_group",
+            },
         )
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
+            "message": "Task group non_existent_group not found in DAG test_get_task_states_task_group_not_found",
         }
 
-    def test_get_tg_count_dag_not_found(self, client, session):
+    def test_get_task_states_dag_not_found(self, client, session):
         response = client.get(
-            "/execution/task-instances/task-group-count",
+            "/execution/task-instances/states",
             params={"dag_id": "non_existent_dag", "task_group_id": "group1"},
         )
         assert response.status_code == 404
@@ -1565,110 +1585,3 @@ class TestGetTGCount:
             "reason": "not_found",
             "message": "DAG non_existent_dag not found",
         }
-
-    def test_get_tg_count_with_none_state(self, client, dag_maker, session, create_task_instance):
-        with dag_maker("test_get_tg_count_with_none_state", serialized=True):
-            with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
-
-        dr = dag_maker.create_dagrun()
-
-        tis = dr.get_task_instances()
-
-        # Set different states for the task instances
-        for ti, state in zip(tis, [State.SUCCESS, State.NONE]):
-            ti.state = state
-            session.merge(ti)
-        session.commit()
-
-        response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={
-                "dag_id": "test_get_tg_count_with_none_state",
-                "states": ["null"],
-                "task_group_id": "group1",
-            },
-        )
-        assert response.status_code == 200
-        assert response.json() == 1
-
-    def test_get_tg_count_mixed_run_failures(self, client, dag_maker, session, create_task_instance):
-        """
-        Validate task-group-count with mixed run failures. it should return count of
-        task group count in dagruns with success criteria met
-        """
-
-        with dag_maker("test_get_tg_count_mixed_run_failures", serialized=True):
-            with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
-                EmptyOperator(task_id="task3")
-
-        dr1 = dag_maker.create_dagrun(run_id="run1", logical_date=timezone.datetime(2025, 1, 1))
-        dr2 = dag_maker.create_dagrun(run_id="run2", logical_date=timezone.datetime(2025, 1, 2))
-
-        tis1 = dr1.get_task_instances()
-        tis2 = dr2.get_task_instances()
-
-        for ti, state in zip(tis1, [State.SUCCESS, State.SUCCESS, State.SUCCESS]):
-            ti.state = state
-            session.merge(ti)
-
-        for ti, state in zip(tis2, [State.FAILED, State.FAILED, State.FAILED]):
-            ti.state = state
-            session.merge(ti)
-        session.commit()
-
-        response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={
-                "dag_id": "test_get_tg_count_mixed_run_failures",
-                "states": [State.SUCCESS],
-                "run_ids": ["run1", "run2"],
-                "task_group_id": "group1",
-            },
-        )
-        assert response.status_code == 200
-        assert response.json() == 1
-
-    def test_get_tg_count_partial_success_in_one_dag_run(
-        self, client, dag_maker, session, create_task_instance
-    ):
-        """
-        Validate task-group-count with partial success in one dagrun. it should return count of
-        task group count in dagruns with success criteria met
-        """
-
-        with dag_maker("test_get_tg_count_mixed_run_failures", serialized=True):
-            with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
-                EmptyOperator(task_id="task3")
-
-        dr1 = dag_maker.create_dagrun(run_id="run1", logical_date=timezone.datetime(2025, 1, 1))
-        dr2 = dag_maker.create_dagrun(run_id="run2", logical_date=timezone.datetime(2025, 1, 2))
-
-        tis1 = dr1.get_task_instances()
-        tis2 = dr2.get_task_instances()
-
-        for ti, state in zip(tis1, [State.SUCCESS, State.SUCCESS, State.SUCCESS]):
-            ti.state = state
-            session.merge(ti)
-
-        for ti, state in zip(tis2, [State.SUCCESS, State.SUCCESS, State.FAILED]):
-            ti.state = state
-            session.merge(ti)
-        session.commit()
-
-        response = client.get(
-            "/execution/task-instances/task-group-count",
-            params={
-                "dag_id": "test_get_tg_count_mixed_run_failures",
-                "states": [State.SUCCESS],
-                "run_ids": ["run1", "run2"],
-                "task_group_id": "group1",
-            },
-        )
-        assert response.status_code == 200
-        assert response.json() == 1

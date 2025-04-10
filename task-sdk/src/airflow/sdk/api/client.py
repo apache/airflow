@@ -41,6 +41,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
+    TaskStatesResponse,
     TerminalStateNonSuccess,
     TerminalTIState,
     TIDeferredStatePayload,
@@ -65,7 +66,6 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
-    TGCount,
     TICount,
 )
 from airflow.utils.net import get_hostname
@@ -234,28 +234,28 @@ class TaskInstanceOperations:
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
-    def get_tg_count(
+    def get_task_states(
         self,
         dag_id: str,
-        task_group_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
-        states: list[str] | None = None,
-    ) -> TGCount:
+    ) -> TaskStatesResponse:
         """Get count of task group instances matching the given criteria."""
         params = {
             "dag_id": dag_id,
+            "task_ids": task_ids,
             "task_group_id": task_group_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
             "run_ids": run_ids,
-            "states": states,
         }
 
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
-        resp = self.client.get("task-instances/task-group-count", params=params)
-        return TGCount(count=resp.json())
+        resp = self.client.get("task-instances/states", params=params)
+        return TaskStatesResponse.model_validate_json(resp.read())
 
 
 class ConnectionOperations:

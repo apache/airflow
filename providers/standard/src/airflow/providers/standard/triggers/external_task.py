@@ -133,23 +133,28 @@ class WorkflowTrigger(BaseTrigger):
             await asyncio.sleep(self.poke_interval)
 
     async def _get_count_af_3(self, states):
+        from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         params = {
             "dag_id": self.external_dag_id,
             "logical_dates": self.logical_dates,
             "run_ids": self.run_ids,
-            "states": states,
         }
         if self.external_task_ids:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
                 task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                states=states,
                 **params,
             )
         elif self.external_task_group_id:
-            count = await sync_to_async(RuntimeTaskInstance.get_tg_count)(
+            task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
                 task_group_id=self.external_task_group_id,
                 **params,
+            )
+            count = await sync_to_async(_get_count_by_matched_states)(
+                task_states_mamp=task_state_map,
+                states=states,
             )
         else:
             count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
@@ -158,7 +163,6 @@ class WorkflowTrigger(BaseTrigger):
                 run_ids=self.run_ids,
                 states=states,
             )
-
         if self.external_task_ids:
             return count / len(self.external_task_ids)
         else:
