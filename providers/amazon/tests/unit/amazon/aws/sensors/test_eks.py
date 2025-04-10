@@ -105,6 +105,7 @@ class TestEksClusterStateSensor:
         assert str(raised_exception.value) == expected_message
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
+    @pytest.mark.db_test
     def test_region_argument(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksClusterStateSensor(
@@ -128,6 +129,7 @@ class TestEksFargateProfileStateSensor:
             target_state=self.target_state,
         )
 
+    @pytest.mark.db_test
     def test_region_argument(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksFargateProfileStateSensor(
@@ -187,6 +189,7 @@ class TestEksNodegroupStateSensor:
             target_state=self.target_state,
         )
 
+    @pytest.mark.db_test
     def test_region_argument(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksNodegroupStateSensor(
