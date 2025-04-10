@@ -242,7 +242,7 @@ class TaskInstanceOperations:
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
     ) -> TaskStatesResponse:
-        """Get count of task group instances matching the given criteria."""
+        """Get task states given criteria."""
         params = {
             "dag_id": dag_id,
             "task_ids": task_ids,

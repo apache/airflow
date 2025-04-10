@@ -445,7 +445,7 @@ class RuntimeTaskInstance(TaskInstance):
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Return the number of task group instances matching the given criteria."""
+        """Return the task states matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
         with SUPERVISOR_COMMS.lock:
