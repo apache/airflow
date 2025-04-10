@@ -23,7 +23,7 @@ from typing import Annotated
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, Depends, HTTPException, Query, status
+from fastapi import Body, Depends, HTTPException, Query, Request, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -49,7 +49,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -256,6 +255,7 @@ def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
     session: SessionDep,
+    request: Request,
 ):
     """
     Update the state of a TaskInstance.
@@ -313,14 +313,10 @@ def ti_update_state(
 
         if updated_state == TerminalTIState.FAILED:
             ti = session.get(TI, ti_id_str)
-            row = session.query(SerializedDagModel).filter_by(dag_id=dag_id).first()
-            dag_data = row.data.get("dag") if row and row.data else None
-
-            if dag_data and dag_data.get("fail_fast"):
-                task_teardown_map = {
-                    task["__var"]["task_id"]: task["__var"]["is_teardown"]
-                    for task in dag_data.get("tasks", [])
-                }
+            ser_dag = request.app.state.dag_bag.get_dag(dag_id)
+            if ser_dag.__dict__.get("fail_fast", False):
+                task_dict = ser_dag.__dict__.get("task_dict", {})
+                task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
                 _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
 
     elif isinstance(ti_patch_payload, TIRetryStatePayload):
