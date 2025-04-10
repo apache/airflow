@@ -130,10 +130,9 @@ class S3DagBundle(BaseDagBundle, LoggingMixin):
                 )
 
             s3_last_modified = s3_object.last_modified
-            local_last_modified = datetime.fromtimestamp(local_stats.st_mtime, tz=timezone.utc)
-            if s3_last_modified.replace(microsecond=0) != local_last_modified.replace(microsecond=0):
+            if local_stats.st_mtime < s3_last_modified.microsecond:
                 should_download = True
-                download_msg = f"S3 object last modified ({s3_last_modified}) and local file last modified ({local_last_modified}) differ."
+                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
 
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)

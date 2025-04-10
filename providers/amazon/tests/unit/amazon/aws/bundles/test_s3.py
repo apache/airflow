@@ -176,7 +176,8 @@ class TestS3DagBundle:
 
     @pytest.mark.db_test
     def test_refresh(self, s3_bucket, s3_client, caplog):
-        caplog.set_level(logging.DEBUG)  # Set the level to DEBUG for this test
+        caplog.set_level(logging.ERROR)
+        caplog.set_level(logging.DEBUG, logger="airflow.providers.amazon.aws.bundles.s3.S3DagBundle")
         bundle = S3DagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
