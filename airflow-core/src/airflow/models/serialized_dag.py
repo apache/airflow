@@ -23,7 +23,7 @@ import logging
 import zlib
 from collections.abc import Iterable, Iterator, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -635,39 +635,43 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
+        load_json: Callable | None
+        if COMPRESS_SERIALIZED_DAGS is False:
+            if session.bind.dialect.name in ["sqlite", "mysql"]:
+                data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
+
+                def load_json(deps_data):
+                    return json.loads(deps_data) if deps_data else []
+            else:
+                data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
+                load_json = None
+        else:
+            data_col_to_select = cls._data_compressed
+
+            def load_json(deps_data):
+                return json.loads(zlib.decompress(deps_data))["dag"]["dag_dependencies"] if deps_data else []
+
         latest_sdag_subquery = (
             select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
         )
-        if session.bind.dialect.name in ["sqlite", "mysql"]:
-            query = session.execute(
-                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
-                .join(
-                    latest_sdag_subquery,
-                    (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    & (cls.created_at == latest_sdag_subquery.c.max_created),
-                )
-                .join(cls.dag_model)
-                .where(~DagModel.is_stale)
+        query = session.execute(
+            select(cls.dag_id, data_col_to_select)
+            .join(
+                latest_sdag_subquery,
+                (cls.dag_id == latest_sdag_subquery.c.dag_id)
+                & (cls.created_at == latest_sdag_subquery.c.max_created),
             )
-            iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
-        else:
-            iterator = session.execute(
-                select(
-                    cls.dag_id,
-                    func.json_extract_path(cls._data, "dag", "dag_dependencies"),
-                )
-                .join(
-                    latest_sdag_subquery,
-                    (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    & (cls.created_at == latest_sdag_subquery.c.max_created),
-                )
-                .join(cls.dag_model)
-                .where(~DagModel.is_stale)
-            ).all()
+            .join(cls.dag_model)
+            .where(~DagModel.is_stale)
+        )
+        iterator = (
+            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
+            if load_json is not None
+            else query.all()
+        )
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
-
         return dag_depdendencies_by_dag
 
     @staticmethod

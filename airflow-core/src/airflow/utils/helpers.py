@@ -205,7 +205,7 @@ def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     For example:
     http://localhost:8080/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
-    baseurl = conf.get("api", "base_url")
+    baseurl = conf.get("api", "base_url", fallback="/")
     return urljoin(baseurl, f"dags/{dag_id}/runs/{run_id}")
 
 

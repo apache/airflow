@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+1.5.3
+.....
+
+Misc
+~~~~
+
+* ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix common-io and common-compat provider description format (#48864)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+
 1.5.2
 .....
 

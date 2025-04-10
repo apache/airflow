@@ -31,7 +31,13 @@ export const routerConfig = [
     path: "/",
   },
 ];
-const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+
+const baseHref = document.querySelector("head>base")?.getAttribute("href");
+const baseUrl =
+  baseHref !== null && baseHref !== undefined && baseHref !== ""
+    ? baseHref
+    : `${globalThis.location.origin}/`;
+
 const basename = new URL(`${baseUrl}auth`).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

@@ -147,6 +147,9 @@ labelPRBasedOnFilePath:
   provider:ftp:
     - providers/ftp/**
 
+  provider:git:
+    - providers/git/**
+
   provider:github:
     - providers/github/**
 
