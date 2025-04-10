@@ -155,7 +155,7 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
-    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
     MenuItem.DOCS: RESOURCE_DOCS,
@@ -647,6 +647,9 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :meta private:
         """
+        # If the user gets deleted while being logged in
+        if not user:
+            return []
         return getattr(user, "perms") or []
 
     def _get_root_dag_id(self, dag_id: str) -> str:

@@ -151,6 +151,12 @@ CONFIGS_CHANGES = [
     ),
     # core
     ConfigChange(
+        config=ConfigParameter("core", "executor"),
+        default_change=True,
+        new_default="LocalExecutor",
+        was_removed=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "check_slas"),
         suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
@@ -322,12 +328,28 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("fab", "auth_rate_limit"),
     ),
     ConfigChange(
+        config=ConfigParameter("webserver", "config_file"),
+        renamed_to=ConfigParameter("fab", "config_file"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_backend"),
+        renamed_to=ConfigParameter("fab", "session_backend"),
+    ),
+    ConfigChange(
         config=ConfigParameter("webserver", "session_lifetime_days"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "force_log_out_after"),
-        renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "session_lifetime_minutes"),
+        renamed_to=ConfigParameter("fab", "session_lifetime_minutes"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "base_url"),
+        renamed_to=ConfigParameter("api", "base_url"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
@@ -781,9 +803,10 @@ def update_config(args) -> None:
 
     config_dict = conf.as_dict(
         display_source=True,
-        include_env=True,
-        include_cmds=True,
+        include_env=False,
+        include_cmds=False,
         include_secret=True,
+        display_sensitive=True,
     )
     for change in CONFIGS_CHANGES:
         conf_section = change.config.section.lower()
@@ -806,7 +829,6 @@ def update_config(args) -> None:
             continue
 
         current_value = value_data[0]
-
         if change.default_change:
             if str(current_value) != str(change.new_default):
                 modifications.add_default_update(conf_section, conf_option, str(change.new_default))

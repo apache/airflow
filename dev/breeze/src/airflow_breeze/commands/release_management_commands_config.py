@@ -257,6 +257,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--only-min-version-update",
                 "--reapply-templates-only",
                 "--skip-git-fetch",
+                "--skip-changelog",
             ],
         }
     ],

@@ -1,0 +1,22 @@
+In Airflow 3.0, ``airflow.operators.email.EmailOperator`` is removed.
+
+Instead, users can install ``smtp`` provider and import ``EmailOperator`` from the the module ``airflow.providers.smtp.operators.smtp``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.operators.email.EmailOperator`` → ``airflow.providers.smtp.operators.smtp.EmailOperator``

@@ -603,7 +603,7 @@ class MappedTaskGroup(TaskGroup):
         self._expand_input = expand_input
 
     def __iter__(self):
-        from airflow.models.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
         for child in self.children.values():
             if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:

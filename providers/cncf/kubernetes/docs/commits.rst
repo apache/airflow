@@ -34,14 +34,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.4.1
+......
+
+Latest change: 2025-04-05
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`32b4186010 <https://github.com/apache/airflow/commit/32b418601089ac340aa1408c55cdd206b11879c6>`__  2025-04-05   ``Remove old comment about excluding 'executor_config' (#48830)``
+`1ee519c2c4 <https://github.com/apache/airflow/commit/1ee519c2c4a3fb5973d78f4bfb4262e329b0fccf>`__  2025-04-05   ``No need to exclude executor_config specifically for KE (#48826)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`69f8682514 <https://github.com/apache/airflow/commit/69f8682514ad3889ad24a067cf3ee7cde4ad9161>`__  2025-04-02   ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+`606a3b2cad <https://github.com/apache/airflow/commit/606a3b2cade603728282ca958dc13ad8256c39d0>`__  2025-03-31   ``Fix broken ci on main for k8s cli test (#48595)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`511bd70e1d <https://github.com/apache/airflow/commit/511bd70e1dfffe0b09f2af54079f061ade01fa28>`__  2025-03-27   ``update kubernetes decorator comment (#48447)``
+`4c4de51dc4 <https://github.com/apache/airflow/commit/4c4de51dc4d0e4de8035817f287e7614b77e9742>`__  2025-03-26   ``Handle missing container_statuses in pod_manager.get_container_status (#47936)``
+==================================================================================================  ===========  ==================================================================================
+
 10.4.0
 ......
 
-Latest change: 2025-03-25
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  ================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ================================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `204020a329 <https://github.com/apache/airflow/commit/204020a329d954dca14ef30ea7f72c25782da85b>`__  2025-03-22   ``KubernetesPodOperator: add base_container_name to the templated fields (#47864)``
 `243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``

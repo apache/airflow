@@ -108,7 +108,7 @@ class TestDagRunOperator:
 
             assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
             assert exc_info.value.conf == {"foo": "bar"}
-            assert exc_info.value.logical_date is None
+            assert exc_info.value.logical_date is not None
             assert exc_info.value.reset_dag_run is False
             assert exc_info.value.skip_when_already_exists is False
             assert exc_info.value.wait_for_completion is False
@@ -119,7 +119,7 @@ class TestDagRunOperator:
                 run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
-            assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
+            assert exc_info.value.dag_run_id == expected_run_id
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_one")
@@ -197,6 +197,46 @@ class TestDagRunOperator:
         )
 
         assert task.failed_states == []
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+
+        try:
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "success"},
+                ),
+            )
+        except Exception as e:
+            pytest.fail(f"Error: {e}")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete_should_fail(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=["failed"],
+        )
+
+        with pytest.raises(AirflowException, match="failed with failed state"):
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "failed"},
+                ),
+            )
 
 
 # TODO: To be removed once the provider drops support for Airflow 2

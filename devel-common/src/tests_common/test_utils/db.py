@@ -86,8 +86,6 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
-    from flask import Flask
-
     from airflow.configuration import conf
     from airflow.utils import db
 
@@ -98,6 +96,8 @@ def initial_db_init():
         db.downgrade(to_revision="5f2621c13b39")
         db.upgradedb(to_revision="head")
     else:
+        from flask import Flask
+
         from airflow.www.extensions.init_appbuilder import init_appbuilder
         from airflow.www.extensions.init_auth_manager import get_auth_manager
 

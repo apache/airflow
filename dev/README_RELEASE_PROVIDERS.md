@@ -79,7 +79,7 @@ print the command that you should run.
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
 You can read more about the command line tools used to generate the packages in the
-[Provider details](PROVIDER_PACKAGE_DETAILS.md).
+[Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
 
 # Bump min Airflow version for providers
 
@@ -296,7 +296,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+  breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:

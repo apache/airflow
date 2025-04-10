@@ -61,6 +61,7 @@ class TestClient:
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",
                         "run_after": "2021-01-01T00:00:00Z",
+                        "consumed_asset_events": [],
                     },
                     "max_tries": 0,
                     "should_retry": False,
@@ -373,6 +374,22 @@ class TestTaskInstanceOperations:
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
         )
         client.task_instances.reschedule(ti_id, msg)
+
+    def test_task_instance_up_for_retry(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "up_for_retry"
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_instances.retry(ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"))
 
     @pytest.mark.parametrize(
         "rendered_fields",

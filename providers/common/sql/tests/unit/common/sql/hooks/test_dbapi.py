@@ -485,7 +485,10 @@ class TestDbApiHook:
             )
         )
         assert self.db_hook.placeholder == "?"
-        assert not caplog.messages
+        filtered_messages = [
+            msg for msg in caplog.messages if "Skipping masking for a secret as it's too short" not in msg
+        ]
+        assert not filtered_messages
 
     def test_placeholder_with_invalid_placeholder_in_extra(self, caplog):
         self.db_hook.get_connection = mock.MagicMock(

@@ -97,7 +97,7 @@ with DAG(
 
     start_java_job_direct_deferrable = BeamRunJavaPipelineOperator(
         task_id="start_java_job_direct_deferrable",
-        jar=LOCAL_JAR,
+        jar=GCS_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
         },

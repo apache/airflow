@@ -572,7 +572,18 @@ export const $BaseNodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
   },
@@ -1693,9 +1704,9 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -1722,11 +1733,25 @@ export const $DAGDetailsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -2012,7 +2037,7 @@ export const $DAGDetailsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2080,9 +2105,9 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2109,11 +2134,25 @@ export const $DAGResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -2254,7 +2293,7 @@ export const $DAGResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2886,9 +2925,9 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2915,11 +2954,25 @@ export const $DAGWithLatestDagRunsResponse = {
       title: "Last Expired",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     relative_fileloc: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Relative Fileloc",
     },
     fileloc: {
@@ -3079,7 +3132,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -3651,6 +3704,22 @@ export const $ExtraLinksResponse = {
   description: "Extra Links Response.",
 } as const;
 
+export const $ExtraMenuItem = {
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+    },
+    href: {
+      type: "string",
+      title: "Href",
+    },
+  },
+  type: "object",
+  required: ["text", "href"],
+  title: "ExtraMenuItem",
+} as const;
+
 export const $FastAPIAppResponse = {
   properties: {
     app: {
@@ -3671,6 +3740,24 @@ export const $FastAPIAppResponse = {
   required: ["app", "url_prefix", "name"],
   title: "FastAPIAppResponse",
   description: "Serializer for Plugin FastAPI App responses.",
+} as const;
+
+export const $FastAPIRootMiddlewareResponse = {
+  properties: {
+    middleware: {
+      type: "string",
+      title: "Middleware",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["middleware", "name"],
+  title: "FastAPIRootMiddlewareResponse",
+  description: "Serializer for Plugin FastAPI root middleware responses.",
 } as const;
 
 export const $GridDAGRunwithTIs = {
@@ -4038,7 +4125,14 @@ export const $ImportErrorResponse = {
       title: "Filename",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     stack_trace: {
@@ -4199,38 +4293,43 @@ export const $JobResponse = {
 } as const;
 
 export const $MenuItem = {
-  properties: {
-    text: {
-      type: "string",
-      title: "Text",
-    },
-    href: {
-      type: "string",
-      title: "Href",
-    },
-  },
-  type: "object",
-  required: ["text", "href"],
+  type: "string",
+  enum: [
+    "Assets",
+    "Audit Log",
+    "Config",
+    "Connections",
+    "Dags",
+    "Docs",
+    "Plugins",
+    "Pools",
+    "Providers",
+    "Variables",
+    "XComs",
+  ],
   title: "MenuItem",
-  description: "Menu Item for responses.",
+  description: "Define all menu items defined in the menu.",
 } as const;
 
 export const $MenuItemCollectionResponse = {
   properties: {
-    menu_items: {
+    authorized_menu_items: {
       items: {
         $ref: "#/components/schemas/MenuItem",
       },
       type: "array",
-      title: "Menu Items",
+      title: "Authorized Menu Items",
     },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
+    extra_menu_items: {
+      items: {
+        $ref: "#/components/schemas/ExtraMenuItem",
+      },
+      type: "array",
+      title: "Extra Menu Items",
     },
   },
   type: "object",
-  required: ["menu_items", "total_entries"],
+  required: ["authorized_menu_items", "extra_menu_items"],
   title: "MenuItemCollectionResponse",
   description: "Menu Item Collection serializer for responses.",
 } as const;
@@ -4247,7 +4346,18 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
     children: {
@@ -4426,6 +4536,13 @@ export const $PluginResponse = {
       type: "array",
       title: "Fastapi Apps",
     },
+    fastapi_root_middlewares: {
+      items: {
+        $ref: "#/components/schemas/FastAPIRootMiddlewareResponse",
+      },
+      type: "array",
+      title: "Fastapi Root Middlewares",
+    },
     appbuilder_views: {
       items: {
         $ref: "#/components/schemas/AppBuilderViewResponse",
@@ -4479,6 +4596,7 @@ export const $PluginResponse = {
     "macros",
     "flask_blueprints",
     "fastapi_apps",
+    "fastapi_root_middlewares",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",

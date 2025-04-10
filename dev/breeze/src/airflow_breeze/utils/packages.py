@@ -228,6 +228,17 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
         raise SystemExit(1)
 
 
+def filter_provider_info_data(provider_info: dict[str, Any]) -> dict[str, Any]:
+    json_schema_dict = json.loads(PROVIDER_RUNTIME_DATA_SCHEMA_PATH.read_text())
+    runtime_properties = json_schema_dict["properties"].keys()
+    return_dict = {
+        property: provider_info[property]
+        for property in provider_info.keys()
+        if property in runtime_properties
+    }
+    return return_dict
+
+
 def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """Retrieves provider info from the provider yaml file.
 
@@ -236,6 +247,7 @@ def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """
     provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     if provider_yaml_dict:
+        provider_yaml_dict = filter_provider_info_data(provider_yaml_dict)
         validate_provider_info_with_runtime_schema(provider_yaml_dict)
     return provider_yaml_dict or {}
 

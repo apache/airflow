@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     import structlog.typing
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -116,8 +117,18 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         import structlog.stdlib
 
         logRecordFactory = getLogRecordFactory()
+        # The handler MUST be initted here, before the processor is actually used to log anything.
+        # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
+        _handler = self.handler
+        from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
+            if not logger or not (stream_name := relative_path_from_logger(logger)):
+                return event
+            # Only init the handler stream_name once. We cannot do it above when we init the handler because
+            # we don't yet know the log path at that point.
+            if not _handler.log_stream_name:
+                _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -134,7 +145,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            self.handler.handle(record)
+            _handler.handle(record)
             return event
 
         return (proc,)
@@ -142,13 +153,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     def close(self):
         self.handler.close()
 
-    def upload(self, path: os.PathLike | str):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         # No-op, as we upload via the processor as we go
         # But we need to give the handler time to finish off its business
         self.close()
         return
 
-    def read(self, relative_path, ti: TaskInstance | None = None) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         logs: LogMessages | None = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -169,7 +180,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, logs
 
-    def get_cloudwatch_logs(self, stream_name: str, task_instance: TaskInstance | None):
+    def get_cloudwatch_logs(self, stream_name: str, task_instance: RuntimeTI):
         """
         Return all logs from the given log stream.
 
@@ -177,12 +188,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         :param task_instance: the task instance to get logs about
         :return: string of all logs from the given log stream
         """
+        stream_name = stream_name.replace(":", "_")
         # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
         # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
         end_time = (
             None
-            if task_instance is None or task_instance.end_date is None
-            else datetime_to_epoch_utc_ms(task_instance.end_date + timedelta(seconds=30))
+            if (end_date := getattr(task_instance, "end_date", None)) is None
+            else datetime_to_epoch_utc_ms(end_date + timedelta(seconds=30))
         )
         events = self.hook.get_log_events(
             log_group=self.log_group,

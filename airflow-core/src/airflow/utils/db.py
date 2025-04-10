@@ -92,12 +92,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "be2cc2f742cf",
+    "3.0.0": "959e216a3abb",
 }
-
-
-def _format_airflow_moved_table_name(source_table, version, category):
-    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), category, source_table])
 
 
 @provide_session

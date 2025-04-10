@@ -47,7 +47,7 @@ which will add anything inside it to the DAG implicitly:
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
@@ -65,7 +65,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
 
     import datetime
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
@@ -83,7 +83,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     import datetime
 
-    from airflow.decorators import dag
+    from airflow.sdk import dag
     from airflow.providers.standard.operators.empty import EmptyOperator
 
 
@@ -458,8 +458,8 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
-        from airflow.decorators import task
-        from airflow.models import DAG
+        from airflow.sdk import task
+        from airflow.sdk import DAG
         from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
@@ -557,7 +557,7 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 .. code-block:: python
    :emphasize-lines: 4,12
 
-    from airflow.decorators import task_group
+    from airflow.sdk import task_group
 
 
     @task_group()
@@ -577,8 +577,8 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     import datetime
 
-    from airflow import DAG
-    from airflow.decorators import task_group
+    from airflow.sdk import DAG
+    from airflow.sdk import task_group
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
 
