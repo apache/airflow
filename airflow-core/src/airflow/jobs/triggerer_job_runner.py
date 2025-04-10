@@ -424,7 +424,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = dr_count
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = dr_resp
+            resp = DagRunStateResult.from_api_response(dr_resp)
 
         elif isinstance(msg, GetTICount):
             ti_count = self.client.task_instances.get_count(
