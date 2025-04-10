@@ -38,7 +38,7 @@ from typing import Any, Callable, Protocol, TypeVar, overload
 
 from _typeshed import Incomplete as Incomplete
 from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import URL as URL, Inspector as Inspector, Engine as Engine
+from sqlalchemy.engine import URL as URL, Engine as Engine, Inspector as Inspector
 
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection

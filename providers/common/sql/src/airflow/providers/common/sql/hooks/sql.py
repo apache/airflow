@@ -52,7 +52,7 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from sqlalchemy.engine import Engine, Inspector, URL
+    from sqlalchemy.engine import URL, Engine, Inspector
 
     from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
