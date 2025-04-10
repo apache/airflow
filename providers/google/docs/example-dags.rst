@@ -22,5 +22,5 @@ You can learn how to use Google integrations by analyzing the source code of the
 * `Google Ads <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/ads>`__
 * `Google Cloud <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google>`__
 * `Google Firebase <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/firebase>`__
-* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/suite>`__
+* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/workspace>`__
 * `Google LevelDB <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/leveldb>`__

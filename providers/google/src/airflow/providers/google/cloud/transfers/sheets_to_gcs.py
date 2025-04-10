@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.providers.google.workspace.hooks.sheets import GSheetsHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
