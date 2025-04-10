@@ -120,6 +120,7 @@ class TestFastApiSecurity:
             ("https://server_base_url.com/prefix", True),
             ("/prefix/some_other", True),
             ("prefix/some_other", True),
+            ("https://requesting_server_base_url.com/prefix2", True),  # safe in regards to the request url
             # Relative path, will go up one level escaping the prefix folder
             ("some_other", False),
             ("./some_other", False),
@@ -135,4 +136,6 @@ class TestFastApiSecurity:
     )
     @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
     def test_is_safe_url(self, url, expected_is_safe):
-        assert is_safe_url(url) == expected_is_safe
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe

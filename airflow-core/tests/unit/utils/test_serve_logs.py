@@ -26,8 +26,8 @@ import time_machine
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.providers.fab.www.serve_logs import create_app
 from airflow.utils import timezone
+from airflow.utils.serve_logs import create_app
 
 from tests_common.test_utils.config import conf_vars
 
@@ -81,7 +81,7 @@ def sample_log(request, tmp_path):
         base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
     else:
         raise ValueError(f"Unknown client fixture: {client}")
-
+    base_log_dir.mkdir(exist_ok=True, parents=True)
     f = base_log_dir.joinpath("sample.log")
     f.write_text(LOG_DATA)
     return f
