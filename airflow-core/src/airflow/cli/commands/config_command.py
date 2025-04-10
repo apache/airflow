@@ -517,9 +517,6 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "dependency_detector"),
     ),
     ConfigChange(
-        config=ConfigParameter("scheduler", "dependency_detector"),
-    ),
-    ConfigChange(
         config=ConfigParameter("scheduler", "allow_trigger_in_future"),
     ),
     ConfigChange(
@@ -533,18 +530,6 @@ CONFIGS_CHANGES = [
         "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
-    ),
-    ConfigChange(
-        config=ConfigParameter("scheduler", "create_cron_data_intervals"),
-        default_change=True,
-        new_default=False,
-        was_removed=False,
-    ),
-    ConfigChange(
-        config=ConfigParameter("scheduler", "create_delta_data_intervals"),
-        default_change=True,
-        new_default=False,
-        was_removed=False,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),

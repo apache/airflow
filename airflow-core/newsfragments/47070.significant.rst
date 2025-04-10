@@ -21,5 +21,5 @@ See :ref:`Differences between "trigger" and "data interval" timetables` for more
 
   * ``airflow config lint``
 
-    * [x] ``scheduler.create_cron_data_intervals`` (default changed to ``False``)
-    * [x] ``scheduler.create_delta_data_intervals`` (default changed to ``False``)
+    * [ ] ``scheduler.create_cron_data_intervals``
+    * [ ] ``scheduler.create_delta_data_intervals``
