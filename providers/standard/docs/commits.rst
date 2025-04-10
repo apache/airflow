@@ -34,14 +34,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.4.0
+.....
+
+Latest change: 2025-04-10
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
+`636224df61 <https://github.com/apache/airflow/commit/636224df611109e1cb008e83b094899ea2d36322>`__  2025-04-09   ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
+`57cda9ec70 <https://github.com/apache/airflow/commit/57cda9ec70148ee23a667b423b9f9308a9db2341>`__  2025-04-09   ``Make default as time.now() for TriggerDagRunOperator (#48969)``
+`c31cb5f19e <https://github.com/apache/airflow/commit/c31cb5f19ec77cbd1c40899c187ca83757c3fe20>`__  2025-04-08   ``Get 'LatestOnlyOperator' working with Task SDK (#48945)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`294594c06c <https://github.com/apache/airflow/commit/294594c06c21247547d83d4c1c996d86b49d9a35>`__  2025-04-08   ``Fix dagstate trigger to work with TaskSDK (#48747)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 0.3.0
 .....
 
-Latest change: 2025-04-04
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =========================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `f01e5e2f64 <https://github.com/apache/airflow/commit/f01e5e2f64ddbb6251d1356fdd2b3b3059726191>`__  2025-04-04   ``Migrate standard decorators to standard provider (#48683)``
 `adf19b77ad <https://github.com/apache/airflow/commit/adf19b77ad60c28513c751f785cca21175b80e12>`__  2025-04-04   ``Bump standard provider to 0.3.0 (#48763)``
 `6775bf7bae <https://github.com/apache/airflow/commit/6775bf7bae13f4291e18d4118179c14e4444de0d>`__  2025-04-03   ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``

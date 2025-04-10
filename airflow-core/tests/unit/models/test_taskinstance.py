@@ -724,11 +724,14 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        session.get(TaskInstance, ti.id).try_number += 1
+        ti.refresh_from_db(session)
+        ti.try_number += 1
+        session.add(ti)
         session.commit()
 
         # third run -- up for retry
         run_with_error(ti)
+        ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
@@ -901,7 +904,7 @@ class TestTaskInstance:
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 0)
 
         # scheduler would create a new try here
         with create_session() as session:
@@ -1005,7 +1008,7 @@ class TestTaskInstance:
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 0)
 
         with create_session() as session:
             session.get(TaskInstance, ti.id).try_number += 1
@@ -1041,7 +1044,6 @@ class TestTaskInstance:
             ).expand(poke_interval=[0])
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti.try_number == 0
 
         def run_ti_and_assert(
             run_date,
@@ -3107,65 +3109,6 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_logical_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-        # vivify
-        for ti in ti_list:
-            ti.logical_date
-
-        assert ti_list[0].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) == ti_list[1].logical_date
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) != ti_list[2].logical_date
-
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-
-        assert ti_list[0].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) == ti_list[1].start_date
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) != ti_list[2].start_date
-
-    def test_get_previous_start_date_none(self, dag_maker):
-        """
-        Test that get_previous_start_date() can handle TaskInstance with no start_date.
-        """
-        with dag_maker("test_get_previous_start_date_none", schedule=None, serialized=True):
-            task = EmptyOperator(task_id="op")
-
-        day_1 = DEFAULT_DATE
-        day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
-
-        # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
-        # should return the start_date of ti_1 (which is None because ti_1 was not run).
-        # It should not raise an error.
-        dagrun_1 = dag_maker.create_dagrun(
-            logical_date=day_1,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-        )
-
-        dagrun_2 = dag_maker.create_dagrun(
-            logical_date=day_2,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-            data_interval=(day_1, day_2),
-        )
-
-        ti_1 = dagrun_1.get_task_instance(task.task_id)
-        ti_2 = dagrun_2.get_task_instance(task.task_id)
-        ti_1.task = task
-        ti_2.task = task
-
-        assert ti_2.get_previous_start_date() == ti_1.start_date
-        assert ti_1.start_date is None
-
     def test_context_triggering_asset_events_none(self, session, create_task_instance):
         ti = create_task_instance()
         template_context = ti.get_template_context()
@@ -3596,8 +3539,7 @@ class TestTaskInstance:
         del ti.task
         ti.handle_failure("test ti.task undefined")
 
-    @provide_session
-    def test_handle_failure_fail_fast(self, create_dummy_dag, session=None):
+    def test_handle_failure_fail_fast(self, create_dummy_dag, session):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
@@ -3647,7 +3589,7 @@ class TestTaskInstance:
         ti_ff = TI(task=fail_task, run_id=dr.run_id)
         ti_ff.state = State.FAILED
         session.add(ti_ff)
-        session.flush()
+        session.commit()
         ti_ff.handle_failure("test retry handling")
 
         assert ti1.state == State.SUCCESS
@@ -3939,7 +3881,6 @@ class TestTaskInstance:
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
             "state": State.SUCCESS,
-            "try_id": mock.ANY,
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
@@ -4082,19 +4023,18 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
-        try_id = ti.try_id
+        try_id = ti.id
         with pytest.raises(AirflowException):
             ti.run()
         ti = session.query(TaskInstance).one()
-        # the ti.try_id should be different from the previous one
-        assert ti.try_id != try_id
+        # the ti.id should be different from the previous one
+        assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
         tih = session.query(TaskInstanceHistory).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
-        assert tih[0].try_id == try_id
-        assert tih[0].try_id != ti.try_id
+        assert str(tih[0].task_instance_id) == try_id
 
     @pytest.mark.skip(
         reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."

@@ -1308,8 +1308,8 @@ api:
         should contain the API server endpoint.
       version_added: ~
       type: string
-      example: ~
-      default: "http://localhost:8080"
+      example: "https://my-airflow.company.com"
+      default: ~
     host:
       description: |
         The ip specified when starting the api server
