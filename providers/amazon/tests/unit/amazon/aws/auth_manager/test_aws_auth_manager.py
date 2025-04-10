@@ -689,7 +689,7 @@ class TestAwsAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

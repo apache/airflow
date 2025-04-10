@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
@@ -36,14 +35,14 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
-API_BASE_URL = conf.get("api", "base_url")
-if API_BASE_URL and not API_BASE_URL.endswith("/"):
+API_BASE_URL = conf.get("api", "base_url", fallback="")
+if not API_BASE_URL or not API_BASE_URL.endswith("/"):
     API_BASE_URL += "/"
-    os.environ["AIRFLOW__API__BASE_URL"] = API_BASE_URL
 API_ROOT_PATH = urlsplit(API_BASE_URL).path
 
 # Define the full path on which the potential auth manager fastapi is mounted
@@ -67,6 +66,7 @@ async def lifespan(app: FastAPI):
         yield
 
 
+@providers_configuration_loaded
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 

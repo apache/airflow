@@ -88,11 +88,14 @@ def action_logging(event: str | None = None):
             user_name = user.get_name()
             user_display = user.get_name()
 
-        hasJsonBody = "application/json" in request.headers.get("content-type", "") and request.json
+        hasJsonBody = "application/json" in request.headers.get("content-type", "") and await request.body()
 
         if hasJsonBody:
             request_body = await request.json()
             masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
+        else:
+            request_body = {}
+            masked_body_json = {}
 
         fields_skip_logging = {
             "csrf_token",

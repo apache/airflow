@@ -1,4 +1,4 @@
-Removed deprecated ``session_lifetime_days`` and ``force_log_out_after`` configuration parameters from ``webserver`` section. Please use ``session_lifetime_minutes``.
+Removed deprecated ``session_lifetime_days`` and ``force_log_out_after`` configuration parameters from ``webserver`` section. Please use ``session_lifetime_minutes`` from ``fab`` section.
 
 Removed deprecated ``policy`` parameter from ``airflow_local_settings``. Please use ``task_policy``.
 
@@ -17,6 +17,6 @@ Removed deprecated ``policy`` parameter from ``airflow_local_settings``. Please 
 
   * ``airflow config lint``
 
-    * [x] ``webserver.session_lifetime_days`` → ``webserver.session_lifetime_minutes``
-    * [x] ``webserver.force_log_out_after`` → ``webserver.session_lifetime_minutes``
+    * [x] ``webserver.session_lifetime_days`` → ``fab.session_lifetime_minutes``
+    * [x] ``webserver.force_log_out_after`` → ``fab.session_lifetime_minutes``
     * [x] ``policy`` → ``task_policy``
