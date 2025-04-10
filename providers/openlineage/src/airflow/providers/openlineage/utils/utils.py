@@ -322,6 +322,7 @@ class DagInfo(InfoJsonEncodable):
         "description",
         "fileloc",
         "owner",
+        "owner_links",
         "schedule_interval",  # For Airflow 2.
         "timetable_summary",  # For Airflow 3.
         "start_date",
