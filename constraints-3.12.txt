@@ -177,7 +177,7 @@ apache-airflow-providers-smtp==2.0.2
 apache-airflow-providers-snowflake==6.2.0
 apache-airflow-providers-sqlite==4.0.1
 apache-airflow-providers-ssh==4.0.1
-apache-airflow-providers-standard==0.3.0
+apache-airflow-providers-standard==0.4.0rc1
 apache-airflow-providers-tableau==5.0.2
 apache-airflow-providers-telegram==4.7.2
 apache-airflow-providers-teradata==3.0.2
