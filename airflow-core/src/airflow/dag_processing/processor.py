@@ -38,6 +38,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
+    PutVariable,
     VariableResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable],
+    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable],
     Field(discriminator="type"),
 ]
 
@@ -290,6 +291,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, PutVariable):
+            self.client.variables.set(msg.key, msg.value, msg.description)
         else:
             log.error("Unhandled request", msg=msg)
             return
