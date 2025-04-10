@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 import jinja2
 import pytest
 
+from airflow.sdk import DAG, ObjectStoragePath
 from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedEnvironment, Templater
-from airflow.sdk.definitions.dag import DAG
 
 
 class TestTemplater:
@@ -55,9 +55,6 @@ class TestTemplater:
         assert "Failed to resolve template field 'message'" in caplog.text
 
     def test_render_object_storage_path(self):
-        # TODO: Move this import to top-level after https://github.com/apache/airflow/issues/45425
-        from airflow.io.path import ObjectStoragePath
-
         templater = Templater()
         path = ObjectStoragePath("s3://bucket/key/{{ ds }}/part")
         context = {"ds": "2006-02-01"}

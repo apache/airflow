@@ -1,0 +1,21 @@
+The ``airflow.io`` class ``ObjectStoragePath`` and function ``attach`` are moved to ``airflow.sdk``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.io.path.ObjectStoragePath`` → ``airflow.sdk.ObjectStoragePath``
+      * [ ] ``airflow.io.attach`` → ``airflow.sdk.io.attach``

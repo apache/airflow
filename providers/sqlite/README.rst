@@ -54,7 +54,6 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.9.0``
-``aiosqlite``                            ``>=0.20.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 =======================================  ==================
 

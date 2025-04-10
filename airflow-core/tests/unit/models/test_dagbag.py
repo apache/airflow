@@ -573,15 +573,15 @@ class TestDagBag:
         dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        model_before = DagModel(dag_id=dag_id, is_active=True)
+        model_before = DagModel(dag_id=dag_id, is_stale=False)
         with create_session() as session:
             session.merge(model_before)
 
         DAG.deactivate_unknown_dags(expected_active_dags)
 
         after_model = DagModel.get_dagmodel(dag_id)
-        assert model_before.is_active
-        assert not after_model.is_active
+        assert not model_before.is_stale
+        assert after_model.is_stale
 
         # clean up
         with create_session() as session:

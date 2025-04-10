@@ -25,7 +25,7 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
-__version__ = "3.0.0.dev0"
+__version__ = "3.0.0"
 
 import os
 import sys
