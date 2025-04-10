@@ -49,12 +49,13 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter()
 
@@ -267,12 +268,13 @@ def ti_update_state(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.try_number, TI.max_tries).where(TI.id == ti_id_str).with_for_update()
+    old = select(TI.state, TI.try_number, TI.max_tries, TI.dag_id).where(TI.id == ti_id_str).with_for_update()
     try:
         (
             previous_state,
             try_number,
             max_tries,
+            dag_id,
         ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
@@ -308,6 +310,19 @@ def ti_update_state(
         updated_state = ti_patch_payload.state
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
+
+        if updated_state == TerminalTIState.FAILED:
+            ti = session.get(TI, ti_id_str)
+            row = session.query(SerializedDagModel).filter_by(dag_id=dag_id).first()
+            dag_data = row.data.get("dag") if row and row.data else None
+
+            if dag_data and dag_data.get("fail_fast"):
+                task_teardown_map = {
+                    task["__var"]["task_id"]: task["__var"]["is_teardown"]
+                    for task in dag_data.get("tasks", [])
+                }
+                _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+
     elif isinstance(ti_patch_payload, TIRetryStatePayload):
         from airflow.models.taskinstance import uuid7
         from airflow.models.taskinstancehistory import TaskInstanceHistory

@@ -392,7 +392,7 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -411,8 +411,12 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
             TaskInstanceState.FAILED,
         ):
             continue
-        task = task_instance.task.dag.task_dict[ti.task_id]
-        if not task.is_teardown:
+        if task_teardown_map:
+            teardown = task_teardown_map[ti.task_id]
+        else:
+            task = task_instance.task.dag.task_dict[ti.task_id]
+            teardown = task.is_teardown
+        if not teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 ti.error(session)
