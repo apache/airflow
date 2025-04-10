@@ -44,11 +44,12 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetEventResponse
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
+        AssetEventResult,
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
@@ -485,7 +486,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
@@ -527,7 +528,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         if TYPE_CHECKING:
             assert isinstance(msg, AssetEventsResult)
 
-        return msg.asset_events
+        return list(msg.iter_asset_event_results())
 
 
 @cache  # Prevent multiple API access.

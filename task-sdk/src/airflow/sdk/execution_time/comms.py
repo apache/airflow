@@ -43,14 +43,18 @@ Execution API server is because:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
+from functools import cached_property
 from typing import Annotated, Any, Literal, Union
 from uuid import UUID
 
+import attrs
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
     BundleInfo,
@@ -108,6 +112,50 @@ class AssetResult(AssetResponse):
         return cls(**asset_response.model_dump(exclude_defaults=True), type="AssetResult")
 
 
+@attrs.define
+class AssetEventSourceTaskInstance:
+    """Used in AssetEventResult."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    map_index: int
+
+    def xcom_pull(
+        self,
+        *,
+        key: str = "return_value",  # TODO: Make this a constant; see RuntimeTaskInstance.
+        default: Any = None,
+    ) -> Any:
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if (value := XCom.get_value(ti_key=self, key=key)) is None:
+            return default
+        return value
+
+
+class AssetEventResult(AssetEventResponse):
+    """Used in AssetEventsResult."""
+
+    @classmethod
+    def from_asset_event_response(cls, asset_event_response: AssetEventResponse) -> AssetEventResult:
+        return cls(**asset_event_response.model_dump(exclude_defaults=True))
+
+    @cached_property
+    def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
+        if not (self.source_task_id and self.source_dag_id and self.source_run_id):
+            return None
+        if self.source_map_index is None:
+            return None
+
+        return AssetEventSourceTaskInstance(
+            dag_id=self.source_dag_id,
+            task_id=self.source_task_id,
+            run_id=self.source_run_id,
+            map_index=self.source_map_index,
+        )
+
+
 class AssetEventsResult(AssetEventsResponse):
     """Response to GetAssetEvent request."""
 
@@ -128,6 +176,9 @@ class AssetEventsResult(AssetEventsResponse):
             **asset_events_response.model_dump(exclude_defaults=True),
             type="AssetEventsResult",
         )
+
+    def iter_asset_event_results(self) -> Iterator[AssetEventResult]:
+        return (AssetEventResult.from_asset_event_response(event) for event in self.asset_events)
 
 
 class XComResult(XComResponse):
