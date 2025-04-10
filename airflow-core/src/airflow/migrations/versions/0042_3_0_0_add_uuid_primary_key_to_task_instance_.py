@@ -31,7 +31,8 @@ from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
-BATCH_SIZE = 5000
+BATCH_SIZE = 10000
+
 
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
@@ -207,27 +208,24 @@ def upgrade():
 
         # Migrate existing rows with UUID v7 using a timestamp-based generation
         while True:
-            row_count = op.execute(
+            result = conn.execute(
                 text(
+                    f"""
+                    WITH cte AS (
+                        SELECT ctid
+                        FROM task_instance
+                        WHERE id IS NULL
+                        LIMIT {BATCH_SIZE}
+                    )
+                    UPDATE task_instance
+                    SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))
+                    FROM cte
+                    WHERE task_instance.ctid = cte.ctid
                     """
-               WITH batch AS (
-                    SELECT ctid
-                    FROM task_instance
-                    WHERE id IS NULL
-                    LIMIT :batch_size
                 )
-                UPDATE task_instance AS ti
-                SET id = uuid_generate_v7(COALESCE(ti.queued_dttm, ti.start_date, clock_timestamp()))
-                FROM batch
-                WHERE ti.ctid = batch.ctid
-                """,
-                    {"batch_size": BATCH_SIZE},
-                )
-            ).rowcount
-
-            if row_count == 0:
+            )
+            if result.rowcount == 0:
                 break
-
         op.execute(pg_uuid7_fn_drop)
 
         # Drop existing primary key constraint to task_instance table
