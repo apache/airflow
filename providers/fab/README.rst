@@ -64,6 +64,7 @@ PIP package                                 Version required
 ``connexion[flask]``                        ``>=2.14.2,<3.0``
 ``jmespath``                                ``>=0.7.0``
 ``werkzeug``                                ``>=2.2,<4``
+``wtforms``                                 ``>=3.0,<4``
 ==========================================  ==================
 
 Cross provider package dependencies

@@ -73,6 +73,7 @@ def create_app():
     signer = JWTValidator(
         issuer=None,
         secret_key=get_signing_key("webserver", "secret_key"),
+        algorithm="HS512",
         leeway=leeway,
         audience="task-instance-logs",
     )

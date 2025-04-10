@@ -30,7 +30,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
-    from airflow.io.path import ObjectStoragePath
+    from airflow.sdk import ObjectStoragePath
 
     # Store context what sent lineage.
     LineageContext = Union[BaseHook, ObjectStoragePath]

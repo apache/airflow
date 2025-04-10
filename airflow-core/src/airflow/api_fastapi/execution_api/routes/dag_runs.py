@@ -57,7 +57,7 @@ def trigger_dag_run(
     session: SessionDep,
 ):
     """Trigger a DAG Run."""
-    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -108,7 +108,7 @@ def clear_dag_run(
     session: SessionDep,
 ):
     """Clear a DAG Run."""
-    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

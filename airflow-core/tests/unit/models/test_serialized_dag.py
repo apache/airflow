@@ -382,7 +382,7 @@ class TestSerializedDagModel:
         assert dag_id in dependencies
 
         # Simulate deleting the DAG from file.
-        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
 
