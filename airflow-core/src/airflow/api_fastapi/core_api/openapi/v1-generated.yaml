@@ -180,13 +180,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -2561,6 +2561,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
       - name: state
         in: query
         required: false
@@ -3211,13 +3219,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -3380,13 +3388,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -7734,6 +7742,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
@@ -8515,9 +8525,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8694,7 +8704,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name
@@ -8753,9 +8763,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8857,7 +8867,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name
@@ -9278,9 +9288,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -9393,7 +9403,7 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
       - bundle_name
@@ -10190,7 +10200,8 @@ components:
       type: string
       enum:
       - Assets
-      - Audit log
+      - Audit Log
+      - Config
       - Connections
       - Dags
       - Docs
@@ -10235,6 +10246,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger

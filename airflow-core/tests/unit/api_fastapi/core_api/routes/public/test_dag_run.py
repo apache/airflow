@@ -1232,7 +1232,7 @@ class TestTriggerDagRun:
             dag_id="inactive",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -1242,7 +1242,7 @@ class TestTriggerDagRun:
             dag_id="import_errors",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
-            is_active=True,
+            is_stale=False,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )

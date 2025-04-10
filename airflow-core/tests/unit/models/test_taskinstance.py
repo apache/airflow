@@ -25,7 +25,6 @@ import os
 import pathlib
 import signal
 import sys
-import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
@@ -214,12 +213,6 @@ class TestTaskInstance:
         dag.add_task(op3)
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
-
-    def test_current_state(self, create_task_instance, session):
-        ti = create_task_instance(session=session)
-        assert ti.current_state(session=session) is None
-        ti.run()
-        assert ti.current_state(session=session) == State.SUCCESS
 
     def test_set_dag(self, dag_maker):
         """
@@ -1964,26 +1957,24 @@ class TestTaskInstance:
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
 
-        expected_url = (
-            "http://localhost:8080"
-            "/dags/my_dag/grid"
-            "?dag_run_id=test"
-            "&task_id=op"
-            "&tab=logs"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
-        )
+        expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op"
+        assert ti.log_url == expected_url
+
+        ti.map_index = 1
+        ti.try_number = 2
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+
+        expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op/mapped/1?try_number=2"
         assert ti.log_url == expected_url
 
     def test_mark_success_url(self, create_task_instance):
         now = pendulum.now("Europe/Brussels")
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=now)
-        query = urllib.parse.parse_qs(
-            urllib.parse.urlsplit(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
-        )
-        assert query["dag_id"][0] == "dag"
-        assert query["task_id"][0] == "op"
-        assert query["dag_run_id"][0] == "test"
-        assert ti.logical_date == now
+
+        expected_url = "http://localhost:8080/dags/dag/runs/test/tasks/op"
+        assert ti.mark_success_url == expected_url
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()
@@ -2249,29 +2240,6 @@ class TestTaskInstance:
 
         # check that no asset events were generated
         assert session.query(AssetEvent).count() == 0
-
-    def test_mapped_current_state(self, dag_maker):
-        with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.sdk import task
-
-            @task()
-            def raise_an_exception(placeholder: int):
-                if placeholder == 0:
-                    raise AirflowFailException("failing task")
-                else:
-                    pass
-
-            _ = raise_an_exception.expand(placeholder=[0, 1])
-
-        tis = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances
-        for task_instance in tis:
-            if task_instance.map_index == 0:
-                with pytest.raises(AirflowFailException):
-                    task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.FAILED
-            else:
-                task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_assets_skipped(self, testing_dag_bundle):
         """
