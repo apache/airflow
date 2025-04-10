@@ -127,11 +127,11 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
 
 
 def _get_count_by_matched_states(
-    task_states_mamp: dict[str, dict[str, Any]],
+    run_id_task_state_map: dict[str, dict[str, Any]],
     states: list[str],
 ):
     count = 0
-    for _, task_states in task_states_mamp.items():
+    for _, task_states in run_id_task_state_map.items():
         if all(state in states for state in task_states.values() if state):
             count += 1
     return count

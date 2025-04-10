@@ -148,12 +148,12 @@ class WorkflowTrigger(BaseTrigger):
                 **params,
             )
         elif self.external_task_group_id:
-            task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
                 task_group_id=self.external_task_group_id,
                 **params,
             )
             count = await sync_to_async(_get_count_by_matched_states)(
-                task_states_mamp=task_state_map,
+                run_id_task_state_map=run_id_task_state_map,
                 states=states,
             )
         else:

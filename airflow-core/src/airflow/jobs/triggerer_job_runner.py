@@ -446,17 +446,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
 
         elif isinstance(msg, GetTaskStates):
-            task_map_states = self.client.task_instances.get_task_states(
+            run_id_task_state_map = self.client.task_instances.get_task_states(
                 dag_id=msg.dag_id,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
             )
-            if isinstance(task_map_states, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(task_map_states)
+            if isinstance(run_id_task_state_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
-                resp = task_map_states
+                resp = run_id_task_state_map
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
