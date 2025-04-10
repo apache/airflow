@@ -1789,48 +1789,17 @@ class SerializedDAG(DAG, BaseSerialization):
         return json_dict
 
     @classmethod
-    def conversion_v1(cls, ser_obj: dict, to_version: int):
+    def conversion_v1_to_v2(cls, ser_obj: dict):
         dag_dict = ser_obj["dag"]
         dag_renames = [
             ("_dag_id", "dag_id"),
             ("_task_group", "task_group"),
         ]
         task_renames = [("_task_type", "task_type")]
-        tasks_remove = []
-        dags_remove = []
+        tasks_remove = ["_log_config_logger_name"]
 
-        def reverse_dir():
-            nonlocal dag_renames, task_renames
-            dag_renames = [(b, a) for a, b in dag_renames]
-            task_renames = [(b, a) for a, b in task_renames]
+        ser_obj["__version"] = 2
 
-        if to_version == 1:
-            reverse_dir()
-            tasks_remove = ["_can_skip_downstream"]
-            dags_remove = ["disable_bundle_versioning"]
-            ser_obj["__version"] = 1
-        elif to_version == 2:
-            ser_obj["__version"] = 2
-        else:
-            raise RuntimeError(f"Conversion to version {to_version} unsupported.")
-        cls.convert_serdag_version(
-            dag_dict=dag_dict,
-            dag_renames=dag_renames,
-            task_renames=task_renames,
-            tasks_remove=tasks_remove,
-            dags_remove=dags_remove,
-        )
-        return
-
-    @classmethod
-    def convert_serdag_version(
-        cls,
-        dag_dict: dict,
-        dag_renames,
-        task_renames,
-        tasks_remove,
-        dags_remove,
-    ) -> None:
         def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
             def replace_str(s):
                 return s.replace("Dataset", "Asset").replace("dataset", "asset")
@@ -1862,18 +1831,23 @@ class SerializedDAG(DAG, BaseSerialization):
 
         for old, new in dag_renames:
             dag_dict[new] = dag_dict.pop(old)
-        for k in dags_remove:
-            dag_dict.pop(k, None)
+
+        if sched := dag_dict.pop("schedule_interval"):
+            if sched.get("__type") == "timedelta":
+                dag_dict["timetable"] = {
+                    "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
+                    "__var": {"delta": sched["__var"], "interval": 0},
+                }
         if "timetable" in dag_dict:
             if dag_dict["timetable"]["__type"] == "airflow.timetables.simple.DatasetTriggeredTimetable":
                 dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:
                 if dep.get("dependency_type") == "dataset":
                     dep["dependency_type"] = "asset"
 
-        tasks = dag_dict["tasks"]
-        for task in tasks:
+        for task in dag_dict["tasks"]:
             task_var: dict = task["__var"]
             for k in tasks_remove:
                 task_var.pop(k, None)
@@ -1888,6 +1862,9 @@ class SerializedDAG(DAG, BaseSerialization):
                     var_["name"] = None
                     var_["group"] = None
 
+        # Set on the root TG
+        dag_dict["task_group"]["group_display_name"] = ""
+
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
         """Deserializes a python dict in to the DAG and operators it contains."""
@@ -1895,7 +1872,7 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
         if ver == 1:
-            cls.conversion_v1(serialized_obj, to_version=2)
+            cls.conversion_v1_to_v2(serialized_obj)
         return cls.deserialize_dag(serialized_obj["dag"])
 
 
