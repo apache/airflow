@@ -50,8 +50,10 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTICount,
     GetVariable,
     GetXCom,
+    TICount,
     VariableResult,
     XComResult,
 )
@@ -222,6 +224,7 @@ ToTriggerRunner = Annotated[
         XComResult,
         DagRunStateResult,
         DRCount,
+        TICount,
         ErrorResponse,
     ],
     Field(discriminator="type"),
@@ -233,7 +236,15 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom, GetDagRunState, GetDRCount],
+    Union[
+        messages.TriggerStateChanges,
+        GetConnection,
+        GetVariable,
+        GetXCom,
+        GetTICount,
+        GetDagRunState,
+        GetDRCount,
+    ],
     Field(discriminator="type"),
 ]
 """
@@ -411,6 +422,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
 
+        elif isinstance(msg, GetTICount):
+            ti_count = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+            resp = ti_count.model_dump_json().encode()
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

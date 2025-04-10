@@ -4012,7 +4012,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "disable, enable",
         [
-            pytest.param({"is_active": False}, {"is_active": True}, id="active"),
+            pytest.param({"is_stale": True}, {"is_stale": False}, id="active"),
             pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
         ],
     )

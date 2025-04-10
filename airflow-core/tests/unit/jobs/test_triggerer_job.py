@@ -767,3 +767,103 @@ async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, da
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
     assert task_instance.next_kwargs == {"event": {"count": 1}}
+
+
+class CustomTriggerWorkflowStateTrigger(BaseTrigger):
+    """Custom Trigger to check the triggerer can access the get_ti_count and get_dr_count."""
+
+    def __init__(self, external_dag_id, execution_dates, external_task_ids, allowed_states, run_ids):
+        self.external_dag_id = external_dag_id
+        self.execution_dates = execution_dates
+        self.external_task_ids = external_task_ids
+        self.allowed_states = allowed_states
+        self.run_ids = run_ids
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "external_dag_id": self.external_dag_id,
+                "execution_dates": self.execution_dates,
+                "external_task_ids": self.external_task_ids,
+                "allowed_states": self.allowed_states,
+                "run_ids": self.run_ids,
+            },
+        )
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        ti_count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+            dag_id=self.external_dag_id,
+            task_ids=self.external_task_ids,
+            task_group_id=None,
+            run_ids=self.run_ids,
+            logical_dates=self.execution_dates,
+            states=self.allowed_states,
+        )
+        dr_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            dag_id=self.external_dag_id,
+            run_ids=self.run_ids,
+            logical_dates=self.execution_dates,
+            states=["running"],
+        )
+        yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count})
+
+
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
+@pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
+async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
+    """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="parent_dag", session=session):
+        EmptyOperator(task_id="parent_task")
+    parent_dag_run = dag_maker.create_dagrun()
+    parent_task = parent_dag_run.task_instances[0]
+    parent_task.state = TaskInstanceState.SUCCESS
+
+    with dag_maker(dag_id="trigger_can_fetch_dag_run_count_ti_count_in_deferrable", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Use the same dag run with states deferred to fetch the count
+    trigger = CustomTriggerWorkflowStateTrigger(
+        external_dag_id=parent_task.dag_id,
+        execution_dates=[parent_task.logical_date],
+        external_task_ids=[parent_task.task_id],
+        allowed_states=[State.SUCCESS],
+        run_ids=[parent_task.run_id],
+    )
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={
+            "external_dag_id": parent_dag_run.dag_id,
+            "execution_dates": [parent_dag_run.logical_date],
+            "external_task_ids": [parent_task.task_id],
+            "allowed_states": [State.SUCCESS],
+            "run_ids": [parent_dag_run.run_id],
+        },
+    )
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    parent_task.refresh_from_db()
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {"event": {"ti_count": 1, "dr_count": 1}}

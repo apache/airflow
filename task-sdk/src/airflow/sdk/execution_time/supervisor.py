@@ -120,6 +120,9 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
+
+SERVER_TERMINATED = "SERVER_TERMINATED"
+
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
@@ -128,6 +131,7 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     IntermediateTIState.UP_FOR_RETRY,
     TerminalTIState.SUCCESS,
+    SERVER_TERMINATED,
 ]
 
 
@@ -168,6 +172,7 @@ def _reset_signals():
     # Uninstall the rich etc. exception handler
     sys.excepthook = sys.__excepthook__
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
 
@@ -845,6 +850,11 @@ class ActivitySubprocess(WatchedSubprocess):
         if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
             return
 
+        if self._terminal_state:
+            # If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't
+            # heartbeat
+            return
+
         self._last_heartbeat_attempt = time.monotonic()
         try:
             self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
@@ -861,7 +871,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     status_code=e.response.status_code,
                     ti_id=self.id,
                 )
+                self.process_log.error(
+                    "Server indicated the task shouldn't be running anymore. Terminating process",
+                    detail=e.detail,
+                )
                 self.kill(signal.SIGTERM, force=True)
+                self.process_log.error("Task killed!")
+                self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
                 self._handle_heartbeat_failures()
@@ -898,6 +914,8 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
+        elif self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
+            return SERVER_TERMINATED
         return TerminalTIState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
