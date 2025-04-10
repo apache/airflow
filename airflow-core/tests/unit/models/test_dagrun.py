@@ -2403,8 +2403,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task_instance_id=ti.id,
-        try_number=ti.try_number,
+        ti_id=ti.id,
         start_date=timezone.datetime(2017, 1, 1),
         end_date=timezone.datetime(2017, 1, 2),
         reschedule_date=timezone.datetime(2017, 1, 1),
