@@ -54,6 +54,7 @@ from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventDagRunReference,
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
@@ -179,6 +180,29 @@ class AssetEventsResult(AssetEventsResponse):
 
     def iter_asset_event_results(self) -> Iterator[AssetEventResult]:
         return (AssetEventResult.from_asset_event_response(event) for event in self.asset_events)
+
+
+class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
+    @classmethod
+    def from_asset_event_dag_run_reference(
+        cls,
+        asset_event_dag_run_reference: AssetEventDagRunReference,
+    ) -> AssetEventDagRunReferenceResult:
+        return cls(**asset_event_dag_run_reference.model_dump(exclude_defaults=True))
+
+    @cached_property
+    def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
+        if not (self.source_task_id and self.source_dag_id and self.source_run_id):
+            return None
+        if self.source_map_index is None:
+            return None
+
+        return AssetEventSourceTaskInstance(
+            dag_id=self.source_dag_id,
+            task_id=self.source_task_id,
+            run_id=self.source_run_id,
+            map_index=self.source_map_index,
+        )
 
 
 class XComResult(XComResponse):
