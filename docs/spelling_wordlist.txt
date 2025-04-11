@@ -1490,6 +1490,7 @@ rideable
 rmse
 rmsle
 rmspe
+roadmap
 Roadmap
 Robinhood
 roc
