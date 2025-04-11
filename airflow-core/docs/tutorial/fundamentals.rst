@@ -75,7 +75,7 @@ parameters in a dictionary. The latter approach is usually more efficient and cl
 |
 
 If you want to dive deeper into the parameters of the BaseOperator, take a look at the documentation for
-:py:class:`airflow.models.baseoperator.BaseOperator` documentation.
+:py:class:`airflow.sdk.BaseOperator` documentation.
 
 Creating a DAG
 --------------
