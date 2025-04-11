@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DeleteVariableCount,
     DRCount,
     ErrorResponse,
     OKResponse,
@@ -311,6 +312,14 @@ class VariableOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def delete(
+        self,
+        key: str,
+    ) -> DeleteVariableCount:
+        """Delete a variable with given key via the API server."""
+        resp = self.client.delete(f"variables/{key}")
+        return DeleteVariableCount.model_validate_json(resp.read())
 
 
 class XComOperations:

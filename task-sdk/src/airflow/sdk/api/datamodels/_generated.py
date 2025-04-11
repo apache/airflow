@@ -320,6 +320,17 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
 
 
+class VariableDeleteBody(BaseModel):
+    """
+    Response body schema for after deleting variables.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    count: Annotated[int, Field(title="Count")]
+
+
 class VariablePostBody(BaseModel):
     """
     Request body schema for creating variables.

@@ -21,7 +21,11 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
-from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
+from airflow.api_fastapi.execution_api.datamodels.variable import (
+    VariableDeleteBody,
+    VariablePostBody,
+    VariableResponse,
+)
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.variable import Variable
 
@@ -86,3 +90,17 @@ def put_variable(variable_key: str, body: VariablePostBody):
     """Set an Airflow Variable."""
     Variable.set(key=variable_key, value=body.value, description=body.description)
     return {"message": "Variable successfully set"}
+
+
+@router.delete(
+    "/{variable_key}",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+    },
+)
+def delete_variable(variable_key: str) -> VariableDeleteBody:
+    """Delete an Airflow Variable."""
+    count = Variable.delete(key=variable_key)
+    return VariableDeleteBody(count=count)

@@ -338,6 +338,11 @@ class OKResponse(BaseModel):
     type: Literal["OKResponse"] = "OKResponse"
 
 
+class DeleteVariableCount(BaseModel):
+    delete_count: int
+    type: Literal["DeleteVariableCount"] = "DeleteVariableCount"
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -355,6 +360,7 @@ ToTask = Annotated[
         XComResult,
         XComCountResponse,
         OKResponse,
+        DeleteVariableCount,
     ],
     Field(discriminator="type"),
 ]
@@ -499,6 +505,11 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
+class DeleteVariable(BaseModel):
+    key: str
+    type: Literal["DeleteVariable"] = "DeleteVariable"
+
+
 class SetRenderedFields(BaseModel):
     """Payload for setting RTIF for a task instance."""
 
@@ -607,6 +618,7 @@ ToSupervisor = Annotated[
         SucceedTask,
         TaskState,
         TriggerDagRun,
+        DeleteVariable,
     ],
     Field(discriminator="type"),
 ]
