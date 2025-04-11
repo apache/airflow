@@ -245,7 +245,6 @@ class Variable(Base, LoggingMixin):
             SecretCache.invalidate_variable(key)
 
     @staticmethod
-    @provide_session
     def update(
         key: str,
         value: Any,
@@ -260,6 +259,29 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: optional session, use if provided or create a new one
         """
+        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+        # back-compat layer
+
+        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # and should use the Task SDK API server path
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.update from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Variable` instead and use `Variable.set` as it is an upsert.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+
+            # set is an upsert command, it can handle updates too
+            TaskSDKVariable.set(
+                key=key,
+                value=value,
+                serialize_json=serialize_json,
+            )
+            return
+
         Variable.check_for_write_conflict(key=key)
 
         if Variable.get_variable_from_secrets(key=key) is None:
