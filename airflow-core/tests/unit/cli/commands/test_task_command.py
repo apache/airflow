@@ -41,6 +41,7 @@ from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
@@ -339,6 +340,9 @@ class TestCliTasks:
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
         task2 = dag2.get_task(task_id="print_the_context")
+
+        dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
+
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)

@@ -22,9 +22,10 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 state: ready
-source-date-epoch: 1741509010
+source-date-epoch: 1743836349
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.2.2
   - 4.2.1
   - 4.2.0
   - 4.0.0

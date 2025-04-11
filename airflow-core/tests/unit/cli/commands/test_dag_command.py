@@ -35,13 +35,13 @@ from sqlalchemy import select
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.sdk import task
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -310,7 +310,7 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
         valid_cols = [c for c in dag_command.DAGSchema().fields]
-        dagbag = DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True, read_dags_from_db=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
         assert list(dag_details.keys()) == valid_cols
 
@@ -474,7 +474,7 @@ class TestCliDags:
                     "trigger",
                     "example_bash_operator",
                     "--run-id=test_trigger_dag_with_micro",
-                    "--exec-date=2021-06-04T09:00:00.000001+08:00",
+                    "--logical-date=2021-06-04T09:00:00.000001+08:00",
                     "--no-replace-microseconds",
                 ],
             )

@@ -16,13 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-
-if sys.version_info >= (3, 10):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata  # type: ignore[no-redef]
-
 
 def get_docs_url(page: str | None = None) -> str:
     """Prepare link to Airflow documentation."""
@@ -37,33 +30,3 @@ def get_docs_url(page: str | None = None) -> str:
     if page:
         result = result + page
     return result
-
-
-def get_project_url_from_metadata(provider_name: str):
-    """Return the Project-URL from metadata."""
-    return metadata.metadata(provider_name).get_all("Project-URL")
-
-
-def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
-    """Prepare link to Airflow Provider documentation."""
-    try:
-        from urllib.parse import urlparse
-
-        metadata_items = get_project_url_from_metadata(provider_name)
-        if isinstance(metadata_items, str):
-            metadata_items = [metadata_items]
-        if metadata_items:
-            for item in metadata_items:
-                if item.lower().startswith("documentation"):
-                    _, _, url = item.partition(",")
-                    if url:
-                        url = url.strip()
-                        parsed_url = urlparse(url)
-                        if url and (parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)):
-                            return url
-    except metadata.PackageNotFoundError:
-        pass
-    # Fallback if provider is apache one
-    if provider_name.startswith("apache-airflow"):
-        return f"https://airflow.apache.org/docs/{provider_name}/{provider_version}/"
-    return "https://airflow.apache.org/docs/apache-airflow-providers/index.html#creating-your-own-providers"

@@ -286,7 +286,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagModel.fileloc,
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
-        ).where(DagModel.is_active, DagModel.bundle_name.in_(bundle_names))
+        ).where(~DagModel.is_stale, DagModel.bundle_name.in_(bundle_names))
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
@@ -304,7 +304,7 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated_dagmodel = session.execute(
                 update(DagModel)
                 .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_active=False)
+                .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
             deactivated = deactivated_dagmodel.rowcount

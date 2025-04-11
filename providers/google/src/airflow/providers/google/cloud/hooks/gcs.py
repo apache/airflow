@@ -726,6 +726,14 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info("Blob %s deleted.", object_name)
 
+    def get_bucket(self, bucket_name: str) -> storage.Bucket:
+        """
+        Get a bucket object from the Google Cloud Storage.
+
+        :param bucket_name: name of the bucket
+        """
+        return self.get_conn().bucket(bucket_name)
+
     def delete_bucket(self, bucket_name: str, force: bool = False, user_project: str | None = None) -> None:
         """
         Delete a bucket object from the Google Cloud Storage.

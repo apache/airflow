@@ -79,11 +79,11 @@ print the command that you should run.
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
 You can read more about the command line tools used to generate the packages in the
-[Provider details](PROVIDER_PACKAGE_DETAILS.md).
+[Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
 
 # Bump min Airflow version for providers
 
-1. Update `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py` to remove
+1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
@@ -296,7 +296,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+  breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:

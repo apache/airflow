@@ -48,8 +48,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import teardown
-from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -61,12 +59,14 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
+from airflow.sdk import teardown
+from airflow.sdk.bases.decorator import DecoratedOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
@@ -89,6 +89,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -442,6 +443,7 @@ class TestStringifiedDAGs:
         os.environ.get("UPGRADE_BOTO", "") == "true",
         reason="This test is skipped when latest botocore is installed",
     )
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -600,6 +602,7 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
         dags, _ = collect_dags(
@@ -2766,8 +2769,8 @@ def test_task_execution_timeout_serde(execution_timeout, default_task_execution_
 
 
 def test_taskflow_expand_serde():
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2787,7 +2790,7 @@ def test_taskflow_expand_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_can_skip_downstream": False,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "downstream_task_ids": [],
@@ -2882,8 +2885,8 @@ def test_taskflow_expand_serde():
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_taskflow_expand_kwargs_serde(strict):
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2902,7 +2905,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_can_skip_downstream": False,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "python_callable_name": qualname(x),
@@ -2985,8 +2988,8 @@ def test_taskflow_expand_kwargs_serde(strict):
 
 
 def test_mapped_task_group_serde():
-    from airflow.decorators.task_group import task_group
     from airflow.models.expandinput import SchedulerDictOfListsExpandInput
+    from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:

@@ -156,7 +156,7 @@ def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "br
                 if _label_name == label_key:
                     image_label_map[_img_name] = label
         except KeyError:
-            # service has no 'lables' entry
+            # service has no 'labels' entry
             continue
     return image_label_map
 

@@ -27,6 +27,7 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "admin_views",
     "flask_blueprints",
     "fastapi_apps",
+    "fastapi_root_middlewares",
     "menu_links",
     "flask_appbuilder_views",
     "flask_appbuilder_menu_links",

@@ -111,7 +111,7 @@ def remove_references_to_deleted_dags(session: Session):
     for model in models_to_check:
         session.execute(
             delete(model)
-            .where(model.dag_id.in_(select(DagModel.dag_id).where(~DagModel.is_active)))
+            .where(model.dag_id.in_(select(DagModel.dag_id).where(DagModel.is_stale)))
             .execution_options(synchronize_session="fetch")
         )
 
@@ -739,16 +739,16 @@ class AssetEvent(Base):
     )
 
     @property
-    def uri(self):
+    def name(self) -> str:
+        return self.asset.name
+
+    @property
+    def uri(self) -> str:
         return self.asset.uri
 
     @property
-    def group(self):
+    def group(self) -> str:
         return self.asset.group
-
-    @property
-    def name(self):
-        return self.asset.name
 
     def __repr__(self) -> str:
         args = []

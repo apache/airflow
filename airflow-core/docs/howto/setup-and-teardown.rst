@@ -149,7 +149,7 @@ Continuing with the example above, if you want the run's success to depend on ``
 Authoring with task groups
 """"""""""""""""""""""""""
 
-When arrowing from task group to task group, or from task group to *task*, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
+When adding dependency from task group to task group, or from task group to *task*, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
 
 Consider this example:
 

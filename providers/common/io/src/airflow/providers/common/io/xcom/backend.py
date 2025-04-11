@@ -27,7 +27,6 @@ from urllib.parse import urlsplit
 import fsspec.utils
 
 from airflow.configuration import conf
-from airflow.io.path import ObjectStoragePath
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.json import XComDecoder, XComEncoder
 
@@ -37,8 +36,10 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import XComResult
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import ObjectStoragePath
     from airflow.sdk.bases.xcom import BaseXCom
 else:
+    from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
     from airflow.models.xcom import BaseXCom  # type: ignore[no-redef]
 
 T = TypeVar("T")

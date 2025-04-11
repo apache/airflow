@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+15.0.1
+......
+
+Misc
+~~~~
+
+* ``Deprecate Life Scrience service (#48862)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing license comment in google docs (#48985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix false friends in implicit string concatenation (#48871)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Small fixies for system tests in google-provider (#48861)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 15.0.0
 ......
 
@@ -89,6 +110,30 @@ Breaking changes
     * Removed ``create_evaluate_ops`` method
 
 * ``Remove deprecated for February and March 2025 in providers/google. #48018``
+
+Features
+~~~~~~~~
+
+* ``SFTPToGCSOperator: Added option to stream data directly to GCS without saving to disk (#48107)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: remove extra slash character from file URI formation in 'MetastoreHivePartitionSensor.poke' method. (#48731)``
+* ``Disallowing types-protobuf 5.29.1.20250402 for google to fix mypy (#48666)``
+
+Misc
+~~~~
+
+* ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+* ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
 
 14.1.0
 ......

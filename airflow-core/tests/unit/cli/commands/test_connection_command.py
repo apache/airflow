@@ -35,6 +35,7 @@ from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -353,6 +354,7 @@ class TestCliAddConnections:
     def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
         "cmd, expected_output, expected_conn",
         [

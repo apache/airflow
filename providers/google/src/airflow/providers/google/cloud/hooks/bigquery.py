@@ -123,7 +123,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         from airflow.providers.google.cloud.utils.validators import ValidJson
 
         connection_form_widgets = super().get_connection_form_widgets()
-        connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)
+        connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"))
         connection_form_widgets["location"] = StringField(
             lazy_gettext("Location"), widget=BS3TextFieldWidget()
         )

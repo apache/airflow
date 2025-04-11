@@ -199,7 +199,7 @@ class TestAssetMultiDecorator:
 
 class TestAssetDefinition:
     @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
-    @mock.patch("airflow.models.dag.DAG")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
     def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
@@ -225,7 +225,7 @@ class TestAssetDefinition:
 
 class TestMultiAssetDefinition:
     @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
-    @mock.patch("airflow.models.dag.DAG")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
     def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
         definition = asset.multi(
             schedule=None,

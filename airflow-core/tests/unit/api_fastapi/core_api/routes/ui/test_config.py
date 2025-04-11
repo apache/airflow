@@ -55,6 +55,7 @@ mock_config_response = {
         "up_for_retry": "gold",
         "upstream_failed": "orange",
     },
+    "dashboard_alert": [],
 }
 
 

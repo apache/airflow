@@ -119,7 +119,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             now = context.get("logical_date")
             if not now:
                 dag_run = context.get("dag_run")
-                now = dag_run.run_after  # type: ignore[union-attr]
+                now = dag_run.run_after  # type: ignore[union-attr, assignment]
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 

@@ -38,7 +38,7 @@ different databases. Parameters of the operators are:
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_execute_query.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_execute_query]
@@ -101,7 +101,7 @@ empty tables to return valid integers.
 
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_column_check]
@@ -141,7 +141,7 @@ checks.
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]
@@ -166,7 +166,7 @@ The parameters are:
 
 The below example demonstrates how to instantiate the SQLThresholdCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_threshold_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_threshold_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_threshold_check]

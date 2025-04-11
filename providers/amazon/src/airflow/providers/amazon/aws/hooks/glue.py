@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
@@ -145,7 +146,7 @@ class GlueJobHook(AwsBaseHook):
 
         return config
 
-    def list_jobs(self) -> list:
+    def describe_jobs(self) -> list:
         """
         Get list of Jobs.
 
@@ -153,6 +154,20 @@ class GlueJobHook(AwsBaseHook):
             - :external+boto3:py:meth:`Glue.Client.get_jobs`
         """
         return self.conn.get_jobs()
+
+    def list_jobs(self) -> list:
+        """
+        Get list of Jobs.
+
+        .. deprecated::
+            - Use :meth:`describe_jobs` instead.
+        """
+        warnings.warn(
+            "The method `list_jobs` is deprecated. Use the method `describe_jobs` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.describe_jobs()
 
     def get_iam_execution_role(self) -> dict:
         try:

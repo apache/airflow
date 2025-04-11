@@ -22,7 +22,7 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1742981339
+source-date-epoch: 1743477905
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 6.1.1

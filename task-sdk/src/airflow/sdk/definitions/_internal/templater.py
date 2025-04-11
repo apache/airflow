@@ -27,11 +27,11 @@ import jinja2
 import jinja2.nativetypes
 import jinja2.sandbox
 
+from airflow.sdk import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
-    from airflow.io.path import ObjectStoragePath
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
@@ -154,13 +154,6 @@ class Templater:
             *RecursionError* on circular dependencies)
         :return: Templated content
         """
-        try:
-            # Delay this to runtime, it invokes provider manager otherwise
-            from airflow.io.path import ObjectStoragePath
-        except ImportError:
-            # A placeholder class so isinstance checks work
-            class ObjectStoragePath: ...  # type: ignore[no-redef]
-
         # "content" is a bad name, but we're stuck to it being public API.
         value = content
         del content

@@ -88,8 +88,7 @@ class TestNotInReschedulePeriodDep:
             dt = ti.logical_date + timedelta(minutes=minutes_timedelta)
             trs.append(
                 TaskReschedule(
-                    task_instance_id=ti.id,
-                    try_number=ti.try_number,
+                    ti_id=ti.id,
                     start_date=dt,
                     end_date=dt,
                     reschedule_date=dt,

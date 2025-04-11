@@ -24,7 +24,7 @@ or one of the :ref:`cron-presets`.
 
 .. code-block:: python
 
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
 
     import datetime
 

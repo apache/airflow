@@ -155,6 +155,32 @@ def get_merged_defaults(
     return args, params
 
 
+def parse_retries(retries: Any) -> int | None:
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    return parsed_retries
+
+
+def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
+    if resources is None:
+        return None
+    from airflow.utils.operator_resources import Resources
+
+    return Resources(**resources)
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
@@ -330,6 +356,9 @@ else:
             partial_kwargs.get("max_retry_delay", None)
         )
         partial_kwargs.setdefault("executor_config", {})
+
+        for k in ("execute", "failure", "success", "retry", "skipped"):
+            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
 
         return OperatorPartial(
             operator_class=operator_class,
@@ -1250,7 +1279,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine
-            object.__setattr__(result, k, v)
+            result.__dict__[k] = v
         return result
 
     def __getstate__(self):

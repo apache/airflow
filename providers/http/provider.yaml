@@ -22,7 +22,7 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 state: ready
-source-date-epoch: 1741508912
+source-date-epoch: 1743477833
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.2.1

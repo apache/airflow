@@ -148,14 +148,22 @@ def set_metrics(
 ) -> None:
     """Set metric of edge worker."""
     queues = queues if queues else []
-    connected = state not in (EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE)
-
-    Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
-    Stats.gauge(
-        "edge_worker.state",
-        int(connected),
-        tags={"name": worker_name, "state": state},
+    connected = state not in (
+        EdgeWorkerState.UNKNOWN,
+        EdgeWorkerState.OFFLINE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
+    maintenance = state in (
+        EdgeWorkerState.MAINTENANCE_MODE,
+        EdgeWorkerState.MAINTENANCE_EXIT,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+    )
+
+    Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
+    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+
+    Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
+    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
 
     Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})

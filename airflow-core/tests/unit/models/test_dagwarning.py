@@ -39,7 +39,7 @@ class TestDagWarning:
         """
         Test that the purge_inactive_dag_warnings method deletes inactive dag warnings
         """
-        dags = [DagModel(dag_id="dag_1", is_active=False), DagModel(dag_id="dag_2", is_active=True)]
+        dags = [DagModel(dag_id="dag_1", is_stale=True), DagModel(dag_id="dag_2", is_stale=False)]
         session.add_all(dags)
         session.commit()
 

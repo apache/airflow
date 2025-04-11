@@ -130,8 +130,6 @@ class SchedulerListOfDictsExpandInput:
         return length
 
 
-EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
-
 _EXPAND_INPUT_TYPES = {
     "dict-of-lists": SchedulerDictOfListsExpandInput,
     "list-of-dicts": SchedulerListOfDictsExpandInput,

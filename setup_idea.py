@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -30,11 +31,18 @@ from rich.prompt import Confirm
 iml_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$">
+     <content url="file://$MODULE_DIR$">
         {SOURCE_ROOT_MODULE_PATH}
         <excludeFolder url="file://$MODULE_DIR$/.build" />
         <excludeFolder url="file://$MODULE_DIR$/.kube" />
         <excludeFolder url="file://$MODULE_DIR$/.venv" />
+        <excludeFolder url="file://$MODULE_DIR$/dist" />
+        <excludeFolder url="file://$MODULE_DIR$/files" />
+        <excludeFolder url="file://$MODULE_DIR$/logs" />
+        <excludeFolder url="file://$MODULE_DIR$/out" />
+        <excludeFolder url="file://$MODULE_DIR$/tmp" />
+        <excludeFolder url="file://$MODULE_DIR$/airflow-core/dist" />
+        <excludeFolder url="file://$MODULE_DIR$/generated/" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (airflow)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -66,7 +74,17 @@ module_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 
 source_root_module_patter: str = '<sourceFolder url="file://$MODULE_DIR$/{path}" isTestSource="{status}" />'
 
-source_root_modules: list[str] = ["airflow-core", "airflow-ctl", "task-sdk", "devel-common", "dev/breeze"]
+source_root_modules: list[str] = [
+    "airflow-core",
+    "airflow-ctl",
+    "task-sdk",
+    "devel-common",
+    "dev",
+    "dev/breeze",
+    "docker-tests",
+    "kubernetes-tests",
+    "helm-tests",
+]
 
 all_module_paths: list[str] = []
 
@@ -87,9 +105,12 @@ def setup_idea():
     source_root_modules.sort()
     for module in source_root_modules:
         print(f"[green]Adding[/] module: [blue]{module}[/]")
-        all_module_paths.append(source_root_module_patter.format(path=f"{module}/src", status="false"))
-        all_module_paths.append(source_root_module_patter.format(path=f"{module}/tests", status="true"))
-
+        if (ROOT_AIRFLOW_FOLDER_PATH / module / "src").exists():
+            all_module_paths.append(source_root_module_patter.format(path=f"{module}/src", status="false"))
+        if (ROOT_AIRFLOW_FOLDER_PATH / module / "tests").exists():
+            all_module_paths.append(source_root_module_patter.format(path=f"{module}/tests", status="true"))
+        if module == "dev":
+            all_module_paths.append(source_root_module_patter.format(path=f"{module}", status="false"))
     source_root_module_path = "\n\t\t".join(all_module_paths)
 
     base_source_root_xml = iml_xml_template.format(SOURCE_ROOT_MODULE_PATH=source_root_module_path)

@@ -44,7 +44,7 @@ export const AssetNode = ({
     { enabled: Boolean(dagId) && Boolean(runId) },
   );
 
-  const datasetEvent = [
+  const assetEvent = [
     ...(upstreamEventsData?.asset_events ?? []),
     ...(downstreamEventsData?.asset_events ?? []),
   ].find((event) => event.name === label);
@@ -69,18 +69,18 @@ export const AssetNode = ({
           <Heading ml={-2} size="sm">
             <FiDatabase />
           </Heading>
-          <Link asChild color="fg.info" mb={2}>
+          <Link asChild color="fg.info">
             <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
           </Link>
         </HStack>
-        {datasetEvent === undefined ? undefined : (
+        {assetEvent === undefined ? undefined : (
           <>
             <Text color="fg.muted">
-              <Time datetime={datasetEvent.timestamp} />
+              <Time datetime={assetEvent.timestamp} />
             </Text>
-            {datasetEvent.created_dagruns.length && datasetEvent.created_dagruns.length > 1 ? (
+            {assetEvent.created_dagruns.length && assetEvent.created_dagruns.length > 1 ? (
               <Text color="fg.muted" fontSize="sm">
-                +{pluralize("other Dag Run", datasetEvent.created_dagruns.length)}
+                +{pluralize("other Dag Run", assetEvent.created_dagruns.length)}
               </Text>
             ) : undefined}
           </>

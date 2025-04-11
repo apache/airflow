@@ -39,8 +39,6 @@ from airflow.utils import db
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
-    from termcolor.termcolor import Color
-
     from airflow.jobs.base_job_runner import BaseJobRunner
 
 
@@ -144,7 +142,7 @@ class StandaloneCommand:
 
         You can pass multiple lines to output if you wish; it will be split for you.
         """
-        color: dict[str, Color] = {
+        color: dict[str, str] = {
             "api-server": "magenta",
             "scheduler": "blue",
             "dag-processor": "yellow",
@@ -174,12 +172,8 @@ class StandaloneCommand:
         # Make sure we're using a local executor flavour
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
         if not executor_class.is_local:
-            if "sqlite" in conf.get("database", "sql_alchemy_conn"):
-                self.print_output("standalone", "Forcing executor to SequentialExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR
-            else:
-                self.print_output("standalone", "Forcing executor to LocalExecutor")
-                env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
+            self.print_output("standalone", "Forcing executor to LocalExecutor")
+            env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
 
         # Make sure we're using SimpleAuthManager
         simple_auth_manager_classpath = (

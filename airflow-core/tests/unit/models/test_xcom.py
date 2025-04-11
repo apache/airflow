@@ -37,6 +37,7 @@ from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -128,6 +129,7 @@ class TestXCom:
         assert issubclass(cls, BaseXCom)
         assert cls.serialize_value([1]) == [1]
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.sdk.execution_time.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance, mock_supervisor_comms):
         """

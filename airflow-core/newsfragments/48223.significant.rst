@@ -1,0 +1,30 @@
+The Airflow distribution is now split into multiple distributions.
+
+In Airflow 2, all the dependencies were kept in the ``apache-airflow`` package were dynamically generated at
+build time and some of the optional dependencies in the package were excessive due to limitation of the build
+system used.
+
+With Airflow 3, Airflow is now split into several independent and isolated distribution packages on top of
+already existing ``providers`` and the dependencies are isolated and simplified across those distribution
+packages.
+
+While the original installation methods via ``apache-airflow`` distribution package and extras still
+work as previously and it installs complete airflow installation ready to serve as scheduler, webserver, triggerer
+and worker, the ``apache-airflow`` package is now a meta-package that cab install all the other distribution
+packages (mandatory of via optional extras), it's also possible to install only the distribution
+packages that are needed for a specific component you want to run airflow with.
+
+One change vs. Airflow 2 is that neither ``apache-airflow`` nor ``apache-airflow-core`` distribution packages
+have ``leveldb`` extra that is an optional feature of ``apache-airflow-providers-google`` distribution package.
+The simplest way to install ``leveldb`` dependencies is to install ``apache-airflow-providers-google[leveldb]``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

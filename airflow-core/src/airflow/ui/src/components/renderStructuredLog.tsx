@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Code } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
+import { chakra, Code, Link } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { urlRegex } from "src/constants/urlRegex";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Frame = {
@@ -46,6 +47,47 @@ type RenderStructuredLogProps = {
   sourceFilters?: Array<string>;
 };
 
+const addLinks = (line: string) => {
+  const matches = [...line.matchAll(urlRegex)];
+  let currentIndex = 0;
+  const elements: Array<JSX.Element | string> = [];
+
+  if (!matches.length) {
+    return line;
+  }
+
+  matches.forEach((match) => {
+    const startIndex = match.index;
+
+    // Add text before the URL
+    if (startIndex > currentIndex) {
+      elements.push(line.slice(currentIndex, startIndex));
+    }
+
+    elements.push(
+      <Link
+        color="fg.info"
+        href={match[0]}
+        key={match[0]}
+        rel="noopener noreferrer"
+        target="_blank"
+        textDecoration="underline"
+      >
+        {match[0]}
+      </Link>,
+    );
+
+    currentIndex = startIndex + match[0].length;
+  });
+
+  // Add remaining text after the last URL
+  if (currentIndex < line.length) {
+    elements.push(line.slice(currentIndex));
+  }
+
+  return elements;
+};
+
 export const renderStructuredLog = ({
   index,
   logLevelFilters,
@@ -56,7 +98,7 @@ export const renderStructuredLog = ({
   if (typeof logMessage === "string") {
     return (
       <chakra.span key={index} lineHeight={1.5}>
-        {logMessage}
+        {addLinks(logMessage)}
       </chakra.span>
     );
   }
@@ -83,7 +125,7 @@ export const renderStructuredLog = ({
   }
 
   elements.push(
-    <Link
+    <RouterLink
       id={index.toString()}
       key={`line_${index}`}
       style={{
@@ -98,7 +140,7 @@ export const renderStructuredLog = ({
       to={`${logLink}#${index}`}
     >
       {index}
-    </Link>,
+    </RouterLink>,
   );
 
   if (Boolean(timestamp)) {
@@ -147,7 +189,7 @@ export const renderStructuredLog = ({
 
   elements.push(
     <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
-      {event}
+      {addLinks(event)}
     </chakra.span>,
   );
 

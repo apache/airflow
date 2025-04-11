@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 
 
 @dag

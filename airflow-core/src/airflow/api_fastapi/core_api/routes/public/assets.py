@@ -111,7 +111,6 @@ class OnlyActiveFilter(BaseParam[bool]):
 
     @classmethod
     def depends(cls, only_active: bool = True) -> OnlyActiveFilter:
-        print("SET", only_active)
         return cls().set_value(only_active)
 
 

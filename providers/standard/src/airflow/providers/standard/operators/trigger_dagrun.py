@@ -41,9 +41,9 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -153,7 +153,7 @@ class TriggerDagRunOperator(BaseOperator):
         trigger_dag_id: str,
         trigger_run_id: str | None = None,
         conf: dict | None = None,
-        logical_date: str | datetime.datetime | None = None,
+        logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
@@ -180,19 +180,23 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
-
-        if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
-            type_name = type(logical_date).__name__
+        self.logical_date = logical_date
+        if logical_date is NOTSET:
+            self.logical_date = NOTSET
+        elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
+            self.logical_date = logical_date
+        else:
             raise TypeError(
-                f"Expected str or datetime.datetime type for parameter 'logical_date'. Got {type_name}"
+                f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
-        self.logical_date = logical_date
-
     def execute(self, context: Context):
-        if self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
-            parsed_logical_date = self.logical_date
-        else:
+        if self.logical_date is NOTSET:
+            # If no logical_date is provided we will set utcnow()
+            parsed_logical_date = timezone.utcnow()
+        elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
+            parsed_logical_date = self.logical_date  # type: ignore
+        elif isinstance(self.logical_date, str):
             parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
@@ -231,9 +235,8 @@ class TriggerDagRunOperator(BaseOperator):
             allowed_states=self.allowed_states,
             failed_states=self.failed_states,
             poke_interval=self.poke_interval,
+            deferrable=self._defer,
         )
-
-        # TODO: Support deferral
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
@@ -304,8 +307,40 @@ class TriggerDagRunOperator(BaseOperator):
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
 
+    def execute_complete(self, context: Context, event: tuple[str, dict[str, Any]]):
+        if AIRFLOW_V_3_0_PLUS:
+            self._trigger_dag_run_af_3_execute_complete(event=event)
+        else:
+            self._trigger_dag_run_af_2_execute_complete(event=event)
+
+    def _trigger_dag_run_af_3_execute_complete(self, event: tuple[str, dict[str, Any]]):
+        run_ids = event[1]["run_ids"]
+        event_data = event[1]
+        failed_run_id_conditions = []
+
+        for run_id in run_ids:
+            state = event_data.get(run_id)
+            if state in self.failed_states:
+                failed_run_id_conditions.append(run_id)
+                continue
+            if state in self.allowed_states:
+                self.log.info(
+                    "%s finished with allowed state %s for run_id %s",
+                    self.trigger_dag_id,
+                    state,
+                    run_id,
+                )
+
+        if failed_run_id_conditions:
+            raise AirflowException(
+                f"{self.trigger_dag_id} failed with failed states {self.failed_states} for run_ids"
+                f" {failed_run_id_conditions}"
+            )
+
     @provide_session
-    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
+    def _trigger_dag_run_af_2_execute_complete(
+        self, event: tuple[str, dict[str, Any]], session: Session = NEW_SESSION
+    ):
         # This logical_date is parsed from the return trigger event
         provided_logical_date = event[1]["execution_dates"][0]
         try:

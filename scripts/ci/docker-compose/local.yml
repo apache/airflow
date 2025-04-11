@@ -27,6 +27,8 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      - root-airflow-volume:/root/airflow/
+      - airflow-cache-volume:/root/.cache
       # START automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
@@ -77,6 +79,12 @@ services:
         source: ../../../docs
         target: /opt/airflow/docs
       - type: bind
+        source: ../../../docker-stack-docs
+        target: /opt/airflow/docker-stack-docs
+      - type: bind
+        source: ../../../providers-summary-docs
+        target: /opt/airflow/providers-summary-docs
+      - type: bind
         source: ../../../generated
         target: /opt/airflow/generated
       - type: bind
@@ -101,18 +109,18 @@ services:
         source: ../../../devel-common
         target: /opt/airflow/devel-common
       - type: bind
-        source: ../../../helm_tests
-        target: /opt/airflow/helm_tests
+        source: ../../../helm-tests
+        target: /opt/airflow/helm-tests
       - type: bind
-        source: ../../../kubernetes_tests
-        target: /opt/airflow/kubernetes_tests
+        source: ../../../kubernetes-tests
+        target: /opt/airflow/kubernetes-tests
       - type: bind
-        source: ../../../docker_tests
-        target: /opt/airflow/docker_tests
+        source: ../../../docker-tests
+        target: /opt/airflow/docker-tests
       - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
-      - type: bind
-        source: ../../../hatch_build.py
-        target: /opt/airflow/hatch_build.py
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
+volumes:
+  root-airflow-volume:
+  airflow-cache-volume:

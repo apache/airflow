@@ -199,7 +199,7 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
      breeze build-docs
 
-Results of the build can be found in the ``docs/_build`` folder.
+Results of the build can be found in the ``generated/_build`` folder.
 
 The documentation build consists of three steps:
 
@@ -229,7 +229,7 @@ package names and can be used to select more than one package with single filter
      breeze build-docs --package-filter apache-airflow-providers-*
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
-During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
+During the docs building auto-api generated files are stored in the ``generated`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
 These are all available flags of ``build-docs`` command:
