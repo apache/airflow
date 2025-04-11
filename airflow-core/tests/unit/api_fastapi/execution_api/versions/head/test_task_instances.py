@@ -1458,7 +1458,6 @@ class TestGetTaskStates:
         }
 
     def test_get_task_group_states_with_multiple_task(self, client, session, dag_maker):
-        """Test counting tasks in specific states."""
         with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
