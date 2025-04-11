@@ -24,7 +24,7 @@ import libcst as cst
 from datamodel_code_generator.format import CustomCodeFormatter
 from libcst.helpers import parse_template_statement
 
-AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 
 
 def license_text() -> str:

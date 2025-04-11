@@ -101,6 +101,8 @@ dev = [
 ]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
+    "apache-airflow-devel-common",
+    "libcst >=1.1.0"
 ]
 
 # To use:
@@ -126,8 +128,10 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
+custom-formatters = 'misc.datamodel_code_formatter'
 
-url = "http://0.0.0.0:28080/openapi.json"
+
+input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
