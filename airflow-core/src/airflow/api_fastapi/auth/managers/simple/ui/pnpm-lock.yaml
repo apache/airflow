@@ -65,7 +65,7 @@ importers:
         version: 19.0.0
       '@vitejs/plugin-react-swc':
         specifier: ^3.8.1
-        version: 3.8.1(@swc/helpers@0.5.15)(vite@6.2.5(jiti@1.21.7))
+        version: 3.8.1(@swc/helpers@0.5.15)(vite@6.2.6(jiti@1.21.7))
       eslint:
         specifier: ^9.23.0
         version: 9.23.0(jiti@1.21.7)
@@ -106,11 +106,11 @@ importers:
         specifier: ^8.27.0
         version: 8.28.0(eslint@9.23.0(jiti@1.21.7))(typescript@5.5.4)
       vite:
-        specifier: ^6.2.5
-        version: 6.2.5(jiti@1.21.7)
+        specifier: ^6.2.6
+        version: 6.2.6(jiti@1.21.7)
       vite-plugin-css-injected-by-js:
         specifier: ^3.5.2
-        version: 3.5.2(vite@6.2.5(jiti@1.21.7))
+        version: 3.5.2(vite@6.2.6(jiti@1.21.7))
       vitest:
         specifier: ^3.0.9
         version: 3.0.9(happy-dom@17.4.4)(jiti@1.21.7)
@@ -2686,8 +2686,8 @@ packages:
     peerDependencies:
       vite: '>2.0.0-0'
 
-  vite@6.2.5:
-    resolution: {integrity: sha512-j023J/hCAa4pRIUH6J9HemwYfjB5llR2Ps0CWeikOtdR8+pAURAk0DoJC5/mm9kd+UgdnIy7d6HE4EAvlYhPhA==}
+  vite@6.2.6:
+    resolution: {integrity: sha512-9xpjNl3kR4rVDZgPNdTL0/c6ao4km69a/2ihNQbcANz8RuCOK3hQBmLSJf3bRKVQjVMda+YvizNE8AwvogcPbw==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
     peerDependencies:
@@ -3584,10 +3584,10 @@ snapshots:
       '@typescript-eslint/types': 8.28.0
       eslint-visitor-keys: 4.2.0
 
-  '@vitejs/plugin-react-swc@3.8.1(@swc/helpers@0.5.15)(vite@6.2.5(jiti@1.21.7))':
+  '@vitejs/plugin-react-swc@3.8.1(@swc/helpers@0.5.15)(vite@6.2.6(jiti@1.21.7))':
     dependencies:
       '@swc/core': 1.11.12(@swc/helpers@0.5.15)
-      vite: 6.2.5(jiti@1.21.7)
+      vite: 6.2.6(jiti@1.21.7)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -3598,13 +3598,13 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.0.9(vite@6.2.5(jiti@1.21.7))':
+  '@vitest/mocker@3.0.9(vite@6.2.6(jiti@1.21.7))':
     dependencies:
       '@vitest/spy': 3.0.9
       estree-walker: 3.0.3
       magic-string: 0.30.17
     optionalDependencies:
-      vite: 6.2.5(jiti@1.21.7)
+      vite: 6.2.6(jiti@1.21.7)
 
   '@vitest/pretty-format@3.0.9':
     dependencies:
@@ -5907,7 +5907,7 @@ snapshots:
       debug: 4.4.0
       es-module-lexer: 1.6.0
       pathe: 2.0.3
-      vite: 6.2.5(jiti@1.21.7)
+      vite: 6.2.6(jiti@1.21.7)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -5922,11 +5922,11 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-css-injected-by-js@3.5.2(vite@6.2.5(jiti@1.21.7)):
+  vite-plugin-css-injected-by-js@3.5.2(vite@6.2.6(jiti@1.21.7)):
     dependencies:
-      vite: 6.2.5(jiti@1.21.7)
+      vite: 6.2.6(jiti@1.21.7)
 
-  vite@6.2.5(jiti@1.21.7):
+  vite@6.2.6(jiti@1.21.7):
     dependencies:
       esbuild: 0.25.2
       postcss: 8.5.3
@@ -5938,7 +5938,7 @@ snapshots:
   vitest@3.0.9(happy-dom@17.4.4)(jiti@1.21.7):
     dependencies:
       '@vitest/expect': 3.0.9
-      '@vitest/mocker': 3.0.9(vite@6.2.5(jiti@1.21.7))
+      '@vitest/mocker': 3.0.9(vite@6.2.6(jiti@1.21.7))
       '@vitest/pretty-format': 3.0.9
       '@vitest/runner': 3.0.9
       '@vitest/snapshot': 3.0.9
@@ -5954,7 +5954,7 @@ snapshots:
       tinyexec: 0.3.2
       tinypool: 1.0.2
       tinyrainbow: 2.0.0
-      vite: 6.2.5(jiti@1.21.7)
+      vite: 6.2.6(jiti@1.21.7)
       vite-node: 3.0.9(jiti@1.21.7)
       why-is-node-running: 2.3.0
     optionalDependencies:
