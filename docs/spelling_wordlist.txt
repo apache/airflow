@@ -1303,6 +1303,7 @@ podName
 PodSpec
 podSpec
 podspec
+polars
 poller
 polyfill
 pooler
