@@ -420,7 +420,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
 
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_get_count_basic(self):
         """Test basic get_count functionality with just dag_id."""
@@ -555,7 +555,7 @@ class TestVariableOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
 
 class TestXCOMOperations:
@@ -706,7 +706,7 @@ class TestXCOMOperations:
             key="key",
             value=values,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_map_index(self):
         # Simulate a successful response from the server when setting an xcom with map_index passed
@@ -731,7 +731,7 @@ class TestXCOMOperations:
             value="value1",
             map_index=2,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_mapped_length(self):
         # Simulate a successful response from the server when setting an xcom with mapped_length
@@ -758,7 +758,7 @@ class TestXCOMOperations:
             map_index=2,
             mapped_length=3,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
 
 class TestConnectionOperations:
