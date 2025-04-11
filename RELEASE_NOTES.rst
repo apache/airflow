@@ -527,7 +527,7 @@ Miscellaneous
 - Add log for running callback (#38892)
 - Use ``model_dump`` instead of ``dict`` for serialize Pydantic V2 model (#38933)
 - Widen cheat sheet column to avoid wrapping commands (#38888)
-- Update hatchling to latest version (1.22.5) (#38780)
+- Update ``hatchling`` to latest version (1.22.5) (#38780)
 - bump uv to 0.1.29 (#38758)
 - Add missing serializations found during provider tests fixing (#41252)
 - Bump ``ws`` from 7.5.5 to 7.5.10 in /airflow/www (#40288)
@@ -620,7 +620,7 @@ Miscellaneous
 - Upgrade to another version of trove-classifier (new CUDA classifiers) (#40564)
 - Rename "try_number" increments that are unrelated to the airflow concept (#39317)
 - Update trove classifiers to the latest version as build dependency (#40542)
-- Upgrade to latest version of hatchling as build dependency (#40387)
+- Upgrade to latest version of ``hatchling`` as build dependency (#40387)
 - Fix bug in ``SchedulerJobRunner._process_executor_events`` (#40563)
 - Remove logging for "blocked" events (#40446)
 
@@ -1080,7 +1080,7 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
-- Limit importlib_resources as it breaks ``pytest_rewrites`` (#38095, #38139)
+- Limit ``importlib_resources`` as it breaks ``pytest_rewrites`` (#38095, #38139)
 - Limit ``pandas`` to ``<2.2`` (#37748)
 - Bump ``croniter`` to fix an issue with 29 Feb cron expressions (#38198)
 
@@ -1287,7 +1287,7 @@ using ``pyproject.toml``. Airflow is now compliant with those accepted PEPs:
 * `PEP-660 Editable installs for pyproject.toml based builds (wheel based) <https://www.python.org/dev/peps/pep-0660/>`__
 * `PEP-685 Comparison of extra names for optional distribution dependencies <https://www.python.org/dev/peps/pep-0685/>`__
 
-Also we implement multiple license files support coming from Draft, not yet accepted (but supported by hatchling) PEP:
+Also we implement multiple license files support coming from Draft, not yet accepted (but supported by ``hatchling``) PEP:
 * `PEP 639 Improving License Clarity with Better Package Metadata <https://peps.python.org/pep-0639/>`__
 
 This has almost no noticeable impact on users if they are using modern Python packaging and development tools, generally
@@ -1305,7 +1305,7 @@ replace ``_`` and ``.`` with ``-``. You can also get warnings that the extra you
 this warning is harmless and the extra is installed anyway. It is, however, recommended to change to use ``-`` in extras in your dependency
 specifications for all Airflow extras.
 
-* Released airflow package does not contain ``devel``, ``devel-*``, ``doc`` and ``doc-gen`` extras.
+* Released airflow package does not contain ``devel``, ``devel-*``, ``doc`` and ``docs-gen`` extras.
   Those extras are only available when you install Airflow from sources in ``--editable`` mode. This is
   because those extras are only used for development and documentation building purposes and are not needed
   when you install Airflow for production use. Those dependencies had unspecified and varying behaviour for
@@ -1384,7 +1384,7 @@ Miscellaneous
 - Rename concurrency label to max active tasks (#36691)
 - Restore function scoped ``httpx`` import in file_task_handler for performance (#36753)
 - Add support of Pendulum 3 (#36281)
-- Standardize airflow build process and switch to Hatchling build backend (#36537)
+- Standardize airflow build process and switch to ``hatchling`` build backend (#36537)
 - Get rid of ``pyarrow-hotfix`` for ``CVE-2023-47248`` (#36697)
 - Make ``graphviz`` dependency optional (#36647)
 - Announce MSSQL support end in Airflow 2.9.0, add migration script hints (#36509)

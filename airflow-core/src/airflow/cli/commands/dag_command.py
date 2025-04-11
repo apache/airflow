@@ -44,6 +44,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, DagTag, TaskInstance
+from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -59,7 +60,6 @@ if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
 log = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class DAGSchema(SQLAlchemySchema):
     bundle_name = auto_field(dump_only=True)
     bundle_version = auto_field(dump_only=True)
     is_paused = auto_field()
-    is_active = auto_field(dump_only=True)
+    is_stale = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
@@ -293,7 +293,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "bundle_name": dag.get_bundle_name(),
         "bundle_version": dag.get_bundle_version(),
         "is_paused": dag.get_is_paused(),
-        "is_active": dag.get_is_active(),
+        "is_stale": dag.get_is_stale(),
         "last_parsed_time": None,
         "last_expired": None,
         "fileloc": dag.fileloc,
@@ -656,6 +656,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
 
+    dag = DAG.from_sdk_dag(dag)
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,

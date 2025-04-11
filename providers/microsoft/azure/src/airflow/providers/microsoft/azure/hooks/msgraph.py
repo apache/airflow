@@ -23,12 +23,12 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from azure.identity import CertificateCredential, ClientSecretCredential
-from httpx import AsyncHTTPTransport, Timeout
+from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
@@ -55,10 +55,8 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
     from kiota_abstractions.request_adapter import RequestAdapter
-    from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
-    from kiota_http.httpx_request_adapter import ResponseType
 
     from airflow.models import Connection
 
@@ -67,7 +65,7 @@ class DefaultResponseHandler(ResponseHandler):
     """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
 
     @staticmethod
-    def get_value(response: NativeResponseType) -> Any:
+    def get_value(response: Response) -> Any:
         with suppress(JSONDecodeError):
             return response.json()
         content = response.content
@@ -76,7 +74,7 @@ class DefaultResponseHandler(ResponseHandler):
         return content
 
     async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
+        self, response: NativeResponseType, error_map: dict[str, ParsableFactory] | None
     ) -> Any:
         """
         Invoke this callback method when a response is received.
@@ -84,10 +82,11 @@ class DefaultResponseHandler(ResponseHandler):
         param response: The type of the native response object.
         param error_map: The error dict to use in case of a failed request.
         """
-        value = self.get_value(response)
-        if response.status_code not in {200, 201, 202, 204, 302}:
-            message = value or response.reason_phrase
-            status_code = HTTPStatus(response.status_code)
+        resp: Response = cast("Response", response)
+        value = self.get_value(resp)
+        if resp.status_code not in {200, 201, 202, 204, 302}:
+            message = value or resp.reason_phrase
+            status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
             elif status_code == HTTPStatus.NOT_FOUND:
@@ -391,16 +390,16 @@ class KiotaRequestAdapterHook(BaseHook):
     async def run(
         self,
         url: str = "",
-        response_type: ResponseType | None = None,
+        response_type: str | None = None,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
         self.log.info("Executing url '%s' as '%s'", url, method)
 
-        response = await self.get_conn().send_primitive_async(
+        response = await self.send_request(
             request_info=self.request_information(
                 url=url,
                 response_type=response_type,
@@ -411,20 +410,31 @@ class KiotaRequestAdapterHook(BaseHook):
                 data=data,
             ),
             response_type=response_type,
-            error_map=self.error_mapping(),
         )
 
         self.log.debug("response: %s", response)
 
         return response
 
+    async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
+        if response_type:
+            return await self.get_conn().send_primitive_async(
+                request_info=request_info,
+                response_type=response_type,
+                error_map=self.error_mapping(),
+            )
+        return await self.get_conn().send_no_response_content_async(
+            request_info=request_info,
+            error_map=self.error_mapping(),
+        )
+
     def request_information(
         self,
         url: str,
-        response_type: ResponseType | None = None,
+        response_type: str | None = None,
         path_parameters: dict[str, Any] | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ) -> RequestInformation:
@@ -446,8 +456,12 @@ class KiotaRequestAdapterHook(BaseHook):
         headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
             request_information.headers.try_add(header_name=header_name, header_value=header_value)
-        if isinstance(data, BytesIO) or isinstance(data, bytes) or isinstance(data, str):
+        if isinstance(data, BytesIO):
+            request_information.content = data.read()
+        elif isinstance(data, bytes):
             request_information.content = data
+        elif isinstance(data, str):
+            request_information.content = data.encode("utf-8")
         elif data:
             request_information.headers.try_add(
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
@@ -468,8 +482,8 @@ class KiotaRequestAdapterHook(BaseHook):
         return {}
 
     @staticmethod
-    def error_mapping() -> dict[str, ParsableFactory | None]:
+    def error_mapping() -> dict[str, type[ParsableFactory]]:
         return {
-            "4XX": APIError,
-            "5XX": APIError,
+            "4XX": APIError,  # type: ignore
+            "5XX": APIError,  # type: ignore
         }

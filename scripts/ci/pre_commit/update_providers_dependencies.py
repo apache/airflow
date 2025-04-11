@@ -28,7 +28,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -41,6 +40,7 @@ from common_precommit_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     console,
+    get_imports_from_file,
 )
 
 AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
@@ -65,38 +65,6 @@ ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultd
 
 ALL_PROVIDERS: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict())
 ALL_PROVIDER_FILES: list[Path] = []
-
-
-class ImportFinder(NodeVisitor):
-    """
-    AST visitor that collects all imported names in its imports
-    """
-
-    def __init__(self) -> None:
-        self.imports: list[str] = []
-        self.handled_import_exception = list[str]
-        self.tried_imports: list[str] = []
-
-    def process_import(self, import_name: str) -> None:
-        self.imports.append(import_name)
-
-    def get_import_name_from_import_from(self, node: ImportFrom) -> list[str]:
-        import_names: list[str] = []
-        for alias in node.names:
-            name = alias.name
-            fullname = f"{node.module}.{name}" if node.module else name
-            import_names.append(fullname)
-        return import_names
-
-    def visit_Import(self, node: Import):
-        for alias in node.names:
-            self.process_import(alias.name)
-
-    def visit_ImportFrom(self, node: ImportFrom):
-        if node.module == "__future__":
-            return
-        for fullname in self.get_import_name_from_import_from(node):
-            self.process_import(fullname)
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
@@ -164,13 +132,6 @@ def get_provider_id_from_import(import_name: str, file_path: Path) -> str | None
     return provider_id
 
 
-def get_imports_from_file(file_path: Path) -> list[str]:
-    root = parse(file_path.read_text(), file_path.name)
-    visitor = ImportFinder()
-    visitor.visit(root)
-    return visitor.imports
-
-
 def get_provider_id_from_path(file_path: Path) -> str | None:
     """
     Get the provider id from the path of the file it belongs to.
@@ -193,7 +154,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
     file_provider = get_provider_id_from_path(file_path)
     if not file_provider:
         return
-    imports = get_imports_from_file(file_path)
+    imports = get_imports_from_file(file_path, only_top_level=False)
     for import_name in imports:
         imported_provider = get_provider_id_from_import(import_name, file_path)
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:

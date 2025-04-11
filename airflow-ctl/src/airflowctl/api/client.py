@@ -18,15 +18,17 @@
 from __future__ import annotations
 
 import contextlib
+import enum
 import json
 import os
 import sys
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
 
 import httpx
 import keyring
 import structlog
+from keyring.errors import NoKeyringError
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
@@ -39,6 +41,7 @@ from airflowctl.api.operations import (
     DagOperations,
     DagRunOperations,
     JobsOperations,
+    LoginOperations,
     PoolsOperations,
     ProvidersOperations,
     ServerResponseError,
@@ -63,10 +66,20 @@ log = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "Client",
     "Credentials",
+    "provide_api_client",
+    "NEW_API_CLIENT",
+    "ClientKind",
 ]
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
+
+
+class ClientKind(enum.Enum):
+    """Client kind enum."""
+
+    CLI = "cli"
+    AUTH = "auth"
 
 
 def add_correlation_id(request: httpx.Request):
@@ -115,7 +128,10 @@ class Credentials:
             os.makedirs(default_config_dir)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
-        keyring.set_password("airflow-cli", f"api_token-{self.api_environment}", self.api_token)
+        try:
+            keyring.set_password("airflowctl", f"api_token-{self.api_environment}", self.api_token)
+        except NoKeyringError as e:
+            log.error(e)
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -124,7 +140,7 @@ class Credentials:
             with open(os.path.join(default_config_dir, self.input_cli_config_file)) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
-                self.api_token = keyring.get_password("airflow-cli", f"api_token-{self.api_environment}")
+                self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
             return self
         else:
             raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
@@ -143,9 +159,19 @@ class BearerAuth(httpx.Auth):
 class Client(httpx.Client):
     """Client for the Airflow REST API."""
 
-    def __init__(self, *, base_url: str, token: str, **kwargs: Any):
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        token: str,
+        kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI,
+        **kwargs: Any,
+    ) -> None:
         auth = BearerAuth(token)
-        kwargs["base_url"] = f"{base_url}/public"
+        if kind == ClientKind.AUTH:
+            kwargs["base_url"] = f"{base_url}/auth"
+        else:
+            kwargs["base_url"] = f"{base_url}/api/v2"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -153,6 +179,12 @@ class Client(httpx.Client):
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def login(self):
+        """Operations related to authentication."""
+        return LoginOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
@@ -223,22 +255,34 @@ class Client(httpx.Client):
 
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
-def get_client():
-    """Get CLI API client."""
-    cli_api_client = None
+def get_client(kind: ClientKind = ClientKind.CLI):
+    """
+    Get CLI API client.
+
+    Don't call this method, please use @provide_api_client decorator instead.
+    """
+    api_client = None
     try:
-        credentials = Credentials().load()
-        limits = httpx.Limits(max_keepalive_connections=1, max_connections=1)
-        cli_api_client = Client(base_url=credentials.api_url, limits=limits, token=credentials.api_token)
-        yield cli_api_client
+        credentials = Credentials()
+        if kind == ClientKind.CLI:
+            credentials = credentials.load()
+        api_client = Client(
+            base_url=credentials.api_url or "http://localhost:8080",
+            limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
+            token=credentials.api_token or "",
+            kind=kind,
+        )
+        yield api_client
     except AirflowCtlNotFoundException as e:
         raise e
     finally:
-        if cli_api_client:
-            cli_api_client.close()
+        if api_client:
+            api_client.close()
 
 
-def provide_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
+def provide_api_client(
+    kind: ClientKind = ClientKind.CLI,
+) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
     """
     Provide a CLI API Client to the decorated function.
 
@@ -249,15 +293,18 @@ def provide_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
     will create one and close it for you.
     """
 
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> RT:
-        if "cli_api_client" not in kwargs:
-            with get_client() as cli_api_client:
-                return func(*args, cli_api_client=cli_api_client, **kwargs)
-        # The CLI API Client should be only passed for Mocking and Testing
-        return func(*args, **kwargs)
+    def decorator(func: Callable[PS, RT]) -> Callable[PS, RT]:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> RT:
+            if "api_client" not in kwargs:
+                with get_client(kind=kind) as api_client:
+                    return func(*args, api_client=api_client, **kwargs)
+            # The CLI API Client should be only passed for Mocking and Testing
+            return func(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
-NEW_CLI_API_CLIENT: Client = cast("Client", None)
+NEW_API_CLIENT: Client = cast("Client", None)

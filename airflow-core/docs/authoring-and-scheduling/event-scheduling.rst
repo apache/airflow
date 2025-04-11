@@ -42,9 +42,9 @@ SQS:
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset import Asset, AssetWatcher
+    from airflow.sdk import Asset, AssetWatcher
     from airflow.providers.common.msgq.triggers.msg_queue import MessageQueueTrigger
-    from airflow import DAG
+    from airflow.sdk import DAG
     from datetime import datetime
 
     # Define a trigger that listens to an external message queue (AWS SQS in this case)
@@ -96,6 +96,31 @@ already compatible with event-driven scheduling, then you just need to change th
 event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
+
+Avoid infinite scheduling
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reason why some triggers are not compatible with event-driven scheduling is that they are waiting
+for an external resource to reach a given state. Examples:
+
+* Wait for a file to exist in a storage service
+* Wait for a job to be in a success state
+* Wait for a row to be present in a database
+
+Scheduling under such conditions can lead to infinite rescheduling. This is because once the condition becomes true,
+it is likely to remain true for an extended period.
+
+For example, consider a DAG scheduled to run when a specific job reaches a "success" state.
+Once the job succeeds, it will typically remain in that state. As a result, the DAG will be triggered repeatedly every
+time the triggerer checks the condition.
+
+Another example is the ``S3KeyTrigger``, which checks for the presence of a specific file in an S3 bucket.
+Once the file is created, the trigger will continue to succeed on every check, since the condition
+"is file X present in bucket Y" remains true.
+This leads to the DAG being triggered indefinitely every time the trigger mechanism runs.
+
+When creating custom triggers, be cautious about using conditions that remain permanently true once met.
+This can unintentionally result in infinite DAG executions and overwhelm your system.
 
 Use cases for event-driven dags
 -------------------------------

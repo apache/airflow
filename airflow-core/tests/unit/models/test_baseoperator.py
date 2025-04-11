@@ -20,11 +20,9 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 from datetime import datetime
-from unittest import mock
 
 import pytest
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import TaskDeferralTimeout
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -34,6 +32,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
+from airflow.sdk import task as task_decorator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -64,7 +63,7 @@ class ClassWithCustomAttributes:
 
 class TestBaseOperator:
     def test_trigger_rule_validation(self):
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_TRIGGER_RULE
 
         fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
@@ -112,22 +111,6 @@ class TestBaseOperator:
             BaseOperator(task_id="1" * 249, dag=dag)
         except Exception as e:
             pytest.fail(f"Exception raised: {e}")
-
-    def test_pre_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", pre_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.pre_execute({})
-        assert hook.called
-
-    def test_post_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", post_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.post_execute({})
-        assert hook.called
 
     def test_task_naive_datetime(self):
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)

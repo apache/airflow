@@ -279,10 +279,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [max-lines](https://eslint.org/docs/latest/rules/max-lines)
      */
-    "max-lines": [
-      ERROR,
-      { max: 250, skipBlankLines: true, skipComments: true },
-    ],
+    "max-lines": [ERROR, { max: 250, skipBlankLines: true, skipComments: true }],
 
     /**
      * Enforce a maximum depth that callbacks can be nested to 3.
@@ -869,10 +866,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [no-restricted-globals](https://eslint.org/docs/latest/rules/no-restricted-globals)
      */
-    "no-restricted-globals": [
-      ERROR,
-      { message: "Use `globalThis` instead.", name: "window" },
-    ],
+    "no-restricted-globals": [ERROR, { message: "Use `globalThis` instead.", name: "window" }],
 
     /**
      * Disallow assignment operators in `return` statements.

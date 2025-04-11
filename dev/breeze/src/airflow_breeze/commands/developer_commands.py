@@ -81,9 +81,6 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
-from airflow_breeze.commands.testing_commands import (
-    option_force_lowest_dependencies,
-)
 from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
@@ -299,7 +296,6 @@ option_load_default_connections = click.option(
 @option_executor_shell
 @option_excluded_providers
 @option_force_build
-@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_include_mypy_volume
@@ -354,7 +350,6 @@ def shell(
     extra_args: tuple,
     excluded_providers: str,
     force_build: bool,
-    force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
     include_mypy_volume: bool,
@@ -425,7 +420,6 @@ def shell(
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
-        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
@@ -1009,14 +1003,23 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
+@click.option(
+    "-b",
+    "--cleanup-build-cache",
+    help="Additionally cleanup Build (pip/uv) cache.",
+    is_flag=True,
+)
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool, cleanup_build_cache: bool):
     perform_environment_checks()
     shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+    if cleanup_build_cache:
+        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
 
 
@@ -1150,6 +1153,10 @@ def doctor(ctx):
     if given_answer == Answer.YES:
         get_console().print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+
+        get_console().print("\n[info]Cleaning build cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
         run_command(command_to_execute)
 
         get_console().print("\n[info]Deleting .build cache dir...\n")

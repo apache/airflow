@@ -43,14 +43,19 @@ Execution API server is because:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
+from functools import cached_property
 from typing import Annotated, Any, Literal, Union
 from uuid import UUID
 
+import attrs
 from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventDagRunReference,
+    AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
     BundleInfo,
@@ -108,6 +113,50 @@ class AssetResult(AssetResponse):
         return cls(**asset_response.model_dump(exclude_defaults=True), type="AssetResult")
 
 
+@attrs.define(kw_only=True)
+class AssetEventSourceTaskInstance:
+    """Used in AssetEventResult."""
+
+    dag_id: str
+    task_id: str
+    run_id: str
+    map_index: int
+
+    def xcom_pull(
+        self,
+        *,
+        key: str = "return_value",  # TODO: Make this a constant; see RuntimeTaskInstance.
+        default: Any = None,
+    ) -> Any:
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if (value := XCom.get_value(ti_key=self, key=key)) is None:
+            return default
+        return value
+
+
+class AssetEventResult(AssetEventResponse):
+    """Used in AssetEventsResult."""
+
+    @classmethod
+    def from_asset_event_response(cls, asset_event_response: AssetEventResponse) -> AssetEventResult:
+        return cls(**asset_event_response.model_dump(exclude_defaults=True))
+
+    @cached_property
+    def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
+        if not (self.source_task_id and self.source_dag_id and self.source_run_id):
+            return None
+        if self.source_map_index is None:
+            return None
+
+        return AssetEventSourceTaskInstance(
+            dag_id=self.source_dag_id,
+            task_id=self.source_task_id,
+            run_id=self.source_run_id,
+            map_index=self.source_map_index,
+        )
+
+
 class AssetEventsResult(AssetEventsResponse):
     """Response to GetAssetEvent request."""
 
@@ -127,6 +176,32 @@ class AssetEventsResult(AssetEventsResponse):
         return cls(
             **asset_events_response.model_dump(exclude_defaults=True),
             type="AssetEventsResult",
+        )
+
+    def iter_asset_event_results(self) -> Iterator[AssetEventResult]:
+        return (AssetEventResult.from_asset_event_response(event) for event in self.asset_events)
+
+
+class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
+    @classmethod
+    def from_asset_event_dag_run_reference(
+        cls,
+        asset_event_dag_run_reference: AssetEventDagRunReference,
+    ) -> AssetEventDagRunReferenceResult:
+        return cls(**asset_event_dag_run_reference.model_dump(exclude_defaults=True))
+
+    @cached_property
+    def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
+        if not (self.source_task_id and self.source_dag_id and self.source_run_id):
+            return None
+        if self.source_map_index is None:
+            return None
+
+        return AssetEventSourceTaskInstance(
+            dag_id=self.source_dag_id,
+            task_id=self.source_task_id,
+            run_id=self.source_run_id,
+            map_index=self.source_map_index,
         )
 
 
@@ -222,6 +297,20 @@ class TaskRescheduleStartDate(BaseModel):
     type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
 
 
+class TICount(BaseModel):
+    """Response containing count of Task Instances matching certain filters."""
+
+    count: int
+    type: Literal["TICount"] = "TICount"
+
+
+class DRCount(BaseModel):
+    """Response containing count of DAG Runs matching certain filters."""
+
+    count: int
+    type: Literal["DRCount"] = "DRCount"
+
+
 class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
@@ -239,10 +328,12 @@ ToTask = Annotated[
         AssetEventsResult,
         ConnectionResult,
         DagRunStateResult,
+        DRCount,
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
         TaskRescheduleStartDate,
+        TICount,
         VariableResult,
         XComResult,
         XComCountResponse,
@@ -445,30 +536,50 @@ class GetTaskRescheduleStartDate(BaseModel):
     type: Literal["GetTaskRescheduleStartDate"] = "GetTaskRescheduleStartDate"
 
 
+class GetTICount(BaseModel):
+    dag_id: str
+    task_ids: list[str] | None = None
+    task_group_id: str | None = None
+    logical_dates: list[AwareDatetime] | None = None
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    type: Literal["GetTICount"] = "GetTICount"
+
+
+class GetDRCount(BaseModel):
+    dag_id: str
+    logical_dates: list[AwareDatetime] | None = None
+    run_ids: list[str] | None = None
+    states: list[str] | None = None
+    type: Literal["GetDRCount"] = "GetDRCount"
+
+
 ToSupervisor = Annotated[
     Union[
-        SucceedTask,
         DeferTask,
+        DeleteXCom,
         GetAssetByName,
         GetAssetByUri,
         GetAssetEventByAsset,
         GetAssetEventByAssetAlias,
         GetConnection,
         GetDagRunState,
+        GetDRCount,
         GetPrevSuccessfulDagRun,
         GetTaskRescheduleStartDate,
+        GetTICount,
         GetVariable,
         GetXCom,
         GetXComCount,
         PutVariable,
         RescheduleTask,
         RetryTask,
-        SkipDownstreamTasks,
         SetRenderedFields,
         SetXCom,
+        SkipDownstreamTasks,
+        SucceedTask,
         TaskState,
         TriggerDagRun,
-        DeleteXCom,
     ],
     Field(discriminator="type"),
 ]

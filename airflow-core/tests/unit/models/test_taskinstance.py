@@ -25,7 +25,6 @@ import os
 import pathlib
 import signal
 import sys
-import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
@@ -36,10 +35,9 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow import settings
-from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -75,6 +73,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import BaseSensorOperator, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -82,7 +81,6 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
-from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -95,6 +93,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -214,12 +213,6 @@ class TestTaskInstance:
         dag.add_task(op3)
         assert op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9)
-
-    def test_current_state(self, create_task_instance, session):
-        ti = create_task_instance(session=session)
-        assert ti.current_state(session=session) is None
-        ti.run()
-        assert ti.current_state(session=session) == State.SUCCESS
 
     def test_set_dag(self, dag_maker):
         """
@@ -731,11 +724,14 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        session.get(TaskInstance, ti.id).try_number += 1
+        ti.refresh_from_db(session)
+        ti.try_number += 1
+        session.add(ti)
         session.commit()
 
         # third run -- up for retry
         run_with_error(ti)
+        ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
@@ -908,7 +904,7 @@ class TestTaskInstance:
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 0)
 
         # scheduler would create a new try here
         with create_session() as session:
@@ -1012,7 +1008,7 @@ class TestTaskInstance:
         run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
 
         done, fail = False, True
-        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 0)
 
         with create_session() as session:
             session.get(TaskInstance, ti.id).try_number += 1
@@ -1048,7 +1044,6 @@ class TestTaskInstance:
             ).expand(poke_interval=[0])
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        assert ti.try_number == 0
 
         def run_ti_and_assert(
             run_date,
@@ -1573,7 +1568,7 @@ class TestTaskInstance:
         expect_state: State,
         expect_completed: bool,
     ):
-        from airflow.decorators import task
+        from airflow.sdk import task
 
         @task
         def do_something(i):
@@ -1964,26 +1959,24 @@ class TestTaskInstance:
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
 
-        expected_url = (
-            "http://localhost:8080"
-            "/dags/my_dag/grid"
-            "?dag_run_id=test"
-            "&task_id=op"
-            "&tab=logs"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
-        )
+        expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op"
+        assert ti.log_url == expected_url
+
+        ti.map_index = 1
+        ti.try_number = 2
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+
+        expected_url = "http://localhost:8080/dags/my_dag/runs/test/tasks/op/mapped/1?try_number=2"
         assert ti.log_url == expected_url
 
     def test_mark_success_url(self, create_task_instance):
         now = pendulum.now("Europe/Brussels")
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=now)
-        query = urllib.parse.parse_qs(
-            urllib.parse.urlsplit(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
-        )
-        assert query["dag_id"][0] == "dag"
-        assert query["task_id"][0] == "op"
-        assert query["dag_run_id"][0] == "test"
-        assert ti.logical_date == now
+
+        expected_url = "http://localhost:8080/dags/dag/runs/test/tasks/op"
+        assert ti.mark_success_url == expected_url
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()
@@ -2249,29 +2242,6 @@ class TestTaskInstance:
 
         # check that no asset events were generated
         assert session.query(AssetEvent).count() == 0
-
-    def test_mapped_current_state(self, dag_maker):
-        with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.decorators import task
-
-            @task()
-            def raise_an_exception(placeholder: int):
-                if placeholder == 0:
-                    raise AirflowFailException("failing task")
-                else:
-                    pass
-
-            _ = raise_an_exception.expand(placeholder=[0, 1])
-
-        tis = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances
-        for task_instance in tis:
-            if task_instance.map_index == 0:
-                with pytest.raises(AirflowFailException):
-                    task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.FAILED
-            else:
-                task_instance.run()
-                assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     def test_outlet_assets_skipped(self, testing_dag_bundle):
         """
@@ -3139,65 +3109,6 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_logical_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-        # vivify
-        for ti in ti_list:
-            ti.logical_date
-
-        assert ti_list[0].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_logical_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) == ti_list[1].logical_date
-        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) != ti_list[2].logical_date
-
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
-    def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
-        scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
-
-        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
-
-        assert ti_list[0].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_start_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) == ti_list[1].start_date
-        assert ti_list[3].get_previous_start_date(state=State.SUCCESS) != ti_list[2].start_date
-
-    def test_get_previous_start_date_none(self, dag_maker):
-        """
-        Test that get_previous_start_date() can handle TaskInstance with no start_date.
-        """
-        with dag_maker("test_get_previous_start_date_none", schedule=None, serialized=True):
-            task = EmptyOperator(task_id="op")
-
-        day_1 = DEFAULT_DATE
-        day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
-
-        # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
-        # should return the start_date of ti_1 (which is None because ti_1 was not run).
-        # It should not raise an error.
-        dagrun_1 = dag_maker.create_dagrun(
-            logical_date=day_1,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-        )
-
-        dagrun_2 = dag_maker.create_dagrun(
-            logical_date=day_2,
-            state=State.RUNNING,
-            run_type=DagRunType.MANUAL,
-            data_interval=(day_1, day_2),
-        )
-
-        ti_1 = dagrun_1.get_task_instance(task.task_id)
-        ti_2 = dagrun_2.get_task_instance(task.task_id)
-        ti_1.task = task
-        ti_2.task = task
-
-        assert ti_2.get_previous_start_date() == ti_1.start_date
-        assert ti_1.start_date is None
-
     def test_context_triggering_asset_events_none(self, session, create_task_instance):
         ti = create_task_instance()
         template_context = ti.get_template_context()
@@ -3628,8 +3539,7 @@ class TestTaskInstance:
         del ti.task
         ti.handle_failure("test ti.task undefined")
 
-    @provide_session
-    def test_handle_failure_fail_fast(self, create_dummy_dag, session=None):
+    def test_handle_failure_fail_fast(self, create_dummy_dag, session):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
@@ -3679,7 +3589,7 @@ class TestTaskInstance:
         ti_ff = TI(task=fail_task, run_id=dr.run_id)
         ti_ff.state = State.FAILED
         session.add(ti_ff)
-        session.flush()
+        session.commit()
         ti_ff.handle_failure("test retry handling")
 
         assert ti1.state == State.SUCCESS
@@ -3971,7 +3881,6 @@ class TestTaskInstance:
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
             "state": State.SUCCESS,
-            "try_id": mock.ANY,
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
@@ -3999,6 +3908,8 @@ class TestTaskInstance:
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
+            "context_carrier": {},
+            "span_status": SpanStatus.ENDED,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -4112,19 +4023,18 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
-        try_id = ti.try_id
+        try_id = ti.id
         with pytest.raises(AirflowException):
             ti.run()
         ti = session.query(TaskInstance).one()
-        # the ti.try_id should be different from the previous one
-        assert ti.try_id != try_id
+        # the ti.id should be different from the previous one
+        assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
         tih = session.query(TaskInstanceHistory).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
-        assert tih[0].try_id == try_id
-        assert tih[0].try_id != ti.try_id
+        assert str(tih[0].task_instance_id) == try_id
 
     @pytest.mark.skip(
         reason="This test has some issues that were surfaced when dag_maker started allowing multiple serdag versions. Issue #48539 will track fixing this."
@@ -4220,29 +4130,34 @@ class TestTaskInstance:
             "Asset(name='asset_first', uri='test://asset/')"
         )
 
-    @pytest.mark.want_activate_assets(True)
+    @pytest.mark.want_activate_assets(False)
     def test_run_with_inactive_assets_in_inlets_within_the_same_dag(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
+        valid_asset = Asset("asset_first")
+        conflict_asset = Asset(name="asset_first", uri="test://asset/")
 
         with dag_maker(schedule=None, serialized=True, session=session):
 
-            @task(inlets=Asset("asset_first"))
+            @task(inlets=valid_asset)
             def first_asset_task():
                 pass
 
-            @task(inlets=Asset(name="asset_first", uri="test://asset"))
-            def duplicate_asset_task():
+            @task(inlets=conflict_asset)
+            def conflict_asset_task():
                 pass
 
-            first_asset_task() >> duplicate_asset_task()
+            first_asset_task() >> conflict_asset_task()
+
+        session.execute(delete(AssetActive))
+        session.add(AssetActive.for_asset(valid_asset))
 
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["first_asset_task"].run(session=session)
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
-            tis["first_asset_task"].run(session=session)
+            tis["conflict_asset_task"].run(session=session)
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            "Asset(name='asset_first', uri='asset_first')"
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4308,7 +4223,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         assert ti.pool == task.pool
 
     assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.priority_weight_total
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
     assert ti.run_as_user == task.run_as_user
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config

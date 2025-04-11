@@ -21,7 +21,7 @@ name: GIT
 description: |
     `Distributed version control system (GIT) <https://git-scm.com/>`__
 
-state: not-ready
+state: ready
 source-date-epoch: 1742823216
 # note that those versions are maintained by release manager - do not update them manually
 versions:

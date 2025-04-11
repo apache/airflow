@@ -243,7 +243,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.10"
+AIRFLOW_UV_VERSION = "0.6.13"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -251,7 +251,7 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.10"
+UV_VERSION = "0.6.13"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -401,6 +401,8 @@ def set_package_version(version: str, init_file_path: Path, extra_text: str) -> 
 
 
 def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_path: Path):
+    if not version_suffix:
+        return
     get_console().print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
     lines = pyproject_toml_path.read_text().splitlines()
     updated_lines = []
@@ -425,12 +427,25 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
                     f"{version_suffix} suffix."
                 )
+        if line.strip().startswith('"apache-airflow-core') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
         updated_lines.append(line)
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
-    # Format the content to make it more readable with rich
-    syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
-    get_console().print(syntax)
+    if get_verbose() or get_dry_run():
+        with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
+            # Format the content to make it more readable with rich
+            syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
+            get_console().print(syntax)
     pyproject_toml_path.write_text(new_content)
 
 
@@ -438,34 +453,33 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
 def package_version(
     version_suffix: str, package_path: Path, init_file_path: Path, pyproject_toml_paths: list[Path]
 ) -> Generator:
-    from packaging.version import Version
-
     release_version_matcher = re.compile(r"^\d+\.\d+\.\d+$")
     original_package_version = get_current_package_version(package_path)
     original_contents = []
     for pyproject_toml_path in pyproject_toml_paths:
         original_contents.append(pyproject_toml_path.read_text())
     update_version_in__init_py = False
+    base_package_version = original_package_version
     if version_suffix:
         if original_package_version.endswith(f".{version_suffix}"):
             get_console().print(
                 f"[info]The {original_package_version} already has suffix {version_suffix}. Not updating it.\n"
             )
-            package_version = original_package_version
         elif not release_version_matcher.match(original_package_version):
             get_console().print(
                 f"[warning]Normally you should only pass version suffix if package version "
                 f"does not have suffix in code (it is  {original_package_version} now).\n"
                 f"Overriding the version in code with the {version_suffix}."
             )
-            package_version = Version(original_package_version).base_version
             update_version_in__init_py = True
         else:
-            package_version = original_package_version
+            base_package_version = original_package_version
             update_version_in__init_py = True
     if update_version_in__init_py:
         set_package_version(
-            f"{package_version}.{version_suffix}", init_file_path=init_file_path, extra_text="temporarily"
+            f"{base_package_version}.{version_suffix}",
+            init_file_path=init_file_path,
+            extra_text="temporarily",
         )
     for pyproject_toml_path in pyproject_toml_paths:
         update_version_suffix_in_pyproject_toml(
@@ -895,6 +909,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
+@click.option(
+    "--skip-changelog",
+    is_flag=True,
+    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+)
+@click.option(
+    "--skip-readme",
+    is_flag=True,
+    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -906,6 +930,8 @@ def prepare_provider_documentation(
     provider_distributions: tuple[str],
     reapply_templates_only: bool,
     skip_git_fetch: bool,
+    skip_changelog: bool,
+    skip_readme: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -948,7 +974,7 @@ def prepare_provider_documentation(
                 f"Update release notes for package '{provider_id}' ",
                 skip_printing_title=only_min_version_update,
             ):
-                if not only_min_version_update:
+                if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
@@ -962,8 +988,9 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    skip_readme=skip_readme,
                 )
-            if not only_min_version_update:
+            if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
                     skip_printing_title=only_min_version_update,
@@ -2026,6 +2053,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
         python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
+        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 

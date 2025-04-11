@@ -17,6 +17,7 @@
  * under the License.
  */
 import { createBrowserRouter } from "react-router-dom";
+
 import { Login } from "src/login/Login";
 
 export const routerConfig = [
@@ -30,8 +31,11 @@ export const routerConfig = [
     path: "/",
   },
 ];
-const baseUrl =
-  document.querySelector("base")?.href ?? "http://localhost:8080/";
-const basename = new URL(`${baseUrl}auth`).pathname;
+
+const baseHref = document.querySelector("head>base")?.getAttribute("href") ?? "";
+
+// Resolve the scheme-relative URL from the base relative to the current URL
+const baseUrl = new URL(baseHref, globalThis.location.origin);
+const basename = new URL("auth", baseUrl).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

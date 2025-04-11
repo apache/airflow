@@ -97,6 +97,7 @@ List of default extras in the production Dockerfile:
 * elasticsearch
 * fab
 * ftp
+* git
 * google
 * google-auth
 * graphviz

@@ -172,7 +172,7 @@ class GitDagBundle(BaseDagBundle):
         try:
             repo.commit(version)
             return True
-        except BadName:
+        except (BadName, ValueError):
             return False
 
     def _fetch_bare_repo(self):

@@ -67,6 +67,10 @@ class TaskInstance(BaseModel):
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
 
+    parent_context_carrier: dict | None = None
+    context_carrier: dict | None = None
+    queued_dttm: datetime | None = None
+
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
@@ -98,17 +102,23 @@ class ExecuteTask(BaseWorkload):
 
     @classmethod
     def make(
-        cls, ti: TIModel, dag_rel_path: Path | None = None, generator: JWTGenerator | None = None
+        cls,
+        ti: TIModel,
+        dag_rel_path: Path | None = None,
+        generator: JWTGenerator | None = None,
+        bundle_info: BundleInfo | None = None,
     ) -> ExecuteTask:
         from pathlib import Path
 
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
-        bundle_info = BundleInfo(
-            name=ti.dag_model.bundle_name,
-            version=ti.dag_run.bundle_version,
-        )
+        ser_ti.parent_context_carrier = ti.dag_run.context_carrier
+        if not bundle_info:
+            bundle_info = BundleInfo(
+                name=ti.dag_model.bundle_name,
+                version=ti.dag_run.bundle_version,
+            )
         fname = log_filename_template_renderer()(ti=ti)
         token = ""
 

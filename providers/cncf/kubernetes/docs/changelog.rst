@@ -28,6 +28,43 @@ Changelog
 ---------
 
 
+10.4.2
+......
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+10.4.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle missing container_statuses in pod_manager.get_container_status (#47936)``
+
+Misc
+~~~~
+
+* ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+* ``No need to exclude executor_config specifically for KE (#48826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Fix broken ci on main for k8s cli test (#48595)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``update kubernetes decorator comment (#48447)``
+    * ``Remove old comment about excluding 'executor_config' (#48830)``
+
 10.4.0
 ......
 

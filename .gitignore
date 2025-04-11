@@ -185,6 +185,12 @@ airflow-*.log
 airflow-*.pid
 .airflow_db_initialised
 
+# Generated doc files
+_api
+_build
+_doctree
+_inventory_cache
+
 # mypy
 .mypy_cache/
 .dmypy.json

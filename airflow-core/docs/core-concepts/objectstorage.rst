@@ -71,7 +71,7 @@ object you want to interact with. For example, to point to a bucket in s3, you w
 
 .. code-block:: python
 
-    from airflow.io.path import ObjectStoragePath
+    from airflow.sdk import ObjectStoragePath
 
     base = ObjectStoragePath("s3://aws_default@my-bucket/")
 
@@ -153,8 +153,8 @@ would do the following:
 
 .. code-block:: python
 
-    from airflow.io.path import ObjectStoragePath
-    from airflow.io.store import attach
+    from airflow.sdk import ObjectStoragePath
+    from airflow.sdk.io import attach
 
     from fsspec.implementations.dbfs import DBFSFileSystem
 
@@ -163,7 +163,7 @@ would do the following:
 
 
 .. note::
-    To reuse the registration across tasks make sure to attach the backend at the top-level of your DAG.
+    To reuse the registration across tasks, make sure to attach the backend at the top-level of your DAG.
     Otherwise, the backend will not be available across multiple tasks.
 
 
@@ -177,7 +177,7 @@ and builds upon `Universal Pathlib <https://github.com/fsspec/universal_pathlib>
 the same API to interact with object storage as you would with a local filesystem. In this section we only list the
 differences between the two APIs. Extended operations beyond the standard Path API, like copying and moving, are listed
 in the next section. For details about each operation, like what arguments they take, see the documentation of
-the :class:`~airflow.io.path.ObjectStoragePath` class.
+the :class:`~airflow.sdk.definitions.path.ObjectStoragePath` class.
 
 
 mkdir
@@ -321,7 +321,7 @@ are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath
 .. code-block:: python
 
     import duckdb
-    from airflow.io.path import ObjectStoragePath
+    from airflow.sdk import ObjectStoragePath
 
     path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
     conn = duckdb.connect(database=":memory:")

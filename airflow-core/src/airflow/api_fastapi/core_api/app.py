@@ -20,7 +20,6 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,22 +30,11 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
-
-
-def init_dag_bag(app: FastAPI) -> None:
-    """
-    Create global DagBag for the FastAPI application.
-
-    To access it use ``request.app.state.dag_bag``.
-    """
-    app.state.dag_bag = get_dag_bag()
 
 
 def init_views(app: FastAPI) -> None:
@@ -80,31 +68,9 @@ def init_views(app: FastAPI) -> None:
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(
             "/index.html",
-            {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
+            {"request": request, "backend_server_base_url": request.base_url.path},
             media_type="text/html",
         )
-
-
-def init_plugins(app: FastAPI) -> None:
-    """Integrate FastAPI app plugins."""
-    from airflow import plugins_manager
-
-    plugins_manager.initialize_fastapi_plugins()
-
-    # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
-    for subapp_dict in cast("list", plugins_manager.fastapi_apps):
-        name = subapp_dict.get("name")
-        subapp = subapp_dict.get("app")
-        if subapp is None:
-            log.error("'app' key is missing for the fastapi app: %s", name)
-            continue
-        url_prefix = subapp_dict.get("url_prefix")
-        if url_prefix is None:
-            log.error("'url_prefix' key is missing for the fastapi app: %s", name)
-            continue
-
-        log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
-        app.mount(url_prefix, subapp)
 
 
 def init_flask_plugins(app: FastAPI) -> None:

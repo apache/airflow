@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
@@ -59,10 +60,12 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DRCount,
     ErrorResponse,
     OKResponse,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
+    TICount,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -150,6 +153,11 @@ class TaskInstanceOperations:
         body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def retry(self, id: uuid.UUID, end_date: datetime):
+        """Tell the API server that this TI has failed and reached a up_for_retry state."""
+        body = TIRetryStatePayload(end_date=end_date)
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
@@ -178,13 +186,13 @@ class TaskInstanceOperations:
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
-    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
+    def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> OKResponse:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
     def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
         """
@@ -199,6 +207,31 @@ class TaskInstanceOperations:
         """Get the start date of a task reschedule via the API server."""
         resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
         return TaskRescheduleStartDate.model_construct(start_date=resp.json())
+
+    def get_count(
+        self,
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> TICount:
+        """Get count of task instances matching the given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "task_ids": task_ids,
+            "task_group_id": task_group_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+            "states": states,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        resp = self.client.get("task-instances/count", params=params)
+        return TICount(count=resp.json())
 
 
 class ConnectionOperations:
@@ -246,14 +279,14 @@ class VariableOperations:
             raise
         return VariableResponse.model_validate_json(resp.read())
 
-    def set(self, key: str, value: str | None, description: str | None = None):
+    def set(self, key: str, value: str | None, description: str | None = None) -> OKResponse:
         """Set an Airflow Variable via the API server."""
         body = VariablePostBody(val=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
 
 class XComOperations:
@@ -320,7 +353,7 @@ class XComOperations:
         value,
         map_index: int | None = None,
         mapped_length: int | None = None,
-    ) -> dict[str, bool]:
+    ) -> OKResponse:
         """Set a XCom value via the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
@@ -333,7 +366,7 @@ class XComOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
     def delete(
         self,
@@ -342,7 +375,7 @@ class XComOperations:
         task_id: str,
         key: str,
         map_index: int | None = None,
-    ) -> dict[str, bool]:
+    ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
         params = {}
         if map_index is not None and map_index >= 0:
@@ -351,7 +384,7 @@ class XComOperations:
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
-        return {"ok": True}
+        return OKResponse(ok=True)
 
 
 class AssetOperations:
@@ -420,7 +453,7 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
-    ):
+    ) -> OKResponse | ErrorResponse:
         """Trigger a DAG run via the API server."""
         body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
 
@@ -441,7 +474,7 @@ class DagRunOperations:
 
         return OKResponse(ok=True)
 
-    def clear(self, dag_id: str, run_id: str):
+    def clear(self, dag_id: str, run_id: str) -> OKResponse:
         """Clear a DAG run via the API server."""
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling
@@ -451,6 +484,27 @@ class DagRunOperations:
         """Get the state of a DAG run via the API server."""
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
         return DagRunStateResponse.model_validate_json(resp.read())
+
+    def get_count(
+        self,
+        dag_id: str,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+        states: list[str] | None = None,
+    ) -> DRCount:
+        """Get count of DAG runs matching the given criteria."""
+        params = {
+            "dag_id": dag_id,
+            "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
+            "run_ids": run_ids,
+            "states": states,
+        }
+
+        # Remove None values from params
+        params = {k: v for k, v in params.items() if v is not None}
+
+        resp = self.client.get("dag-runs/count", params=params)
+        return DRCount(count=resp.json())
 
 
 class BearerAuth(httpx.Auth):
@@ -481,6 +535,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
                     "run_after": "2021-01-01T00:00:00Z",
+                    "consumed_asset_events": [],
                 },
                 "max_tries": 0,
                 "should_retry": False,

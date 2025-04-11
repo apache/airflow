@@ -61,6 +61,7 @@ class TestClient:
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",
                         "run_after": "2021-01-01T00:00:00Z",
+                        "consumed_asset_events": [],
                     },
                     "max_tries": 0,
                     "should_retry": False,
@@ -374,6 +375,22 @@ class TestTaskInstanceOperations:
         )
         client.task_instances.reschedule(ti_id, msg)
 
+    def test_task_instance_up_for_retry(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "up_for_retry"
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_instances.retry(ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"))
+
     @pytest.mark.parametrize(
         "rendered_fields",
         [
@@ -403,7 +420,49 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
 
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
+
+    def test_get_count_basic(self):
+        """Test basic get_count functionality with just dag_id."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/count"
+            assert request.url.params.get("dag_id") == "test_dag"
+            return httpx.Response(200, json=5)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_count(dag_id="test_dag")
+        assert result.count == 5
+
+    def test_get_count_with_all_params(self):
+        """Test get_count with all optional parameters."""
+
+        logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
+        logical_dates = [timezone.parse(d) for d in logical_dates_str]
+        task_ids = ["task1", "task2"]
+        states = ["success", "failed"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/count"
+            assert request.method == "GET"
+            params = request.url.params
+            assert params["dag_id"] == "test_dag"
+            assert params.get_list("task_ids") == task_ids
+            assert params["task_group_id"] == "group1"
+            assert params.get_list("logical_dates") == logical_dates_str
+            assert params.get_list("run_ids") == []
+            assert params.get_list("states") == states
+            return httpx.Response(200, json=10)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_count(
+            dag_id="test_dag",
+            task_ids=task_ids,
+            task_group_id="group1",
+            logical_dates=logical_dates,
+            states=states,
+        )
+        assert result.count == 10
 
 
 class TestVariableOperations:
@@ -496,7 +555,7 @@ class TestVariableOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
 
 class TestXCOMOperations:
@@ -647,7 +706,7 @@ class TestXCOMOperations:
             key="key",
             value=values,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_map_index(self):
         # Simulate a successful response from the server when setting an xcom with map_index passed
@@ -672,7 +731,7 @@ class TestXCOMOperations:
             value="value1",
             map_index=2,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_mapped_length(self):
         # Simulate a successful response from the server when setting an xcom with mapped_length
@@ -699,7 +758,7 @@ class TestXCOMOperations:
             map_index=2,
             mapped_length=3,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
 
 class TestConnectionOperations:
@@ -903,6 +962,58 @@ class TestDagRunOperations:
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
+
+    def test_get_count_basic(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                return httpx.Response(status_code=200, json=1)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag")
+        assert result.count == 1
+
+    def test_get_count_with_states(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("states") == ["success", "failed"]
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag", states=["success", "failed"])
+        assert result.count == 2
+
+    def test_get_count_with_logical_dates(self):
+        logical_dates = [timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
+        logical_dates_str = [d.isoformat() for d in logical_dates]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("logical_dates") == logical_dates_str
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(
+            dag_id="test_dag", logical_dates=[timezone.datetime(2025, 1, 1), timezone.datetime(2025, 1, 2)]
+        )
+        assert result.count == 2
+
+    def test_get_count_with_run_ids(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/count":
+                assert request.url.params["dag_id"] == "test_dag"
+                assert request.url.params.get_list("run_ids") == ["run1", "run2"]
+                return httpx.Response(status_code=200, json=2)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_count(dag_id="test_dag", run_ids=["run1", "run2"])
+        assert result.count == 2
 
 
 class TestTaskRescheduleOperations:
