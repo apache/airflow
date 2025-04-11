@@ -464,6 +464,48 @@ class TestTaskInstanceOperations:
         )
         assert result.count == 10
 
+    def test_get_task_states_basic(self):
+        """Test basic get_task_states functionality with just dag_id."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/states"
+            assert request.url.params.get("dag_id") == "test_dag"
+            assert request.url.params.get("task_group_id") == "group1"
+            return httpx.Response(
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_task_states(dag_id="test_dag", task_group_id="group1")
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+
+    def test_get_task_states_with_all_params(self):
+        """Test get_task_states with all optional parameters."""
+
+        logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
+        logical_dates = [timezone.parse(d) for d in logical_dates_str]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/states"
+            assert request.method == "GET"
+            params = request.url.params
+            assert params["dag_id"] == "test_dag"
+            assert params["task_group_id"] == "group1"
+            assert params.get_list("logical_dates") == logical_dates_str
+            assert params.get_list("task_ids") == []
+            assert params.get_list("run_ids") == []
+            return httpx.Response(
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_task_states(
+            dag_id="test_dag",
+            task_group_id="group1",
+            logical_dates=logical_dates,
+        )
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+
 
 class TestVariableOperations:
     """
