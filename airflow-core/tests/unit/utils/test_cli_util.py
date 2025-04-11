@@ -80,7 +80,8 @@ class TestCliUtil:
     def test_process_subdir_path_with_placeholder(self):
         assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
-    def test_get_dags(self):
+    def test_get_dags(self, get_test_dag):
+        get_test_dag("test_example_bash_operator")
         dags = cli.get_dags(None, "test_example_bash_operator")
         assert len(dags) == 1
 

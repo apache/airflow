@@ -1,4 +1,4 @@
-#
+# No code was selected, so we can't improve anything.#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -269,10 +269,14 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
-    def test_mapped_task_render(self):
+    def test_mapped_task_render(self, get_test_dag):
         """
         tasks render should render and displays templated fields for a given mapping task
         """
+
+        # Retrieve and serialize a test DAG for unit testing.
+        get_test_dag("test_mapped_classic")
+
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
