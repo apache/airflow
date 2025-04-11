@@ -1,4 +1,4 @@
-<!--
+{#
  Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.  See the NOTICE file
  distributed with this work for additional information
@@ -15,6 +15,15 @@
  KIND, either express or implied.  See the License for the
  specific language governing permissions and limitations
  under the License.
- -->
+#}
 
-This is airflowctl package that contains interaction with the API through command line interface.
+{% extends "!footer.html" %}
+
+{% block extrafooter %}
+  <div class="footer">This page uses <a href="https://analytics.google.com/">
+    Google Analytics</a> to collect statistics. You can disable it by blocking
+    the JavaScript coming from www.google-analytics.com. Check our
+    <a href="{{ pathto('privacy_notice') }}">Privacy Policy</a>
+    for more details.
+  </div>
+{% endblock %}
