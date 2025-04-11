@@ -1768,7 +1768,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             callback: DagCallbackRequest | None = None
 
-            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            # there could be multiple dag versions for a given bundle version
+            # this will get the latest dag version for a given dag / bundle version
+            dag_version = dag_run.dag_versions[-1]
+            serdag = dag_version.serialized_dag
+            dag = dag_run.dag = serdag.dag
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
             if not dag or not dag_model:
