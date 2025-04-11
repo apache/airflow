@@ -1794,24 +1794,24 @@ class SerializedDAG(DAG, BaseSerialization):
             ("_task_group", "task_group"),
         ]
         task_renames = [("_task_type", "task_type")]
-        tasks_remove = ["_log_config_logger_name"]
+        tasks_remove = ["_log_config_logger_name", "deps"]
 
         ser_obj["__version"] = 2
 
-        def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
-            def replace_str(s):
-                return s.replace("Dataset", "Asset").replace("dataset", "asset")
+        def replace_dataset_in_str(s):
+            return s.replace("Dataset", "Asset").replace("dataset", "asset")
 
+        def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
             if isinstance(obj, dict):
                 new_obj = {}
                 for k, v in obj.items():
-                    new_key = replace_str(k) if isinstance(k, str) else k
+                    new_key = replace_dataset_in_str(k) if isinstance(k, str) else k
                     # Don't replace uri values
                     if new_key == "uri":
                         new_obj[new_key] = v
                     else:
                         new_value = (
-                            replace_str(v)
+                            replace_dataset_in_str(v)
                             if isinstance(v, str)
                             else _replace_dataset_with_asset_in_timetables(v, parent_key=new_key)
                         )
@@ -1881,13 +1881,18 @@ class SerializedDAG(DAG, BaseSerialization):
 
         for task in dag_dict["tasks"]:
             task_var: dict = task["__var"]
+            if "airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep" in task_var.get("deps", []):
+                task_var["_is_sensor"] = True
             for k in tasks_remove:
                 task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
             for item in task_var.get("outlets", []):
-                if item.get("__type") == "dataset":
-                    item["__type"] = "asset"
+                if isinstance(item, dict) and "__type" in item:
+                    item["__type"] = replace_dataset_in_str(item["__type"])
+            for item in task_var.get("inlets", []):
+                if isinstance(item, dict) and "__type" in item:
+                    item["__type"] = replace_dataset_in_str(item["__type"])
                 var_ = item["__var"]
                 var_["name"] = None
                 var_["group"] = None
