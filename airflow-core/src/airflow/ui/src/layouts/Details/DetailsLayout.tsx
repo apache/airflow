@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex } from "@chakra-ui/react";
+import { Box, HStack, Flex, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
+import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
+import { StateBadge } from "src/components/StateBadge";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import { ProgressBar } from "src/components/ui";
+import { WarningAlert } from "src/components/WarningAlert";
+import { Accordion, ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
@@ -55,6 +58,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const { fitView, getZoom } = useReactFlow();
+
+  const { data: warningData } = useDagWarningServiceListDagWarnings({
+    dagId,
+  });
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -90,7 +97,40 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
-              <ErrorAlert error={error} />
+              {(Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0) && (
+                <Accordion.Root
+                  collapsible
+                  height="full"
+                  maxH="fit-content"
+                  mb={4}
+                  mt={4}
+                  overflow="auto"
+                  size="lg"
+                  variant="outline"
+                >
+                  <Accordion.Item key="dagIssues" mx={2} value="dagIssues">
+                    <Accordion.ItemTrigger cursor="button">
+                      <Flex gap="0.5rem">
+                        <StateBadge colorPalette="failed" height={7} title="Dag Issues">
+                          <LuFileWarning size="1.25rem" />
+                        </StateBadge>
+                        <p>Issues</p>
+                      </Flex>
+                    </Accordion.ItemTrigger>
+                    <Accordion.ItemContent>
+                      <VStack>
+                        <ErrorAlert error={error} />
+                        {warningData?.dag_warnings.map((warningItem) => (
+                          <WarningAlert
+                            key={`${warningItem.dag_id}-${warningItem.timestamp}`}
+                            warning={warningItem}
+                          />
+                        ))}
+                      </VStack>
+                    </Accordion.ItemContent>
+                  </Accordion.Item>
+                </Accordion.Root>
+              )}
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
               <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
