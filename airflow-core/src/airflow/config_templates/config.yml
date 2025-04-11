@@ -703,6 +703,14 @@ database:
       type: string
       example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
       default: ~
+    migration_batch_size:
+      description: |
+        The number of rows to process in each batch when performing a migration.
+        This is useful for large tables to avoid locking and failure due to query timeouts.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "10000"
 logging:
   description: ~
   options:
