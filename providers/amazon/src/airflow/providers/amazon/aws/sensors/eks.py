@@ -145,6 +145,7 @@ class EksClusterStateSensor(EksBaseSensor):
         **kwargs,
     ):
         super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
+        self.region = region
         if region is not None:
             self.region_name = region
             warnings.warn(
