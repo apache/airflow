@@ -65,7 +65,16 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
-SECRETS_TO_SKIP_MASKING_FOR_TESTS = {"airflow"}
+SECRETS_TO_SKIP_MASKING = {"airflow"}
+"""Common terms that should be excluded from masking in both production and tests"""
+
+
+@cache
+def get_min_secret_length() -> int:
+    """Get minimum length for a secret to be considered for masking from airflow.cfg."""
+    from airflow.configuration import conf
+
+    return conf.getint("logging", "min_length_masked_secret", fallback=5)
 
 
 @cache
@@ -130,6 +139,19 @@ def _secrets_masker() -> SecretsMasker:
     )
 
 
+def reset_secrets_masker() -> None:
+    """
+    Reset the secrets masker to clear existing patterns and replacer.
+
+    This utility ensures that an execution environment starts with a fresh masker,
+    preventing any carry over of patterns or replacer from previous execution or parent processes.
+
+    New processor types should invoke this method when setting up their own masking to avoid
+    inheriting masking rules from existing execution environments.
+    """
+    _secrets_masker().reset_masker()
+
+
 @cache
 def _get_v1_env_var_type() -> type:
     try:
@@ -151,6 +173,7 @@ class SecretsMasker(logging.Filter):
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
+    _has_warned_short_secret = False
 
     def __init__(self):
         super().__init__()
@@ -333,12 +356,32 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (self._test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
+            if not secret:
+                return
+
+            if secret.lower() in SECRETS_TO_SKIP_MASKING:
+                return
+
+            min_length = get_min_secret_length()
+            if len(secret) < min_length:
+                if not SecretsMasker._has_warned_short_secret:
+                    log.warning(
+                        "Skipping masking for a secret as it's too short (<%d chars)",
+                        min_length,
+                        extra={self.ALREADY_FILTERED_FLAG: True},
+                    )
+                    SecretsMasker._has_warned_short_secret = True
                 return
 
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
+                    if len(s) < min_length:
+                        continue
+
+                    if s.lower() in SECRETS_TO_SKIP_MASKING:
+                        continue
+
                     pattern = re.escape(s)
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
@@ -350,6 +393,11 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
+
+    def reset_masker(self):
+        """Reset the patterns and the replacer in the masker instance."""
+        self.patterns = set()
+        self.replacer = None
 
 
 class RedactedIO(TextIO):

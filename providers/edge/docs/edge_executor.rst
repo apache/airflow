@@ -18,26 +18,6 @@
 Edge Executor
 =============
 
-.. note::
-
-    The Edge Provider Package is an experimental preview. Features and stability are limited,
-    and need to be improved over time. The target is to achieve full support in Airflow 3.
-    Once the Edge Provider is fully supported in Airflow 3, maintenance of the Airflow 2 package will
-    be discontinued.
-
-
-.. note::
-
-    As of Airflow 2.10.4, the ``edge`` provider package is not included in normal release cycle.
-    Thus, it cannot be directly installed using: ``pip install 'apache-airflow[edge]'`` as the dependency
-    cannot be downloaded.
-
-    While it is in a not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-distributions --include-not-ready-providers edge``
-    and then installed via pip or uv from the generated wheel file. like:
-    ``pip install apache_airflow_providers_edge-<version>-py3-none-any.whl``.
-
-
 ``EdgeExecutor`` is an option if you want to distribute tasks to workers distributed in different locations.
 You can use it also in parallel with other executors if needed. Change your ``airflow.cfg`` to point
 the executor parameter to ``EdgeExecutor`` and provide the related settings.
@@ -47,7 +27,7 @@ The configuration parameters of the Edge Executor can be found in the Edge provi
 Here are a few imperative requirements for your workers:
 
 - ``airflow`` needs to be installed, and the airflow CLI needs to be in the path
-- Airflow configuration settings should be homogeneous across the cluster
+- Airflow configuration settings should be homogeneous across the cluster and on the edge site
 - Operators that are executed on the Edge Worker need to have their dependencies
   met in that context. Please take a look to the respective provider package
   documentations
@@ -95,7 +75,13 @@ process as and wait until all running tasks are completed.
 If you want to monitor the remote activity and worker, use the UI plugin which
 is included in the provider package and install it on the webserver and use the
 "Admin" - "Edge Worker Hosts" and "Edge Worker Jobs" pages.
+(Note: The plugin is not ported to Airflow 3.0 web UI at time of writing)
 
+If you want to check status of the worker via CLI you can use the command
+
+.. code-block:: bash
+
+    airflow edge status
 
 Some caveats:
 
@@ -105,10 +91,9 @@ Some caveats:
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
-Limitations of Pre-Release
---------------------------
+Current Limitations Edge Executor
+---------------------------------
 
-As this provider package is an experimental preview not all functions are support and not fully covered.
 If you plan to use the Edge Executor / Worker in the current stage you need to ensure you test properly
 before use. The following features have been initially tested and are working:
 
@@ -128,12 +113,14 @@ before use. The following features have been initially tested and are working:
 - Some known limitations
 
   - Tasks that require DB access will fail - no DB connection from remote site is possible
+    (which is the default in Airflow 3.0)
   - This also means that some direct Airflow API via Python is not possible (e.g. airflow.models.*)
   - Log upload will only work if you use a single web server instance or they need to share one log file volume.
-  - Performance: No performance assessment and scaling tests have been made. The edge executor package is not
-    optimized for scalability. This will need to be considered in future releases. A dedicated performance
-    assessment is to be completed ensuring that in a hybrid setup other executors are not impacted before
-    version 1.0.0 is to be released.
+    Logs are uploaded in chunks and are transferred via API. If you use multiple webservers w/o a shared log volume
+    the logs will be scattered across the webserver instances.
+  - Performance: No extensive performance assessment and scaling tests have been made. The edge executor package is
+    optimized for stability. This will be incrementally improved in future releases. Setups have reported stable
+    operation with ~50 workers until now. Note that executed tasks require more webserver API capacity.
 
 
 Architecture
@@ -252,19 +239,59 @@ Here is an example setting pool_slots for a task:
 
         task_with_template()
 
+Worker maintenance
+------------------
 
+Sometimes infrastructure needs to be maintained. The Edge Worker provides a
+maintenance mode to
+- Stop accepting new tasks
+- Drain all ongoing work gracefully
+
+Worker status can be checked via the web UI in the "Admin" - "Edge Worker Hosts" page.
+
+.. image:: img/worker_hosts.png
+
+.. note::
+
+    As of time of writing the web UI to see edge jobs and manage workers is not ported to Airflow 3.0
+
+
+Worker maintenance can also be triggered via the CLI command
+
+.. code-block:: bash
+
+    airflow edge maintenance --comments "Some comments for the maintenance" on
+
+This will stop the worker from accepting new tasks and will complete running tasks.
+If you add the command argument ``--wait`` the CLI will wait until all
+running tasks are completed before return.
+
+If you want to know the status of a worker while waiting on maintenance you can
+use the command
+.. code-block:: bash
+
+    airflow edge status
+
+This will show the status of the worker as JSON and the tasks running on it.
+
+The status and maintenance comments will also be shown in the web UI
+in the "Admin" - "Edge Worker Hosts" page.
+
+.. image:: img/worker_maintenance.png
+
+The worker can be started to fetch new tasks via the command
+
+.. code-block:: bash
+
+    airflow edge maintenance off
+
+This will start the worker again and it will start accepting tasks again.
 
 
 Feature Backlog of MVP to Release Readiness
 -------------------------------------------
 
-As noted above the current version of the EdgeExecutor is a MVP (Minimum Viable Product).
-It can be used but must be taken with care if you want to use it productively. Just the
-bare minimum functions are provided currently and missing features will be added over time.
-
-The target implementation is sketched in
-`AIP-69 (Airflow Improvement Proposal for Edge Executor) <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=301795932>`_
-and this AIP will be completed when open features are implemented and it has production grade stability.
+The current version of the EdgeExecutor is a MVP (Minimum Viable Product). It will mature over time.
 
 The following features are known missing and will be implemented in increments:
 
@@ -273,7 +300,7 @@ The following features are known missing and will be implemented in increments:
 
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to webserver
-  - Administrative maintenance / temporary disable jobs on worker
+  - Add some hints how to setup an additional worker
 
 - Edge Worker CLI
 
@@ -281,7 +308,7 @@ The following features are known missing and will be implemented in increments:
   - Send logs also to TaskFileHandler if external logging services are used
   - Integration into telemetry to send metrics from remote site
   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
-  - Be more liberal e.g. on patch version. MVP requires exact version match
+  - Be more liberal e.g. on patch version. Currently requires exact version match
     (In current state if versions do not match, the worker will gracefully shut
     down when jobs are completed, no new jobs will be started)
 
@@ -290,13 +317,14 @@ The following features are known missing and will be implemented in increments:
   - Integration tests in Github
   - Test/Support on Windows for Edge Worker
 
-- Scaling test - Check and define boundaries of workers/jobs
+- Scaling test - Check and define boundaries of workers/jobs. Today it is known to
+  scale into a range of 50 workers. This is not a hard limit but just an experience reported.
 - Load tests - impact of scaled execution and code optimization
-- Incremental logs during task execution can be served w/o shared log disk
-- Host name of worker is applied as job runner host name as well
+- Incremental logs during task execution can be served w/o shared log disk on webserver
 
 - Documentation
 
   - Describe more details on deployment options and tuning
   - Provide scripts and guides to install edge components as service (systemd)
   - Extend Helm-Chart for needed support
+  - Provide an example docker compose for worker setup

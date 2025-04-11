@@ -39,4 +39,4 @@ def skip_test_if_no_valid_conn_id(func: T) -> T:
         else:
             return None
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)

@@ -130,11 +130,10 @@ jobs:
           DEFAULT_BRANCH: ${{ inputs.default-branch }}
           DEFAULT_PYTHON_VERSION: ${{ inputs.default-python-version }}
         run: "
-          cd ./docker_tests && \
-          python -m pip install -r requirements.txt && \
+          cd ./docker-tests && \
           TEST_IMAGE=\"ghcr.io/$GITHUB_REPOSITORY/$DEFAULT_BRANCH\
           /prod/python$DEFAULT_PYTHON_VERSION\" \
-          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes"
+          uv run pytest tests/docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes"
 
   test-docker-compose-quick-start:
     timeout-minutes: 60

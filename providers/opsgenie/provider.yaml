@@ -22,7 +22,7 @@ description: |
     `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 state: ready
-source-date-epoch: 1742981099
+source-date-epoch: 1743477862
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.8.3

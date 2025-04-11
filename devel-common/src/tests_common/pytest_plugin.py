@@ -33,6 +33,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -45,10 +46,12 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import Context
     from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.types import DagRunProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -143,6 +146,12 @@ _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+)
+if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
@@ -221,7 +230,13 @@ def pytest_addoption(parser: pytest.Parser):
         "--with-db-init",
         action="store_true",
         dest="db_init",
-        help="Forces database initialization before tests",
+        help="Forces database initialization before tests, if false it a DB reset still may occur.",
+    )
+    group.addoption(
+        "--without-db-init",
+        action="store_true",
+        dest="no_db_init",
+        help="Forces NO database initialization before tests, takes precedent over --with-db-init.",
     )
     group.addoption(
         "--integration",
@@ -336,7 +351,7 @@ def initialize_airflow_tests(request):
 
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
-    if not skip_db_tests:
+    if not skip_db_tests and not request.config.option.no_db_init:
         if request.config.option.db_init:
             from tests_common.test_utils.db import initial_db_init
 
@@ -784,6 +799,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         (want_activate_assets,) = serialized_marker.args or (True,)
 
     from airflow.utils.log.logging_mixin import LoggingMixin
+    from airflow.utils.types import NOTSET
 
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
@@ -841,6 +857,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             SchedulerJobRunner._activate_referenced_assets(assets, session=self.session)
 
         def __exit__(self, type, value, traceback):
+            from airflow.configuration import conf
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
 
@@ -855,21 +872,25 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             else:
                 dag.sync_to_db(session=self.session)
 
-            if dag.access_control:
+            if dag.access_control and "FabAuthManager" in conf.get("core", "auth_manager"):
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
                 else:
                     from airflow.www.security_appless import ApplessAirflowSecurityManager
-
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
                 self.serialized_model = SerializedDagModel(dag)
-                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                sdm = self.session.scalar(
+                    select(SerializedDagModel).where(
+                        SerializedDagModel.dag_id == dag.dag_id,
+                        SerializedDagModel.dag_hash == self.serialized_model.dag_hash,
+                    )
+                )
 
-                if AIRFLOW_V_3_0_PLUS and not sdm:
+                if AIRFLOW_V_3_0_PLUS and self.serialized_model != sdm:
                     from airflow.models.dag_version import DagVersion
                     from airflow.models.dagcode import DagCode
 
@@ -901,10 +922,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             else:
                 self._bag_dag_compat(self.dag)
 
-        def create_dagrun(self, *, logical_date=None, **kwargs):
+        def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils import timezone
             from airflow.utils.state import DagRunState
-            from airflow.utils.types import NOTSET, DagRunType
+            from airflow.utils.types import DagRunType
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -932,10 +953,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if not isinstance(run_type, DagRunType):
                 run_type = DagRunType(run_type)
 
-            if logical_date is NOTSET:
+            if logical_date is None:
                 # Explicit non requested
                 logical_date = None
-            elif logical_date is None:
+            elif logical_date is NOTSET:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
@@ -1227,7 +1248,7 @@ class CreateTaskInstance(Protocol):
     def __call__(
         self,
         *,
-        logical_date: datetime = ...,
+        logical_date: datetime | None = ...,
         dagrun_state: DagRunState = ...,
         state: TaskInstanceState = ...,
         run_id: str = ...,
@@ -1366,11 +1387,13 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 @pytest.fixture
 def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from airflow.utils.types import NOTSET
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        logical_date=None,
+        logical_date=NOTSET,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
@@ -1384,11 +1407,13 @@ def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTa
 
 @pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from airflow.utils.types import NOTSET
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        logical_date=None,
+        logical_date=NOTSET,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
@@ -1898,7 +1923,9 @@ def mocked_parse(spy_agency):
 
             mocked_parse(
                 StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    ti=TaskInstance(
+                        id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
+                    ),
                     file="",
                     requests_fd=0,
                 ),
@@ -1971,6 +1998,15 @@ class RunTaskCallable(Protocol):
     @property
     def error(self) -> BaseException | None: ...
 
+    @property
+    def ti(self) -> RuntimeTaskInstance: ...
+
+    @property
+    def dagrun(self) -> DagRunProtocol: ...
+
+    @property
+    def context(self) -> Context: ...
+
     xcom: _XComHelperProtocol
 
     def __call__(
@@ -2014,6 +2050,7 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
+    from airflow.timetables.base import TimeRestriction
     from airflow.utils import timezone
 
     def _create_task_instance(
@@ -2033,6 +2070,7 @@ def create_runtime_ti(mocked_parse):
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
         from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
+        from airflow.utils.types import DagRunType
 
         if not ti_id:
             ti_id = uuid7()
@@ -2042,13 +2080,22 @@ def create_runtime_ti(mocked_parse):
             task.dag = dag  # type: ignore[assignment]
             task = dag.task_dict[task.task_id]
 
+        data_interval_start = None
+        data_interval_end = None
+
         if task.dag.timetable:
-            data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                run_after=logical_date  # type: ignore
-            )
-        else:
-            data_interval_start = None
-            data_interval_end = None
+            if run_type == DagRunType.MANUAL:
+                data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                    run_after=logical_date  # type: ignore
+                )
+            else:
+                drinfo = task.dag.timetable.next_dagrun_info(
+                    last_automated_data_interval=None,
+                    restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+                )
+                if drinfo:
+                    data_interval = drinfo.data_interval
+                    data_interval_start, data_interval_end = data_interval.start, data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0
@@ -2065,6 +2112,7 @@ def create_runtime_ti(mocked_parse):
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,
+                consumed_asset_events=[],
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
@@ -2219,13 +2267,16 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             if hasattr(XCom.get_one, "spy"):
                 spy_agency.unspy(XCom.get_one)
 
-    class RunTaskWithXCom:
+    class RunTaskWithXCom(RunTaskCallable):
         def __init__(self, create_runtime_ti):
             self.create_runtime_ti = create_runtime_ti
             self.xcom = XComHelper()
             self._state = None
             self._msg = None
             self._error = None
+            self._ti = None
+            self._dagrun = None
+            self._context = None
 
         @property
         def state(self) -> IntermediateTIState | TerminalTIState:
@@ -2242,9 +2293,21 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             """Get the error message if there was any."""
             return self._error
 
+        @property
+        def ti(self) -> RuntimeTaskInstance:
+            return self._ti
+
+        @property
+        def dagrun(self) -> DagRunProtocol:
+            return self._dagrun
+
+        @property
+        def context(self) -> Context:
+            return self._context
+
         def __call__(
             self,
-            task: BaseOperator,
+            task: TaskSDKBaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,
@@ -2289,6 +2352,9 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             self._state = state
             self._msg = msg
             self._error = error
+            self._ti = ti
+            self._dagrun = context.get("dag_run")
+            self._context = context
 
             return state, msg, error
 
@@ -2299,3 +2365,14 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 def mock_xcom_backend():
     with mock.patch("airflow.sdk.execution_time.task_runner.XCom", create=True) as xcom_backend:
         yield xcom_backend
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)

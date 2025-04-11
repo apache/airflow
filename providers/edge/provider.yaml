@@ -20,12 +20,12 @@ name: Edge Executor
 description: |
   Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
-state: not-ready
+state: ready
 source-date-epoch: 1741121867
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.20.1pre0
+  - 1.0.0
 
 plugins:
   - name: edge_executor

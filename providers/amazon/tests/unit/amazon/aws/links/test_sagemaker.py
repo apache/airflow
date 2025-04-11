@@ -42,8 +42,7 @@ class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
 
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/sagemaker/home"
-                "?region=us-east-1#/transform-jobs/test_job_name"
+                "https://console.aws.amazon.com/sagemaker/home?region=us-east-1#/transform-jobs/test_job_name"
             ),
             region_name="us-east-1",
             aws_partition="aws",

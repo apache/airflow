@@ -22,7 +22,7 @@ description: |
   `YDB <https://ydb.tech/>`__
 
 state: ready
-source-date-epoch: 1741510071
+source-date-epoch: 1743477912
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.1.1

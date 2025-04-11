@@ -127,9 +127,9 @@ class TestDataflowJobStatusSensor:
         mock_poke.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
-        assert isinstance(
-            exc.value.trigger, DataflowJobStatusTrigger
-        ), "Trigger is not a DataflowJobStatusTrigger"
+        assert isinstance(exc.value.trigger, DataflowJobStatusTrigger), (
+            "Trigger is not a DataflowJobStatusTrigger"
+        )
 
     def test_execute_complete_success(self):
         """Tests that the trigger event contains expected values if no callback function is provided."""
@@ -261,9 +261,9 @@ class TestDataflowJobMetricsSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
-        assert isinstance(
-            exc.value.trigger, DataflowJobMetricsTrigger
-        ), "Trigger is not a DataflowJobMetricsTrigger"
+        assert isinstance(exc.value.trigger, DataflowJobMetricsTrigger), (
+            "Trigger is not a DataflowJobMetricsTrigger"
+        )
 
     def test_execute_complete_success_without_callback_function(self):
         """Tests that the trigger event contains expected values if no callback function is provided."""
@@ -439,9 +439,9 @@ class TestDataflowJobMessagesSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
-        assert isinstance(
-            exc.value.trigger, DataflowJobMessagesTrigger
-        ), "Trigger is not a DataflowJobMessagesTrigger"
+        assert isinstance(exc.value.trigger, DataflowJobMessagesTrigger), (
+            "Trigger is not a DataflowJobMessagesTrigger"
+        )
 
     def test_execute_complete_success_without_callback_function(self):
         """Tests that the trigger event contains expected values if no callback function is provided."""
@@ -615,9 +615,9 @@ class TestDataflowJobAutoScalingEventsSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
-        assert isinstance(
-            exc.value.trigger, DataflowJobAutoScalingEventTrigger
-        ), "Trigger is not a DataflowJobAutoScalingEventTrigger"
+        assert isinstance(exc.value.trigger, DataflowJobAutoScalingEventTrigger), (
+            "Trigger is not a DataflowJobAutoScalingEventTrigger"
+        )
 
     def test_execute_complete_success_without_callback_function(self):
         """Tests that the trigger event contains expected values if no callback function is provided."""

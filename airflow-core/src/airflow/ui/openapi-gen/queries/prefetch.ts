@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -38,14 +39,14 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient) =>
+export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenus(),
   });
 /**
  * Next Run Assets
@@ -455,7 +456,7 @@ export const prefetchUseConnectionServiceGetConnections = (
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -468,10 +469,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -481,10 +482,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -497,10 +498,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       dagIdPattern,
       dagIds,
       dagRunsLimit,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       tags,
@@ -512,10 +513,10 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -842,6 +843,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -860,6 +862,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -876,6 +879,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -895,6 +899,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -913,6 +918,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1029,7 +1035,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1051,10 +1057,10 @@ export const prefetchUseDagServiceGetDags = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1068,10 +1074,10 @@ export const prefetchUseDagServiceGetDags = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1088,10 +1094,10 @@ export const prefetchUseDagServiceGetDags = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,
@@ -1107,10 +1113,10 @@ export const prefetchUseDagServiceGetDags = (
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -2510,4 +2516,24 @@ export const prefetchUseLoginServiceLogout = (
   queryClient.prefetchQuery({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDefaultServiceNotFoundHandler = (
+  queryClient: QueryClient,
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

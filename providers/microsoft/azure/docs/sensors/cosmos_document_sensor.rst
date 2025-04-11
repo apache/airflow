@@ -28,7 +28,7 @@ Azure Cosmos Document Sensor
 Checks for the existence of a document which matches the given query in CosmosDB.
 :class:`~airflow.providers.microsoft.azure.sensors.cosmos.AzureCosmosDocumentSensor`
 
-.. exampleinclude:: /../../providers/microsoft/azure/tests/system/microsoft/azure/example_azure_cosmosdb.py
+.. exampleinclude:: /../tests/system/microsoft/azure/example_azure_cosmosdb.py
     :language: python
     :dedent: 4
     :start-after: [START cosmos_document_sensor]

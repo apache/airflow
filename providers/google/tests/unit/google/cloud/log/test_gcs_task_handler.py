@@ -79,7 +79,7 @@ class TestGCSTaskHandler:
         )
         mock_get_cred.return_value = ("test_cred", "test_proj")
         with conf_vars({("logging", "remote_log_conn_id"): conn_id}):
-            return_value = self.gcs_task_handler.client
+            return_value = self.gcs_task_handler.io.client
         if conn_id:
             mock_hook.assert_called_once_with(gcp_conn_id="my_gcs_conn")
             mock_get_cred.assert_not_called()
@@ -223,7 +223,7 @@ class TestGCSTaskHandler:
 
         assert caplog.record_tuples == [
             (
-                "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
+                "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
                 logging.ERROR,
                 "Could not write logs to gs://bucket/remote/log/location/1.log: Failed to connect",
             ),
@@ -261,13 +261,13 @@ class TestGCSTaskHandler:
         )
         self.gcs_task_handler.close()
 
-        mock_blob.assert_has_calls(
+        mock_blob.from_string.assert_has_calls(
             [
-                mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().download_as_bytes(),
-                mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
+                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
+                mock.call().download_as_bytes(),
+                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
+                mock.call().upload_from_string(
+                    "MESSAGE\n",
                     content_type="text/plain",
                 ),
             ],

@@ -20,9 +20,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import chain
+from airflow.sdk import chain, dag, task
 from airflow.utils.trigger_rule import TriggerRule
 
 

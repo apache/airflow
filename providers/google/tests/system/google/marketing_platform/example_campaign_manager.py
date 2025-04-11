@@ -214,7 +214,7 @@ with DAG(
         task_id="create_report",
         gcp_conn_id=CONNECTION_ID,
     )
-    report_id = cast(str, XComArg(create_report, key="report_id"))
+    report_id = cast("str", XComArg(create_report, key="report_id"))
     # [END howto_campaign_manager_insert_report_operator]
 
     # [START howto_campaign_manager_run_report_operator]
@@ -224,7 +224,7 @@ with DAG(
         task_id="run_report",
         gcp_conn_id=CONNECTION_ID,
     )
-    file_id = cast(str, XComArg(run_report, key="file_id"))
+    file_id = cast("str", XComArg(run_report, key="file_id"))
     # [END howto_campaign_manager_run_report_operator]
 
     # [START howto_campaign_manager_wait_for_operation]

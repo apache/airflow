@@ -35,7 +35,7 @@ class TestRunDBManager:
     @conf_vars(
         {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
     )
-    def test_fab_db_manager_is_default(self):
+    def test_db_manager_uses_config(self):
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
         run_db_manager = RunDBManager()

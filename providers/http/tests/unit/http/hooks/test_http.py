@@ -592,12 +592,12 @@ class TestHttpHook:
             custom_adapter = HTTPAdapter()
             hook = HttpHook(method="GET", adapter=custom_adapter)
             session = hook.get_conn()
-            assert isinstance(
-                session.adapters["http://"], type(custom_adapter)
-            ), "Custom HTTP adapter not correctly mounted"
-            assert isinstance(
-                session.adapters["https://"], type(custom_adapter)
-            ), "Custom HTTPS adapter not correctly mounted"
+            assert isinstance(session.adapters["http://"], type(custom_adapter)), (
+                "Custom HTTP adapter not correctly mounted"
+            )
+            assert isinstance(session.adapters["https://"], type(custom_adapter)), (
+                "Custom HTTPS adapter not correctly mounted"
+            )
 
     def test_process_extra_options_from_connection(self):
         extra_options = {}

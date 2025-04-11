@@ -21,6 +21,7 @@ import os
 from typing import TYPE_CHECKING
 
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
@@ -67,15 +68,13 @@ def test_client(request):
         # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
         # to make the JWT token always valid for all test cases with time_machine
         time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
-        time_very_after = datetime.datetime.now() + datetime.timedelta(days=1)
-        token = auth_manager._get_token_signer().generate(
-            {
-                "iat": time_very_before,
-                "nbf": time_very_before,
-                "exp": time_very_after,
-                **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
-            }
-        )
+        time_after = datetime.datetime.now() + datetime.timedelta(days=1)
+        with time_machine.travel(time_very_before, tick=False):
+            token = auth_manager._get_token_signer(
+                expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
+            ).generate(
+                auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
+            )
         yield TestClient(
             app, headers={"Authorization": f"Bearer {token}"}, base_url=f"{BASE_URL}{get_api_path(request)}"
         )

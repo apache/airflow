@@ -60,16 +60,21 @@ CURRENT_FOLDER = Path(__file__).parent
 # [START howto_operator_gcp_create_build_from_storage_body]
 CREATE_BUILD_FROM_STORAGE_BODY = {
     "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
-    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
+    "steps": [{"name": "ubuntu", "entrypoint": "bash", "args": ["-c", "echo Hello world && sleep 200"]}],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
 CREATE_BUILD_FROM_REPO_BODY: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
+    "steps": [{"name": "ubuntu", "entrypoint": "bash", "args": ["-c", "echo Hello world && sleep 200"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
+
+CREATE_BUILD_FROM_REPO_NO_WAIT_BODY: dict[str, Any] = {
+    "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
+    "steps": [{"name": "ubuntu", "entrypoint": "bash", "args": ["-c", "echo Hello world && sleep 300"]}],
+}
 
 
 with DAG(
@@ -92,7 +97,7 @@ with DAG(
 
         # [START howto_operator_create_build_from_storage_result]
         create_build_from_storage_result = BashOperator(
-            bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
+            bash_command=f"echo {cast('str', XComArg(create_build_from_storage, key='results'))}",
             task_id="create_build_from_storage_result",
         )
         # [END howto_operator_create_build_from_storage_result]
@@ -111,7 +116,7 @@ with DAG(
         # [END howto_operator_create_build_from_storage_async]
 
         create_build_from_storage_result = BashOperator(
-            bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
+            bash_command=f"echo {cast('str', XComArg(create_build_from_storage, key='results'))}",
             task_id="create_build_from_storage_result",
         )
 
@@ -129,7 +134,7 @@ with DAG(
 
         # [START howto_operator_create_build_from_repo_result]
         create_build_from_repo_result = BashOperator(
-            bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
+            bash_command=f"echo {cast('str', XComArg(create_build_from_repo, key='results'))}",
             task_id="create_build_from_repo_result",
         )
         # [END howto_operator_create_build_from_repo_result]
@@ -148,7 +153,7 @@ with DAG(
         # [END howto_operator_create_build_from_repo_async]
 
         create_build_from_repo_result = BashOperator(
-            bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
+            bash_command=f"echo {cast('str', XComArg(create_build_from_repo, key='results'))}",
             task_id="create_build_from_repo_result",
         )
 
@@ -187,7 +192,7 @@ with DAG(
         create_build_without_wait = CloudBuildCreateBuildOperator(
             task_id="create_build_without_wait",
             project_id=PROJECT_ID,
-            build=CREATE_BUILD_FROM_REPO_BODY,
+            build=CREATE_BUILD_FROM_REPO_NO_WAIT_BODY,
             wait=False,
         )
         # [END howto_operator_create_build_without_wait]
@@ -195,7 +200,7 @@ with DAG(
         # [START howto_operator_cancel_build]
         cancel_build = CloudBuildCancelBuildOperator(
             task_id="cancel_build",
-            id_=cast(str, XComArg(create_build_without_wait, key="id")),
+            id_=cast("str", XComArg(create_build_without_wait, key="id")),
             project_id=PROJECT_ID,
         )
         # [END howto_operator_cancel_build]
@@ -203,7 +208,7 @@ with DAG(
         # [START howto_operator_retry_build]
         retry_build = CloudBuildRetryBuildOperator(
             task_id="retry_build",
-            id_=cast(str, XComArg(cancel_build, key="id")),
+            id_=cast("str", XComArg(cancel_build, key="id")),
             project_id=PROJECT_ID,
         )
         # [END howto_operator_retry_build]
@@ -211,7 +216,7 @@ with DAG(
         # [START howto_operator_get_build]
         get_build = CloudBuildGetBuildOperator(
             task_id="get_build",
-            id_=cast(str, XComArg(retry_build, key="id")),
+            id_=cast("str", XComArg(retry_build, key="id")),
             project_id=PROJECT_ID,
         )
         # [END howto_operator_get_build]
@@ -224,7 +229,7 @@ with DAG(
         create_build_without_wait = CloudBuildCreateBuildOperator(
             task_id="create_build_without_wait",
             project_id=PROJECT_ID,
-            build=CREATE_BUILD_FROM_REPO_BODY,
+            build=CREATE_BUILD_FROM_REPO_NO_WAIT_BODY,
             wait=False,
             deferrable=True,
         )
@@ -232,19 +237,19 @@ with DAG(
 
         cancel_build = CloudBuildCancelBuildOperator(
             task_id="cancel_build",
-            id_=cast(str, XComArg(create_build_without_wait, key="id")),
+            id_=cast("str", XComArg(create_build_without_wait, key="id")),
             project_id=PROJECT_ID,
         )
 
         retry_build = CloudBuildRetryBuildOperator(
             task_id="retry_build",
-            id_=cast(str, XComArg(cancel_build, key="id")),
+            id_=cast("str", XComArg(cancel_build, key="id")),
             project_id=PROJECT_ID,
         )
 
         get_build = CloudBuildGetBuildOperator(
             task_id="get_build",
-            id_=cast(str, XComArg(retry_build, key="id")),
+            id_=cast("str", XComArg(retry_build, key="id")),
             project_id=PROJECT_ID,
         )
 

@@ -78,6 +78,7 @@ class MockExecutor(BaseExecutor):
                 state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
+            session.flush()
 
     def terminate(self):
         pass

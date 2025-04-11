@@ -43,7 +43,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
-    EXPAND_INPUT_EMPTY,
     create_expand_input,
 )
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -52,6 +51,7 @@ from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -248,6 +248,16 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
+def _encode_trigger(trigger: BaseEventTrigger | dict):
+    if isinstance(trigger, dict):
+        return trigger
+    classpath, kwargs = trigger.serialize()
+    return {
+        "classpath": classpath,
+        "kwargs": kwargs,
+    }
+
+
 def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     Encode an asset condition.
@@ -260,15 +270,6 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             return {
                 "name": watcher.name,
                 "trigger": _encode_trigger(watcher.trigger),
-            }
-
-        def _encode_trigger(trigger: BaseEventTrigger | dict):
-            if isinstance(trigger, dict):
-                return trigger
-            classpath, kwargs = trigger.serialize()
-            return {
-                "classpath": classpath,
-                "kwargs": kwargs,
             }
 
         asset = {
@@ -338,7 +339,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     return {
         "key": BaseSerialization.serialize(key),
         "extra": var.extra,
-        "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
+        "asset_alias_events": [attrs.asdict(cast("attrs.AttrsInstance", e)) for e in var.asset_alias_events],
     }
 
 
@@ -1076,7 +1077,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), TriggerDagRunOperator)
             and "trigger_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1100,7 +1101,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and issubclass(cast("type[BaseOperator]", task.operator_class), ExternalTaskSensor)
             and "external_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1471,7 +1472,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
-            encoded_start_trigger_args = cast(dict, encoded_start_trigger_args)
+            encoded_start_trigger_args = cast("dict", encoded_start_trigger_args)
             start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
@@ -1694,6 +1695,11 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
+        if "dag_id" not in encoded_dag:
+            raise RuntimeError(
+                "Encoded dag object has no dag_id key.  You may need to run `airflow dags reserialize`."
+            )
+
         dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
@@ -1865,7 +1871,7 @@ class TaskGroupSerialization(BaseSerialization):
                 if _type == DAT.OP
                 else cls.deserialize_task_group(val, group, task_dict, dag=dag)
             )
-            for label, (_type, val) in encoded_group["children"].items()
+            for label, (_type, val) in sorted(encoded_group["children"].items())
         }
         group.upstream_group_ids.update(cls.deserialize(encoded_group["upstream_group_ids"]))
         group.downstream_group_ids.update(cls.deserialize(encoded_group["downstream_group_ids"]))
@@ -1938,6 +1944,10 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         # This function is complex to implement, for now we delegate deserialize the dag and delegate to that.
         return self._real_dag.next_dagrun_info(*args, **kwargs)
 
+    @property
+    def access_control(self) -> Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None:
+        return BaseSerialization.deserialize(self.data["dag"].get("access_control"))
+
     @cached_property
     def _real_dag(self):
         return SerializedDAG.from_dict(self.data)
@@ -1956,7 +1966,9 @@ class LazyDeserializedDAG(pydantic.BaseModel):
 
     @property
     def has_task_concurrency_limits(self) -> bool:
-        return any(task.get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"])
+        return any(
+            task[Encoding.VAR].get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"]
+        )
 
     @property
     def owner(self) -> str:
@@ -1996,11 +2008,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
             raise ValueError(f"Cannot calculate data interval for run {run}")
 
         return data_interval
-
-    if TYPE_CHECKING:
-        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(
-            init=False, default=None
-        )
 
 
 @attrs.define()

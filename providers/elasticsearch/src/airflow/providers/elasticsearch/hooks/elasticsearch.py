@@ -163,7 +163,7 @@ class ElasticsearchSQLHook(DbApiHook):
 
     conn_name_attr = "elasticsearch_conn_id"
     default_conn_name = "elasticsearch_default"
-    connector = ESConnection
+    connector = ESConnection  # type: ignore[assignment]
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 

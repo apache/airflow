@@ -29,7 +29,7 @@ from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 PROCESS_TIMEOUT = 15 * 60
 
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
-DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
+GENERATED_PATH = ROOT_PROJECT_DIR / "generated"
 
 
 class DocsPublisher:
@@ -51,9 +51,9 @@ class DocsPublisher:
     def _build_dir(self) -> str:
         if self.is_versioned:
             version = "stable"
-            return f"{DOCS_DIR}/_build/docs/{self.package_name}/{version}"
+            return f"{GENERATED_PATH}/_build/docs/{self.package_name}/{version}"
         else:
-            return f"{DOCS_DIR}/_build/docs/{self.package_name}"
+            return f"{GENERATED_PATH}/_build/docs/{self.package_name}"
 
     @property
     def _current_version(self):

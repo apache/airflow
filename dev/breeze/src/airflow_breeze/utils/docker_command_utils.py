@@ -24,7 +24,7 @@ import os
 import re
 import sys
 from functools import lru_cache
-from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -88,6 +88,8 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("docker-stack-docs", "/opt/airflow/docker-stack-docs"),
+    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
     ("generated", "/opt/airflow/generated"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
@@ -96,11 +98,10 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("devel-common", "/opt/airflow/devel-common"),
-    ("helm_tests", "/opt/airflow/helm_tests"),
-    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
-    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
+    ("docker-tests", "/opt/airflow/docker-tests"),
     ("chart", "/opt/airflow/chart"),
-    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 
@@ -177,8 +178,7 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         get_console().print(
-            "[error]Docker is not running.[/]\n"
-            "[warning]Please make sure Docker is installed and running.[/]"
+            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 
@@ -435,7 +435,7 @@ def construct_docker_push_command(
 
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
+    build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -731,7 +731,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used

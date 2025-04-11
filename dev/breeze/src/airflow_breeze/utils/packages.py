@@ -228,6 +228,17 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
         raise SystemExit(1)
 
 
+def filter_provider_info_data(provider_info: dict[str, Any]) -> dict[str, Any]:
+    json_schema_dict = json.loads(PROVIDER_RUNTIME_DATA_SCHEMA_PATH.read_text())
+    runtime_properties = json_schema_dict["properties"].keys()
+    return_dict = {
+        property: provider_info[property]
+        for property in provider_info.keys()
+        if property in runtime_properties
+    }
+    return return_dict
+
+
 def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """Retrieves provider info from the provider yaml file.
 
@@ -236,6 +247,7 @@ def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """
     provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     if provider_yaml_dict:
+        provider_yaml_dict = filter_provider_info_data(provider_yaml_dict)
         validate_provider_info_with_runtime_schema(provider_yaml_dict)
     return provider_yaml_dict or {}
 
@@ -396,7 +408,7 @@ def find_matching_long_package_names(
     processed_package_filters.extend(get_long_package_names(short_packages))
 
     removed_packages: list[str] = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
     all_packages_including_removed: list[str] = available_doc_packages + removed_packages
     invalid_filters = [
@@ -598,8 +610,8 @@ def convert_cross_package_dependencies_to_table(
     prefix = "apache-airflow-providers-"
     base_url = "https://airflow.apache.org/docs/"
     for dependency in cross_package_dependencies:
-        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
+        pip_package_name = f"{prefix}{dependency.replace('.', '-')}"
+        url_suffix = f"{dependency.replace('.', '-')}"
         if markdown:
             url = f"[{pip_package_name}]({base_url}{url_suffix})"
         else:
@@ -773,7 +785,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             f"[error]Error {e}[/]\n"
             f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
             f'[warning]Please refresh the tags manually via:[/]\n\n"'
-            f'{" ".join(fetch_command)}\n\n'
+            f"{' '.join(fetch_command)}\n\n"
         )
         sys.exit(1)
 
@@ -817,13 +829,6 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     provider_details = get_provider_details(provider_id)
     current_version = provider_details.versions[0]
     return get_version_tag(current_version, provider_id, suffix)
-
-
-IMPLICIT_CROSS_PROVIDERS_DEPENDENCIES = [
-    "common.sql",
-    "fab",
-    "standard",
-]
 
 
 def regenerate_pyproject_toml(
@@ -905,10 +910,9 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = "\n" + "\n".join(cross_provider_dependencies)
     else:  # If there are no cross-provider dependencies, we need to remove the line
         formatted_cross_provider_dependencies = ""
-
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
-    get_pyproject_toml_content = render_template(
+    pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
         extension=".toml",
@@ -917,7 +921,7 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
-    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_pyproject_toml_path.write_text(pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
     )

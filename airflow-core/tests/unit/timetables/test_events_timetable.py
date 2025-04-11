@@ -176,3 +176,18 @@ def test_empty_timetable_manual_run() -> None:
     empty_timetable = EventsTimetable(event_dates=[])
     manual_run_data_interval = empty_timetable.infer_manual_data_interval(run_after=START_DATE)
     assert manual_run_data_interval == DataInterval(start=START_DATE, end=START_DATE)
+
+
+def test_serialize(unrestricted_timetable: Timetable):
+    serialized = unrestricted_timetable.serialize()
+    assert serialized == {
+        "event_dates": [
+            "2021-09-06T00:00:00+00:00",
+            "2021-09-07T00:00:00+00:00",
+            "2021-09-08T00:00:00+00:00",
+            "2021-09-08T00:00:00+00:00",
+            "2021-09-10T00:00:00+00:00",
+            "2021-10-09T00:00:00+00:00",
+        ],
+        "restrict_to_events": False,
+    }

@@ -406,7 +406,7 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
 .. code-block:: pycon
 
     >>> import json
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="some_conn",
     ...     conn_type="mysql",
@@ -483,7 +483,7 @@ You can verify a URI is parsed correctly like so:
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
 
     >>> c = Connection(uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2")
     >>> print(c.login)

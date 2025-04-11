@@ -67,7 +67,7 @@ The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks w
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
 referenced within the ``default_args`` of the example DAG.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job]
@@ -76,7 +76,7 @@ referenced within the ``default_args`` of the example DAG.
 This next example also shows how to pass in custom runtime configuration (in this case for ``threads_override``)
 via the ``additional_run_config`` dictionary.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_async]
@@ -87,7 +87,7 @@ by providing the ``project_name``, ``environment_name``, and ``job_name``.
 Please note that it will only work if the above three parameters uniquely identify a job in your account
 (i.e. you cannot have two jobs with the same name in the same project and environment).
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_without_job_id]
@@ -106,7 +106,7 @@ In the example below, the ``run_id`` value in the example below comes from the o
 DbtCloudRunJobOperator task by utilizing the ``.output`` property exposed for all operators. Also, to note,
 the ``account_id`` for the task is referenced within the ``default_args`` of the example DAG.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
@@ -115,7 +115,7 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
 Also, you can poll for status of the job run asynchronously using ``deferrable`` mode. In this mode, worker
 slots are freed up while the sensor is running.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor_deferred]
@@ -136,7 +136,7 @@ downloaded.
 For more information on dbt Cloud artifacts, reference
 `this documentation <https://docs.getdbt.com/docs/dbt-cloud/using-dbt-cloud/artifacts>`__.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_get_artifact]
@@ -157,7 +157,7 @@ If a ``project_id`` is supplied, only jobs pertaining to this project id will be
 For more information on dbt Cloud list jobs, reference
 `this documentation <https://docs.getdbt.com/dbt-cloud/api-v2#tag/Jobs/operation/listJobsForAccount>`__.
 
-.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_list_jobs]

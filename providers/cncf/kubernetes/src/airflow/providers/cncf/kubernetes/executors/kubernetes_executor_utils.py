@@ -395,13 +395,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                # `executor_config` is a k8s.V1Pod object and we do not need to pass it to the
-                # execute_workload module. So, we exclude it from the serialisation process.
-                ser_input = workload.model_dump_json(exclude={"ti": {"executor_config"}})
+                ser_input = workload.model_dump_json()
                 command = [
                     "python",
                     "-m",
                     "airflow.sdk.execution_time.execute_workload",
+                    "--json-path",
                     "/tmp/execute/input.json",
                 ]
             else:

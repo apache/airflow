@@ -228,7 +228,7 @@ class XComModel(TaskInstanceDependencies):
             )
         )
 
-        new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
+        new = cast("Any", cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,
             value=value,

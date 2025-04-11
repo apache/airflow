@@ -539,32 +539,32 @@ Using Breeze
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# tmux
+     tmux
 
   3. Press Ctrl + B and "
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow scheduler
+    airflow scheduler
 
 
   4. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow api-server
+    airflow api-server
 
   5. Press Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow dag-processor
+    airflow dag-processor
 
   6. Press Ctrl + B and up arrow followed by Ctrl + B and %
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow triggerer
+    airflow triggerer
 
   7. Press Ctrl + B followed by (Optional step for better tile arrangement)
 
@@ -747,7 +747,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst" target="_blank">
    Workflow for a contribution</a>
 
 

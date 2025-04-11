@@ -26,6 +26,39 @@
 Changelog
 ---------
 
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+* ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+* ``S3Hook: remove error return on inactivity period check (#48782)``
+
+Misc
+~~~~
+
+* ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+* ``Fix typo in docstring for MwaaHook (#48980)``
+* ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+* ``Change provider-specific dependencies to refer to providers (#48843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor AWS system tests to not use @task.branch (#48973)``
+   * ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Fix default base value (#49013)``
+
 9.5.0
 .....
 
@@ -51,6 +84,9 @@ Bug Fixes
 * ``Don't expect default conns in S3ToRedshiftOperator (#48363)``
 * ``Don't expect default connections to be present in RedshiftToS3Operator (#47968)``
 * ``fix PosixPath not working with file create_asset in download_file of S3Hook (#47880)``
+* ``Fix Cloudwatch remote logging (#48774)``
+* ``Fix 'conf.get_boolean("api", "ssl_cert")' (#48465)``
+* ``Fix signature of 'BatchWaitersHook.get_waiter' not matching parent class (#48581)``
 
 Misc
 ~~~~
@@ -73,6 +109,10 @@ Misc
 * ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
 * ``Bump mypy-boto3-appflow>=1.37.0 (#47912)``
 * ``Lower bind xmlsec dependency version (#47696)``
+* ``Clarify the Redshift delete cluster operator messaging. (#48652)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+* ``Cookies in non TLS mode (#48453)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -109,6 +149,11 @@ Misc
    * ``Use a single http tag to report the server's location to front end, not two (#47572)``
    * ``AIP 84 - Add auth for asset alias (#47241)``
    * ``Prepare docs for Mar 1st wave of providers (#47545)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Fix usage of mock_cmd in ECS executor unit tests (#48593)``
+   * ``Fix failing eks tests with new moto 5.1.2 (#48556)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
 
 9.4.0
 .....

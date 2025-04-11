@@ -17,6 +17,7 @@
  * under the License.
  */
 import { createBrowserRouter } from "react-router-dom";
+
 import { Login } from "src/login/Login";
 
 export const routerConfig = [
@@ -30,8 +31,13 @@ export const routerConfig = [
     path: "/",
   },
 ];
+
+const baseHref = document.querySelector("head>base")?.getAttribute("href");
 const baseUrl =
-  document.querySelector("base")?.href ?? "http://localhost:8080/";
+  baseHref !== null && baseHref !== undefined && baseHref !== ""
+    ? baseHref
+    : `${globalThis.location.origin}/`;
+
 const basename = new URL(`${baseUrl}auth`).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

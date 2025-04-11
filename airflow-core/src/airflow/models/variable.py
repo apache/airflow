@@ -154,11 +154,15 @@ class Variable(Base, LoggingMixin):
             from airflow.sdk import Variable as TaskSDKVariable
             from airflow.sdk.definitions._internal.types import NOTSET
 
-            return TaskSDKVariable.get(
+            var_val = TaskSDKVariable.get(
                 key,
                 default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
                 deserialize_json=deserialize_json,
             )
+            if isinstance(var_val, str):
+                mask_secret(var_val, key)
+
+            return var_val
 
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
@@ -197,6 +201,30 @@ class Variable(Base, LoggingMixin):
         """
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key=key)
+
+        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+        # back-compat layer
+
+        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # and should use the Task SDK API server path
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.set from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Variable` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+
+            TaskSDKVariable.set(
+                key=key,
+                value=value,
+                description=description,
+                serialize_json=serialize_json,
+            )
+            return
+
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:

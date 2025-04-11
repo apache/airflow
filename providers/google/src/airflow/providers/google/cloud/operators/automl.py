@@ -268,7 +268,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
     @cached_property
     def model(self) -> Model | None:
         if self.model_id:
-            hook = cast(CloudAutoMLHook, self.hook)
+            hook = cast("CloudAutoMLHook", self.hook)
             return hook.get_model(
                 model_id=self.model_id,
                 location=self.location,

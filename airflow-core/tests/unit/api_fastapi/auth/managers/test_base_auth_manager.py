@@ -383,6 +383,6 @@ def test_auth_managers_have_create_token_endpoint(test_client):
             "/auth/token",
             json={"username": "", "password": ""},
         )
-        assert (
-            response.status_code not in [404, 405]
-        ), f"The auth manager {auth_manager_module} does not provide an endpoint to create a JWT token. This endpoint should be POST /auth/token"
+        assert response.status_code not in [404, 405], (
+            f"The auth manager {auth_manager_module} does not provide an endpoint to create a JWT token. This endpoint should be POST /auth/token"
+        )

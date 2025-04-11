@@ -25,13 +25,13 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import setup, task, task_group, teardown
 from airflow.sdk.execution_time.comms import XComCountResponse
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
-@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+@patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):

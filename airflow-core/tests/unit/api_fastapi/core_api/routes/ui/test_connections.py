@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 pytestmark = pytest.mark.db_test
 
 
 class TestHookMetaData:
+    @skip_if_force_lowest_dependencies_marker
     def test_hook_meta_data(self, test_client):
         response = test_client.get("/connections/hook_meta")
         response_data = response.json()

@@ -66,19 +66,19 @@ with DAG(
 
     pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
     )
 
     # Performs polling on the Airflow Triggerer thus freeing up resources on Airflow Worker
     pipeline_run_sensor_deferred = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor_defered",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
         deferrable=True,
     )
 
     pipeline_run_async_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_async_sensor",
-        run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        run_id=cast("str", XComArg(run_pipeline2, key="run_id")),
         deferrable=True,
     )
     # [END howto_operator_adf_run_pipeline_async]

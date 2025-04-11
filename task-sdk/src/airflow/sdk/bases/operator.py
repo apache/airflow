@@ -155,6 +155,32 @@ def get_merged_defaults(
     return args, params
 
 
+def parse_retries(retries: Any) -> int | None:
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    return parsed_retries
+
+
+def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
+    if resources is None:
+        return None
+    from airflow.utils.operator_resources import Resources
+
+    return Resources(**resources)
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
@@ -331,6 +357,9 @@ else:
         )
         partial_kwargs.setdefault("executor_config", {})
 
+        for k in ("execute", "failure", "success", "retry", "skipped"):
+            partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
+
         return OperatorPartial(
             operator_class=operator_class,
             kwargs=partial_kwargs,
@@ -499,7 +528,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         apply_defaults.__non_optional_args = non_optional_args  # type: ignore
         apply_defaults.__param_names = set(non_variadic_params)  # type: ignore
 
-        return cast(T, apply_defaults)
+        return cast("T", apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
@@ -891,9 +920,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "executor",
     }
 
-    # Defines if the operator supports lineage without manual definitions
-    supports_lineage: bool = False
-
     # If True, the Rendered Template fields will be overwritten in DB after execution
     # This is useful for Taskflow decorators that modify the template fields during execution like
     # @task.bash decorator.
@@ -1200,24 +1226,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
 
-    # including lineage information
-    def __or__(self, other):
-        """
-        Return [This Operator] | [Operator].
-
-        The inlets of other will be set to pick up the outlets from this operator.
-        Other will be set as a downstream task of this operator.
-        """
-        if isinstance(other, BaseOperator):
-            if not self.outlets and not self.supports_lineage:
-                raise ValueError("No outlets defined for this operator")
-            other.add_inlets([self.task_id])
-            self.set_downstream(other)
-        else:
-            raise TypeError(f"Right hand side ({other}) is not an Operator")
-
-        return self
-
     # /Composing Operators ---------------------------------------------
 
     def __gt__(self, other):
@@ -1271,7 +1279,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine
-            object.__setattr__(result, k, v)
+            result.__dict__[k] = v
         return result
 
     def __getstate__(self):
@@ -1406,7 +1414,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
+                send_email = EmailOperator(
+                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
+                )
                 generate_content >> send_email
 
         """

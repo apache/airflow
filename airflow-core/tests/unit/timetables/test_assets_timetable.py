@@ -250,9 +250,9 @@ def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    assert hasattr(
-        asset_timetable, "run_ordering"
-    ), "AssetOrTimeSchedule should have 'run_ordering' attribute"
+    assert hasattr(asset_timetable, "run_ordering"), (
+        "AssetOrTimeSchedule should have 'run_ordering' attribute"
+    )
     parent_run_ordering = getattr(AssetTriggeredTimetable, "run_ordering", None)
     assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
 
@@ -318,28 +318,28 @@ class TestAssetConditionWithTimetable:
         with dag_maker(schedule=AssetAny(asset1, AssetAll(asset2, asset1))) as dag:
             EmptyOperator(task_id="hello")
 
-        assert isinstance(
-            dag.timetable.asset_condition, AssetAny
-        ), "DAG's asset trigger should be an instance of AssetAny"
-        assert any(
-            isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects
-        ), "DAG's asset trigger should include AssetAll"
+        assert isinstance(dag.timetable.asset_condition, AssetAny), (
+            "DAG's asset trigger should be an instance of AssetAny"
+        )
+        assert any(isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects), (
+            "DAG's asset trigger should include AssetAll"
+        )
 
         serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
 
         deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
 
-        assert isinstance(
-            deserialized_triggers, AssetAny
-        ), "Deserialized triggers should be an instance of AssetAny"
-        assert any(
-            isinstance(trigger, AssetAll) for trigger in deserialized_triggers.objects
-        ), "Deserialized triggers should include AssetAll"
+        assert isinstance(deserialized_triggers, AssetAny), (
+            "Deserialized triggers should be an instance of AssetAny"
+        )
+        assert any(isinstance(trigger, AssetAll) for trigger in deserialized_triggers.objects), (
+            "Deserialized triggers should include AssetAll"
+        )
 
         serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
-        assert (
-            "asset_condition" in serialized_timetable_dict
-        ), "Serialized timetable should contain 'asset_condition'"
-        assert isinstance(
-            serialized_timetable_dict["asset_condition"], dict
-        ), "Serialized 'asset_condition' should be a dict"
+        assert "asset_condition" in serialized_timetable_dict, (
+            "Serialized timetable should contain 'asset_condition'"
+        )
+        assert isinstance(serialized_timetable_dict["asset_condition"], dict), (
+            "Serialized 'asset_condition' should be a dict"
+        )

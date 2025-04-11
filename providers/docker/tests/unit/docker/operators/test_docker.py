@@ -473,9 +473,9 @@ class TestDockerOperator:
         operator = DockerOperator(
             private_environment={"PRIVATE": "MESSAGE"}, image=TEST_IMAGE, task_id="unittest"
         )
-        assert operator._private_environment == {
-            "PRIVATE": "MESSAGE"
-        }, "To keep this private, it must be an underscored attribute."
+        assert operator._private_environment == {"PRIVATE": "MESSAGE"}, (
+            "To keep this private, it must be an underscored attribute."
+        )
 
     @mock.patch("airflow.providers.docker.operators.docker.StringIO")
     def test_environment_overrides_env_file(self, stringio_mock):
@@ -790,7 +790,7 @@ class TestDockerOperator:
     @pytest.mark.parametrize("labels", ({"key": "value"}, ["key=value"]))
     def test_labels(self, labels: dict[str, str] | list[str]):
         operator = DockerOperator(task_id="test", image="test", labels=labels)
-        operator.execute(None)
+        operator.execute({})
         self.client_mock.create_container.assert_called_once()
         assert "labels" in self.client_mock.create_container.call_args.kwargs
         assert labels == self.client_mock.create_container.call_args.kwargs["labels"]

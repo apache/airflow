@@ -34,11 +34,12 @@ def login(request: Request, next: None | str = None) -> RedirectResponse:
     """Redirect to the login URL depending on the AuthManager configured."""
     login_url = request.app.state.auth_manager.get_url_login()
 
-    if next and not is_safe_url(next):
+    if next and not is_safe_url(next, request=request):
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 
     if next:
         login_url += f"?next={next}"
+
     return RedirectResponse(login_url)
 
 

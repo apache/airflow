@@ -28,6 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import ModelServiceClient
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -53,7 +54,7 @@ class ModelServiceHook(GoogleBaseHook, OperationHelper):
             client_options = ClientOptions()
 
         return ModelServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     @staticmethod

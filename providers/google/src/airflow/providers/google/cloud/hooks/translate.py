@@ -311,7 +311,7 @@ class TranslateHook(GoogleBaseHook, OperationHelper):
             retry=retry,
             metadata=metadata,
         )
-        return cast(dict, type(result).to_dict(result))
+        return cast("dict", type(result).to_dict(result))
 
     def batch_translate_text(
         self,

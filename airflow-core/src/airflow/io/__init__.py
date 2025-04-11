@@ -52,12 +52,10 @@ _BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFile
 
 
 @cache
-def _register_filesystems() -> (
-    Mapping[
-        str,
-        Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
-    ]
-):
+def _register_filesystems() -> Mapping[
+    str,
+    Callable[[str | None, Properties], AbstractFileSystem] | Callable[[str | None], AbstractFileSystem],
+]:
     scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManager()

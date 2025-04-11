@@ -20,12 +20,12 @@
 
   * ``airflow config lint``
 
-    * [ ] ``core.dag_default_view``
-    * [ ] ``core.dag_orientation``
+    * [x] ``core.dag_default_view``
+    * [x] ``core.dag_orientation``
 
   * ruff
 
     * AIR302
 
-      * [ ] ``default_view`` argument to DAG removed
-      * [ ] ``orientation`` argument to DAG removed
+      * [x] ``default_view`` argument to DAG removed
+      * [x] ``orientation`` argument to DAG removed

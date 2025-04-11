@@ -19,27 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
-from airflow.models.dag import DAG
-from airflow.utils.task_group import TaskGroup
+from airflow.sdk import DAG, task
+from airflow.utils import timezone
 
-from unit.models import DEFAULT_DATE
-
-
-def test_mapped_task_group_id_prefix_task_id():
-    def f(z):
-        pass
-
-    with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE) as dag:
-        x1 = dag.task(task_id="t1")(f).expand(z=[])
-        with TaskGroup("g"):
-            x2 = dag.task(task_id="t2")(f).expand(z=[])
-
-    assert x1.operator.task_id == "t1"
-    assert x2.operator.task_id == "g.t2"
-
-    dag.get_task("t1") == x1.operator
-    dag.get_task("g.t2") == x2.operator
+DEFAULT_DATE = timezone.datetime(2025, 1, 1)
 
 
 @pytest.mark.db_test

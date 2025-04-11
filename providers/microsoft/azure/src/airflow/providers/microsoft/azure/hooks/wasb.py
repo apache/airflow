@@ -144,8 +144,7 @@ class WasbHook(BaseHook):
         prefix = "extra__wasb__"
         if field_name.startswith("extra__"):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix when using this method."
             )
         if field_name in extra_dict:
             return extra_dict[field_name] or None

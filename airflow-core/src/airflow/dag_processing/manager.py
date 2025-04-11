@@ -233,6 +233,10 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        from airflow.sdk.execution_time.secrets_masker import reset_secrets_masker
+
+        reset_secrets_masker()
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -282,7 +286,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagModel.fileloc,
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
-        ).where(DagModel.is_active, DagModel.bundle_name.in_(bundle_names))
+        ).where(~DagModel.is_stale, DagModel.bundle_name.in_(bundle_names))
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
@@ -300,7 +304,7 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated_dagmodel = session.execute(
                 update(DagModel)
                 .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_active=False)
+                .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
             deactivated = deactivated_dagmodel.rowcount
@@ -866,7 +870,7 @@ class DagFileProcessorManager(LoggingMixin):
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.absolute_path,
-            bundle_path=cast(Path, dag_file.bundle_path),
+            bundle_path=cast("Path", dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,

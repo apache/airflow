@@ -22,7 +22,7 @@ description: |
     `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1741507758
+source-date-epoch: 1743477765
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.1

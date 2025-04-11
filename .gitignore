@@ -20,6 +20,9 @@ standalone_admin_password.txt
 warnings.txt
 warn-summary-*.txt
 
+# Ruff cache
+.ruff-cache
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -85,13 +88,6 @@ instance/
 
 # Scrapy stuff:
 .scrapy
-
-# Sphinx documentation
-docs/_build/
-docs/rtd-deprecation/_build/
-docs/_doctrees/
-docs/_inventory_cache/
-docs/*/_api/
 
 # PyBuilder
 target/
@@ -189,6 +185,12 @@ airflow-*.log
 airflow-*.pid
 .airflow_db_initialised
 
+# Generated doc files
+_api
+_build
+_doctree
+_inventory_cache
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -227,8 +229,6 @@ pip-wheel-metadata
 
 .pypirc
 
-/.docs-venv
-
 # Dev files
 /dev/packages.txt
 /dev/Dockerfile.pmc
@@ -265,3 +265,5 @@ airflow-build-dockerfile*
 
 # Ignore zip files https://github.com/apache/airflow/issues/46449
 *.zip
+
+_api/

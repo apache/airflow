@@ -223,7 +223,7 @@ class SqlToS3Operator(BaseOperator):
             return
         for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
             yield (
-                cast(str, group_label),
+                cast("str", group_label),
                 grouped_df.get_group(group_label)
                 .drop(random_column_name, axis=1, errors="ignore")
                 .reset_index(drop=True),

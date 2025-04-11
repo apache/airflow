@@ -17,19 +17,24 @@
  * under the License.
  */
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "next-themes";
-import { RouterProvider } from "react-router-dom";
-import { router } from "src/router";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
+import { CookiesProvider } from "react-cookie";
+import { createRoot } from "react-dom/client";
+import { RouterProvider } from "react-router-dom";
+
+import { router } from "src/router";
+
 import { queryClient } from "./queryClient";
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <ChakraProvider value={defaultSystem}>
     <ThemeProvider attribute="class" disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <CookiesProvider>
+          <RouterProvider router={router} />
+        </CookiesProvider>
       </QueryClientProvider>
     </ThemeProvider>
-  </ChakraProvider>
+  </ChakraProvider>,
 );

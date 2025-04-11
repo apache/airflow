@@ -25,43 +25,43 @@ from airflow.providers.google import __version__ as provider_version
 
 if TYPE_CHECKING:
     from openlineage.client.generated.base import RunFacet
-else:
+
+try:
     try:
-        try:
-            from openlineage.client.generated.base import RunFacet
-        except ImportError:  # Old OpenLineage client is used
-            from openlineage.client.facet import BaseFacet as RunFacet
+        from openlineage.client.generated.base import RunFacet
+    except ImportError:  # Old OpenLineage client is used
+        from openlineage.client.facet import BaseFacet as RunFacet  # type: ignore[assignment]
 
-        @define
-        class BigQueryJobRunFacet(RunFacet):
-            """
-            Facet that represents relevant statistics of bigquery run.
+    @define
+    class BigQueryJobRunFacet(RunFacet):
+        """
+        Facet that represents relevant statistics of bigquery run.
 
-            :param cached: BigQuery caches query results. Rest of the statistics will not be provided for cached queries.
-            :param billedBytes: How many bytes BigQuery bills for.
-            :param properties: Full property tree of BigQUery run.
-            """
+        :param cached: BigQuery caches query results. Rest of the statistics will not be provided for cached queries.
+        :param billedBytes: How many bytes BigQuery bills for.
+        :param properties: Full property tree of BigQUery run.
+        """
 
-            cached: bool
-            billedBytes: int | None = field(default=None)
-            properties: str | None = field(default=None)
+        cached: bool
+        billedBytes: int | None = field(default=None)
+        properties: str | None = field(default=None)
 
-            @staticmethod
-            def _get_schema() -> str:
-                return (
-                    "https://raw.githubusercontent.com/apache/airflow/"
-                    f"providers-google/{provider_version}/airflow/providers/google/"
-                    "openlineage/BigQueryJobRunFacet.json"
-                )
-    except ImportError:  # OpenLineage is not available
+        @staticmethod
+        def _get_schema() -> str:
+            return (
+                "https://raw.githubusercontent.com/apache/airflow/"
+                f"providers-google/{provider_version}/airflow/providers/google/"
+                "openlineage/BigQueryJobRunFacet.json"
+            )
+except ImportError:  # OpenLineage is not available
 
-        def create_no_op(*_, **__) -> None:
-            """
-            Create a no-op placeholder.
+    def create_no_op(*_, **__) -> None:
+        """
+        Create a no-op placeholder.
 
-            This function creates and returns a None value, used as a placeholder when the OpenLineage client
-            library is available. It represents an action that has no effect.
-            """
-            return None
+        This function creates and returns a None value, used as a placeholder when the OpenLineage client
+        library is available. It represents an action that has no effect.
+        """
+        return None
 
-        BigQueryJobRunFacet = create_no_op
+    BigQueryJobRunFacet = create_no_op  # type: ignore[misc, assignment]

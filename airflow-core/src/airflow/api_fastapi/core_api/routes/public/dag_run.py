@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -62,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -144,6 +146,7 @@ def patch_dag_run(
     patch_body: DAGRunPatchBody,
     session: SessionDep,
     request: Request,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
@@ -190,14 +193,12 @@ def patch_dag_run(
                 except Exception:
                     log.exception("error calling listener")
         elif attr_name == "note":
-            # Once Authentication is implemented in this FastAPI app,
-            # user id will be added when updating dag run note
-            # Refer to https://github.com/apache/airflow/issues/43534
             dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
-                dag_run.note = (attr_value, None)
+                dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
+                dag_run.dag_run_note.user_id = user.get_id()
 
     dag_run = session.get(DagRun, dag_run.id)
 
@@ -272,7 +273,7 @@ def clear_dag_run(
         )
 
         return TaskInstanceCollectionResponse(
-            task_instances=cast(list[TaskInstanceResponse], task_instances),
+            task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
     else:
@@ -300,6 +301,7 @@ def get_dag_runs(
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     order_by: Annotated[
         SortParam,
@@ -349,6 +351,7 @@ def get_dag_runs(
             end_date_range,
             update_at_range,
             state,
+            run_type,
             readable_dag_runs_filter,
         ],
         order_by=order_by,
@@ -382,10 +385,11 @@ def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
     request: Request,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
-    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
@@ -413,7 +417,7 @@ def trigger_dag_run(
         )
         dag_run_note = body.note
         if dag_run_note:
-            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except ValueError as e:

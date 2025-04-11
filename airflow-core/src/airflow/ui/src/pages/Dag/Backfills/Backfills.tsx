@@ -31,6 +31,26 @@ import { getDuration, pluralize } from "src/utils";
 
 const columns: Array<ColumnDef<BackfillResponse>> = [
   {
+    accessorKey: "date_from",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.from_date} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "From",
+  },
+  {
+    accessorKey: "date_to",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.to_date} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "To",
+  },
+  {
     accessorKey: "reprocess_behavior",
     cell: ({ row }) => (
       <Text>
@@ -42,11 +62,6 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     ),
     enableSorting: false,
     header: "Reprocess Behavior",
-  },
-  {
-    accessorKey: "max_active_runs",
-    enableSorting: false,
-    header: "Max Active Runs",
   },
   {
     accessorKey: "created_at",
@@ -69,26 +84,6 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     header: "Completed at",
   },
   {
-    accessorKey: "date_from",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.from_date} />
-      </Text>
-    ),
-    enableSorting: false,
-    header: "From",
-  },
-  {
-    accessorKey: "date_to",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.to_date} />
-      </Text>
-    ),
-    enableSorting: false,
-    header: "To",
-  },
-  {
     accessorKey: "duration",
     cell: ({ row }) => (
       <Text>
@@ -99,6 +94,11 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     ),
     enableSorting: false,
     header: "Duration",
+  },
+  {
+    accessorKey: "max_active_runs",
+    enableSorting: false,
+    header: "Max Active Runs",
   },
 ];
 

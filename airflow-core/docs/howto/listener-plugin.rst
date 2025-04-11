@@ -75,7 +75,7 @@ For reference, here's the plugin code within ``listener.py`` class that shows li
 
 This example listens when the task instance is in running state
 
-.. exampleinclude:: ../../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_running_task]
     :end-before: [END howto_listen_ti_running_task]
@@ -84,7 +84,7 @@ Similarly, code to listen after task_instance success and failure can be impleme
 
 This example listens when the dag run is change to failed state
 
-.. exampleinclude:: ../../../airflow-core/src/airflow/example_dags/plugins/event_listener.py
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_dagrun_failure_task]
     :end-before: [END howto_listen_dagrun_failure_task]

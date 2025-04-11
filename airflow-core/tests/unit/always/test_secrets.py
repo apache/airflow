@@ -27,8 +27,10 @@ from airflow.secrets.cache import SecretCache
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
+@skip_if_force_lowest_dependencies_marker
 class TestConnectionsFromSecrets:
     def setup_method(self) -> None:
         SecretCache.reset()
@@ -118,6 +120,7 @@ class TestConnectionsFromSecrets:
         assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
 
 
+@skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 class TestVariableFromSecrets:
     def setup_method(self) -> None:

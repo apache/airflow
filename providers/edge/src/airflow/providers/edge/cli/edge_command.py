@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import platform
 import signal
 import sys
 from dataclasses import asdict
@@ -51,6 +50,7 @@ from airflow.providers.edge.cli.dataclasses import Job, MaintenanceMarker, Worke
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils, timezone
+from airflow.utils.net import getfqdn
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
@@ -93,13 +93,6 @@ def force_use_internal_api_on_edge_worker():
 
 
 force_use_internal_api_on_edge_worker()
-
-
-def _hostname() -> str:
-    if IS_WINDOWS:
-        return platform.uname().node
-    else:
-        return os.uname()[1]
 
 
 def _status_signal() -> signal.Signals:
@@ -154,6 +147,11 @@ def _write_pid_to_pidfile(pid_file_path: str):
                 remove_existing_pidfile(pid_file_path)
     logger.debug("PID file written to %s.", pid_file_path)
     write_pid_to_pidfile(pid_file_path)
+
+
+def _edge_hostname() -> str:
+    """Get the hostname of the edge worker that should be reported by tasks."""
+    return os.environ.get("HOSTNAME", getfqdn())
 
 
 class _EdgeWorkerCli:
@@ -329,7 +327,7 @@ class _EdgeWorkerCli:
         try:
             self.last_hb = worker_register(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            )
+            ).last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -341,6 +339,8 @@ class _EdgeWorkerCli:
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(SIG_STATUS, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
+        os.environ["HOSTNAME"] = self.hostname
+        os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
         try:
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
@@ -491,7 +491,7 @@ def worker(args):
 
     edge_worker = _EdgeWorkerCli(
         pid_file_path=_pid_file_path(args.pid),
-        hostname=args.edge_hostname or _hostname(),
+        hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
         job_poll_interval=conf.getint("edge", "job_poll_interval"),
@@ -544,8 +544,8 @@ def maintenance(args):
     marker_path.write_text(
         MaintenanceMarker(
             maintenance=args.maintenance,
-            comments=f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {getuser()} put '
-            f'node into maintenance mode via cli\nComment: {args.comments}'
+            comments=f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {getuser()} put "
+            f"node into maintenance mode via cli\nComment: {args.comments}"
             if args.maintenance == "on"
             else None,
         ).json

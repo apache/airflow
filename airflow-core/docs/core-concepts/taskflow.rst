@@ -24,7 +24,7 @@ If you write most of your dags using plain Python code rather than Operators, th
 
 TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your DAG file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
 
-    from airflow.decorators import task
+    from airflow.sdk import task
     from airflow.providers.email import EmailOperator
 
     @task
@@ -68,11 +68,11 @@ Context
 
 You can access Airflow :ref:`context variables <templates:variables>` by adding them as keyword arguments as shown in the following example:
 
-.. include:: ../../shared/template-examples/taskflow.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
 
 Alternatively, you may add ``**kwargs`` to the signature of your task and all Airflow context variables will be accessible in the ``kwargs`` dict:
 
-.. include:: ../../shared/template-examples/taskflow-kwargs.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow-kwargs.rst
 
 For a full list of context variables, see :ref:`context variables <templates:variables>`.
 
@@ -112,7 +112,7 @@ a ``Asset``, which is ``@attr.define`` decorated, together with TaskFlow.
     import requests
 
     from airflow import Asset
-    from airflow.decorators import dag, task
+    from airflow.sdk import dag, task
 
     SRC = Asset(
         "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/time-series/globe/land_ocean/ytd/12/1880-2022.json"

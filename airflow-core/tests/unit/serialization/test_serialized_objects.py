@@ -47,7 +47,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, As
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -137,6 +137,12 @@ DAG_RUN = DagRun(
     state=DagRunState.SUCCESS,
 )
 DAG_RUN.id = 1
+
+
+# we add the tasks out of order, to ensure they are deserialized in the correct order
+DAG_WITH_TASKS = DAG(dag_id="test_dag", start_date=datetime.now())
+EmptyOperator(task_id="task2", dag=DAG_WITH_TASKS)
+EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
 
 
 def create_outlet_event_accessors(
@@ -303,6 +309,11 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.AIRFLOW_EXC_SER,
             equal_exception,
         ),
+        (
+            DAG_WITH_TASKS,
+            DAT.DAG,
+            lambda _, b: list(b.task_group.children.keys()) == sorted(b.task_group.children.keys()),
+        ),
     ],
 )
 def test_serialize_deserialize(input, encoded_type, cmp_func):
@@ -435,3 +446,14 @@ def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_mak
     dag2 = SerializedDAG.to_dict(from_dict)
 
     assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()
+
+
+@pytest.mark.db_test
+def test_serialized_dag_has_task_concurrency_limits(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="task1", bash_command="echo 1", max_active_tis_per_dag=1)
+
+    ser_dict = SerializedDAG.to_dict(dag)
+    lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
+
+    assert lazy_serialized_dag.has_task_concurrency_limits

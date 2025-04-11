@@ -1,0 +1,103 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+Core operators
+==============
+At the moment, two core operators support OpenLineage. These operators function as a 'black box,'
+capable of running any code, which might limit the extent of lineage extraction. To enhance the extraction
+of lineage information, operators can utilize the hooks listed below that support OpenLineage.
+
+- :class:`~airflow.providers.standard.operators.python.PythonOperator` (via :class:`airflow.providers.openlineage.extractors.python.PythonExtractor`)
+- :class:`~airflow.providers.standard.operators.bash.BashOperator` (via :class:`airflow.providers.openlineage.extractors.bash.BashExtractor`)
+
+Spark operators
+===============
+The OpenLineage integration can automatically inject information into Spark application properties when its being submitted from Airflow.
+The following is a list of supported operators along with the corresponding information that can be injected.
+See :ref:`automatic injection of parent job information <options:spark_inject_parent_job_info>` for more details.
+
+
+apache-airflow-providers-apache-livy
+"""""""""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+
+
+apache-airflow-providers-apache-spark
+"""""""""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+
+
+apache-airflow-providers-google
+"""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+
+
+:class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
+============================================================================
+
+uses SQL parsing for lineage extraction. To extract unique data from each database type,
+a dedicated Hook implementing OpenLineage methods is required. Currently, the following databases are supported:
+
+{% for db_type, hook in db_hooks %}
+- {{ db_type }} (via :class:`~{{ hook }}`)
+{% endfor %}
+
+
+Providers
+=========
+The operators and hooks listed below from each provider are natively equipped with OpenLineage support.
+
+{%for provider_name, provider_dict in providers.items() %}
+{{ provider_name }}
+{{ '"' * (provider_name|length) }}
+
+{% if provider_dict['operators'] %}
+Operators
+^^^^^^^^^
+{% for operator, methods in provider_dict['operators'].items() %}
+- :class:`~{{ operator }}`
+{% endfor %}
+{% endif %}
+
+{% if provider_dict['hooks'] %}
+Hooks
+^^^^^
+{% for hook, methods in provider_dict['hooks'].items() %}
+- :class:`~{{ hook }}`
+  {% for method in methods %}
+  - :meth:`~{{ method }}`
+  {% endfor %}
+{% endfor %}
+{% endif %}
+
+{% endfor %}

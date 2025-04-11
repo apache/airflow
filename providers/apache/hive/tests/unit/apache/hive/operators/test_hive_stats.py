@@ -326,9 +326,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         select_count_query = (
-            "SELECT COUNT(*) AS __count "
-            "FROM airflow.static_babynames_partitioned "
-            "WHERE ds = '2015-01-01';"
+            "SELECT COUNT(*) AS __count FROM airflow.static_babynames_partitioned WHERE ds = '2015-01-01';"
         )
         mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
 

@@ -29,7 +29,6 @@ from pathlib import Path
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -39,6 +38,7 @@ from airflow.providers.standard.operators.python import (
     PythonOperator,
     PythonVirtualenvOperator,
 )
+from airflow.sdk import DAG
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 

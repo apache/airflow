@@ -24,6 +24,7 @@ NO_AUTH_PATHS = {
     "/api/v2/auth/logout",
     "/api/v2/version",
     "/api/v2/monitor/health",
+    "/api/v2/{rest_of_path:path}",
 }
 
 
@@ -50,3 +51,10 @@ def test_routes_with_responses():
             # All other routes should have 401 and 403 responses indicating they require auth
             assert 401 in route.responses, f"Route {route.path} is missing 401 response"
             assert 403 in route.responses, f"Route {route.path} is missing 403 response"
+
+
+def test_invalid_routes_return_404(test_client):
+    """Invalid routes should return a 404."""
+    response = test_client.get("/api/v2/nonexistent")
+    assert response.status_code == 404
+    assert response.json() == {"error": "invalid route"}

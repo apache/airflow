@@ -516,6 +516,18 @@ class FastAPIAppResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class FastAPIRootMiddlewareResponse(BaseModel):
+    """
+    Serializer for Plugin FastAPI root middleware responses.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    middleware: Annotated[str, Field(title="Middleware")]
+    name: Annotated[str, Field(title="Name")]
+
+
 class HTTPExceptionResponse(BaseModel):
     """
     HTTPException Model used for error response.
@@ -562,6 +574,9 @@ class PluginResponse(BaseModel):
     macros: Annotated[list[str], Field(title="Macros")]
     flask_blueprints: Annotated[list[str], Field(title="Flask Blueprints")]
     fastapi_apps: Annotated[list[FastAPIAppResponse], Field(title="Fastapi Apps")]
+    fastapi_root_middlewares: Annotated[
+        list[FastAPIRootMiddlewareResponse], Field(title="Fastapi Root Middlewares")
+    ]
     appbuilder_views: Annotated[list[AppBuilderViewResponse], Field(title="Appbuilder Views")]
     appbuilder_menu_items: Annotated[list[AppBuilderMenuItemResponse], Field(title="Appbuilder Menu Items")]
     global_operator_extra_links: Annotated[list[str], Field(title="Global Operator Extra Links")]
@@ -1086,6 +1101,8 @@ class DAGDetailsResponse(BaseModel):
     is_active: Annotated[bool, Field(title="Is Active")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
@@ -1137,6 +1154,8 @@ class DAGResponse(BaseModel):
     is_active: Annotated[bool, Field(title="Is Active")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None

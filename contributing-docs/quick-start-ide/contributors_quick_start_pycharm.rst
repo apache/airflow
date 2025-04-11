@@ -107,7 +107,7 @@ Next: Configure your IDEA project.
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/pycharm_add_task-sdk_sources.png"
+        <img src="images/pycharm_add_task_sdk_sources.png"
              alt="Adding Source Root directories to Pycharm">
       </div>
 

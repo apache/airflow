@@ -49,12 +49,16 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
@@ -100,6 +104,11 @@ class AwsEcsExecutor(BaseExecutor):
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
+    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
+        # In the v3 path, we store workloads, not commands as strings.
+        # TODO: TaskSDK: move this type change into BaseExecutor
+        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.active_workers: EcsTaskCollection = EcsTaskCollection()
@@ -113,6 +122,31 @@ class AwsEcsExecutor(BaseExecutor):
         self.IS_BOTO_CONNECTION_HEALTHY = False
 
         self.run_task_kwargs = self._load_run_kwargs()
+
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
+
+    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        from airflow.executors.workloads import ExecuteTask
+
+        # Airflow V3 version
+        for w in workloads:
+            if not isinstance(w, ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+
+            command = [w]
+            key = w.ti.key
+            queue = w.ti.queue
+            executor_config = w.ti.executor_config or {}
+
+            del self.queued_tasks[key]
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
+            self.running.add(key)
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
@@ -278,7 +312,7 @@ class AwsEcsExecutor(BaseExecutor):
         if not has_exit_codes:
             return ""
         reasons = [
-            f'{container["container_arn"]} - {container["reason"]}'
+            f"{container['container_arn']} - {container['reason']}"
             for container in containers
             if "reason" in container
         ]
@@ -462,6 +496,24 @@ class AwsEcsExecutor(BaseExecutor):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
         if executor_config and ("name" in executor_config or "command" in executor_config):
             raise ValueError('Executor Config should never override "name" or "command"')
+        if len(command) == 1:
+            from airflow.executors.workloads import ExecuteTask
+
+            if isinstance(command[0], ExecuteTask):
+                workload = command[0]
+                ser_input = workload.model_dump_json()
+                command = [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_input,
+                ]
+            else:
+                raise ValueError(
+                    f"EcsExecutor doesn't know how to handle workload of type: {type(command[0])}"
+                )
+
         self.pending_tasks.append(
             EcsQueuedTask(key, command, queue, executor_config or {}, 1, timezone.utcnow())
         )

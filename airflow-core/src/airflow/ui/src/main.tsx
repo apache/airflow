@@ -44,7 +44,13 @@ axios.interceptors.response.use(
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      const baseUrl = document.querySelector("head>base")?.getAttribute("href") ?? "";
+
+      const baseHref = document.querySelector("head>base")?.getAttribute("href");
+      const baseUrl =
+        baseHref !== null && baseHref !== undefined && baseHref !== ""
+          ? baseHref
+          : `${globalThis.location.origin}/`;
+
       const loginPath = new URL("api/v2/auth/login", baseUrl).pathname;
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);

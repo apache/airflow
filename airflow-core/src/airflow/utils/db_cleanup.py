@@ -130,7 +130,12 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="deadline", recency_column_name="deadline"),
 ]
 
-if conf.get("webserver", "session_backend") == "database":
+# We need to have `fallback="database"` because this is executed at top level code and provider configuration
+# might not be loaded
+if (
+    "FabAuthManager" in conf.get("core", "auth_manager")
+    and conf.get("fab", "session_backend", fallback="database") == "database"
+):
     config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}

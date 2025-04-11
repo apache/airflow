@@ -30,12 +30,12 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.decorators import task as task_decorator
 from airflow.models import DagRun, Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task as task_decorator
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timezone import datetime
 
@@ -101,11 +101,11 @@ class TestRenderedTaskInstanceFields:
             pytest.param(None, None, id="None"),
             pytest.param([], [], id="list"),
             pytest.param({}, {}, id="empty_dict"),
-            pytest.param((), "()", id="empty_tuple"),
+            pytest.param((), [], id="empty_tuple"),
             pytest.param(set(), "set()", id="empty_set"),
             pytest.param("test-string", "test-string", id="string"),
             pytest.param({"foo": "bar"}, {"foo": "bar"}, id="dict"),
-            pytest.param(("foo", "bar"), "('foo', 'bar')", id="tuple"),
+            pytest.param(("foo", "bar"), ["foo", "bar"], id="tuple"),
             pytest.param({"foo"}, "{'foo'}", id="set"),
             pytest.param("{{ task.task_id }}", "test", id="templated_string"),
             (date(2018, 12, 6), "2018-12-06"),
@@ -137,12 +137,12 @@ class TestRenderedTaskInstanceFields:
             ),
             pytest.param(
                 "a" * 5000,
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a'*5000)[:max_length-79]!r}... ",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a' * 5000)[: max_length - 79]!r}... ",
                 id="large_string",
             ),
             pytest.param(
                 LargeStrObject(),
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[:max_length-79]!r}... ",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[: max_length - 79]!r}... ",
                 id="large_object",
             ),
         ],

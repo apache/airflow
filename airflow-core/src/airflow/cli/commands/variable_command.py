@@ -114,8 +114,7 @@ def variables_import(args, session):
         print(f"{fail_count} variable(s) failed to be updated.")
     if skipped:
         print(
-            f"The variables with these keys: {list(sorted(skipped))} "
-            f"were skipped because they already exists"
+            f"The variables with these keys: {list(sorted(skipped))} were skipped because they already exists"
         )
 
 

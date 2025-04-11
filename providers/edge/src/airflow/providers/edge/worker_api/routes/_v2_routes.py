@@ -136,7 +136,7 @@ def register_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) -> 
         request_obj = WorkerStateBody(
             state=body["state"], jobs_active=0, queues=body["queues"], sysinfo=body["sysinfo"]
         )
-        return register(worker_name, request_obj, session)
+        return register(worker_name, request_obj, session).model_dump()
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
 

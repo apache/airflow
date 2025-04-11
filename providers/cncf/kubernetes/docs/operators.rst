@@ -102,7 +102,7 @@ Using this method will ensure correctness
 and type safety. While we have removed almost all Kubernetes convenience classes, we have kept the
 :class:`~airflow.providers.cncf.kubernetes.secret.Secret` class to simplify the process of generating secret volumes/env variables.
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_cluster_resources]
     :end-before: [END howto_operator_k8s_cluster_resources]
@@ -135,21 +135,21 @@ Create the Secret using ``kubectl``:
 
 Then use it in your pod like so:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_private_image]
     :end-before: [END howto_operator_k8s_private_image]
 
 Also for this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_async.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_async.py
     :language: python
     :start-after: [START howto_operator_k8s_private_image_async]
     :end-before: [END howto_operator_k8s_private_image_async]
 
 Example to fetch and display container log periodically
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_async.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_async.py
     :language: python
     :start-after: [START howto_operator_async_log]
     :end-before: [END howto_operator_async_log]
@@ -168,7 +168,7 @@ alongside the Pod. The Pod must write the XCom value into this location at the `
 
 See the following example on how this occurs:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes.py
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom]
     :end-before: [END howto_operator_k8s_write_xcom]
@@ -177,7 +177,7 @@ See the following example on how this occurs:
 
 Also for this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_async.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_async.py
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
@@ -621,7 +621,7 @@ request that dynamically launches this Job.
 Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
 to ``~/.kube/config``. It also allows users to supply a template YAML file using the ``job_template_file`` parameter.
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_job.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_job.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_k8s_job]
@@ -629,7 +629,7 @@ to ``~/.kube/config``. It also allows users to supply a template YAML file using
 
 The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` also supports deferrable mode:
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_job.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_job.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_k8s_job_deferrable]
@@ -656,7 +656,7 @@ KubernetesDeleteJobOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesDeleteJobOperator` allows
 you to delete Jobs on a Kubernetes cluster.
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_job.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_job.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_k8s_job]
@@ -671,7 +671,7 @@ KubernetesPatchJobOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesPatchJobOperator` allows
 you to update Jobs on a Kubernetes cluster.
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_job.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_job.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_job]
@@ -686,7 +686,7 @@ KubernetesInstallKueueOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.kueue.KubernetesInstallKueueOperator` allows
 you to install the Kueue component in a Kubernetes cluster
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_kueue.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_kueue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_k8s_kueue_install]
@@ -709,7 +709,7 @@ KubernetesStartKueueJobOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.kueue.KubernetesStartKueueJobOperator` allows
 you to start a Kueue job in a Kubernetes cluster
 
-.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_kueue.py
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_kueue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_k8s_install_kueue]

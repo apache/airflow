@@ -295,9 +295,9 @@ def set_context(logger, value):
             # Don't use getatrr so we have type checking. And we don't care if handler is actually a
             # FileTaskHandler, it just needs to have a set_context function!
             if hasattr(handler, "set_context"):
-                from airflow.utils.log.file_task_handler import FileTaskHandler
+                from airflow.utils.log.file_task_handler import FileTaskHandler  # noqa: TC001
 
-                flag = cast(FileTaskHandler, handler).set_context(value)
+                flag = cast("FileTaskHandler", handler).set_context(value)
                 # By default we disable propagate once we have configured the logger, unless that handler
                 # explicitly asks us to keep it on.
                 if flag is not SetContextPropagate.MAINTAIN_PROPAGATE:

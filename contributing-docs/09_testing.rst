@@ -53,7 +53,7 @@ You can also run other kinds of tests when you are developing airflow packages:
   client works correctly.
 
 * `DAG testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
-  with ``DebugExecutor``. Note, that this is a legacy method - you can now use dag.test() method to test DAGs.
+  with ``dag.test()``.
 
 ------
 

@@ -276,3 +276,6 @@ class ListOfDictsExpandInput(ResolveMixin):
         resolved_oids = {id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)}
 
         return mapping, resolved_oids
+
+
+EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.

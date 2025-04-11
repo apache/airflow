@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from airflow.models.asset import AssetModel
+    from airflow.sdk.io.path import ObjectStoragePath
     from airflow.serialization.serialized_objects import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
@@ -129,13 +130,14 @@ def _get_normalized_scheme(uri: str) -> str:
     return parsed.scheme.lower()
 
 
-def _sanitize_uri(uri: str) -> str:
+def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
     """
     Sanitize an asset URI.
 
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
+    uri = str(inp)
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -313,7 +315,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         name: str,
-        uri: str,
+        uri: str | ObjectStoragePath,
         *,
         group: str = ...,
         extra: dict | None = None,
@@ -336,7 +338,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         *,
-        uri: str,
+        uri: str | ObjectStoragePath,
         group: str = ...,
         extra: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
@@ -346,7 +348,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         name: str | None = None,
-        uri: str | None = None,
+        uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
         extra: dict | None = None,
@@ -355,7 +357,7 @@ class Asset(os.PathLike, BaseAsset):
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
         elif name is None:
-            name = uri
+            name = str(uri)
         elif uri is None:
             uri = name
 

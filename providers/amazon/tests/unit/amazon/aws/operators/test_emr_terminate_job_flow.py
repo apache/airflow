@@ -56,9 +56,9 @@ class TestEmrTerminateJobFlowOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(MagicMock())
-        assert isinstance(
-            exc.value.trigger, EmrTerminateJobFlowTrigger
-        ), "Trigger is not a EmrTerminateJobFlowTrigger"
+        assert isinstance(exc.value.trigger, EmrTerminateJobFlowTrigger), (
+            "Trigger is not a EmrTerminateJobFlowTrigger"
+        )
 
     def test_template_fields(self):
         operator = EmrTerminateJobFlowOperator(

@@ -188,10 +188,10 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         return list(final_outputs.values())
 
     def _get_input_dataset(self, table: dict) -> InputDataset:
-        return cast(InputDataset, self._get_dataset(table, "input"))
+        return cast("InputDataset", self._get_dataset(table, "input"))
 
     def _get_output_dataset(self, table: dict) -> OutputDataset:
-        return cast(OutputDataset, self._get_dataset(table, "output"))
+        return cast("OutputDataset", self._get_dataset(table, "output"))
 
     def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
         project = table.get("projectId")

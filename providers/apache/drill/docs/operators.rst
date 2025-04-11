@@ -39,7 +39,7 @@ The ``sql`` parameter can be templated and be an external ``.sql`` file.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../providers/apache/drill/tests/system/apache/drill/example_drill_dag.py
+.. exampleinclude:: /../tests/system/apache/drill/example_drill_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_drill]

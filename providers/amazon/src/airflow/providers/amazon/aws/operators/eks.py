@@ -338,7 +338,7 @@ class EksCreateClusterOperator(BaseOperator):
             fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
             fargate_selectors=self.fargate_selectors,
             create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
-            subnets=cast(list[str], self.resources_vpc_config.get("subnetIds")),
+            subnets=cast("list[str]", self.resources_vpc_config.get("subnetIds")),
         )
 
     def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -377,7 +377,7 @@ class EksCreateClusterOperator(BaseOperator):
                 fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
                 fargate_selectors=self.fargate_selectors,
                 create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
-                subnets=cast(list[str], self.resources_vpc_config.get("subnetIds")),
+                subnets=cast("list[str]", self.resources_vpc_config.get("subnetIds")),
             )
             if self.compute == "fargate":
                 self.defer(
@@ -503,7 +503,7 @@ class EksCreateNodegroupOperator(BaseOperator):
             nodegroup_subnets_list: list[str] = []
             if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(list, literal_eval(self.nodegroup_subnets))
+                    nodegroup_subnets_list = cast("list", literal_eval(self.nodegroup_subnets))
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "

@@ -52,7 +52,7 @@ You can use them in your dags as:
 
 .. code-block:: python
 
-    from airflow.models import Variable
+    from airflow.sdk import Variable
 
     foo = Variable.get("foo")
     foo_json = Variable.get("foo_baz", deserialize_json=True)

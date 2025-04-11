@@ -34,7 +34,7 @@ class SmtpNotifier(BaseNotifier):
 
     .. code-block:: python
 
-        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"))
+        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="my@mail.com"))
 
         EmptyOperator(
             task_id="task",

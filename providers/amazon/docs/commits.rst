@@ -34,14 +34,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.6.0
+.....
+
+Latest change: 2025-04-10
+
+==================================================================================================  ===========  ============================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ============================================================================================
+`b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
+`e0eaa604f4 <https://github.com/apache/airflow/commit/e0eaa604f49a612432451910e30e74eaf2563601>`__  2025-04-10   ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+`f1a12f13e4 <https://github.com/apache/airflow/commit/f1a12f13e486f4c3b9e89fee92d5fccc488073dc>`__  2025-04-09   ``Refactor AWS system tests to not use @task.branch (#48973)``
+`f09d8bc79c <https://github.com/apache/airflow/commit/f09d8bc79c3a71fa6e17486778d4584a9babe02c>`__  2025-04-09   ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+`5142a9a0d4 <https://github.com/apache/airflow/commit/5142a9a0d4910a1cc9959f77c95a57fe922ea30d>`__  2025-04-09   ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+`7e3e1718b6 <https://github.com/apache/airflow/commit/7e3e1718b6e6f7833641ac337ccc4785d77c6865>`__  2025-04-09   ``Fix typo in docstring for MwaaHook (#48980)``
+`8d0170d200 <https://github.com/apache/airflow/commit/8d0170d200cff5897bc1187a10b8f8da08b4f38c>`__  2025-04-08   ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`7bd1aa6bc0 <https://github.com/apache/airflow/commit/7bd1aa6bc0f0f4d6703d21e3accb87a8ed9e614c>`__  2025-04-07   ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`8e8c84fed2 <https://github.com/apache/airflow/commit/8e8c84fed21bd2af1bb49e3355d00dc95fb82f38>`__  2025-04-07   ``Update ECS executor to support Task SDK (#48513)``
+`43652d5bbc <https://github.com/apache/airflow/commit/43652d5bbc3735868b05233aebb30c48c8d2f5c9>`__  2025-04-07   ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+`f911e47085 <https://github.com/apache/airflow/commit/f911e4708575f07405454bfb1b29887cbb13a196>`__  2025-04-07   ``S3Hook: remove error return on inactivity period check (#48782)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`3b48df7697 <https://github.com/apache/airflow/commit/3b48df76975fe5207e41888f4596175cd5ac9fd8>`__  2025-04-06   ``Change provider-specific dependencies to refer to providers (#48843)``
+==================================================================================================  ===========  ============================================================================================
+
 9.5.0
 .....
 
-Latest change: 2025-03-26
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
+`1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+`5ca62b8f23 <https://github.com/apache/airflow/commit/5ca62b8f23ddb23bfb468044dfc08ef1126031ff>`__  2025-04-04   ``Fix Cloudwatch remote logging (#48774)``
+`7fda150de7 <https://github.com/apache/airflow/commit/7fda150de7e51e6f89d87918053cb3e46b62169f>`__  2025-04-03   ``Clarify the Redshift delete cluster operator messaging. (#48652)``
+`c1088b6720 <https://github.com/apache/airflow/commit/c1088b672025aae5706034c601c1d54811448e54>`__  2025-04-02   ``Rework remote task log handling for the structlog era. (#48491)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`f4f0f59b1b <https://github.com/apache/airflow/commit/f4f0f59b1bc5d73d7e483129922c91ae296b4cbe>`__  2025-03-31   ``Fix usage of mock_cmd in ECS executor unit tests (#48593)``
+`71efa8e2c0 <https://github.com/apache/airflow/commit/71efa8e2c0d0ac20ac2a6102e8f8a1b374220c25>`__  2025-03-31   ``Fix signature of 'BatchWaitersHook.get_waiter' not matching parent class (#48581)``
+`ecc0e0e13c <https://github.com/apache/airflow/commit/ecc0e0e13c4a1031f228aeae30c2fbd04bed9b05>`__  2025-03-30   ``Fix failing eks tests with new moto 5.1.2 (#48556)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+`e026d91e42 <https://github.com/apache/airflow/commit/e026d91e42e4c9f7eda1dc7ce5c09816118ecd43>`__  2025-03-27   ``Fix 'conf.get_boolean("api", "ssl_cert")' (#48465)``
+`64aa6fea17 <https://github.com/apache/airflow/commit/64aa6fea179926016630ca94ac8421d2e5692997>`__  2025-03-27   ``Cookies in non TLS mode (#48453)``
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6b32358673 <https://github.com/apache/airflow/commit/6b32358673af89f598009dfb3f280c957a5f2da4>`__  2025-03-26   ``Move BaseNotifier to Task SDK (#48008)``
 `82118a964f <https://github.com/apache/airflow/commit/82118a964f2753be591d48bb33e16e2f1b52afb4>`__  2025-03-25   ``Don't expect default conns in s3_to_redshift (#48363)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``

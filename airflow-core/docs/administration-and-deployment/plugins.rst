@@ -79,7 +79,7 @@ code you will need to restart those processes. However, it will not be reflected
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
 and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
 This does mean that if you use plugins in your tasks, and want them to update you will either
-need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
+need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The other
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
@@ -106,8 +106,10 @@ looks like:
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
-        # A list of dictionaries contanning FastAPI object and some metadata. See example below.
+        # A list of dictionaries containing FastAPI app objects and some metadata. See the example below.
         fastapi_apps = []
+        # A list of dictionaries containing FastAPI middleware factory objects and some metadata. See the example below.
+        fastapi_root_middlewares = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_views = []
         # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
@@ -166,6 +168,7 @@ definitions in Airflow.
     from airflow.providers.fab.www.auth import has_access
 
     from fastapi import FastAPI
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
     from flask import Blueprint
     from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
@@ -199,6 +202,15 @@ definitions in Airflow.
 
 
     app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
+
+
+    # Creating a FastAPI middleware that will operates on all the server api requests.
+    middleware_with_metadata = {
+        "middleware": TrustedHostMiddleware,
+        "args": [],
+        "kwargs": {"allowed_hosts": ["example.com", "*.example.com"]},
+        "name": "Name of the Middleware",
+    }
 
 
     # Creating a flask appbuilder BaseView
@@ -257,6 +269,7 @@ definitions in Airflow.
         macros = [plugin_macro]
         flask_blueprints = [bp]
         fastapi_apps = [app_with_metadata]
+        fastapi_root_middlewares = [middleware_with_metadata]
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
 

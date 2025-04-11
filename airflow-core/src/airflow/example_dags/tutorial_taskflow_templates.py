@@ -21,8 +21,8 @@ from __future__ import annotations
 # [START import_module]
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.providers.standard.operators.python import get_current_context
+from airflow.sdk import dag, task
 
 # [END import_module]
 
@@ -94,7 +94,7 @@ def tutorial_taskflow_templates():
         # function
         params={"foobar": "param_from_task"},
     )(
-        sql="sql/test.sql",
+        sql="sql/tutorial_taskflow_template.sql",
         test_var="{{ run_id }}",
     )
     # [END main_flow]

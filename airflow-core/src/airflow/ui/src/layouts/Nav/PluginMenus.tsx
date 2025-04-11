@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Box, Link } from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
@@ -55,7 +55,7 @@ export const PluginMenus = () => {
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
-        <NavButton icon={<LuPlug />} title="Plugins" />
+        <NavButton as={Box} icon={<LuPlug />} title="Plugins" />
       </Menu.Trigger>
       <Menu.Content>
         {buttons.map(({ href, name }) =>

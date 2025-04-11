@@ -211,7 +211,7 @@ with DAG(
     upload_data = S3CreateObjectOperator(
         task_id="upload_data",
         s3_bucket=test_setup["bucket_name"],
-        s3_key=f'{test_setup["input_data_s3_key"]}/train.csv',
+        s3_key=f"{test_setup['input_data_s3_key']}/train.csv",
         data=TRAIN_DATA,
     )
 

@@ -36,6 +36,7 @@ from airflow.providers.edge.worker_api.datamodels import (
     EdgeJobFetched,
     PushLogsBody,
     WorkerQueuesBody,
+    WorkerRegistrationReturn,
     WorkerSetStateReturn,
     WorkerStateBody,
 )
@@ -113,7 +114,7 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
 
 def worker_register(
     hostname: str, state: EdgeWorkerState, queues: list[str] | None, sysinfo: dict
-) -> datetime:
+) -> WorkerRegistrationReturn:
     """Register worker with the Edge API."""
     try:
         result = _make_generic_request(
@@ -127,7 +128,7 @@ def worker_register(
         if e.response.status_code == 400:
             raise EdgeWorkerVersionException(str(e))
         raise e
-    return datetime.fromisoformat(result)
+    return WorkerRegistrationReturn(**result)
 
 
 def worker_set_state(

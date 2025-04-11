@@ -26,7 +26,7 @@ Package ``apache-airflow-providers-common-compat``
 Release: ``1.6.0``
 
 
-``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
+Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 
 Provider package

@@ -113,7 +113,7 @@ While ``@task`` decorated tasks don't support rendering jinja templates passed a
 all of the variables listed above can be accessed directly from tasks. The following code block
 is an example of accessing a ``task_instance`` object from its task:
 
-.. include:: ../shared/template-examples/taskflow.rst
+.. include:: /../../devel-common/src/docs/shared/template-examples/taskflow.rst
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:

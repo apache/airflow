@@ -32,7 +32,7 @@ Google Ads to GCS
 
 To query the Google Ads API and generate a CSV report of the results use ``GoogleAdsToGcsOperator``.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/ads/example_ads.py
+.. exampleinclude:: /../../google/tests/system/google/ads/example_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_ads_to_gcs_operator]
@@ -58,7 +58,7 @@ Upload Google Ads Accounts to GCS
 To upload Google Ads accounts to Google Cloud Storage bucket use the
 ``GoogleAdsListAccountsOperator``.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/ads/example_ads.py
+.. exampleinclude:: /../../google/tests/system/google/ads/example_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_ads_list_accounts_operator]

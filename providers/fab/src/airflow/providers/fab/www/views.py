@@ -75,7 +75,7 @@ class FabIndexView(IndexView):
 
             return response
         else:
-            return redirect(conf.get("api", "base_url"), code=302)
+            return redirect(conf.get("api", "base_url", fallback="/"), code=302)
 
 
 def show_traceback(error):
