@@ -56,6 +56,7 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
+    AssetEventDagRunReferenceResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
@@ -170,7 +171,6 @@ class RuntimeTaskInstance(TaskInstance):
             "params": validated_params,
             # TODO: Make this go through Public API longer term.
             # "test_mode": task_instance.test_mode,
-            # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -182,7 +182,10 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "triggering_asset_events": TriggeringAssetEventsAccessor.build(dag_run.consumed_asset_events),
+                "triggering_asset_events": TriggeringAssetEventsAccessor.build(
+                    AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
+                    for event in dag_run.consumed_asset_events
+                ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(

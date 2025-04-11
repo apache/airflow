@@ -97,7 +97,7 @@ class TestTaskInstanceEndpoint:
         dag_id: str = "example_python_operator",
         update_extras: bool = True,
         task_instances=None,
-        dag_run_state=State.RUNNING,
+        dag_run_state=DagRunState.RUNNING,
         with_ti_history=False,
     ):
         """Method to create task instances using kwargs and default arguments"""
@@ -134,6 +134,7 @@ class TestTaskInstanceEndpoint:
                     state=dag_run_state,
                 )
                 session.add(dr)
+                session.flush()
             ti = TaskInstance(task=tasks[i], **self.ti_init)
             session.add(ti)
             ti.dag_run = dr
@@ -143,18 +144,20 @@ class TestTaskInstanceEndpoint:
                 setattr(ti, key, value)
             tis.append(ti)
 
-        session.commit()
+        session.flush()
+
         if with_ti_history:
             for ti in tis:
                 ti.try_number = 1
                 session.merge(ti)
-            session.commit()
-            dag.clear()
+                session.flush()
+            dag.clear(session=session)
             for ti in tis:
                 ti.try_number = 2
                 ti.queue = "default_queue"
                 session.merge(ti)
-            session.commit()
+                session.flush()
+        session.commit()
         return tis
 
 
