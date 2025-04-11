@@ -71,9 +71,6 @@ Misc
 * ``Remove links to x/twitter.com (#47801)``
 
 
-Full list of unclassified changes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prevent __init__.py in providers from being modified (#44713)``
