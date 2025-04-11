@@ -67,7 +67,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import Trace, add_span
+from airflow.traces.tracer import DebugTrace, Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
@@ -1213,7 +1213,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for loop_count in itertools.count(start=1):
             with (
-                Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
+                DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
             ):
                 span.set_attributes(
@@ -1751,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
         links = [{"trace_id": trace_id, "span_id": span_id}]
 
-        with Trace.start_span(
+        with DebugTrace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
             span.set_attributes(
@@ -2031,7 +2031,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        with Trace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
+        with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
                 Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
