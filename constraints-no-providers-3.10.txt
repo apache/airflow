@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-10T19:50:12.108366
+# This constraints file was automatically generated on 2025-04-11T02:19:48.493040
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -160,7 +160,7 @@ databricks-sql-connector==4.0.2
 dataclasses-json==0.6.7
 datadog==0.51.0
 db-dtypes==1.4.2
-debugpy==1.8.13
+debugpy==1.8.14
 decorator==5.2.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -349,7 +349,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.4.2
+multidict==6.4.3
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
