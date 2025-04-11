@@ -60,6 +60,9 @@ class BaseK8STest:
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         self.session = self._get_session_with_retries()
+
+        # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
+        self.ensure_deployment_health("airflow-api-server")
         try:
             self._ensure_airflow_webserver_is_healthy()
             yield
@@ -190,6 +193,14 @@ class BaseK8STest:
         if state != expected_final_state:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
+
+    @staticmethod
+    def ensure_deployment_health(deployment_name: str, namespace: str = "airflow"):
+        """Watch the deployment until it is healthy."""
+        deployment_rollout_status = check_output(
+            ["kubectl", "rollout", "status", "deployment", deployment_name, "-n", namespace, "--watch"]
+        ).decode()
+        assert "successfully rolled out" in deployment_rollout_status
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id, expected_final_state, timeout):
         tries = 0
