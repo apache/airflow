@@ -504,15 +504,23 @@ Marquez can help you pinpoint which facets are not being formed properly so you 
 
 Debug settings
 ^^^^^^^^^^^^^^
-For debugging purposes, ensure that the `Airflow logging level <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#logging-level>`_
-is set to ``DEBUG`` and that the :ref:`debug_mode <options:debug_mode>` is enabled for OpenLineage integration.
-This will increase the detail in Airflow logs and include additional environmental information in OpenLineage events.
+For debugging purposes, ensure that both `Airflow logging level <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#logging-level>`_
+and `OpenLineage client logging level <https://openlineage.io/docs/client/python#environment-variables>`_ is set to ``DEBUG``.
+The latest provider auto-syncs Airflow's logging level with the OpenLineage client, removing the need for manual configuration.
+
+For DebugFacet, containing additional information (e.g., list of all packages installed), to be appended to all OL events
+enable :ref:`debug_mode <options:debug_mode>` for OpenLineage integration.
+
+Keep in mind that enabling these settings will increase the detail in Airflow logs (which will increase their size) and
+add extra information to OpenLineage events. It's recommended to use them temporarily, primarily for debugging purposes.
 
 When seeking help with debugging, always try to provide the following:
 
 -    Airflow scheduler logs with the logging level set to DEBUG
 -    Airflow worker logs (task logs) with the logging level set to DEBUG
 -    OpenLineage events with debug_mode enabled
+-    Information about Airflow version and OpenLineage provider version
+-    Information about any custom modifications made to the deployment environment where the Airflow is running
 
 
 Where can I learn more?

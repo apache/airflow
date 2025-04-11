@@ -24,6 +24,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -144,8 +145,7 @@ const taskInstanceColumns = (
   },
   {
     accessorKey: "dag_version",
-    cell: ({ row: { original } }) =>
-      original.dag_version?.version_number === undefined ? "" : `v${original.dag_version.version_number}`,
+    cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
     enableSorting: false,
     header: "Dag Version",
   },

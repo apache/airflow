@@ -590,7 +590,7 @@ export const useConnectionServiceGetConnections = <
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -606,10 +606,10 @@ export const useDagsServiceRecentDagRuns = <
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -619,10 +619,10 @@ export const useDagsServiceRecentDagRuns = <
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -638,10 +638,10 @@ export const useDagsServiceRecentDagRuns = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -655,10 +655,10 @@ export const useDagsServiceRecentDagRuns = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -1270,7 +1270,7 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1295,10 +1295,10 @@ export const useDagServiceGetDags = <
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1312,10 +1312,10 @@ export const useDagServiceGetDags = <
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1335,10 +1335,10 @@ export const useDagServiceGetDags = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -1356,10 +1356,10 @@ export const useDagServiceGetDags = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -3877,7 +3877,7 @@ export const useDagRunServicePatchDagRun = <
  * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGCollectionResponse Successful Response
@@ -3894,10 +3894,10 @@ export const useDagServicePatchDags = <
       TError,
       {
         dagIdPattern?: string;
+        excludeStale?: boolean;
         lastDagRunState?: DagRunState;
         limit?: number;
         offset?: number;
-        onlyActive?: boolean;
         owners?: string[];
         paused?: boolean;
         requestBody: DAGPatchBody;
@@ -3915,10 +3915,10 @@ export const useDagServicePatchDags = <
     TError,
     {
       dagIdPattern?: string;
+      excludeStale?: boolean;
       lastDagRunState?: DagRunState;
       limit?: number;
       offset?: number;
-      onlyActive?: boolean;
       owners?: string[];
       paused?: boolean;
       requestBody: DAGPatchBody;
@@ -3930,10 +3930,10 @@ export const useDagServicePatchDags = <
   >({
     mutationFn: ({
       dagIdPattern,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       requestBody,
@@ -3943,10 +3943,10 @@ export const useDagServicePatchDags = <
     }) =>
       DagService.patchDags({
         dagIdPattern,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         requestBody,

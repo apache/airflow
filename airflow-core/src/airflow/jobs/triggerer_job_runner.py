@@ -50,8 +50,12 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTaskStates,
+    GetTICount,
     GetVariable,
     GetXCom,
+    TaskStatesResult,
+    TICount,
     VariableResult,
     XComResult,
 )
@@ -222,6 +226,8 @@ ToTriggerRunner = Annotated[
         XComResult,
         DagRunStateResult,
         DRCount,
+        TICount,
+        TaskStatesResult,
         ErrorResponse,
     ],
     Field(discriminator="type"),
@@ -233,7 +239,16 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom, GetDagRunState, GetDRCount],
+    Union[
+        messages.TriggerStateChanges,
+        GetConnection,
+        GetVariable,
+        GetXCom,
+        GetTICount,
+        GetTaskStates,
+        GetDagRunState,
+        GetDRCount,
+    ],
     Field(discriminator="type"),
 ]
 """
@@ -336,7 +351,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc = super().start(id=job.id, job=job, target=cls.run_in_process, logger=logger, **kwargs)
 
         msg = messages.StartTriggerer(requests_fd=proc._requests_fd)
-        proc.stdin.write(msg.model_dump_json().encode() + b"\n")
+        proc.send_msg(msg)
         return proc
 
     @functools.cached_property
@@ -349,9 +364,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
-        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+        from airflow.sdk.api.datamodels._generated import (
+            ConnectionResponse,
+            TaskStatesResponse,
+            VariableResponse,
+            XComResponse,
+        )
 
-        resp = None
+        resp: BaseModel | None = None
+        dump_opts = {}
 
         if isinstance(msg, messages.TriggerStateChanges):
             if msg.events:
@@ -376,29 +397,32 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
             self.running_triggers.update(m.id for m in response.to_create)
-            resp = response.model_dump_json().encode()
+            resp = response
 
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+                resp = conn_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = conn.model_dump_json().encode()
+                resp = conn
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 var_result = VariableResult.from_variable_response(var)
-                resp = var_result.model_dump_json(exclude_unset=True).encode()
+                resp = var_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = var.model_dump_json().encode()
+                resp = var
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             if isinstance(xcom, XComResponse):
                 xcom_result = XComResult.from_xcom_response(xcom)
-                resp = xcom_result.model_dump_json(exclude_unset=True).encode()
+                resp = xcom_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = xcom.model_dump_json().encode()
+                resp = xcom
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -406,16 +430,38 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = dr_count.model_dump_json().encode()
+            resp = dr_count
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+            resp = DagRunStateResult.from_api_response(dr_resp)
 
+        elif isinstance(msg, GetTICount):
+            resp = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+
+        elif isinstance(msg, GetTaskStates):
+            run_id_task_state_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(run_id_task_state_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(run_id_task_state_map)
+            else:
+                resp = run_id_task_state_map
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
         if resp:
-            self.stdin.write(resp + b"\n")
+            self.send_msg(resp, **dump_opts)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""

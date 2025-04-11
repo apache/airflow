@@ -56,6 +56,7 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
+    AssetEventDagRunReferenceResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
@@ -63,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     RescheduleTask,
     RetryTask,
@@ -72,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     ToSupervisor,
     ToTask,
@@ -170,7 +173,6 @@ class RuntimeTaskInstance(TaskInstance):
             "params": validated_params,
             # TODO: Make this go through Public API longer term.
             # "test_mode": task_instance.test_mode,
-            # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -182,7 +184,10 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "triggering_asset_events": TriggeringAssetEventsAccessor.build(dag_run.consumed_asset_events),
+                "triggering_asset_events": TriggeringAssetEventsAccessor.build(
+                    AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
+                    for event in dag_run.consumed_asset_events
+                ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
@@ -413,23 +418,53 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the number of task instances matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetTICount(
-                dag_id=dag_id,
-                task_ids=task_ids,
-                task_group_id=task_group_id,
-                logical_dates=logical_dates,
-                run_ids=run_ids,
-                states=states,
-            ),
-        )
-        response = SUPERVISOR_COMMS.get_message()
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTICount(
+                    dag_id=dag_id,
+                    task_ids=task_ids,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                    states=states,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, TICount)
 
         return response.count
+
+    @staticmethod
+    def get_task_states(
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Return the task states matching the given criteria."""
+        log = structlog.get_logger(logger_name="task")
+
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTaskStates(
+                    dag_id=dag_id,
+                    task_ids=task_ids,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(response, TaskStatesResult)
+
+        return response.task_states
 
     @staticmethod
     def get_dr_count(
@@ -441,16 +476,17 @@ class RuntimeTaskInstance(TaskInstance):
         """Return the number of DAG runs matching the given criteria."""
         log = structlog.get_logger(logger_name="task")
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=GetDRCount(
-                dag_id=dag_id,
-                logical_dates=logical_dates,
-                run_ids=run_ids,
-                states=states,
-            ),
-        )
-        response = SUPERVISOR_COMMS.get_message()
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetDRCount(
+                    dag_id=dag_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                    states=states,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
 
         if TYPE_CHECKING:
             assert isinstance(response, DRCount)
@@ -628,9 +664,14 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         log.exception("error calling listener")
 
     if isinstance(msg, StartupDetails):
-        from setproctitle import setproctitle
+        # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
+        os_type = sys.platform
+        if os_type == "darwin":
+            log.debug("Mac OS detected, skipping setproctitle")
+        else:
+            from setproctitle import setproctitle
 
-        setproctitle(f"airflow worker -- {msg.ti.id}")
+            setproctitle(f"airflow worker -- {msg.ti.id}")
 
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg)

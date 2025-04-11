@@ -1037,7 +1037,7 @@ class TestDagRun:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -1111,7 +1111,7 @@ class TestDagRun:
 
         try:
             info = dag.next_dagrun_info(None)
-            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_active": True}
+            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_stale": False}
             if info is not None:
                 orm_dag_kwargs.update(
                     {
@@ -2403,8 +2403,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task_instance_id=ti.id,
-        try_number=ti.try_number,
+        ti_id=ti.id,
         start_date=timezone.datetime(2017, 1, 1),
         end_date=timezone.datetime(2017, 1, 2),
         reschedule_date=timezone.datetime(2017, 1, 1),

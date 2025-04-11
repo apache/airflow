@@ -49,7 +49,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import (
-    AssetEventResponse,
     AssetProfile,
     AssetResponse,
     DagRunState,
@@ -62,6 +61,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
@@ -72,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -84,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     TriggerDagRun,
     VariableResult,
@@ -117,6 +119,7 @@ from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
+import time_machine
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -820,7 +823,7 @@ def test_run_with_asset_outlets(
 
 def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that contains asset inlets."""
-    asset_event_resp = AssetEventResponse(
+    asset_event_resp = AssetEventResult(
         id=1,
         created_dagruns=[],
         timestamp=timezone.utcnow(),
@@ -1469,6 +1472,28 @@ class TestRuntimeTaskInstance:
             ),
         )
         assert state == "running"
+
+    def test_get_task_states(self, mock_supervisor_comms):
+        """Test that get_task_states sends the correct request and returns the states."""
+        mock_supervisor_comms.get_message.return_value = TaskStatesResult(
+            task_states={"run1": {"task1": "running"}}
+        )
+
+        states = RuntimeTaskInstance.get_task_states(
+            dag_id="test_dag",
+            task_ids=["task1"],
+            run_ids=["run1"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetTaskStates(
+                dag_id="test_dag",
+                task_ids=["task1"],
+                run_ids=["run1"],
+            ),
+        )
+        assert states == {"run1": {"task1": "running"}}
 
 
 class TestXComAfterTaskExecution:
@@ -2225,6 +2250,7 @@ class TestTaskRunnerCallsCallbacks:
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
         """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -2249,6 +2275,7 @@ class TestTriggerDagRunOperator:
                     dag_id="test_dag",
                     run_id="test_run_id",
                     reset_dag_run=False,
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
                 log=mock.ANY,
             ),
@@ -2274,6 +2301,7 @@ class TestTriggerDagRunOperator:
             (False, TaskInstanceState.FAILED),
         ],
     )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_conflict(
         self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
     ):
@@ -2299,6 +2327,7 @@ class TestTriggerDagRunOperator:
             mock.call.send_request(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                     run_id="test_run_id",
                     reset_dag_run=False,
                 ),
@@ -2318,6 +2347,7 @@ class TestTriggerDagRunOperator:
             ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
         ],
     )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_wait_for_completion(
         self,
         allowed_states,
@@ -2367,6 +2397,7 @@ class TestTriggerDagRunOperator:
                 msg=TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
                 log=mock.ANY,
             ),

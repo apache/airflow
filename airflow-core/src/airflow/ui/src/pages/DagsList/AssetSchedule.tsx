@@ -40,7 +40,7 @@ export const AssetSchedule = ({ dag }: Props) => {
       return true;
     }
     if (ev.lastUpdate !== null && dag.latest_dag_runs[0]?.run_after !== undefined) {
-      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0]?.run_after);
+      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0].run_after);
     }
 
     return false;
