@@ -139,7 +139,16 @@ function airflow_ctl_tests() {
 }
 
 
+function alembic_check() {
+    echo "${COLOR_BLUE}Running Alembic check${COLOR_RESET}"
+    set -x
+    breeze shell "cd airflow-core/src/airflow && alembic check"
+    set +x
+    echo "${COLOR_BLUE}Alembic check completed${COLOR_RESET}"
+}
+
 function run_tests() {
+    alembic_check
     if [[ "${TEST_GROUP}" == "core" ]]; then
         core_tests
     elif [[ "${TEST_GROUP}" == "providers" ]]; then
