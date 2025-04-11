@@ -31,17 +31,14 @@ from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
-from socket import SocketIO, socket, socketpair
+from socket import SO_SNDBUF, SOL_SOCKET, SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
-    BinaryIO,
     Callable,
     ClassVar,
-    Literal,
     NoReturn,
     TextIO,
     cast,
-    overload,
 )
 from uuid import UUID
 
@@ -50,7 +47,7 @@ import httpx
 import msgspec
 import psutil
 import structlog
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from airflow.configuration import conf
 from airflow.sdk.api.client import Client, ServerResponseError
@@ -87,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RetryTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -119,41 +117,40 @@ HEARTBEAT_TIMEOUT: int = conf.getint("scheduler", "task_instance_heartbeat_timeo
 MIN_HEARTBEAT_INTERVAL: int = conf.getint("workers", "min_heartbeat_interval")
 MAX_FAILED_HEARTBEATS: int = conf.getint("workers", "max_failed_heartbeats")
 
+
+SERVER_TERMINATED = "SERVER_TERMINATED"
+
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
 STATES_SENT_DIRECTLY = [
     IntermediateTIState.DEFERRED,
     IntermediateTIState.UP_FOR_RESCHEDULE,
+    IntermediateTIState.UP_FOR_RETRY,
     TerminalTIState.SUCCESS,
+    SERVER_TERMINATED,
 ]
 
-
-@overload
-def mkpipe() -> tuple[socket, socket]: ...
-
-
-@overload
-def mkpipe(remote_read: Literal[True]) -> tuple[socket, BinaryIO]: ...
+# Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
+# that is big enough to handle small to medium messages while not enforcing hard latency issues
+BUFFER_SIZE = 4096
 
 
 def mkpipe(
     remote_read: bool = False,
-) -> tuple[socket, socket | BinaryIO]:
+) -> tuple[socket, socket]:
     """Create a pair of connected sockets."""
     rsock, wsock = socketpair()
     local, remote = (wsock, rsock) if remote_read else (rsock, wsock)
 
-    local.setblocking(False)
-
-    io: BinaryIO | socket
     if remote_read:
-        # If _we_ are writing, we don't want to buffer
-        io = cast("BinaryIO", local.makefile("wb", buffering=0))
-    else:
-        io = local
+        # Setting a 4KB buffer here if possible, if not, it still works, so we will suppress all exceptions
+        with suppress(Exception):
+            local.setsockopt(SO_SNDBUF, SOL_SOCKET, BUFFER_SIZE)
+        # set nonblocking to True so that send or sendall waits till all data is sent
+        local.setblocking(True)
 
-    return remote, io
+    return remote, local
 
 
 def _subprocess_main():
@@ -166,6 +163,7 @@ def _reset_signals():
     # Uninstall the rich etc. exception handler
     sys.excepthook = sys.__excepthook__
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
 
@@ -376,7 +374,7 @@ class WatchedSubprocess:
     pid: int
     """The process ID of the child process"""
 
-    stdin: BinaryIO
+    stdin: socket
     """The handle connected to stdin of the child process"""
 
     decoder: ClassVar[TypeAdapter]
@@ -504,6 +502,11 @@ class WatchedSubprocess:
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
         self._num_open_sockets -= 1
 
+    def send_msg(self, msg: BaseModel, **dump_opts):
+        """Send the given pydantic message to the subprocess at once by encoding it and adding a line break."""
+        b = msg.model_dump_json(**dump_opts).encode() + b"\n"
+        self.stdin.sendall(b)
+
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, bytes, None]:
         """Handle incoming requests from the task process, respond with the appropriate data."""
         while True:
@@ -527,7 +530,7 @@ class WatchedSubprocess:
                 )
 
                 # Send error response back to task so that the error appears in the task logs
-                error_resp = (
+                self.send_msg(
                     ErrorResponse(
                         error=ErrorType.API_SERVER_ERROR,
                         detail={
@@ -536,10 +539,7 @@ class WatchedSubprocess:
                             "detail": error_details,
                         },
                     )
-                    .model_dump_json()
-                    .encode()
                 )
-                self.stdin.write(error_resp + b"\n")
 
     def _handle_request(self, msg, log: FilteringBoundLogger) -> None:
         raise NotImplementedError()
@@ -747,8 +747,7 @@ class ActivitySubprocess(WatchedSubprocess):
         log.debug("Sending", msg=msg)
 
         try:
-            self.stdin.write(msg.model_dump_json().encode())
-            self.stdin.write(b"\n")
+            self.send_msg(msg)
         except BrokenPipeError:
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
@@ -843,6 +842,11 @@ class ActivitySubprocess(WatchedSubprocess):
         if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
             return
 
+        if self._terminal_state:
+            # If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't
+            # heartbeat
+            return
+
         self._last_heartbeat_attempt = time.monotonic()
         try:
             self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
@@ -859,7 +863,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     status_code=e.response.status_code,
                     ti_id=self.id,
                 )
+                self.process_log.error(
+                    "Server indicated the task shouldn't be running anymore. Terminating process",
+                    detail=e.detail,
+                )
                 self.kill(signal.SIGTERM, force=True)
+                self.process_log.error("Task killed!")
+                self._terminal_state = SERVER_TERMINATED
             else:
                 # If we get any other error, we'll just log it and try again next time
                 self._handle_heartbeat_failures()
@@ -896,11 +906,14 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
+        elif self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
+            return SERVER_TERMINATED
         return TerminalTIState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger):
         log.debug("Received message from task runner", msg=msg)
-        resp = None
+        resp: BaseModel | None = None
+        dump_opts = {}
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -913,6 +926,13 @@ class ActivitySubprocess(WatchedSubprocess):
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
             )
+        elif isinstance(msg, RetryTask):
+            self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
+            self.client.task_instances.retry(
+                id=self.id,
+                end_date=msg.end_date,
+            )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
@@ -921,27 +941,29 @@ class ActivitySubprocess(WatchedSubprocess):
                 if conn.extra:
                     mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+                resp = conn_result
+                dump_opts = {"exclude_unset": True, "by_alias": True}
             else:
-                resp = conn.model_dump_json().encode()
+                resp = conn
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 if var.value:
                     mask_secret(var.value)
                 var_result = VariableResult.from_variable_response(var)
-                resp = var_result.model_dump_json(exclude_unset=True).encode()
+                resp = var_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = var.model_dump_json().encode()
+                resp = var
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
             )
             xcom_result = XComResult.from_xcom_response(xcom)
-            resp = xcom_result.model_dump_json().encode()
+            resp = xcom_result
         elif isinstance(msg, GetXComCount):
             len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
-            resp = XComCountResponse(len=len).model_dump_json().encode()
+            resp = XComCountResponse(len=len)
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
@@ -964,45 +986,48 @@ class ActivitySubprocess(WatchedSubprocess):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
                 asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+                resp = asset_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = asset_resp.model_dump_json().encode()
+                resp = asset_resp
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
             if isinstance(asset_resp, AssetResponse):
                 asset_result = AssetResult.from_asset_response(asset_resp)
-                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+                resp = asset_result
+                dump_opts = {"exclude_unset": True}
             else:
-                resp = asset_resp.model_dump_json().encode()
+                resp = asset_resp
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result.model_dump_json(exclude_unset=True).encode()
+            resp = asset_event_result
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetAssetEventByAssetAlias):
             asset_event_resp = self.client.asset_events.get(alias_name=msg.alias_name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
-            resp = asset_event_result.model_dump_json(exclude_unset=True).encode()
+            resp = asset_event_result
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
             dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
-            resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
+            resp = dagrun_result
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
-            dr_resp = self.client.dag_runs.trigger(
+            resp = self.client.dag_runs.trigger(
                 msg.dag_id,
                 msg.run_id,
                 msg.conf,
                 msg.logical_date,
                 msg.reset_dag_run,
             )
-            resp = dr_resp.model_dump_json().encode()
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+            resp = DagRunStateResult.from_api_response(dr_resp)
         elif isinstance(msg, GetTaskRescheduleStartDate):
-            tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
-            resp = tr_resp.model_dump_json().encode()
+            resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
         elif isinstance(msg, GetTICount):
-            ti_count = self.client.task_instances.get_count(
+            resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
@@ -1010,21 +1035,19 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = ti_count.model_dump_json().encode()
         elif isinstance(msg, GetDRCount):
-            dr_count = self.client.dag_runs.get_count(
+            resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
                 logical_dates=msg.logical_dates,
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = dr_count.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
 
         if resp:
-            self.stdin.write(resp + b"\n")
+            self.send_msg(resp, **dump_opts)
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read

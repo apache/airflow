@@ -304,3 +304,30 @@ If you upgrade your environment and get the following error:
     AttributeError: 'str' object has no attribute '__module__'
 
 change name from ``params`` in your operators.
+
+Templating Conflicts with f-strings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When constructing strings for templated fields (like ``bash_command`` in ``BashOperator``) using Python f-strings, be mindful of the interaction between f-string interpolation and Jinja templating syntax. Both use curly braces (``{}``).
+
+Python f-strings interpret double curly braces (``{{`` and ``}}``) as escape sequences for literal single braces (``{`` and ``}``). However, Jinja uses double curly braces (``{{ variable }}``) to denote variables for templating.
+
+If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literally within a string defined using an f-string, so that Airflow's Jinja engine can process it later, you must escape the braces for the f-string by doubling them *again*. This means using **four** curly braces:
+
+.. code-block:: python
+
+  t1 = BashOperator(
+      task_id="fstring_templating_correct",
+      bash_command=f"echo Data interval start: {{{{ ds }}}}",
+      dag=dag,
+  )
+
+  python_var = "echo Data interval start:"
+
+  t2 = BashOperator(
+      task_id="fstring_templating_simple",
+      bash_command=f"{python_var} {{{{ ds }}}}",
+      dag=dag,
+  )
+
+This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during DAG parsing or unexpected behavior at runtime when the templating does not occur as expected.

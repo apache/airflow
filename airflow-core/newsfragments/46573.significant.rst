@@ -19,4 +19,4 @@ Instead, users can install ``smtp`` provider and import ``EmailOperator`` from t
 
     * AIR303
 
-      * [ ] ``airflow.operators.email`` → ``airflow.providers.smtp.operators.smtp.EmailOperator``
+      * [x] ``airflow.operators.email.EmailOperator`` → ``airflow.providers.smtp.operators.smtp.EmailOperator``

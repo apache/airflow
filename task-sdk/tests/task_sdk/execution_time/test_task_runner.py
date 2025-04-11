@@ -49,7 +49,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import (
-    AssetEventResponse,
     AssetProfile,
     AssetResponse,
     DagRunState,
@@ -62,6 +61,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
@@ -117,6 +117,7 @@ from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
+import time_machine
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -820,7 +821,7 @@ def test_run_with_asset_outlets(
 
 def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that contains asset inlets."""
-    asset_event_resp = AssetEventResponse(
+    asset_event_resp = AssetEventResult(
         id=1,
         created_dagruns=[],
         timestamp=timezone.utcnow(),
@@ -1451,6 +1452,24 @@ class TestRuntimeTaskInstance:
             ),
         )
         assert count == 2
+
+    def test_get_dagrun_state(self, mock_supervisor_comms):
+        """Test that get_dagrun_state sends the correct request and returns the state."""
+        mock_supervisor_comms.get_message.return_value = DagRunStateResult(state="running")
+
+        state = RuntimeTaskInstance.get_dagrun_state(
+            dag_id="test_dag",
+            run_id="run1",
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetDagRunState(
+                dag_id="test_dag",
+                run_id="run1",
+            ),
+        )
+        assert state == "running"
 
 
 class TestXComAfterTaskExecution:
@@ -2207,6 +2226,7 @@ class TestTaskRunnerCallsCallbacks:
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
         """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -2231,6 +2251,7 @@ class TestTriggerDagRunOperator:
                     dag_id="test_dag",
                     run_id="test_run_id",
                     reset_dag_run=False,
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
                 log=mock.ANY,
             ),
@@ -2256,6 +2277,7 @@ class TestTriggerDagRunOperator:
             (False, TaskInstanceState.FAILED),
         ],
     )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_conflict(
         self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
     ):
@@ -2281,6 +2303,7 @@ class TestTriggerDagRunOperator:
             mock.call.send_request(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                     run_id="test_run_id",
                     reset_dag_run=False,
                 ),
@@ -2300,6 +2323,7 @@ class TestTriggerDagRunOperator:
             ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
         ],
     )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
     def test_handle_trigger_dag_run_wait_for_completion(
         self,
         allowed_states,
@@ -2349,6 +2373,7 @@ class TestTriggerDagRunOperator:
                 msg=TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
+                    logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
                 log=mock.ANY,
             ),
@@ -2381,3 +2406,40 @@ class TestTriggerDagRunOperator:
             ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["allowed_states", "failed_states", "intermediate_state"],
+        [
+            ([DagRunState.SUCCESS], None, IntermediateTIState.DEFERRED),
+        ],
+    )
+    def test_handle_trigger_dag_run_deferred(
+        self,
+        allowed_states,
+        failed_states,
+        intermediate_state,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=False,
+            allowed_states=allowed_states,
+            failed_states=failed_states,
+            deferrable=True,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_deferred", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == intermediate_state

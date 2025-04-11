@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
@@ -150,6 +151,11 @@ class TaskInstanceOperations:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def retry(self, id: uuid.UUID, end_date: datetime):
+        """Tell the API server that this TI has failed and reached a up_for_retry state."""
+        body = TIRetryStatePayload(end_date=end_date)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):

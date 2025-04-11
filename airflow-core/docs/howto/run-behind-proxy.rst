@@ -33,13 +33,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
     base_url = http://my_host/myorg/airflow
 
-Additionally if you use Celery Executor, and you enable flower, you can get Flower in ``/myorg/flower`` with::
-
-    flower_url_prefix = /myorg/flower
-
-Your reverse proxy (ex: nginx) should be configured as follow:
-
-- pass the url and http header as it for the Airflow webserver, without any rewrite, for example::
+- Configure your reverse  proxy (e.g. nginx) to pass the url and http header as it for the Airflow webserver, without any rewrite, for example::
 
       server {
         listen 80;
@@ -48,18 +42,22 @@ Your reverse proxy (ex: nginx) should be configured as follow:
         location /myorg/airflow/ {
             proxy_pass http://localhost:8080;
             proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
             proxy_redirect off;
             proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-        }
-
-        location /myorg/flower/ {
-            proxy_pass http://localhost:5555;
-            proxy_set_header Host $http_host;
-            proxy_redirect off;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
         }
       }
+
+- Use ``--proxy-headers`` CLI flag to tell Uvicorn to respect these headers: ``airflow api-server --proxy-headers``
+
+- If your proxy server is not on the same host (or in the same docker container) as Airflow, then you will need to
+  set the ``FORWARDED_ALLOW_IPS`` environment variable so Uvicorn knows who to trust this header from. See
+  `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
+  (Please note the ``--forwarded-allow-ips`` CLI option does not exist in Airflow.)
+
+.. spelling::
+
+  Uvicorn

@@ -572,7 +572,18 @@ export const $BaseNodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
   },
@@ -1693,9 +1704,9 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2026,7 +2037,7 @@ export const $DAGDetailsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2094,9 +2105,9 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2282,7 +2293,7 @@ export const $DAGResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2914,9 +2925,9 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -3121,7 +3132,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -4285,7 +4296,8 @@ export const $MenuItem = {
   type: "string",
   enum: [
     "Assets",
-    "Audit log",
+    "Audit Log",
+    "Config",
     "Connections",
     "Dags",
     "Docs",
@@ -4334,7 +4346,18 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
     children: {

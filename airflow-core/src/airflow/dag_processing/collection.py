@@ -431,7 +431,7 @@ class DagModelOperation(NamedTuple):
             dm.fileloc = dag.fileloc
             dm.relative_fileloc = dag.relative_fileloc
             dm.owners = dag.owner or conf.get("operators", "default_owner")
-            dm.is_active = True
+            dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
             if hasattr(dag, "_dag_display_property_value"):
@@ -573,7 +573,7 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
                 tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
                 AssetModel.active.has(),
                 AssetModel.consuming_dags.any(
-                    DagScheduleAssetReference.dag.has(DagModel.is_active & ~DagModel.is_paused)
+                    DagScheduleAssetReference.dag.has(~DagModel.is_stale & ~DagModel.is_paused)
                 ),
             )
         )

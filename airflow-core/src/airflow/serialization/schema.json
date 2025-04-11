@@ -176,6 +176,7 @@
           }
         },
         "catchup": { "type": "boolean" },
+        "fail_fast": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
         "_processor_dags_folder": {
