@@ -31,7 +31,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
-    DagIsPaused,
     DagNotFound,
     DagRunAlreadyExists,
 )
@@ -62,6 +61,7 @@ if TYPE_CHECKING:
         from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import DagIsPaused
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
@@ -223,7 +223,10 @@ class TriggerDagRunOperator(BaseOperator):
         if self.fail_when_dag_is_paused:
             dag_model = DagModel.get_current(self.trigger_dag_id)
             if dag_model.is_paused:
-                raise DagIsPaused(dag_id=self.trigger_dag_id)
+                if AIRFLOW_V_3_0_PLUS:
+                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                else:
+                    raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(context=context, run_id=run_id, parsed_logical_date=parsed_logical_date)
