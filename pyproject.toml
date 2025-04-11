@@ -85,9 +85,6 @@ packages = []
 "async" = [
     "apache-airflow-core[async]"
 ]
-"cgroups" = [
-    "apache-airflow-core[cgroups]"
-]
 "cloudpickle" = [
     "apache-airflow-core[cloudpickle]"
 ]

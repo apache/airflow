@@ -164,9 +164,6 @@ dependencies = [
 "apache-webhdfs" = [
     "apache-airflow-providers-apache-hdfs",
 ]
-"cgroups" = [
-    "cgroupspy>=0.2.2",
-]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
 ]
@@ -223,7 +220,7 @@ dependencies = [
     "uv>=0.6.13",
 ]
 "all" = [
-    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
 ]
 
 [project.scripts]
