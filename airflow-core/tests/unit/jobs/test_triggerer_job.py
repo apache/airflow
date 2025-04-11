@@ -626,7 +626,7 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(20)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
     """Checks that the trigger will successfully access Variables, Connections and XComs."""
     # Create the test DAG and task
@@ -726,8 +726,7 @@ class CustomTriggerDagRun(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -818,8 +817,7 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task
