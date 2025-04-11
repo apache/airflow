@@ -260,8 +260,8 @@ class TestOracleHookConn:
         "connection_params, expected_uri",
         [
             pytest.param(
-                {"extra": '{"service_name": "schema"}', "schema": None, "port": 1521},
-                "oracle://login:password@host:1521/schema",
+                {"extra": '{"service_name": "service"}', "schema": None, "port": 1521},
+                "oracle://login:password@host:1521/service",
                 id="service_name_in_extra",
             ),
             pytest.param(
