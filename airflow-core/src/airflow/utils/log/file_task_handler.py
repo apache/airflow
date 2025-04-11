@@ -55,6 +55,23 @@ LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 LogMetadata: TypeAlias = dict[str, Any]
+"""Metadata about the log fetching process, including `end_of_log` and `<source>_log_pos`.
+
+Instead of using a single aggregated `log_pos` for all log sources, we use `<source>_log_pos` to track
+each source individually. By maintaining separate positions for each source, we can seek to the last
+retrieved position per source and read logs from there. This approach allows us to interleave logs
+from multiple sources accurately, rather than cutting off logs based on a shared `log_pos`.
+
+Fields:
+- `end_of_log`: Boolean. True if the end of the log has been reached; False if more logs may be available.
+  This is typically determined by the status of the TaskInstance.
+- `<source>_log_pos`: Integer. The character position up to which logs have been retrieved for each source.
+
+For reference, in the previous implementation:
+- `end_of_log`: Boolean. Indicates if the log has ended.
+- `log_pos`: Integer. The absolute character position up to which the log was retrieved across all sources.
+"""
+
 
 logger = logging.getLogger(__name__)
 
