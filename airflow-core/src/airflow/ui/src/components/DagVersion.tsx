@@ -16,22 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FiTag } from "react-icons/fi";
+import { Text } from "@chakra-ui/react";
 
-import type { DagTagResponse } from "openapi/requests/types.gen";
-import { LimitedItemsList } from "src/components/LimitedItemsList";
+import type { DagVersionResponse } from "openapi/requests/types.gen";
 
-const MAX_TAGS = 3;
+import Time from "./Time";
+import { Tooltip } from "./ui";
 
-type Props = {
-  readonly hideIcon?: boolean;
-  readonly tags: Array<DagTagResponse>;
+export const DagVersion = ({ version }: { readonly version: DagVersionResponse | null | undefined }) => {
+  if (version === null || version === undefined) {
+    return undefined;
+  }
+
+  return (
+    <Tooltip content={<Time datetime={version.created_at} />}>
+      <Text as="span">v{version.version_number}</Text>
+    </Tooltip>
+  );
 };
-
-export const DagTags = ({ hideIcon = false, tags }: Props) => (
-  <LimitedItemsList
-    icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
-    items={tags.map(({ name }) => name)}
-    maxItems={MAX_TAGS}
-  />
-);

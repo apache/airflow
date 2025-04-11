@@ -151,7 +151,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]",
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
 ]
 "async" = [
     "eventlet>=0.37.0",

@@ -719,7 +719,11 @@ class CustomTriggerDagRun(BaseTrigger):
             states=self.states,
             logical_dates=self.logical_dates,
         )
-        yield TriggerEvent({"count": dag_run_states_count})
+        dag_run_state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+            dag_id=self.trigger_dag_id,
+            run_id=self.run_ids[0],
+        )
+        yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
 @pytest.mark.xfail(
@@ -729,10 +733,10 @@ class CustomTriggerDagRun(BaseTrigger):
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
-async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, dag_maker):
+async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
-    with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_in_deferrable", session=session):
+    with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable", session=session):
         EmptyOperator(task_id="dummy1")
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]
@@ -766,7 +770,7 @@ async def test_trigger_can_fetch_trigger_dag_run_count_in_deferrable(session, da
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
-    assert task_instance.next_kwargs == {"event": {"count": 1}}
+    assert task_instance.next_kwargs == {"event": {"count": 1, "dag_run_state": "running"}}
 
 
 class CustomTriggerWorkflowStateTrigger(BaseTrigger):
