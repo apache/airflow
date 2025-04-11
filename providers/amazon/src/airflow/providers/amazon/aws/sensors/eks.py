@@ -133,7 +133,7 @@ class EksClusterStateSensor(EksBaseSensor):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state", "region")
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -144,14 +144,14 @@ class EksClusterStateSensor(EksBaseSensor):
         region: str | None = None,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
         if region is not None:
-            self.region_name = region
             warnings.warn(
-                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+            kwargs["region_name"] = region
+        super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
 
     def get_state(self) -> ClusterStates:
         return self.hook.get_cluster_state(clusterName=self.cluster_name)
@@ -182,7 +182,7 @@ class EksFargateProfileStateSensor(EksBaseSensor):
     """
 
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "fargate_profile_name", "target_state", "region"
+        "cluster_name", "fargate_profile_name", "target_state"
     )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
@@ -195,16 +195,15 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         target_state: FargateProfileStates = FargateProfileStates.ACTIVE,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
-        self.fargate_profile_name = fargate_profile_name
-        self.region = region
         if region is not None:
-            self.region_name = region
             warnings.warn(
-                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+            kwargs["region_name"] = region
+        super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
+        self.fargate_profile_name = fargate_profile_name
 
     def get_state(self) -> FargateProfileStates:
         return self.hook.get_fargate_profile_state(
@@ -236,9 +235,7 @@ class EksNodegroupStateSensor(EksBaseSensor):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "nodegroup_name", "target_state", "region"
-    )
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "nodegroup_name", "target_state")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -250,16 +247,15 @@ class EksNodegroupStateSensor(EksBaseSensor):
         region: str | None = None,
         **kwargs,
     ):
-        super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
-        self.region = region
-        self.nodegroup_name = nodegroup_name
         if region is not None:
-            self.region_name = region
             warnings.warn(
-                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+            kwargs["region_name"] = region
+        super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
+        self.nodegroup_name = nodegroup_name
 
     def get_state(self) -> NodegroupStates:
         return self.hook.get_nodegroup_state(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
