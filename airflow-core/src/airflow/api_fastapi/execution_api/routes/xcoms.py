@@ -22,7 +22,7 @@ import sys
 from typing import Annotated, Any
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, JsonValue, StringConstraints
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
@@ -137,7 +137,7 @@ def get_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
@@ -189,7 +189,7 @@ def set_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     value: Annotated[
         JsonValue,
         Body(
