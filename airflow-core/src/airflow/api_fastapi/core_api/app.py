@@ -66,10 +66,9 @@ def init_views(app: FastAPI) -> None:
 
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
-        schema_relative_base = str(request.base_url).removeprefix(request.base_url.scheme + ":")
         return templates.TemplateResponse(
             "/index.html",
-            {"request": request, "backend_server_base_url": schema_relative_base},
+            {"request": request, "backend_server_base_url": request.base_url.path},
             media_type="text/html",
         )
 
