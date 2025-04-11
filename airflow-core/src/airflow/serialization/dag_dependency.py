@@ -31,7 +31,7 @@ class DagDependency:
     source: str
     target: str
     label: str
-    dependency_type: Literal["asset", "asset-name-ref", "asset-uri-ref", "asset-alias", "trigger", "sensor"]
+    dependency_type: Literal["asset", "asset-alias", "asset-name-ref", "asset-uri-ref", "trigger", "sensor"]
     dependency_id: str | None = None
 
     @property
