@@ -34,16 +34,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
+from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -52,6 +55,7 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL
 
     from airflow.models import Connection
@@ -375,6 +379,56 @@ class DbApiHook(BaseHook):
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
 
+    def get_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> DataFrame | PolarsDataFrame:
+        """
+        Execute the sql and returns a dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, parameters, **kwargs)
+        elif df_type == "polars":
+            return self._get_polars_df(sql, parameters, **kwargs)
+
+    def _get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
+        """
+        Execute the sql and returns a pandas dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[pandas]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
     def get_pandas_df(
         self,
         sql,
@@ -425,6 +479,37 @@ class DbApiHook(BaseHook):
 
         with closing(self.get_conn()) as conn:
             yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
+
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> PolarsDataFrame:
+        """
+        Execute the sql and returns a polars dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into polars.read_database method
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "polars library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[polars]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            execute_options: dict[str, Any] | None = None
+            if parameters is not None:
+                if isinstance(parameters, Mapping):
+                    execute_options = dict(parameters)
+                else:
+                    execute_options = {}
+
+            return pl.read_database(sql, connection=conn, execute_options=execute_options, **kwargs)
 
     def get_records(
         self,
