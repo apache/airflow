@@ -262,7 +262,7 @@ class SnowflakeHook(DbApiHook):
                 raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
             private_key_pem = Path(private_key_file_path).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            private_key_pem = private_key_content.replace("\\n", "\n").encode()
 
         if private_key_pem:
             passphrase = None
