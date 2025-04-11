@@ -247,14 +247,14 @@ class AirflowTimetableInvalid(AirflowException):
 
 
 class DagIsPaused(AirflowException):
-    """Raise when a DAG is paused and something tries to run it."""
+    """Raise when a dag is paused and something tries to run it."""
 
     def __init__(self, dag_id: str) -> None:
         super().__init__(dag_id)
         self.dag_id = dag_id
 
     def __str__(self) -> str:
-        return f"DAG {self.dag_id} is paused"
+        return f"Dag {self.dag_id} is paused"
 
 
 class DagNotFound(AirflowNotFoundException):

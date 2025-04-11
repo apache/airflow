@@ -737,7 +737,7 @@ class TestDagRunOperatorAF2:
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].run_ids == [run_id]
 
     def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker):
-        """Test TriggerDagRunOperator with skip_when_already_exists."""
+        """Test TriggerDagRunOperator with fail_when_dag_is_paused set to True."""
         self.dag_model.set_is_paused(True)
 
         with dag_maker(
