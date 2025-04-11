@@ -113,7 +113,7 @@ class AssetResult(AssetResponse):
         return cls(**asset_response.model_dump(exclude_defaults=True), type="AssetResult")
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class AssetEventSourceTaskInstance:
     """Used in AssetEventResult."""
 
