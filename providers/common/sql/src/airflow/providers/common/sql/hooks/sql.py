@@ -442,16 +442,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
-        try:
-            from pandas.io import sql as psql
-        except ImportError:
-            raise AirflowOptionalProviderFeatureException(
-                "pandas library not installed, run: pip install "
-                "'apache-airflow-providers-common-sql[pandas]'."
-            )
-
-        with closing(self.get_conn()) as conn:
-            return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
 
     def get_pandas_df_by_chunks(
         self,
