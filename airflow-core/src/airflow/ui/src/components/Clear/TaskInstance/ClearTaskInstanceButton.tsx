@@ -19,17 +19,17 @@
 import { Box, useDisclosure } from "@chakra-ui/react";
 import { CgRedo } from "react-icons/cg";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskActionProps } from "src/components/MarkAs/utils";
 import ActionButton from "src/components/ui/ActionButton";
 
-import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
+import { ClearTaskInstanceDialog } from "./ClearTaskInstanceDialog";
 
 type Props = {
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskActionProps: TaskActionProps;
   readonly withText?: boolean;
 };
 
-const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
+const ClearTaskInstanceButton = ({ taskActionProps, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
@@ -43,7 +43,7 @@ const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
       />
 
       {open ? (
-        <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
+        <ClearTaskInstanceDialog onClose={onClose} open={open} taskActionProps={taskActionProps} />
       ) : undefined}
     </Box>
   );

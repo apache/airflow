@@ -151,12 +151,28 @@ const taskInstanceColumns = (
   },
   {
     accessorKey: "actions",
-    cell: ({ row }) => (
-      <Flex justifyContent="end">
-        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
-        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
-      </Flex>
-    ),
+    cell: ({ row: { original } }) => {
+      const taskActionProps = {
+        dagId: original.dag_id,
+        dagRunId: original.dag_run_id,
+        mapIndex: original.map_index,
+        note: original.note,
+        startDate: original.start_date,
+        taskDisplayName: original.task_display_name,
+        taskId: original.task_id,
+      };
+
+      return (
+        <Flex justifyContent="end">
+          <ClearTaskInstanceButton taskActionProps={taskActionProps} withText={false} />
+          <MarkTaskInstanceAsButton
+            state={original.state}
+            taskActionProps={taskActionProps}
+            withText={false}
+          />
+        </Flex>
+      );
+    },
     enableSorting: false,
     header: "",
     meta: {
