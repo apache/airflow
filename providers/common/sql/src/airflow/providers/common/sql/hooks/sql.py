@@ -65,7 +65,9 @@ WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' 
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
+def return_single_query_results(
+    sql: str | Iterable[str], return_last: bool, split_statements: bool | None
+) -> bool:
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
     return handlers.return_single_query_results(sql, return_last, split_statements)

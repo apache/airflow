@@ -156,7 +156,7 @@ T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
 
 
-def get_field(extras: dict, field_name: str):
+def get_field(extras: dict, field_name: str) -> str | None:
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
     if field_name.startswith("extra__"):
         raise ValueError(
