@@ -34,14 +34,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.4.1
+10.4.2
 ......
 
-Latest change: 2025-04-05
+Latest change: 2025-04-08
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`8e8c84fed2 <https://github.com/apache/airflow/commit/8e8c84fed21bd2af1bb49e3355d00dc95fb82f38>`__  2025-04-07   ``Update ECS executor to support Task SDK (#48513)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
+10.4.1
+......
+
+Latest change: 2025-04-06
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `32b4186010 <https://github.com/apache/airflow/commit/32b418601089ac340aa1408c55cdd206b11879c6>`__  2025-04-05   ``Remove old comment about excluding 'executor_config' (#48830)``
 `1ee519c2c4 <https://github.com/apache/airflow/commit/1ee519c2c4a3fb5973d78f4bfb4262e329b0fccf>`__  2025-04-05   ``No need to exclude executor_config specifically for KE (#48826)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``

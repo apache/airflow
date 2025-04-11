@@ -29,7 +29,7 @@ from airflow.providers.fab.www.session import (
 def init_airflow_session_interface(app):
     """Set airflow session interface."""
     config = app.config.copy()
-    selected_backend = conf.get("webserver", "SESSION_BACKEND")
+    selected_backend = conf.get("fab", "SESSION_BACKEND")
     # A bit of a misnomer - normally cookies expire whenever the browser is closed
     # or when they hit their expiry datetime, whichever comes first. "Permanent"
     # cookies only expire when they hit their expiry datetime, and can outlive
@@ -59,6 +59,6 @@ def init_airflow_session_interface(app):
     else:
         raise AirflowConfigException(
             "Unrecognized session backend specified in "
-            f"web_server_session_backend: '{selected_backend}'. Please set "
+            f"[fab] session_backend: '{selected_backend}'. Please set "
             "this to either 'database' or 'securecookie'."
         )

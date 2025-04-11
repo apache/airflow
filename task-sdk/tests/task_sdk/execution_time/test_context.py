@@ -537,6 +537,12 @@ class TestTriggeringAssetEventsAccessor:
         assert _AssetRefResolutionMixin._asset_ref_cache
 
 
+TEST_ASSET = Asset(name="test_uri", uri="test://test")
+TEST_ASSET_ALIAS = AssetAlias(name="name")
+TEST_ASSET_REFS = [Asset.ref(name="test_uri"), Asset.ref(uri="test://test/")]
+TEST_INLETS = [TEST_ASSET, TEST_ASSET_ALIAS] + TEST_ASSET_REFS
+
+
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
         "access_key, internal_key",
@@ -583,13 +589,25 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.key == internal_key
         assert outlet_event_accessor.extra == {}
 
+    @pytest.mark.parametrize(
+        "name, uri, expected_key",
+        (
+            ("test_uri", "test://test/", TEST_ASSET),
+            ("test_uri", None, TEST_ASSET_REFS[0]),
+            (None, "test://test/", TEST_ASSET_REFS[1]),
+        ),
+    )
+    @mock.patch("airflow.sdk.execution_time.context.OutletEventAccessors.__getitem__")
+    def test_for_asset(self, mocked__getitem__, name, uri, expected_key):
+        outlet_event_accessors = OutletEventAccessors()
+        outlet_event_accessors.for_asset(name=name, uri=uri)
+        assert mocked__getitem__.call_args[0][0] == expected_key
 
-TEST_INLETS = [
-    Asset(name="test_uri", uri="test://test"),
-    AssetAlias(name="name"),
-    Asset.ref(name="test_uri"),
-    Asset.ref(uri="test://test/"),
-]
+    @mock.patch("airflow.sdk.execution_time.context.OutletEventAccessors.__getitem__")
+    def test_for_asset_alias(self, mocked__getitem__):
+        outlet_event_accessors = OutletEventAccessors()
+        outlet_event_accessors.for_asset_alias(name="name")
+        assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
 
 
 class TestInletEventAccessor:
@@ -629,3 +647,21 @@ class TestInletEventAccessor:
     def test__get_item__out_of_index(self, sample_inlet_evnets_accessor):
         with pytest.raises(IndexError):
             sample_inlet_evnets_accessor[5]
+
+    @pytest.mark.parametrize(
+        "name, uri, expected_key",
+        (
+            ("test_uri", "test://test/", TEST_ASSET),
+            ("test_uri", None, TEST_ASSET_REFS[0]),
+            (None, "test://test/", TEST_ASSET_REFS[1]),
+        ),
+    )
+    @mock.patch("airflow.sdk.execution_time.context.InletEventsAccessors.__getitem__")
+    def test_for_asset(self, mocked__getitem__, sample_inlet_evnets_accessor, name, uri, expected_key):
+        sample_inlet_evnets_accessor.for_asset(name=name, uri=uri)
+        assert mocked__getitem__.call_args[0][0] == expected_key
+
+    @mock.patch("airflow.sdk.execution_time.context.InletEventsAccessors.__getitem__")
+    def test_for_asset_alias(self, mocked__getitem__, sample_inlet_evnets_accessor):
+        sample_inlet_evnets_accessor.for_asset_alias(name="name")
+        assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS

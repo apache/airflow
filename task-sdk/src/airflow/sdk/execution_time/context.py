@@ -20,7 +20,7 @@ import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 import attrs
 import structlog
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference
+    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetEventResponse
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -94,6 +94,8 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 
 log = structlog.get_logger(logger_name="task")
+
+T = TypeVar("T")
 
 
 def _convert_connection_result_conn(conn_result: ConnectionResult) -> Connection:
@@ -207,6 +209,52 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         assert isinstance(msg, VariableResult)
     variable = _convert_variable_result_to_variable(msg, deserialize_json)
     return variable.value
+
+
+def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    import json
+
+    from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # check for write conflicts on the worker
+    for secrets_backend in ensure_secrets_backend_loaded():
+        try:
+            var_val = secrets_backend.get_variable(key=key)
+            if var_val is not None:
+                _backend_name = type(secrets_backend).__name__
+                log.warning(
+                    "The variable %s is defined in the %s secrets backend, which takes "
+                    "precedence over reading from the database. The value in the database will be "
+                    "updated, but to read it you have to delete the conflicting variable "
+                    "from %s",
+                    key,
+                    _backend_name,
+                    _backend_name,
+                )
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    try:
+        if serialize_json:
+            value = json.dumps(value, indent=2)
+    except Exception as e:
+        log.exception(e)
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
 
 
 class ConnectionAccessor:
@@ -397,7 +445,29 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
         self.asset_alias_events.append(event)
 
 
-class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+class _AssetEventAccessorsMixin(Generic[T]):
+    def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
+        if name and uri:
+            return self[Asset(name=name, uri=uri)]
+        elif name:
+            return self[Asset.ref(name=name)]
+        elif uri:
+            return self[Asset.ref(uri=uri)]
+
+        raise ValueError("name and uri cannot both be None")
+
+    def for_asset_alias(self, *, name: str) -> T:
+        return self[AssetAlias(name=name)]
+
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> T:
+        raise NotImplementedError
+
+
+class OutletEventAccessors(
+    _AssetRefResolutionMixin,
+    Mapping[Union[Asset, AssetAlias], OutletEventAccessor],
+    _AssetEventAccessorsMixin,
+):
     """Lazy mapping of outlet asset event accessors."""
 
     def __init__(self) -> None:
@@ -431,7 +501,7 @@ class OutletEventAccessors(_AssetRefResolutionMixin, Mapping[Union[Asset, AssetA
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]):
+class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any], _AssetEventAccessorsMixin):
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
@@ -461,7 +531,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,

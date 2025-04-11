@@ -345,7 +345,7 @@ def prepare_airflow_tarball(version: str):
     airflow_version = Version(version)
     if not airflow_version.is_prerelease:
         exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(

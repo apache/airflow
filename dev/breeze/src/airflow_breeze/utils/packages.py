@@ -831,13 +831,6 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     return get_version_tag(current_version, provider_id, suffix)
 
 
-IMPLICIT_CROSS_PROVIDERS_DEPENDENCIES = [
-    "common.sql",
-    "fab",
-    "standard",
-]
-
-
 def regenerate_pyproject_toml(
     context: dict[str, Any], provider_details: ProviderPackageDetails, version_suffix: str | None
 ):
