@@ -653,7 +653,12 @@ class WatchedSubprocess:
             # If the subprocess writes "Hello, World!" to stdout:
             # - `socket_handler` reads and processes the message.
             # - If EOF is reached, the handler returns False to signal no more reads are expected.
-            need_more = socket_handler(key.fileobj)
+            # - BrokenPipeError should be caught and treated as if the handler returned false, similar
+            # to EOF case
+            try:
+                need_more = socket_handler(key.fileobj)
+            except BrokenPipeError:
+                need_more = False
 
             # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
             # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
