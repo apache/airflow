@@ -15,59 +15,59 @@
    specific language governing permissions and limitations
    under the License.
 
-.. _howto/operator:DruidOperator:
+.. _howto/operator:ImpalaOperator:
 
-SQLExecuteQueryOperator to connect to Apache Druid
-====================================================
+SQLExecuteQueryOperator to connect to Apache Impala
+=====================================================
 
 Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator>` to execute SQL queries against an
-`Apache Druid <https://druid.apache.org/>`__ cluster.
+`Apache Impala <https://impala.apache.org/>`__ cluster.
 
 .. note::
-    Previously, a dedicated operator for Druid might have been used.
+    Previously, a dedicated operator for Impala might have been used.
     After deprecation, please use the ``SQLExecuteQueryOperator`` instead.
 
 .. note::
-    Make sure you have installed the ``apache-airflow-providers-apache-druid`` package to enable Druid support.
+    Make sure you have installed the ``apache-airflow-providers-apache-impala`` package to enable Impala support.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-Use the ``conn_id`` argument to connect to your Apache Druid instance where
+Use the ``conn_id`` argument to connect to your Apache Impala instance where
 the connection metadata is structured as follows:
 
-.. list-table:: Druid Airflow Connection Metadata
+.. list-table:: Impala Airflow Connection Metadata
    :widths: 25 25
    :header-rows: 1
 
    * - Parameter
      - Input
    * - Host: string
-     - Druid broker hostname or IP address
+     - Impala daemon hostname or IP address
    * - Schema: string
-     - Not applicable (leave blank)
+     - The default database name (optional)
    * - Login: string
-     - Not applicable (leave blank)
+     - Username for authentication (if applicable)
    * - Password: string
-     - Not applicable (leave blank)
+     - Password for authentication (if applicable)
    * - Port: int
-     - Druid broker port (default: 8082)
+     - Impala service port (default: 21050)
    * - Extra: JSON
      - Additional connection configuration, such as:
-       ``{"endpoint": "/druid/v2/sql/", "method": "POST"}``
+       ``{"use_ssl": false, "auth": "NOSASL"}``
 
-An example usage of the SQLExecuteQueryOperator to connect to Apache Druid is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to Apache Impala is as follows:
 
-.. exampleinclude:: /../tests/system/apache/druid/example_druid.py
+.. exampleinclude:: /../tests/system/apache/impala/example_impala.py
    :language: python
-   :start-after: [START howto_operator_druid]
-   :end-before: [END howto_operator_druid]
+   :start-after: [START howto_operator_impala]
+   :end-before: [END howto_operator_impala]
 
 Reference
 ^^^^^^^^^
 For further information, see:
 
-* `Apache Druid Documentation <https://druid.apache.org/docs/latest/>`__
+* `Apache Impala Documentation <https://impala.apache.org/docs/>`__
 
 .. note::
   Parameters provided directly via SQLExecuteQueryOperator() take precedence over those specified
