@@ -621,7 +621,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     """
 
     def handle_events(self):
-        print("Inside handle_events")
         self.stop = bool(self.events)
         super().handle_events()
 
