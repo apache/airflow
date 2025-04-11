@@ -31,8 +31,7 @@ from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
-BATCH_SIZE = 10000
-
+from airflow.configuration import conf
 
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
@@ -198,6 +197,7 @@ def create_foreign_keys():
 
 def upgrade():
     """Add UUID primary key to task instance table."""
+    batch_size = conf.getint("database", "migration_batch_size", fallback=1000)
     conn = op.get_bind()
     dialect_name = conn.dialect.name
 
@@ -215,7 +215,7 @@ def upgrade():
                         SELECT ctid
                         FROM task_instance
                         WHERE id IS NULL
-                        LIMIT {BATCH_SIZE}
+                        LIMIT {batch_size}
                     )
                     UPDATE task_instance
                     SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))
