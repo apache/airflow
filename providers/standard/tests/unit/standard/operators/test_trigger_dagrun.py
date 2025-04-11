@@ -25,7 +25,7 @@ import pytest
 import time_machine
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
+from airflow.exceptions import AirflowException, DagIsPaused, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
@@ -751,5 +751,5 @@ class TestDagRunOperatorAF2:
                 fail_when_dag_is_paused=True,
             )
         dag_maker.create_dagrun()
-        with pytest.raises(AirflowException, match=f"^Dag id {TRIGGERED_DAG_ID} is paused$"):
+        with pytest.raises(DagIsPaused, match=f"^DAG {TRIGGERED_DAG_ID} is paused$"):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
