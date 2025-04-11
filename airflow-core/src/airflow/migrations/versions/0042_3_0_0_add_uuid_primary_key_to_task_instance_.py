@@ -224,8 +224,10 @@ def upgrade():
                     """
                 )
             )
-            if result.rowcount == 0:
+            row_count = result.rowcount
+            if row_count == 0:
                 break
+            print(f"Migrated {row_count} task_instance rows in this batch...")
         op.execute(pg_uuid7_fn_drop)
 
         # Drop existing primary key constraint to task_instance table
