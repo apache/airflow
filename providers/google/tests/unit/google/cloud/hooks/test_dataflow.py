@@ -37,7 +37,7 @@ from google.cloud.dataflow_v1beta3 import (
 )
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -677,14 +677,15 @@ class TestDataflowTemplateHook:
         )
         on_new_job_callback = mock.MagicMock()
 
-        result = self.dataflow_hook.start_sql_job(
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=TEST_SQL_OPTIONS,
-            location=TEST_LOCATION,
-            project_id=TEST_PROJECT,
-            on_new_job_callback=on_new_job_callback,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = self.dataflow_hook.start_sql_job(
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=TEST_SQL_OPTIONS,
+                location=TEST_LOCATION,
+                project_id=TEST_PROJECT,
+                on_new_job_callback=on_new_job_callback,
+            )
         mock_run.assert_called_once_with(
             [
                 "gcloud",
@@ -723,15 +724,16 @@ class TestDataflowTemplateHook:
         mock_run.return_value = mock.MagicMock(
             stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=1
         )
-        with pytest.raises(AirflowException):
-            self.dataflow_hook.start_sql_job(
-                job_name=TEST_SQL_JOB_NAME,
-                query=TEST_SQL_QUERY,
-                options=TEST_SQL_OPTIONS,
-                location=TEST_LOCATION,
-                project_id=TEST_PROJECT,
-                on_new_job_callback=mock.MagicMock(),
-            )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.raises(AirflowException):
+                self.dataflow_hook.start_sql_job(
+                    job_name=TEST_SQL_JOB_NAME,
+                    query=TEST_SQL_QUERY,
+                    options=TEST_SQL_OPTIONS,
+                    location=TEST_LOCATION,
+                    project_id=TEST_PROJECT,
+                    on_new_job_callback=mock.MagicMock(),
+                )
 
     def test_extract_job_id_raises_exception(self):
         with pytest.raises(AirflowException):
