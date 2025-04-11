@@ -73,13 +73,13 @@ class TestDagCode:
 
     def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
-        bash_dag = example_dags["example_bash_operator"]
+        bash_dag = example_dags[("example_bash_operator", None)]
         SDM.write_dag(bash_dag, bundle_name="testing")
         dag_version = DagVersion.get_latest_version("example_bash_operator")
         x = DagCode(dag_version, bash_dag.fileloc)
         session.add(x)
         session.commit()
-        xcom_dag = example_dags["example_xcom"]
+        xcom_dag = example_dags[("example_xcom", None)]
         SDM.write_dag(xcom_dag, bundle_name="testing")
         dag_version = DagVersion.get_latest_version("example_xcom")
         x = DagCode(dag_version, xcom_dag.fileloc)
@@ -129,7 +129,7 @@ class TestDagCode:
         Test that code can be retrieved from DB when you do not have access to Code file.
         Source Code should at least exist in one of DB or File.
         """
-        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        example_dag = make_example_dags(example_dags_module).get(("example_bash_operator", None))
         SDM.write_dag(example_dag, bundle_name="testing")
 
         # Mock that there is no access to the Dag File
@@ -142,7 +142,7 @@ class TestDagCode:
 
     def test_db_code_created_on_serdag_change(self, session, testing_dag_bundle):
         """Test new DagCode is created in DB when ser dag is changed"""
-        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        example_dag = make_example_dags(example_dags_module).get(("example_bash_operator", None))
         SDM.write_dag(example_dag, bundle_name="testing")
 
         dag = DAG.from_sdk_dag(example_dag)

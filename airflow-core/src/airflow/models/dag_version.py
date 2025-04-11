@@ -140,6 +140,7 @@ class DagVersion(Base):
         dag_id: str,
         version_number: int | None = None,
         *,
+        bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
         """
@@ -147,12 +148,15 @@ class DagVersion(Base):
 
         :param dag_id: The DAG ID.
         :param version_number: The version number.
+        :param bundle_version: The bundle version.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
         version_select_obj = select(cls).where(cls.dag_id == dag_id)
         if version_number:
             version_select_obj = version_select_obj.where(cls.version_number == version_number)
+        if bundle_version:
+            version_select_obj = version_select_obj.where(cls.bundle_version == bundle_version)
 
         return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
 

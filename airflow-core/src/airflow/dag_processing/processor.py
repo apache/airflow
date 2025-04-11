@@ -95,6 +95,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
+        bundle_version=msg.bundle_version,
         include_examples=False,
         safe_mode=True,
         load_op_links=False,
@@ -150,7 +151,7 @@ def _execute_callbacks(
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
-    dag = dagbag.dags[request.dag_id]
+    dag = dagbag.dags[(request.dag_id, request.bundle_version)]
 
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
     if not callbacks:
@@ -190,6 +191,7 @@ class DagFileParseRequest(BaseModel):
     requests_fd: int
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
+    bundle_version: str | None = None
 
 
 class DagFileParsingResult(BaseModel):
@@ -238,10 +240,11 @@ class DagFileProcessorProcess(WatchedSubprocess):
         bundle_path: Path,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
+        bundle_version: str | None = None,
         **kwargs,
     ) -> Self:
         proc: Self = super().start(target=target, **kwargs)
-        proc._on_child_started(callbacks, path, bundle_path)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_version=bundle_version)
         return proc
 
     def _on_child_started(
@@ -249,10 +252,12 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_version: str | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
+            bundle_version=bundle_version,
             requests_fd=self._requests_fd,
             callback_requests=callbacks,
         )

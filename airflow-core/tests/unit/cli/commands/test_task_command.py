@@ -111,8 +111,8 @@ class TestCliTasks:
 
     @pytest.mark.execution_timeout(120)
     def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(["tasks", "list", dag_id])
+        for dag_info in self.dagbag.dags:
+            args = self.parser.parse_args(["tasks", "list", dag_info[0]])
             task_command.task_list(args)
 
     def test_test(self):
@@ -338,7 +338,7 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-        dag2 = DagBag().dags["example_python_operator"]
+        dag2 = DagBag().dags[("example_python_operator", None)]
         task2 = dag2.get_task(task_id="print_the_context")
 
         dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))

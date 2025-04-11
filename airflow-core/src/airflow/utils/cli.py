@@ -234,7 +234,7 @@ def get_dag_by_file_location(dag_id: str):
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
     dagbag = DagBag(dag_folder=dag_model.fileloc)
-    return dagbag.dags[dag_id]
+    return dagbag.dags[(dag_id, None)]
 
 
 def _search_for_dag_file(val: str | None) -> str | None:
@@ -275,7 +275,7 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     else:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
-        dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
+        dag = dagbag.dags.get((dag_id, None))  # avoids db calls made in get_dag
         # Create a SchedulerDAG since some of the CLI commands rely on DB access
         dag = DAG.from_sdk_dag(dag)
     if not dag:

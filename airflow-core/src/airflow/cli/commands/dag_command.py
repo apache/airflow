@@ -523,7 +523,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag = DagBag(bundle.path, include_examples=False, bundle_version=bundle.version)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -629,7 +629,7 @@ def _parse_and_get_dag(dag_id: str) -> DAG | None:
         bag = DagBag(
             dag_folder=dag_absolute_path, include_examples=False, safe_mode=False, load_op_links=False
         )
-        return bag.dags.get(dag_id)
+        return bag.dags.get((dag_id, bundle.version))
 
 
 @cli_utils.action_cli
