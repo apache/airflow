@@ -27,7 +27,7 @@ from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Union
 from urllib.parse import urljoin
 
 import pendulum
@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.typing_compat import TypeAlias
 
+CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
@@ -72,8 +73,24 @@ For reference, in the previous implementation:
 - `log_pos`: Integer. The absolute character position up to which the log was retrieved across all sources.
 """
 
-
 logger = logging.getLogger(__name__)
+
+
+class TimestampRef:
+    """
+    A reference to a timestamp.
+
+    This is used to set as `next_timestamp` when we can't parse the timestamp from the log line.
+    """
+
+    def __init__(self, value: datetime | None):
+        self.value = value
+
+    def __repr__(self):
+        return f"TimestampRef({self.value})"
+
+    def set_timestamp(self, value: datetime):
+        self.value = value
 
 
 class StructuredLogMessage(BaseModel):
@@ -150,6 +167,57 @@ if not _parse_timestamp:
     def _parse_timestamp(line: str):
         timestamp_str, _ = line.split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
+
+
+def _parse_log_line(
+    line: str | StructuredLogMessage,
+    next_timestamp: TimestampRef,
+) -> tuple[datetime | None, StructuredLogMessage]:
+    """
+    Parse a log line and return a tuple of (timestamp, StructuredLogMessage).
+
+    :param line: The log line to parse.
+    :param next_timestamp: The next timestamp reference.
+    :return: A tuple of (timestamp, StructuredLogMessage).
+    """
+    from airflow.utils.timezone import coerce_datetime
+
+    try:
+        if isinstance(line, StructuredLogMessage):
+            log = line
+        else:
+            log = StructuredLogMessage.model_validate_json(line)
+    except ValidationError:
+        with suppress(Exception):
+            # If we can't parse the timestamp, don't attach one to the row
+            if isinstance(line, str):
+                next_timestamp.set_timestamp(_parse_timestamp(line))
+        log = StructuredLogMessage(event=str(line), timestamp=next_timestamp.value)
+    if log.timestamp:
+        log.timestamp = coerce_datetime(log.timestamp)
+    return log.timestamp, log
+
+
+def _stream_lines_by_chunk(
+    log_io: IO[str],
+) -> Iterable[str]:
+    """
+    Streams lines from the file-like IO object in chunks.
+
+    :param log_io: The file-like IO object to read from.
+    :return: A generator that yields lines from the IO object.
+    """
+    buffer = ""
+    while True:
+        chunk = log_io.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        buffer += chunk
+        *lines, buffer = buffer.split("\n")  # all full lines, keep last partial
+        yield from lines
+    if buffer:
+        # last line (maybe partial)
+        yield buffer
 
 
 def _parse_log_lines(
