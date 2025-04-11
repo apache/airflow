@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
     DeleteXCom,
     ErrorResponse,
@@ -1021,7 +1022,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.reset_dag_run,
             )
         elif isinstance(msg, GetDagRunState):
-            resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
+            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
+            resp = DagRunStateResult.from_api_response(dr_resp)
         elif isinstance(msg, GetTaskRescheduleStartDate):
             resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
         elif isinstance(msg, GetTICount):
