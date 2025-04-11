@@ -62,7 +62,7 @@ class BaseK8STest:
         self.session = self._get_session_with_retries()
 
         # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
-        self.ensure_deployment_health("airflow-api-server")
+        self.ensure_deployment_health("airflow-webserver")
         try:
             self._ensure_airflow_webserver_is_healthy()
             yield
