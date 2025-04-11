@@ -2176,7 +2176,7 @@ class DagModel(Base):
     # The version of the bundle the last time the DAG was processed
     bundle_version = Column(String(200), nullable=True)
     # String representing the owners
-    owners = Column(String(2000))
+    owners = Column(String(10000))
     # Display name of the dag
     _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
