@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 # the user, but deserialize them into strings in a serialized XComArg for
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
+FilterCallables = Sequence[Callable[[Any], bool]]
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -174,6 +175,9 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
+
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        return FilterXComArg(self, [f] if f else [])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
@@ -332,6 +336,11 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        if self.key != XCOM_RETURN_KEY:
+            raise ValueError("cannot filter non-return XCom")
+        return super().filter(f)
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
         task_id = self.operator.task_id
@@ -383,19 +392,58 @@ def _get_callable_name(f: Callable | str) -> str:
 
 
 class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
+    def __init__(self, value: Iterable | Sequence | dict, callables: MapCallables) -> None:
         self.value = value
         self.callables = callables
+        self._cache: list = []
+        self._iterator = iter(value)
+        self._exhausted = False
+
+    def _next_mapped(self) -> Any:
+        """Return the next transformed item from the iterator."""
+        while not self._exhausted:
+            try:
+                item = next(self._iterator)
+                result = self._apply_callables(item)
+                self._cache.append(result)
+                return result
+            except StopIteration:
+                self._exhausted = True
+        raise StopIteration
 
     def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
+        if index < 0:
+            raise IndexError
 
-        for f in self.callables:
-            value = f(value)
-        return value
+        while len(self._cache) <= index:
+            try:
+                self._next_mapped()
+            except StopIteration:
+                raise IndexError
+        return self._cache[index]
 
     def __len__(self) -> int:
-        return len(self.value)
+        # Fully consume the iterator to get accurate length
+        while not self._exhausted:
+            try:
+                self._next_mapped()
+            except StopIteration:
+                break
+        return len(self._cache)
+
+    def __iter__(self) -> Iterator:
+        yield from self._cache
+
+        while not self._exhausted:
+            try:
+                yield self._next_mapped()
+            except StopIteration:
+                break
+
+    def _apply_callables(self, value):
+        for func in self.callables:
+            value = func(value)
+        return value
 
 
 class MapXComArg(XComArg):
@@ -567,9 +615,120 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
+class _FilterResult(Sequence, Iterable):
+    def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
+        self.value = value
+        self.callables = callables
+        self._cache: list = []
+        self._iterator = iter(value)
+        self._exhausted = False
+
+    def _next_filtered(self) -> Any:
+        """Return the next item from the iterator that passes all filters."""
+        while not self._exhausted:
+            try:
+                item = next(self._iterator)
+                if self._apply_callables(item):
+                    self._cache.append(item)
+                    return item
+            except StopIteration:
+                self._exhausted = True
+        raise StopIteration
+
+    def __getitem__(self, index: Any) -> Any:
+        if index < 0:
+            raise IndexError
+
+        while len(self._cache) <= index:
+            try:
+                self._next_filtered()
+            except StopIteration:
+                raise IndexError
+
+        return self._cache[index]
+
+    def __len__(self) -> int:
+        # Force full evaluation to determine total length
+        while not self._exhausted:
+            try:
+                self._next_filtered()
+            except StopIteration:
+                break
+        return len(self._cache)
+
+    def __iter__(self) -> Iterator:
+        yield from self._cache
+
+        while not self._exhausted:
+            try:
+                yield self._next_filtered()
+            except StopIteration:
+                break
+
+    def _apply_callables(self, value) -> bool:
+        for func in self.callables:
+            if not func(value):
+                return False
+        return True
+
+
+class FilterXComArg(XComArg):
+    """
+    An XCom reference with ``filter()`` call(s) applied.
+
+    This is based on an XComArg, but also applies a series of "filters" that
+    filters the pulled XCom value.
+
+    :meta private:
+    """
+
+    def __init__(
+        self,
+        arg: XComArg,
+        callables: FilterCallables | None,
+    ) -> None:
+        self.arg = arg
+
+        if not callables:
+            callables = [self.none_filter]
+        else:
+            for c in callables:
+                if getattr(c, "_airflow_is_task_decorator", False):
+                    raise ValueError("filter() argument must be a plain function, not a @task operator")
+        self.callables = callables
+
+    @classmethod
+    def none_filter(cls, value) -> bool:
+        return value if True else False
+
+    def __repr__(self) -> str:
+        map_calls = "".join(f".filter({_get_callable_name(f)})" for f in self.callables)
+        return f"{self.arg!r}{map_calls}"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {
+            "arg": serialize_xcom_arg(self.arg),
+            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
+        }
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def filter(self, f: Callable[[Any], bool] | None) -> FilterXComArg:
+        # Filter arg.filter(f1).filter(f2) into one FilterXComArg.
+        return FilterXComArg(self.arg, [*self.callables, f if f else self.none_filter])
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        value = self.arg.resolve(context)
+        if not isinstance(value, (Sequence, dict)):
+            raise ValueError(f"XCom filter expects sequence or dict, not {type(value).__name__}")
+        return _FilterResult(value, self.callables)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
     "concat": ConcatXComArg,
+    "filter": FilterXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
@@ -624,3 +783,8 @@ def _(xcom_arg: ConcatXComArg, resolved_val: Sized, upstream_map_indexes: dict[s
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
     return sum(ready_lengths)
+
+
+@get_task_map_length.register
+def _(xcom_arg: FilterXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
+    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
