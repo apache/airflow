@@ -24,11 +24,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import get_current_context
-from airflow.sdk.api.datamodels._generated import (
-    AssetEventDagRunReference,
-    AssetEventResponse,
-    AssetResponse,
-)
+from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetResponse
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -40,6 +36,7 @@ from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
@@ -632,7 +629,7 @@ class TestInletEventAccessor:
     def test__get_item__(self, key, sample_inlet_evnets_accessor, mock_supervisor_comms):
         # This test only verifies a valid key can be used to access inlet events,
         # but not access asset events are fetched. That is verified in test_asset_events in execution_api
-        asset_event_resp = AssetEventResponse(
+        asset_event_resp = AssetEventResult(
             id=1,
             created_dagruns=[],
             timestamp=timezone.utcnow(),

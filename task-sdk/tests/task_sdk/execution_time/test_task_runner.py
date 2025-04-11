@@ -49,7 +49,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import (
-    AssetEventResponse,
     AssetProfile,
     AssetResponse,
     DagRunState,
@@ -62,6 +61,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
@@ -821,7 +821,7 @@ def test_run_with_asset_outlets(
 
 def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that contains asset inlets."""
-    asset_event_resp = AssetEventResponse(
+    asset_event_resp = AssetEventResult(
         id=1,
         created_dagruns=[],
         timestamp=timezone.utcnow(),
