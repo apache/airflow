@@ -1123,7 +1123,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['celery', 'kerberos']",
-                    "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', "
+                    "testable-providers-integrations": "['cassandra', 'drill', 'gremlin', 'kafka', 'mongo', "
                     "'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
