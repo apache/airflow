@@ -33,11 +33,14 @@ type Alias = {
   };
 };
 
-export type NextRunEvent = { id: number; lastUpdate: string | null; uri: string };
+export type NextRunEvent = { id: number; lastUpdate: string | null; name: string | null; uri: string };
 
 export type AssetSummary = Alias | Asset;
 
-export type ExpressionType = {
-  all?: Array<AssetSummary | ExpressionType>;
-  any?: Array<AssetSummary | ExpressionType>;
-};
+export type ExpressionType =
+  | Alias
+  | Asset
+  | {
+      all?: Array<AssetSummary | ExpressionType>;
+      any?: Array<AssetSummary | ExpressionType>;
+    };
