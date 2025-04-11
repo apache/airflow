@@ -38,7 +38,7 @@ from typing import Any, Callable, Protocol, TypeVar, overload
 
 from _typeshed import Incomplete as Incomplete
 from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import URL as URL, Inspector as Inspector
+from sqlalchemy.engine import URL as URL, Engine as Engine, Inspector as Inspector
 
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
@@ -93,7 +93,7 @@ class DbApiHook(BaseHook):
     def get_uri(self) -> str: ...
     @property
     def sqlalchemy_url(self) -> URL: ...
-    def get_sqlalchemy_engine(self, engine_kwargs: Incomplete | None = None): ...
+    def get_sqlalchemy_engine(self, engine_kwargs: Incomplete | None = None) -> Engine: ...
     @property
     def inspector(self) -> Inspector: ...
     @cached_property
