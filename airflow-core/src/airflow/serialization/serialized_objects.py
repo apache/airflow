@@ -580,7 +580,7 @@ class BaseSerialization:
 
     _CONSTRUCTOR_PARAMS: dict[str, Parameter] = {}
 
-    SERIALIZER_VERSION = 1
+    SERIALIZER_VERSION = 2
 
     @classmethod
     def to_json(cls, var: DAG | BaseOperator | dict | list | set | tuple) -> str:
@@ -1135,7 +1135,6 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
@@ -1788,11 +1787,127 @@ class SerializedDAG(DAG, BaseSerialization):
         return json_dict
 
     @classmethod
+    def conversion_v1_to_v2(cls, ser_obj: dict):
+        dag_dict = ser_obj["dag"]
+        dag_renames = [
+            ("_dag_id", "dag_id"),
+            ("_task_group", "task_group"),
+        ]
+        task_renames = [("_task_type", "task_type")]
+        tasks_remove = ["_log_config_logger_name", "deps"]
+
+        ser_obj["__version"] = 2
+
+        def replace_dataset_in_str(s):
+            return s.replace("Dataset", "Asset").replace("dataset", "asset")
+
+        def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
+            if isinstance(obj, dict):
+                new_obj = {}
+                for k, v in obj.items():
+                    new_key = replace_dataset_in_str(k) if isinstance(k, str) else k
+                    # Don't replace uri values
+                    if new_key == "uri":
+                        new_obj[new_key] = v
+                    else:
+                        new_value = (
+                            replace_dataset_in_str(v)
+                            if isinstance(v, str)
+                            else _replace_dataset_with_asset_in_timetables(v, parent_key=new_key)
+                        )
+                        new_obj[new_key] = new_value
+                # Insert "name" and "group" if this is inside the 'objects' list
+                if parent_key == "objects":
+                    new_obj["name"] = None
+                    new_obj["group"] = None
+                return new_obj
+
+            elif isinstance(obj, list):
+                return [_replace_dataset_with_asset_in_timetables(i, parent_key=parent_key) for i in obj]
+
+            return obj
+
+        for old, new in dag_renames:
+            dag_dict[new] = dag_dict.pop(old)
+
+        if sched := dag_dict.pop("schedule_interval", None):
+            if sched is None:
+                dag_dict["timetable"] = {
+                    "__var": {},
+                    "__type": "airflow.timetables.simple.NullTimetable",
+                }
+            elif isinstance(sched, str):
+                # "@daily" etc
+                if sched == "@once":
+                    dag_dict["timetable"] = {
+                        "__var": {},
+                        "__type": "airflow.timetables.simple.OnceTimetable",
+                    }
+                elif sched == "@continuous":
+                    dag_dict["timetable"] = {
+                        "__var": {},
+                        "__type": "airflow.timetables.simple.ContinuousTimetable",
+                    }
+                elif sched == "@daily":
+                    dag_dict["timetable"] = {
+                        "__var": {
+                            "interval": 0.0,
+                            "timezone": "UTC",
+                            "expression": "0 0 * * *",
+                            "run_immediately": False,
+                        },
+                        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                    }
+                else:
+                    # We should maybe convert this to None and warn instead
+                    raise ValueError(f"Unknown schedule_interval field {sched!r}")
+            elif sched.get("__type") == "timedelta":
+                dag_dict["timetable"] = {
+                    "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
+                    "__var": {"delta": sched["__var"], "interval": 0},
+                }
+        elif timetable := dag_dict.get("timetable"):
+            if timetable["__type"] in {
+                "airflow.timetables.simple.DatasetTriggeredTimetable",
+                "airflow.timetables.datasets.DatasetOrTimeSchedule",
+            }:
+                dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+
+        if "dag_dependencies" in dag_dict:
+            for dep in dag_dict["dag_dependencies"]:
+                for fld in ("dependency_type", "target", "source"):
+                    if dep.get(fld) == "dataset":
+                        dep[fld] = "asset"
+
+        for task in dag_dict["tasks"]:
+            task_var: dict = task["__var"]
+            if "airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep" in task_var.get("deps", []):
+                task_var["_is_sensor"] = True
+            for k in tasks_remove:
+                task_var.pop(k, None)
+            for old, new in task_renames:
+                task_var[new] = task_var.pop(old)
+            for item in task_var.get("outlets", []):
+                if isinstance(item, dict) and "__type" in item:
+                    item["__type"] = replace_dataset_in_str(item["__type"])
+            for item in task_var.get("inlets", []):
+                if isinstance(item, dict) and "__type" in item:
+                    item["__type"] = replace_dataset_in_str(item["__type"])
+                var_ = item["__var"]
+                var_["name"] = None
+                var_["group"] = None
+
+        # Set on the root TG
+        dag_dict["task_group"]["group_display_name"] = ""
+
+    @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
-        if ver != cls.SERIALIZER_VERSION:
+        if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
+        if ver == 1:
+            cls.conversion_v1_to_v2(serialized_obj)
         return cls.deserialize_dag(serialized_obj["dag"])
 
 
@@ -1846,8 +1961,9 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "group_display_name"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
             group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
