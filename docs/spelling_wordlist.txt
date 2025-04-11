@@ -1491,6 +1491,7 @@ rmse
 rmsle
 rmspe
 Roadmap
+roadmap
 Robinhood
 roc
 RoleBinding
