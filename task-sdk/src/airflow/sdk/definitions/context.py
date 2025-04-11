@@ -118,6 +118,8 @@ class AirflowParsingContext(NamedTuple):
 
     If these values are not None, they will contain the specific DAG and Task ID that Airflow is requesting to
     execute. You can use these for optimizing dynamically generated DAG files.
+
+    You can obtain the current values via :py:func:`.get_parsing_context`.
     """
 
     dag_id: str | None
