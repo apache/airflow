@@ -80,7 +80,7 @@ If you want to dive deeper into the parameters of the BaseOperator, take a look 
 Creating a DAG
 --------------
 Next, we'll need to create a DAG object to house our tasks. We'll provide a unique identifier for the DAG, known as the
-`dag_id`, and specify the default arguments we just defined. We'll also set a schedule for our DAG to run every day.
+``dag_id``, and specify the default arguments we just defined. We'll also set a schedule for our DAG to run every day.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -143,7 +143,7 @@ Airflow, focusing on the commonly used template variable: ``{{ ds }}``, which re
 |
 
 You'll notice that the ``templated_command`` includes logic in ``{% %}`` blocks and references parameters like
-`{{ ds }}`. You can also pass files to the ``bash_command``, such as ``bash_command='templated_command.sh'``, allowing
+``{{ ds }}``. You can also pass files to the ``bash_command``, such as ``bash_command='templated_command.sh'``, allowing
 for better organization of your code. You can even define ``user_defined_macros`` and ``user_defined_filters`` to create
 your own variables and filters for use in templates. For more on custom filters, refer to the
 `Jinja Documentation <https://jinja.palletsprojects.com/en/latest/api/#custom-filters>`_.
@@ -173,8 +173,8 @@ documentation at the start of your DAG file.
 
 Setting up Dependencies
 -----------------------
-In Airflow, tasks can depend on one another. For instance, if you have tasks `t1`, `t2`, and `t3`, you can defined their
-dependencies in several ways:
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+their dependencies in several ways:
 
 .. code-block:: python
 
@@ -229,7 +229,7 @@ dependencies, and use templating in Airflow. Your code should resemble the follo
 Testing Your Pipeline
 ---------------------
 Now it's time to test your pipeline! First, ensure that your script parses successfully. If you saved your code in
-`tutorial.py` within the dags folder specified in your ``airflow.cfg``, you can run:
+``tutorial.py`` within the dags folder specified in your ``airflow.cfg``, you can run:
 
 .. code-block:: bash
 
