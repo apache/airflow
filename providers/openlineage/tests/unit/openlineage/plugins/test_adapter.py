@@ -61,6 +61,21 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.parametrize(
+    "env_vars, expected_logging",
+    [
+        ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG"}, "DEBUG"),
+        ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "INFO"}, None),
+        ({}, None),  # When no value is provided, default should be INFO and propagation is skipped.
+    ],
+)
+def test_create_client_logging_propagation(env_vars, expected_logging):
+    with patch.dict(os.environ, env_vars, clear=True):
+        assert os.getenv("OPENLINEAGE_CLIENT_LOGGING") is None
+        OpenLineageAdapter().get_or_create_openlineage_client()
+        assert os.getenv("OPENLINEAGE_CLIENT_LOGGING") == expected_logging
+
+
 @patch.dict(
     os.environ,
     {"OPENLINEAGE_URL": "http://ol-api:5000", "OPENLINEAGE_API_KEY": "api-key"},
