@@ -19,16 +19,16 @@
 
 from __future__ import annotations
 
+import heapq
 import io
-import itertools
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -52,6 +52,10 @@ if TYPE_CHECKING:
     from airflow.typing_compat import TypeAlias
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
+DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
+SORT_KEY_OFFSET = 10000000
+HEAP_DUMP_SIZE = 500000
+HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
@@ -75,25 +79,10 @@ For reference, in the previous implementation:
 - `end_of_log`: Boolean. Indicates if the log has ended.
 - `log_pos`: Integer. The absolute character position up to which the log was retrieved across all sources.
 """
+RawLogStream: TypeAlias = Generator[str, None, None]
+"""Raw log stream, containing unparsed log lines."""
 
 logger = logging.getLogger(__name__)
-
-
-class TimestampRef:
-    """
-    A reference to a timestamp.
-
-    This is used to set as `next_timestamp` when we can't parse the timestamp from the log line.
-    """
-
-    def __init__(self, value: datetime | None):
-        self.value = value
-
-    def __repr__(self):
-        return f"TimestampRef({self.value})"
-
-    def set_timestamp(self, value: datetime):
-        self.value = value
 
 
 class StructuredLogMessage(BaseModel):
@@ -106,6 +95,11 @@ class StructuredLogMessage(BaseModel):
     # values; `extra=allow` means we'll create extra properties as needed. Only timestamp and event are
     # required, everything else is up to what ever is producing the logs
     model_config = ConfigDict(cache_strings=False, extra="allow")
+
+
+ParsedLog: TypeAlias = tuple[Optional[datetime], int, StructuredLogMessage]
+"""Parsed log record, containing timestamp, line_num and the structured log message."""
+ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
 
 
 class LogType(str, Enum):
@@ -173,38 +167,9 @@ if not _parse_timestamp:
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
-def _parse_log_line(
-    line: str | StructuredLogMessage,
-    next_timestamp: TimestampRef,
-) -> tuple[datetime | None, StructuredLogMessage]:
-    """
-    Parse a log line and return a tuple of (timestamp, StructuredLogMessage).
-
-    :param line: The log line to parse.
-    :param next_timestamp: The next timestamp reference.
-    :return: A tuple of (timestamp, StructuredLogMessage).
-    """
-    from airflow.utils.timezone import coerce_datetime
-
-    try:
-        if isinstance(line, StructuredLogMessage):
-            log = line
-        else:
-            log = StructuredLogMessage.model_validate_json(line)
-    except ValidationError:
-        with suppress(Exception):
-            # If we can't parse the timestamp, don't attach one to the row
-            if isinstance(line, str):
-                next_timestamp.set_timestamp(_parse_timestamp(line))
-        log = StructuredLogMessage(event=str(line), timestamp=next_timestamp.value)
-    if log.timestamp:
-        log.timestamp = coerce_datetime(log.timestamp)
-    return log.timestamp, log
-
-
 def _stream_lines_by_chunk(
     log_io: IO[str],
-) -> Iterable[str]:
+) -> RawLogStream:
     """
     Streams lines from the file-like IO object in chunks.
 
@@ -224,28 +189,24 @@ def _stream_lines_by_chunk(
         yield buffer
 
 
-def _parse_log_lines(
-    lines: str | LogMessages,
-) -> Iterable[tuple[datetime | None, int, StructuredLogMessage]]:
+def _log_stream_to_parsed_log_stream(
+    log_stream: RawLogStream,
+) -> ParsedLogStream:
+    """
+    Turn a str log stream into a generator of parsed log lines.
+
+    :param log_stream: The stream to parse.
+    :return: A generator of parsed log lines.
+    """
     from airflow.utils.timezone import coerce_datetime
 
     timestamp = None
     next_timestamp = None
-    if isinstance(lines, str):
-        lines = lines.splitlines()
-    if isinstance(lines, list) and len(lines) and isinstance(lines[0], str):
-        # A list of content from each location. It's a super odd format, but this is what we load
-        # [['a\nb\n'], ['c\nd\ne\n']] -> ['a', 'b', 'c', 'd', 'e']
-        lines = itertools.chain.from_iterable(map(str.splitlines, lines))  # type: ignore[assignment,arg-type]
-
-    # https://github.com/python/mypy/issues/8586
-    for idx, line in enumerate[Union[str, StructuredLogMessage]](lines):
+    idx = 0
+    for line in log_stream:
         if line:
             try:
-                if isinstance(line, StructuredLogMessage):
-                    log = line
-                else:
-                    log = StructuredLogMessage.model_validate_json(line)
+                log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
@@ -256,17 +217,93 @@ def _parse_log_lines(
                 log.timestamp = coerce_datetime(log.timestamp)
                 timestamp = log.timestamp
             yield timestamp, idx, log
+        idx += 1
 
 
-def _interleave_logs(*logs: str | LogMessages) -> Iterable[StructuredLogMessage]:
-    min_date = pendulum.datetime(2000, 1, 1)
+def _sort_key(timestamp: datetime | None, line_num: int) -> int:
+    """
+    Generate a sort key for log record, to be used in K-way merge.
 
-    records = itertools.chain.from_iterable(_parse_log_lines(log) for log in logs)
+    :param timestamp: timestamp of the log line
+    :param line_num: line number of the log line
+    :return: a integer as sort key to avoid overhead of memory usage
+    """
+    return int((timestamp or DEFAULT_SORT_DATETIME).timestamp() * 1000) * SORT_KEY_OFFSET + line_num
+
+
+def _add_log_from_parsed_log_streams_to_heap(
+    heap: list[tuple[int, StructuredLogMessage]],
+    parsed_log_streams: list[ParsedLogStream],
+) -> None:
+    """
+    Add one log record from each parsed log stream to the heap, and will remove empty log stream from the list while iterating.
+
+    :param heap: heap to store log records
+    :param parsed_log_streams: list of parsed log streams
+    """
+    for log_stream in parsed_log_streams:
+        record: ParsedLog | None = next(log_stream, None)
+        if record is None:
+            parsed_log_streams.remove(log_stream)
+            continue
+        # add type hint to avoid mypy error
+        record = cast("ParsedLog", record)
+        timestamp, line_num, line = record
+        # take int as sort key to avoid overhead of memory usage
+        heapq.heappush(heap, (_sort_key(timestamp, line_num), line))
+
+
+def _interleave_logs(*log_streams: RawLogStream) -> Iterable[StructuredLogMessage]:
+    """
+    Merge parsed log streams using K-way merge.
+
+    By yielding HALF_CHUNK_SIZE records when heap size exceeds CHUNK_SIZE, we can reduce the chance of messing up the global order.
+    Since there are multiple log streams, we can't guarantee that the records are in global order.
+
+    e.g.
+
+    log_stream1: ----------
+    log_stream2:   ----
+    log_stream3:     --------
+
+    The first record of log_stream3 is later than the fourth record of log_stream1 !
+    :param parsed_log_streams: parsed log streams
+    :return: interleaved log stream
+    """
+    # don't need to push whole tuple into heap, which increases too much overhead
+    # push only sort_key and line into heap
+    heap: list[tuple[int, StructuredLogMessage]] = []
+    # to allow removing empty streams while iterating, also turn the str stream into parsed log stream
+    parsed_log_streams: list[ParsedLogStream] = [
+        _log_stream_to_parsed_log_stream(log_stream) for log_stream in log_streams
+    ]
+
+    # keep adding records from logs until all logs are empty
     last = None
-    for timestamp, _, msg in sorted(records, key=lambda x: (x[0] or min_date, x[1])):
-        if msg != last or not timestamp:  # dedupe
-            yield msg
-        last = msg
+    while parsed_log_streams:
+        _add_log_from_parsed_log_streams_to_heap(heap, parsed_log_streams)
+
+        # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
+        if len(heap) >= HEAP_DUMP_SIZE:
+            for _ in range(HALF_HEAP_DUMP_SIZE):
+                _, line = heapq.heappop(heap)
+                if line == last:  # dedupe
+                    last = line
+                    continue
+                yield line
+                last = line
+
+    # yield remaining records
+    for _ in range(len(heap)):
+        _, line = heapq.heappop(heap)
+        if line == last:  # dedupe
+            last = line
+            continue
+        yield line
+        last = line
+    # free memory
+    del heap
+    del parsed_log_streams
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
@@ -667,9 +704,9 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(
         worker_log_path: Path,
-    ) -> tuple[LogSourceInfo, list[Iterable[str]], int]:
+    ) -> tuple[LogSourceInfo, list[RawLogStream], int]:
         sources: LogSourceInfo = []
-        parsed_log_streams: list[Iterable[str]] = []
+        parsed_log_streams: list[RawLogStream] = []
         total_log_size: int = 0
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
         if not paths:
@@ -683,9 +720,9 @@ class FileTaskHandler(logging.Handler):
 
     def _read_from_logs_server(
         self, ti: TaskInstance, worker_log_rel_path: str
-    ) -> tuple[LogSourceInfo, list[Iterable[str]], int]:
+    ) -> tuple[LogSourceInfo, list[RawLogStream], int]:
         sources: LogSourceInfo = []
-        parsed_log_streams: list[Iterable[str]] = []
+        parsed_log_streams: list[RawLogStream] = []
         total_log_size: int = 0
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
