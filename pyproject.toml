@@ -128,387 +128,387 @@ packages = []
     "apache-airflow-core[uv]"
 ]
 "airbyte" = [
-    "apache-airflow-providers-airbyte"
+    "apache-airflow-providers-airbyte>=5.0.0"
 ]
 "alibaba" = [
-    "apache-airflow-providers-alibaba"
+    "apache-airflow-providers-alibaba>=3.0.0"
 ]
 "amazon" = [
-    "apache-airflow-providers-amazon"
+    "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.beam" = [
-    "apache-airflow-providers-apache-beam"
+    "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra"
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
-    "apache-airflow-providers-apache-drill"
+    "apache-airflow-providers-apache-drill>=2.8.1"
 ]
 "apache.druid" = [
-    "apache-airflow-providers-apache-druid"
+    "apache-airflow-providers-apache-druid>=3.12.0"
 ]
 "apache.flink" = [
-    "apache-airflow-providers-apache-flink"
+    "apache-airflow-providers-apache-flink>=1.6.0"
 ]
 "apache.hdfs" = [
-    "apache-airflow-providers-apache-hdfs"
+    "apache-airflow-providers-apache-hdfs>=4.6.0"
 ]
 "apache.hive" = [
-    "apache-airflow-providers-apache-hive"
+    "apache-airflow-providers-apache-hive>=8.2.1"
 ]
 "apache.iceberg" = [
-    "apache-airflow-providers-apache-iceberg"
+    "apache-airflow-providers-apache-iceberg>=1.2.0"
 ]
 "apache.impala" = [
-    "apache-airflow-providers-apache-impala"
+    "apache-airflow-providers-apache-impala>=1.5.2"
 ]
 "apache.kafka" = [
-    "apache-airflow-providers-apache-kafka"
+    "apache-airflow-providers-apache-kafka>=1.6.1"
 ]
 "apache.kylin" = [
-    "apache-airflow-providers-apache-kylin"
+    "apache-airflow-providers-apache-kylin>=3.8.0"
 ]
 "apache.livy" = [
-    "apache-airflow-providers-apache-livy"
+    "apache-airflow-providers-apache-livy>=3.9.2"
 ]
 "apache.pig" = [
-    "apache-airflow-providers-apache-pig"
+    "apache-airflow-providers-apache-pig>=4.6.0"
 ]
 "apache.pinot" = [
-    "apache-airflow-providers-apache-pinot"
+    "apache-airflow-providers-apache-pinot>=4.5.1"
 ]
 "apache.spark" = [
-    "apache-airflow-providers-apache-spark"
+    "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apprise" = [
-    "apache-airflow-providers-apprise"
+    "apache-airflow-providers-apprise>=1.4.1"
 ]
 "arangodb" = [
-    "apache-airflow-providers-arangodb"
+    "apache-airflow-providers-arangodb>=2.7.0"
 ]
 "asana" = [
-    "apache-airflow-providers-asana"
+    "apache-airflow-providers-asana>=2.7.0"
 ]
 "atlassian.jira" = [
-    "apache-airflow-providers-atlassian-jira"
+    "apache-airflow-providers-atlassian-jira>=2.7.1"
 ]
 "celery" = [
-    "apache-airflow-providers-celery"
+    "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant"
+    "apache-airflow-providers-cloudant>=4.0.1"
 ]
 "cncf.kubernetes" = [
-    "apache-airflow-providers-cncf-kubernetes"
+    "apache-airflow-providers-cncf-kubernetes>=9.0.0"
 ]
 "cohere" = [
-    "apache-airflow-providers-cohere"
+    "apache-airflow-providers-cohere>=1.4.0"
 ]
 "common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow-providers-common-compat>=1.2.1"
 ]
 "common.io" = [
-    "apache-airflow-providers-common-io"
+    "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging"
 ]
 "common.sql" = [
-    "apache-airflow-providers-common-sql"
+    "apache-airflow-providers-common-sql>=1.18.0"
 ]
 "databricks" = [
-    "apache-airflow-providers-databricks"
+    "apache-airflow-providers-databricks>=6.11.0"
 ]
 "datadog" = [
-    "apache-airflow-providers-datadog"
+    "apache-airflow-providers-datadog>=3.8.0"
 ]
 "dbt.cloud" = [
-    "apache-airflow-providers-dbt-cloud"
+    "apache-airflow-providers-dbt-cloud>=3.11.0"
 ]
 "dingding" = [
-    "apache-airflow-providers-dingding"
+    "apache-airflow-providers-dingding>=3.7.0"
 ]
 "discord" = [
-    "apache-airflow-providers-discord"
+    "apache-airflow-providers-discord>=3.9.0"
 ]
 "docker" = [
-    "apache-airflow-providers-docker"
+    "apache-airflow-providers-docker>=3.14.1"
 ]
 "edge" = [
     "apache-airflow-providers-edge"
 ]
 "elasticsearch" = [
-    "apache-airflow-providers-elasticsearch"
+    "apache-airflow-providers-elasticsearch>=5.5.2"
 ]
 "exasol" = [
-    "apache-airflow-providers-exasol"
+    "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab"
+    "apache-airflow-providers-fab>=2.0.0"
 ]
 "facebook" = [
-    "apache-airflow-providers-facebook"
+    "apache-airflow-providers-facebook>=3.7.0"
 ]
 "ftp" = [
-    "apache-airflow-providers-ftp"
+    "apache-airflow-providers-ftp>=3.12.0"
 ]
 "git" = [
     "apache-airflow-providers-git"
 ]
 "github" = [
-    "apache-airflow-providers-github"
+    "apache-airflow-providers-github>=2.8.0"
 ]
 "google" = [
-    "apache-airflow-providers-google"
+    "apache-airflow-providers-google>=10.24.0"
 ]
 "grpc" = [
-    "apache-airflow-providers-grpc"
+    "apache-airflow-providers-grpc>=3.7.0"
 ]
 "hashicorp" = [
-    "apache-airflow-providers-hashicorp"
+    "apache-airflow-providers-hashicorp>=4.0.0"
 ]
 "http" = [
-    "apache-airflow-providers-http"
+    "apache-airflow-providers-http>=4.13.2"
 ]
 "imap" = [
-    "apache-airflow-providers-imap"
+    "apache-airflow-providers-imap>=3.8.0"
 ]
 "influxdb" = [
-    "apache-airflow-providers-influxdb"
+    "apache-airflow-providers-influxdb>=2.8.0"
 ]
 "jdbc" = [
-    "apache-airflow-providers-jdbc"
+    "apache-airflow-providers-jdbc>=4.5.2"
 ]
 "jenkins" = [
-    "apache-airflow-providers-jenkins"
+    "apache-airflow-providers-jenkins>=3.7.2"
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure"
+    "apache-airflow-providers-microsoft-azure>=10.5.1"
 ]
 "microsoft.mssql" = [
-    "apache-airflow-providers-microsoft-mssql"
+    "apache-airflow-providers-microsoft-mssql>=3.9.2"
 ]
 "microsoft.psrp" = [
-    "apache-airflow-providers-microsoft-psrp"
+    "apache-airflow-providers-microsoft-psrp>=3.0.0"
 ]
 "microsoft.winrm" = [
-    "apache-airflow-providers-microsoft-winrm"
+    "apache-airflow-providers-microsoft-winrm>=3.6.1"
 ]
 "mongo" = [
-    "apache-airflow-providers-mongo"
+    "apache-airflow-providers-mongo>=4.2.2"
 ]
 "mysql" = [
-    "apache-airflow-providers-mysql"
+    "apache-airflow-providers-mysql>=5.7.2"
 ]
 "neo4j" = [
-    "apache-airflow-providers-neo4j"
+    "apache-airflow-providers-neo4j>=3.8.0"
 ]
 "odbc" = [
-    "apache-airflow-providers-odbc"
+    "apache-airflow-providers-odbc>=4.8.0"
 ]
 "openai" = [
-    "apache-airflow-providers-openai"
+    "apache-airflow-providers-openai>=1.5.0"
 ]
 "openfaas" = [
-    "apache-airflow-providers-openfaas"
+    "apache-airflow-providers-openfaas>=3.7.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage"
+    "apache-airflow-providers-openlineage>=2.1.2"
 ]
 "opensearch" = [
-    "apache-airflow-providers-opensearch"
+    "apache-airflow-providers-opensearch>=1.5.0"
 ]
 "opsgenie" = [
-    "apache-airflow-providers-opsgenie"
+    "apache-airflow-providers-opsgenie>=5.8.0"
 ]
 "oracle" = [
-    "apache-airflow-providers-oracle"
+    "apache-airflow-providers-oracle>=3.12.0"
 ]
 "pagerduty" = [
-    "apache-airflow-providers-pagerduty"
+    "apache-airflow-providers-pagerduty>=3.8.1"
 ]
 "papermill" = [
-    "apache-airflow-providers-papermill"
+    "apache-airflow-providers-papermill>=3.8.2"
 ]
 "pgvector" = [
-    "apache-airflow-providers-pgvector"
+    "apache-airflow-providers-pgvector>=1.4.0"
 ]
 "pinecone" = [
-    "apache-airflow-providers-pinecone"
+    "apache-airflow-providers-pinecone>=2.1.1"
 ]
 "postgres" = [
-    "apache-airflow-providers-postgres"
+    "apache-airflow-providers-postgres>=5.13.1"
 ]
 "presto" = [
-    "apache-airflow-providers-presto"
+    "apache-airflow-providers-presto>=5.7.0"
 ]
 "qdrant" = [
-    "apache-airflow-providers-qdrant"
+    "apache-airflow-providers-qdrant>=1.3.0"
 ]
 "redis" = [
-    "apache-airflow-providers-redis"
+    "apache-airflow-providers-redis>=4.0.0"
 ]
 "salesforce" = [
-    "apache-airflow-providers-salesforce"
+    "apache-airflow-providers-salesforce>=5.9.0"
 ]
 "samba" = [
-    "apache-airflow-providers-samba"
+    "apache-airflow-providers-samba>=4.9.0"
 ]
 "segment" = [
-    "apache-airflow-providers-segment"
+    "apache-airflow-providers-segment>=3.7.0"
 ]
 "sendgrid" = [
-    "apache-airflow-providers-sendgrid"
+    "apache-airflow-providers-sendgrid>=4.0.0"
 ]
 "sftp" = [
-    "apache-airflow-providers-sftp"
+    "apache-airflow-providers-sftp>=5.0.0"
 ]
 "singularity" = [
-    "apache-airflow-providers-singularity"
+    "apache-airflow-providers-singularity>=3.7.0"
 ]
 "slack" = [
-    "apache-airflow-providers-slack"
+    "apache-airflow-providers-slack>=8.9.1"
 ]
 "smtp" = [
-    "apache-airflow-providers-smtp"
+    "apache-airflow-providers-smtp>=1.8.1"
 ]
 "snowflake" = [
-    "apache-airflow-providers-snowflake"
+    "apache-airflow-providers-snowflake>=5.8.0"
 ]
 "sqlite" = [
-    "apache-airflow-providers-sqlite"
+    "apache-airflow-providers-sqlite>=3.9.1"
 ]
 "ssh" = [
-    "apache-airflow-providers-ssh"
+    "apache-airflow-providers-ssh>=3.14.0"
 ]
 "standard" = [
     "apache-airflow-providers-standard"
 ]
 "tableau" = [
-    "apache-airflow-providers-tableau"
+    "apache-airflow-providers-tableau>=5.0.0"
 ]
 "telegram" = [
-    "apache-airflow-providers-telegram"
+    "apache-airflow-providers-telegram>=4.7.0"
 ]
 "teradata" = [
-    "apache-airflow-providers-teradata"
+    "apache-airflow-providers-teradata>=2.6.1"
 ]
 "trino" = [
-    "apache-airflow-providers-trino"
+    "apache-airflow-providers-trino>=5.8.1"
 ]
 "vertica" = [
-    "apache-airflow-providers-vertica"
+    "apache-airflow-providers-vertica>=3.9.1"
 ]
 "weaviate" = [
-    "apache-airflow-providers-weaviate"
+    "apache-airflow-providers-weaviate>=3.0.0"
 ]
 "yandex" = [
-    "apache-airflow-providers-yandex"
+    "apache-airflow-providers-yandex>=4.0.0"
 ]
 "ydb" = [
-    "apache-airflow-providers-ydb"
+    "apache-airflow-providers-ydb>=1.4.0"
 ]
 "zendesk" = [
-    "apache-airflow-providers-zendesk"
+    "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
     "apache-airflow-core[all]",
-    "apache-airflow-providers-airbyte",
-    "apache-airflow-providers-alibaba",
-    "apache-airflow-providers-amazon",
-    "apache-airflow-providers-apache-beam",
-    "apache-airflow-providers-apache-cassandra",
-    "apache-airflow-providers-apache-drill",
-    "apache-airflow-providers-apache-druid",
-    "apache-airflow-providers-apache-flink",
-    "apache-airflow-providers-apache-hdfs",
-    "apache-airflow-providers-apache-hive",
-    "apache-airflow-providers-apache-iceberg",
-    "apache-airflow-providers-apache-impala",
-    "apache-airflow-providers-apache-kafka",
-    "apache-airflow-providers-apache-kylin",
-    "apache-airflow-providers-apache-livy",
-    "apache-airflow-providers-apache-pig",
-    "apache-airflow-providers-apache-pinot",
-    "apache-airflow-providers-apache-spark",
-    "apache-airflow-providers-apprise",
-    "apache-airflow-providers-arangodb",
-    "apache-airflow-providers-asana",
-    "apache-airflow-providers-atlassian-jira",
-    "apache-airflow-providers-celery",
-    "apache-airflow-providers-cloudant",
-    "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-cohere",
-    "apache-airflow-providers-common-compat",
-    "apache-airflow-providers-common-io",
+    "apache-airflow-providers-airbyte>=5.0.0",
+    "apache-airflow-providers-alibaba>=3.0.0",
+    "apache-airflow-providers-amazon>=9.0.0",
+    "apache-airflow-providers-apache-beam>=5.8.1",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
+    "apache-airflow-providers-apache-drill>=2.8.1",
+    "apache-airflow-providers-apache-druid>=3.12.0",
+    "apache-airflow-providers-apache-flink>=1.6.0",
+    "apache-airflow-providers-apache-hdfs>=4.6.0",
+    "apache-airflow-providers-apache-hive>=8.2.1",
+    "apache-airflow-providers-apache-iceberg>=1.2.0",
+    "apache-airflow-providers-apache-impala>=1.5.2",
+    "apache-airflow-providers-apache-kafka>=1.6.1",
+    "apache-airflow-providers-apache-kylin>=3.8.0",
+    "apache-airflow-providers-apache-livy>=3.9.2",
+    "apache-airflow-providers-apache-pig>=4.6.0",
+    "apache-airflow-providers-apache-pinot>=4.5.1",
+    "apache-airflow-providers-apache-spark>=4.11.1",
+    "apache-airflow-providers-apprise>=1.4.1",
+    "apache-airflow-providers-arangodb>=2.7.0",
+    "apache-airflow-providers-asana>=2.7.0",
+    "apache-airflow-providers-atlassian-jira>=2.7.1",
+    "apache-airflow-providers-celery>=3.8.3",
+    "apache-airflow-providers-cloudant>=4.0.1",
+    "apache-airflow-providers-cncf-kubernetes>=9.0.0",
+    "apache-airflow-providers-cohere>=1.4.0",
+    "apache-airflow-providers-common-compat>=1.2.1",
+    "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging",
-    "apache-airflow-providers-common-sql",
-    "apache-airflow-providers-databricks",
-    "apache-airflow-providers-datadog",
-    "apache-airflow-providers-dbt-cloud",
-    "apache-airflow-providers-dingding",
-    "apache-airflow-providers-discord",
-    "apache-airflow-providers-docker",
+    "apache-airflow-providers-common-sql>=1.18.0",
+    "apache-airflow-providers-databricks>=6.11.0",
+    "apache-airflow-providers-datadog>=3.8.0",
+    "apache-airflow-providers-dbt-cloud>=3.11.0",
+    "apache-airflow-providers-dingding>=3.7.0",
+    "apache-airflow-providers-discord>=3.9.0",
+    "apache-airflow-providers-docker>=3.14.1",
     "apache-airflow-providers-edge",
-    "apache-airflow-providers-elasticsearch",
-    "apache-airflow-providers-exasol",
-    "apache-airflow-providers-fab",
-    "apache-airflow-providers-facebook",
-    "apache-airflow-providers-ftp",
+    "apache-airflow-providers-elasticsearch>=5.5.2",
+    "apache-airflow-providers-exasol>=4.6.1",
+    "apache-airflow-providers-fab>=2.0.0",
+    "apache-airflow-providers-facebook>=3.7.0",
+    "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git",
-    "apache-airflow-providers-github",
-    "apache-airflow-providers-google",
-    "apache-airflow-providers-grpc",
-    "apache-airflow-providers-hashicorp",
-    "apache-airflow-providers-http",
-    "apache-airflow-providers-imap",
-    "apache-airflow-providers-influxdb",
-    "apache-airflow-providers-jdbc",
-    "apache-airflow-providers-jenkins",
-    "apache-airflow-providers-microsoft-azure",
-    "apache-airflow-providers-microsoft-mssql",
-    "apache-airflow-providers-microsoft-psrp",
-    "apache-airflow-providers-microsoft-winrm",
-    "apache-airflow-providers-mongo",
-    "apache-airflow-providers-mysql",
-    "apache-airflow-providers-neo4j",
-    "apache-airflow-providers-odbc",
-    "apache-airflow-providers-openai",
-    "apache-airflow-providers-openfaas",
-    "apache-airflow-providers-openlineage",
-    "apache-airflow-providers-opensearch",
-    "apache-airflow-providers-opsgenie",
-    "apache-airflow-providers-oracle",
-    "apache-airflow-providers-pagerduty",
-    "apache-airflow-providers-papermill",
-    "apache-airflow-providers-pgvector",
-    "apache-airflow-providers-pinecone",
-    "apache-airflow-providers-postgres",
-    "apache-airflow-providers-presto",
-    "apache-airflow-providers-qdrant",
-    "apache-airflow-providers-redis",
-    "apache-airflow-providers-salesforce",
-    "apache-airflow-providers-samba",
-    "apache-airflow-providers-segment",
-    "apache-airflow-providers-sendgrid",
-    "apache-airflow-providers-sftp",
-    "apache-airflow-providers-singularity",
-    "apache-airflow-providers-slack",
-    "apache-airflow-providers-smtp",
-    "apache-airflow-providers-snowflake",
-    "apache-airflow-providers-sqlite",
-    "apache-airflow-providers-ssh",
+    "apache-airflow-providers-github>=2.8.0",
+    "apache-airflow-providers-google>=10.24.0",
+    "apache-airflow-providers-grpc>=3.7.0",
+    "apache-airflow-providers-hashicorp>=4.0.0",
+    "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-imap>=3.8.0",
+    "apache-airflow-providers-influxdb>=2.8.0",
+    "apache-airflow-providers-jdbc>=4.5.2",
+    "apache-airflow-providers-jenkins>=3.7.2",
+    "apache-airflow-providers-microsoft-azure>=10.5.1",
+    "apache-airflow-providers-microsoft-mssql>=3.9.2",
+    "apache-airflow-providers-microsoft-psrp>=3.0.0",
+    "apache-airflow-providers-microsoft-winrm>=3.6.1",
+    "apache-airflow-providers-mongo>=4.2.2",
+    "apache-airflow-providers-mysql>=5.7.2",
+    "apache-airflow-providers-neo4j>=3.8.0",
+    "apache-airflow-providers-odbc>=4.8.0",
+    "apache-airflow-providers-openai>=1.5.0",
+    "apache-airflow-providers-openfaas>=3.7.0",
+    "apache-airflow-providers-openlineage>=2.1.2",
+    "apache-airflow-providers-opensearch>=1.5.0",
+    "apache-airflow-providers-opsgenie>=5.8.0",
+    "apache-airflow-providers-oracle>=3.12.0",
+    "apache-airflow-providers-pagerduty>=3.8.1",
+    "apache-airflow-providers-papermill>=3.8.2",
+    "apache-airflow-providers-pgvector>=1.4.0",
+    "apache-airflow-providers-pinecone>=2.1.1",
+    "apache-airflow-providers-postgres>=5.13.1",
+    "apache-airflow-providers-presto>=5.7.0",
+    "apache-airflow-providers-qdrant>=1.3.0",
+    "apache-airflow-providers-redis>=4.0.0",
+    "apache-airflow-providers-salesforce>=5.9.0",
+    "apache-airflow-providers-samba>=4.9.0",
+    "apache-airflow-providers-segment>=3.7.0",
+    "apache-airflow-providers-sendgrid>=4.0.0",
+    "apache-airflow-providers-sftp>=5.0.0",
+    "apache-airflow-providers-singularity>=3.7.0",
+    "apache-airflow-providers-slack>=8.9.1",
+    "apache-airflow-providers-smtp>=1.8.1",
+    "apache-airflow-providers-snowflake>=5.8.0",
+    "apache-airflow-providers-sqlite>=3.9.1",
+    "apache-airflow-providers-ssh>=3.14.0",
     "apache-airflow-providers-standard",
-    "apache-airflow-providers-tableau",
-    "apache-airflow-providers-telegram",
-    "apache-airflow-providers-teradata",
-    "apache-airflow-providers-trino",
-    "apache-airflow-providers-vertica",
-    "apache-airflow-providers-weaviate",
-    "apache-airflow-providers-yandex",
-    "apache-airflow-providers-ydb",
-    "apache-airflow-providers-zendesk",
+    "apache-airflow-providers-tableau>=5.0.0",
+    "apache-airflow-providers-telegram>=4.7.0",
+    "apache-airflow-providers-teradata>=2.6.1",
+    "apache-airflow-providers-trino>=5.8.1",
+    "apache-airflow-providers-vertica>=3.9.1",
+    "apache-airflow-providers-weaviate>=3.0.0",
+    "apache-airflow-providers-yandex>=4.0.0",
+    "apache-airflow-providers-ydb>=1.4.0",
+    "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
 
