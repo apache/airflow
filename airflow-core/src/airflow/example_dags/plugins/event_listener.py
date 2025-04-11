@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.listeners import hookimpl
+from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -31,10 +32,10 @@ if TYPE_CHECKING:
 @hookimpl
 def on_task_instance_running(previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance):
     """
-    This method is called when task state changes to RUNNING.
-    Through callback, parameters like previous_task_state, task_instance object can be accessed.
-    This will give more information about current task_instance that is running its dag_run,
-    task and dag information.
+    Called when task state changes to RUNNING.
+
+    previous_task_state and task_instance object can be used to retrieve more information about current
+    task_instance that is running, its dag_run, task and dag information.
     """
     print("Task instance is in running state")
     print(" Previous state of the Task instance:", previous_state)
@@ -61,15 +62,26 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: R
 
 # [START howto_listen_ti_success_task]
 @hookimpl
-def on_task_instance_success(previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance):
+def on_task_instance_success(
+    previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance | TaskInstance
+):
     """
-    This method is called when task state changes to SUCCESS.
-    Through callback, parameters like previous_task_state, task_instance object can be accessed.
-    This will give more information about current task_instance that has succeeded its
-    dag_run, task and dag information.
+    Called when task state changes to SUCCESS.
+
+    previous_task_state and task_instance object can be used to retrieve more information about current
+    task_instance that has succeeded, its dag_run, task and dag information.
+
+    A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
+    through the API. In that case, the TaskInstance available on the API server will be provided instead.
     """
     print("Task instance in success state")
     print(" Previous state of the Task instance:", previous_state)
+
+    if isinstance(task_instance, TaskInstance):
+        print("Task instance's state was changed through the API.")
+
+        print(f"Task operator:{task_instance.operator}")
+        return
 
     context = task_instance.get_template_context()
     operator = context["task"]
@@ -83,15 +95,28 @@ def on_task_instance_success(previous_state: TaskInstanceState, task_instance: R
 # [START howto_listen_ti_failure_task]
 @hookimpl
 def on_task_instance_failed(
-    previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance, error: None | str | BaseException
+    previous_state: TaskInstanceState,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    error: None | str | BaseException,
 ):
     """
-    This method is called when task state changes to FAILED.
-    Through callback, parameters like previous_task_state, task_instance object can be accessed.
-    This will give more information about current task_instance that has failed its dag_run,
-    task and dag information.
+    Called when task state changes to FAILED.
+
+    previous_task_state, task_instance object and error can be used to retrieve more information about current
+    task_instance that has failed, its dag_run, task and dag information.
+
+    A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
+    through the API. In that case, the TaskInstance available on the API server will be provided instead.
     """
     print("Task instance in failure state")
+
+    if isinstance(task_instance, TaskInstance):
+        print("Task instance's state was changed through the API.")
+
+        print(f"Task operator:{task_instance.operator}")
+        if error:
+            print(f"Failure caused by {error}")
+        return
 
     context = task_instance.get_template_context()
     task = context["task"]

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import getpass
 import inspect
 import os
 from argparse import Namespace
@@ -31,7 +32,7 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple, Union
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl.api.client import NEW_CLI_API_CLIENT, Client, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.utils.module_loading import import_string
 
@@ -136,6 +137,14 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
+class Password(argparse.Action):
+    """Custom action to prompt for password input."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        values = getpass.getpass()
+        setattr(namespace, self.dest, values)
+
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
@@ -155,6 +164,20 @@ ARG_AUTH_ENVIRONMENT = Arg(
     type=str,
     default="production",
     help="The environment to run the command in",
+)
+ARG_AUTH_USERNAME = Arg(
+    flags=("--username",),
+    type=str,
+    dest="username",
+    help="The username to use for authentication",
+)
+ARG_AUTH_PASSWORD = Arg(
+    flags=("--password",),
+    type=str,
+    dest="password",
+    help="The password to use for authentication",
+    action=Password,
+    nargs="?",
 )
 
 
@@ -236,6 +259,7 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
+        exclude_operation_names = ["LoginOperations"]
         exclude_method_names = [
             "error",
             "__init__",
@@ -245,7 +269,12 @@ class CommandFactory:
             "bulk",
         ]
         for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and "Operations" in node.name and node.body:
+            if (
+                isinstance(node, ast.ClassDef)
+                and "Operations" in node.name
+                and node.name not in exclude_operation_names
+                and node.body
+            ):
                 for child in node.body:
                     if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
@@ -356,15 +385,13 @@ class CommandFactory:
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
-        @provide_api_client
-        def _get_func(
-            args: Namespace, api_operation: dict, cli_api_client: Client = NEW_CLI_API_CLIENT, **kwargs
-        ):
+        @provide_api_client(kind=ClientKind.CLI)
+        def _get_func(args: Namespace, api_operation: dict, api_client: Client = NEW_API_CLIENT, **kwargs):
             import importlib
 
             imported_operation = importlib.import_module("airflowctl.api.operations")
             operation_class_object = getattr(imported_operation, api_operation["parent"].name)
-            operation_class = operation_class_object(client=cli_api_client)
+            operation_class = operation_class_object(client=api_client)
             operation_method_object = getattr(operation_class, api_operation["name"])
 
             # TODO (bugraoz93) some fields shouldn't be updated or filled, handle this in a generic way
@@ -444,7 +471,7 @@ AUTH_COMMANDS = (
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
-        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
+        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
     ),
 )
 
@@ -452,8 +479,8 @@ AUTH_COMMANDS = (
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
-        help="Manage authentication for CLI. Please acquire a token from the api-server first. "
-        "You need to pass the token to subcommand to use `login`.",
+        help="Manage authentication for CLI. "
+        "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
     ),
 ]

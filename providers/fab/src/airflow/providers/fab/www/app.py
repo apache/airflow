@@ -60,7 +60,7 @@ def create_app(enable_plugins: bool):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
-    webserver_config = conf.get_mandatory_value("webserver", "config_file")
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():
         flask_app.config.from_pyfile(webserver_config, silent=True)

@@ -1232,7 +1232,7 @@ class TestTriggerDagRun:
             dag_id="inactive",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -1242,7 +1242,7 @@ class TestTriggerDagRun:
             dag_id="import_errors",
             fileloc="/tmp/dag_del_2.py",
             timetable_summary="2 2 * * *",
-            is_active=True,
+            is_stale=False,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
@@ -1430,6 +1430,21 @@ class TestTriggerDagRun:
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
+
+    def test_post_dag_runs_with_empty_payload(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", data={}, headers={"Content-Type": "application/json"}
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"] == [
+            {
+                "input": None,
+                "loc": ["body"],
+                "msg": "Field required",
+                "type": "missing",
+            },
+        ]
 
     @mock.patch("airflow.models.DAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
