@@ -778,6 +778,10 @@ class SelectiveChecks:
         return self.run_tests
 
     @cached_property
+    def only_pyproject_toml_files_changed(self) -> bool:
+        return all(Path(file).name == "pyproject.toml" for file in self._files)
+
+    @cached_property
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
