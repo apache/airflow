@@ -58,6 +58,7 @@ from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dags,
     clear_db_runs,
+    clear_db_triggers,
     clear_db_variables,
     clear_db_xcom,
 )
@@ -76,12 +77,14 @@ def clean_database():
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
+    clear_db_triggers()
     yield  # Test runs here
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
+    clear_db_triggers()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -618,14 +621,11 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     """
 
     def handle_events(self):
+        print("Inside handle_events")
         self.stop = bool(self.events)
         super().handle_events()
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
@@ -726,10 +726,6 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
@@ -822,10 +818,6 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
 @pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(30)
