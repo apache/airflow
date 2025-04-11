@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import sys
@@ -34,7 +35,7 @@ from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -180,13 +181,12 @@ class Variable(Base, LoggingMixin):
                 return var_val
 
     @staticmethod
-    @provide_session
     def set(
         key: str,
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
-        session: Session = None,
+        session: Session | None = None,
     ) -> None:
         """
         Set a value for an Airflow Variable with a given Key.
@@ -197,11 +197,8 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: Session
+        :param session: optional session, use if provided or create a new one
         """
-        # check if the secret exists in the custom secrets' backend.
-        Variable.check_for_write_conflict(key=key)
-
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
@@ -225,26 +222,34 @@ class Variable(Base, LoggingMixin):
             )
             return
 
+        # check if the secret exists in the custom secrets' backend.
+        Variable.check_for_write_conflict(key=key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
             stored_value = str(value)
 
-        Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value, description=description))
-        session.flush()
-        # invalidate key in cache for faster propagation
-        # we cannot save the value set because it's possible that it's shadowed by a custom backend
-        # (see call to check_for_write_conflict above)
-        SecretCache.invalidate_variable(key)
+        ctx: contextlib.AbstractContextManager
+        if session is not None:
+            ctx = contextlib.nullcontext(session)
+        else:
+            ctx = create_session()
+
+        with ctx as session:
+            Variable.delete(key, session=session)
+            session.add(Variable(key=key, val=stored_value, description=description))
+            session.flush()
+            # invalidate key in cache for faster propagation
+            # we cannot save the value set because it's possible that it's shadowed by a custom backend
+            # (see call to check_for_write_conflict above)
+            SecretCache.invalidate_variable(key)
 
     @staticmethod
-    @provide_session
     def update(
         key: str,
         value: Any,
         serialize_json: bool = False,
-        session: Session = None,
+        session: Session | None = None,
     ) -> None:
         """
         Update a given Airflow Variable with the Provided value.
@@ -252,19 +257,54 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: Session
+        :param session: optional session, use if provided or create a new one
         """
+        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+        # back-compat layer
+
+        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # and should use the Task SDK API server path
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.update from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Variable` instead and use `Variable.set` as it is an upsert.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+
+            # set is an upsert command, it can handle updates too
+            TaskSDKVariable.set(
+                key=key,
+                value=value,
+                serialize_json=serialize_json,
+            )
+            return
+
         Variable.check_for_write_conflict(key=key)
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
-        obj = session.scalar(select(Variable).where(Variable.key == key))
-        if obj is None:
-            raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
-        Variable.set(
-            key=key, value=value, description=obj.description, serialize_json=serialize_json, session=session
-        )
+        ctx: contextlib.AbstractContextManager
+        if session is not None:
+            ctx = contextlib.nullcontext(session)
+        else:
+            ctx = create_session()
+
+        with ctx as session:
+            obj = session.scalar(select(Variable).where(Variable.key == key))
+            if obj is None:
+                raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
+
+            Variable.set(
+                key=key,
+                value=value,
+                description=obj.description,
+                serialize_json=serialize_json,
+                session=session,
+            )
 
     @staticmethod
     @provide_session
