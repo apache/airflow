@@ -58,6 +58,7 @@ ALLOWED_FORMATS = [
     "GOOGLE_SHEETS",
     "DATASTORE_BACKUP",
     "PARQUET",
+    "ORC",
 ]
 
 
