@@ -135,7 +135,7 @@ def create_app():
 
     @flask_app.route("/log/<path:filename>")
     def serve_logs_view(filename):
-        return send_from_directory(log_directory, filename, mimetype="application/json", as_attachment=False)
+        return send_from_directory(log_directory, filename, mimetype="text/plain", as_attachment=False)
 
     return flask_app
 

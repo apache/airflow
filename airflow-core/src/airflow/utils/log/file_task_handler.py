@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import io
 import itertools
 import logging
 import os
@@ -43,6 +44,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from requests import Response
+
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -135,7 +138,7 @@ def _set_task_deferred_context_var():
         h.ctx_task_deferred = True
 
 
-def _fetch_logs_from_service(url, log_relative_path):
+def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -155,6 +158,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         url,
         timeout=timeout,
         headers={"Authorization": generator.generate({"filename": log_relative_path})},
+        stream=True,
     )
     response.encoding = "utf-8"
     return response
@@ -661,15 +665,28 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @staticmethod
-    def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
+    def _read_from_local(
+        worker_log_path: Path,
+    ) -> tuple[LogSourceInfo, list[Iterable[str]], int]:
+        sources: LogSourceInfo = []
+        parsed_log_streams: list[Iterable[str]] = []
+        total_log_size: int = 0
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        sources = [os.fspath(x) for x in paths]
-        logs = [file.read_text() for file in paths]
-        return sources, logs
+        if not paths:
+            return sources, parsed_log_streams, total_log_size
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[LogSourceInfo, LogMessages]:
-        sources = []
-        logs = []
+        for path in paths:
+            sources.append(os.fspath(path))
+            parsed_log_streams.append(_stream_lines_by_chunk(open(path, encoding="utf-8")))
+            total_log_size += path.stat().st_size
+        return sources, parsed_log_streams, total_log_size
+
+    def _read_from_logs_server(
+        self, ti: TaskInstance, worker_log_rel_path: str
+    ) -> tuple[LogSourceInfo, list[Iterable[str]], int]:
+        sources: LogSourceInfo = []
+        parsed_log_streams: list[Iterable[str]] = []
+        total_log_size: int = 0
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -686,9 +703,13 @@ class FileTaskHandler(logging.Handler):
             else:
                 # Check if the resource was properly fetched
                 response.raise_for_status()
-                if response.text:
+                # get the total size of the logs
+                content_length = response.headers.get("Content-Length")
+                if content_length is not None:
+                    total_log_size = int(content_length)
+                if total_log_size > 0:
                     sources.append(url)
-                    logs.append(response.text)
+                    parsed_log_streams.append(_stream_lines_by_chunk(io.TextIOWrapper(response.raw)))
         except Exception as e:
             from requests.exceptions import InvalidURL
 
@@ -697,7 +718,7 @@ class FileTaskHandler(logging.Handler):
             else:
                 sources.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return sources, logs
+        return sources, parsed_log_streams, total_log_size
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
         """
