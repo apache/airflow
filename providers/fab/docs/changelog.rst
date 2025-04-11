@@ -36,7 +36,6 @@ Breaking changes
   The following breaking changes were introduced:
 
 * Removed ``is_authorized_dataset`` method from ``FabAuthManager``. Use ``is_authorized_asset`` instead
-* Removed ``oauth_whitelists`` property from the security manager override. Use ``oauth_allow_list`` instead
 * Removed the authentication type ``AUTH_OID``
 * Removed ``get_readable_dags`` method from the security manager override
 * Removed ``get_editable_dags`` method from the security manager override
@@ -63,7 +62,6 @@ Features
 Misc
 ~~~~
 
-* ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
 * ``Expose security views in Flask application in FAB provider (#46203)``
 * ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
 * ``Get rid of google-re2 as dependency (#47493)``
@@ -181,6 +179,9 @@ Misc
    * ``feat(AIP-84): add auth to /ui/backfills (#47657)``
    * ``forward port fab 1.5.2 to main branch (#45377)``
    * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * Removed ``oauth_whitelists`` property from the security manager override. Use ``oauth_allow_list`` instead
+   * ``AIP-81 Move CLI Commands to directories according to Hybrid, Local and Remote (#44538)``
+
 
 1.5.3
 .....
