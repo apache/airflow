@@ -267,6 +267,29 @@ class TestDbApiHook:
 
         self.cur.executemany.assert_any_call(sql, rows)
 
+    def test_insert_rows_logs_generated_sql_on_exception(self, caplog):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        with caplog.at_level(logging.ERROR):
+            self.cur.executemany.side_effect = Exception("Boom!")
+            self.db_hook.supports_executemany = True
+
+            with pytest.raises(Exception, match="Boom!"):
+                self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 1
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        assert len(caplog.messages) == 2
+        assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
+        assert any(f"Parameters: {rows}" in message for message in caplog.messages)
+
+        self.cur.executemany.assert_any_call(sql, rows)
+
     def test_get_uri_schema_not_none(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
