@@ -374,6 +374,14 @@ config:
         type: integer
         example: ~
         default: "0"
+      running_pod_log_lines:
+        description: |
+          The number of the log lines starting from the end to get from of the running pod.
+          -1 for unlimited lines.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "100"
 
 executors:
   - airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor
