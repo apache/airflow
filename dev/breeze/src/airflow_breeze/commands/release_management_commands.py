@@ -2046,6 +2046,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
         python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
+        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
