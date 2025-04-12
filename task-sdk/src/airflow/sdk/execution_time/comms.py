@@ -339,7 +339,7 @@ class OKResponse(BaseModel):
 
 
 class DeleteVariableCount(BaseModel):
-    delete_count: int
+    count: int
     type: Literal["DeleteVariableCount"] = "DeleteVariableCount"
 
 

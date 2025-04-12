@@ -228,7 +228,7 @@ class TestDeleteVariable:
         response = client.delete("/execution/variables/key1")
 
         assert response.status_code == 200
-        assert response.json() == {"delete_count": 1}
+        assert response.json() == {"count": 1}
 
         vars = session.query(Variable).all()
         assert len(vars) == 1
@@ -242,7 +242,7 @@ class TestDeleteVariable:
         response = client.delete("/execution/variables/non_existent_key")
 
         assert response.status_code == 200
-        assert response.json() == {"delete_count": 0}
+        assert response.json() == {"count": 0}
 
         vars = session.query(Variable).all()
         assert len(vars) == 1

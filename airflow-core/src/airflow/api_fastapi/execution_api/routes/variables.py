@@ -102,5 +102,5 @@ def put_variable(variable_key: str, body: VariablePostBody):
 )
 def delete_variable(variable_key: str) -> VariableDeleteBody:
     """Delete an Airflow Variable."""
-    delete_count = Variable.delete(key=variable_key)
-    return VariableDeleteBody(delete_count=delete_count)
+    count = Variable.delete(key=variable_key)
+    return VariableDeleteBody(count=count)

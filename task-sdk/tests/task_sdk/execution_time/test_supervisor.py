@@ -1062,11 +1062,11 @@ class TestHandleRequest:
             ),
             pytest.param(
                 DeleteVariable(key="test_key"),
-                b'{"delete_count":1,"type":"DeleteVariableCount"}\n',
+                b'{"count":1,"type":"DeleteVariableCount"}\n',
                 "variables.delete",
                 ("test_key",),
                 {},
-                DeleteVariableCount(delete_count=1),
+                DeleteVariableCount(count=1),
                 id="delete_variable",
             ),
             pytest.param(

@@ -39,4 +39,4 @@ class VariablePostBody(StrictBaseModel):
 class VariableDeleteBody(StrictBaseModel):
     """Response body schema for after deleting variables."""
 
-    delete_count: int
+    count: int

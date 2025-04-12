@@ -328,7 +328,7 @@ class VariableDeleteBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    delete_count: Annotated[int, Field(title="Delete Count")]
+    count: Annotated[int, Field(title="Count")]
 
 
 class VariablePostBody(BaseModel):

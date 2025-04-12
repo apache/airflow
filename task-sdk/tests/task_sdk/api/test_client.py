@@ -606,14 +606,14 @@ class TestVariableOperations:
             if request.method == "DELETE" and request.url.path == "/variables/test_key":
                 return httpx.Response(
                     status_code=200,
-                    json={"delete_count": 1},
+                    json={"count": 1},
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.delete(key="test_key")
-        assert result == DeleteVariableCount(delete_count=1)
+        assert result == DeleteVariableCount(count=1)
 
 
 class TestXCOMOperations:

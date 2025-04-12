@@ -275,7 +275,7 @@ def _delete_variable(key: str) -> int:
         msg = SUPERVISOR_COMMS.get_message()
     if TYPE_CHECKING:
         assert isinstance(msg, DeleteVariableCount)
-    return msg.delete_count
+    return msg.count
 
 
 class ConnectionAccessor:
