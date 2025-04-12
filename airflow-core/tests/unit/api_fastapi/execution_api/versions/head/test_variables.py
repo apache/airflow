@@ -215,3 +215,34 @@ class TestPutVariable:
             }
         }
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
+
+
+class TestDeleteVariable:
+    def test_should_delete_variable(self, client, session):
+        for i in range(1, 3):
+            Variable.set(key=f"key{i}", value=i)
+
+        vars = session.query(Variable).all()
+        assert len(vars) == 2
+
+        response = client.delete("/execution/variables/key1")
+
+        assert response.status_code == 200
+        assert response.json() == {"delete_count": 1}
+
+        vars = session.query(Variable).all()
+        assert len(vars) == 1
+
+    def test_should_not_delete_variable(self, client, session):
+        Variable.set(key="key", value="value")
+
+        vars = session.query(Variable).all()
+        assert len(vars) == 1
+
+        response = client.delete("/execution/variables/non_existent_key")
+
+        assert response.status_code == 200
+        assert response.json() == {"delete_count": 0}
+
+        vars = session.query(Variable).all()
+        assert len(vars) == 1
