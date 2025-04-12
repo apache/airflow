@@ -36,10 +36,10 @@ from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
-    DeleteVariableCount,
     ErrorResponse,
     GetConnection,
     GetVariable,
+    OKResponse,
     PutVariable,
     VariableResult,
 )
@@ -61,7 +61,7 @@ ToManager = Annotated[
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, DeleteVariableCount],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
 

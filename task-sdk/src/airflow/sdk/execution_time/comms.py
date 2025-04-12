@@ -338,11 +338,6 @@ class OKResponse(BaseModel):
     type: Literal["OKResponse"] = "OKResponse"
 
 
-class DeleteVariableCount(BaseModel):
-    count: int
-    type: Literal["DeleteVariableCount"] = "DeleteVariableCount"
-
-
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -360,7 +355,6 @@ ToTask = Annotated[
         XComResult,
         XComCountResponse,
         OKResponse,
-        DeleteVariableCount,
     ],
     Field(discriminator="type"),
 ]

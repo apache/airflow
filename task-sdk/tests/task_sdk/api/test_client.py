@@ -38,7 +38,6 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
-    DeleteVariableCount,
     ErrorResponse,
     OKResponse,
     RescheduleTask,
@@ -613,7 +612,7 @@ class TestVariableOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.delete(key="test_key")
-        assert result == DeleteVariableCount(count=1)
+        assert result == OKResponse(ok=True)
 
 
 class TestXCOMOperations:

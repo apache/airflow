@@ -67,11 +67,11 @@ class Variable:
             log.exception(e)
 
     @classmethod
-    def delete(cls, key: str) -> int:
+    def delete(cls, key: str) -> None:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _delete_variable
 
         try:
-            return _delete_variable(key=key)
+            _delete_variable(key=key)
         except AirflowRuntimeError as e:
             log.exception(e)
