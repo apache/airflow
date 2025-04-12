@@ -78,11 +78,8 @@ from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
     TaskDeferralError,
@@ -119,7 +116,6 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -196,6 +192,41 @@ def _update_ti_heartbeat(id: str, when: datetime, session: Session = NEW_SESSION
     session.execute(update(TaskInstance).where(TaskInstance.id == id).values(last_heartbeat_at=when))
 
 
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+from airflow.sdk.api.client import Client
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+
+
+class InProcessActivitySubprocess(ActivitySubprocess):
+    """ActivitySubprocess that uses in-process API for all communications."""
+
+    @classmethod
+    def start(cls, *, what, dag_rel_path, bundle_info, target=None, logger=None, **kwargs):
+        # Create an in-process API instance
+        api = InProcessExecutionAPI()
+
+        # Create a client that uses the in-process transport
+        client = Client(
+            base_url=None,  # Not needed for in-process
+            token="",  # No token needed for in-process
+            dry_run=False,  # We want actual execution
+            transport=api.transport
+        )
+
+        client.base_url = "http://in-process.invalid./"
+
+        # Start the subprocess with our in-process client
+        return super().start(
+            what=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            client=client,
+            target=target,
+            logger=logger,
+            **kwargs
+        )
+
+
 def _run_raw_task(
     ti: TaskInstance,
     mark_success: bool = False,
@@ -219,155 +250,47 @@ def _run_raw_task(
     """
     if TYPE_CHECKING:
         assert isinstance(ti.task, BaseOperator)
+    import sys
 
-    ti.test_mode = test_mode
-    ti.refresh_from_task(ti.task, pool_override=pool)
-    ti.refresh_from_db(session=session)
-    ti.hostname = get_hostname()
-    ti.pid = os.getpid()
-    if not test_mode:
-        TaskInstance.save_to_db(ti=ti, session=session)
-    actual_start_date = timezone.utcnow()
-    Stats.incr(f"ti.start.{ti.task.dag_id}.{ti.task.task_id}", tags=ti.stats_tags)
-    # Same metric with tagging
-    Stats.incr("ti.start", tags=ti.stats_tags)
-    # Initialize final state counters at zero
-    for state in State.task_states:
-        Stats.incr(
-            f"ti.finish.{ti.task.dag_id}.{ti.task.task_id}.{state}",
-            count=0,
-            tags=ti.stats_tags,
-        )
-        # Same metric with tagging
-        Stats.incr(
-            "ti.finish",
-            count=0,
-            tags={**ti.stats_tags, "state": str(state)},
-        )
-    with set_current_task_instance_session(session=session):
-        ti.task = ti.task.prepare_for_execution()
-        context = ti.get_template_context(ignore_param_exceptions=False, session=session)
+    import structlog
 
-        try:
-            if ti.task:
-                from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.api.datamodels._generated import DagRun as DagRunSDK, TIRunContext
+    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
+    from airflow.sdk.execution_time.task_runner import CommsDecoder, finalize, run
 
-                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
-                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
-                TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
-            if not mark_success:
-                TaskInstance._execute_task_with_callbacks(
-                    self=ti,  # type: ignore[arg-type]
-                    context=context,
-                    test_mode=test_mode,
-                    session=session,
-                )
-            if not test_mode:
-                ti.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
-            ti.state = TaskInstanceState.SUCCESS
-        except TaskDeferred as defer:
-            # The task has signalled it wants to defer execution based on
-            # a trigger.
-            if raise_on_defer:
-                raise
-            ti.defer_task(exception=defer, session=session)
-            ti.log.info(
-                "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, logical_date=%s, start_date=%s",
-                ti.dag_id,
-                ti.task_id,
-                ti.run_id,
-                _date_or_empty(task_instance=ti, attr="logical_date"),
-                _date_or_empty(task_instance=ti, attr="start_date"),
-            )
-            return TaskReturnCode.DEFERRED
-        except AirflowSkipException as e:
-            # Recording SKIP
-            # log only if exception has any arguments to prevent log flooding
-            if e.args:
-                ti.log.info(e)
-            if not test_mode:
-                ti.refresh_from_db(lock_for_update=True, session=session, keep_local_changes=True)
-            ti.state = TaskInstanceState.SKIPPED
-            _run_finished_callback(callbacks=ti.task.on_skipped_callback, context=context)
-            TaskInstance.save_to_db(ti=ti, session=session)
-        except AirflowRescheduleException as reschedule_exception:
-            ti._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
-            ti.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
-            return None
-        except (AirflowFailException, AirflowSensorTimeout) as e:
-            # If AirflowFailException is raised, task should not retry.
-            # If a sensor in reschedule mode reaches timeout, task should not retry.
-            ti.handle_failure(e, test_mode, context, force_fail=True, session=session)  # already saves to db
-            raise
-        except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
-            if not test_mode:
-                ti.refresh_from_db(lock_for_update=True, session=session)
-            # for case when task is marked as success/failed externally
-            # or dagrun timed out and task is marked as skipped
-            # current behavior doesn't hit the callbacks
-            if ti.state in State.finished:
-                ti.clear_next_method_args()
-                TaskInstance.save_to_db(ti=ti, session=session)
-                return None
-            else:
-                ti.handle_failure(e, test_mode, context, session=session)
-                raise
-        except SystemExit as e:
-            # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
-            # Therefore, here we must handle only error codes.
-            msg = f"Task failed due to SystemExit({e.code})"
-            ti.handle_failure(msg, test_mode, context, session=session)
-            raise AirflowException(msg)
-        except BaseException as e:
-            ti.handle_failure(e, test_mode, context, session=session)
-            raise
-        finally:
-            # Print a marker post execution for internals of post task processing
-            log.info("::group::Post task execution logs")
+    # Create a dummy communication channel for in-process execution
+    # This is needed because the task runner expects to communicate with a supervisor
+    class DummyCommsDecoder(CommsDecoder[ToTask, ToSupervisor]):
+        def get_message(self):
+            # Return a dummy message or handle as needed
+            pass
 
-            Stats.incr(
-                f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
-                tags=ti.stats_tags,
-            )
-            # Same metric with tagging
-            Stats.incr("ti.finish", tags={**ti.stats_tags, "state": str(ti.state)})
+        def send_request(self, log, msg):
+            # Handle the message in-process
+            pass
 
-        # Recording SKIPPED or SUCCESS
-        ti.clear_next_method_args()
-        ti.end_date = timezone.utcnow()
-        _log_state(task_instance=ti)
-        ti.set_duration()
+    task_runner.SUPERVISOR_COMMS = DummyCommsDecoder(input=sys.stdin)
 
-        # run on_success_callback before db committing
-        # otherwise, the LocalTaskJob sees the state is changed to `success`,
-        # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        if ti.state == TaskInstanceState.SUCCESS:
-            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+    ti_context = TIRunContext(
+        dag_run=DagRunSDK.model_validate(ti.dag_run, from_attributes=True),
+        max_tries=ti.max_tries,
+        should_retry=ti.is_eligible_to_retry(),
+    )
+    runtime_ti = ti.to_runtime_ti(context_from_server=ti_context)
+    context = runtime_ti.get_template_context()
 
-        if not test_mode:
-            _add_log(event=ti.state, task_instance=ti, session=session)
-            if ti.state == TaskInstanceState.SUCCESS:
-                from airflow.sdk.execution_time.task_runner import (
-                    _build_asset_profiles,
-                    _serialize_outlet_events,
-                )
+    log = structlog.get_logger(logger_name="task")
 
-                TaskInstance.register_asset_changes_in_db(
-                    ti,
-                    list(_build_asset_profiles(ti.task.outlets)),
-                    list(_serialize_outlet_events(context["outlet_events"])),
-                    session=session,
-                )
+    state, msg, error = run(ti=runtime_ti, context=context, log=log)
+    finalize(ti=runtime_ti, state=state, context=context, log=log, error=error)
 
-            TaskInstance.save_to_db(ti=ti, session=session)
-            if ti.state == TaskInstanceState.SUCCESS:
-                try:
-                    get_listener_manager().hook.on_task_instance_success(
-                        previous_state=TaskInstanceState.RUNNING, task_instance=ti
-                    )
-                except Exception:
-                    log.exception("error calling listener")
-        return None
+    ti.state = state
+    ti.task = runtime_ti.task
+    TaskInstance.save_to_db(ti=ti, session=session)
+
+    if error:
+        raise AirflowException(error)
 
 
 @contextlib.contextmanager

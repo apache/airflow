@@ -1053,6 +1053,18 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
+    def _execute_callable(execute, context: Context):
+
+        try:
+            # Print a marker for log grouping of details before task execution
+            result = ctx.run(execute, context=context)
+        except SystemExit as e:
+            # Handle only successful cases here. Failure cases will be handled upper
+            # in the exception chain.
+            if e.code is not None and e.code != 0:
+                raise
+            return None
+
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -1064,12 +1076,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
+                result = _execute_callable(execute, context)
         except AirflowTaskTimeout:
             # TODO: handle on kill callback here
             raise
     else:
-        result = ctx.run(execute, context=context)
+        result = _execute_callable(execute, context)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
