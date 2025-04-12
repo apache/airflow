@@ -329,10 +329,9 @@ class Variable(Base, LoggingMixin):
             )
             from airflow.sdk import Variable as TaskSDKVariable
 
-            count = TaskSDKVariable.delete(
+            TaskSDKVariable.delete(
                 key=key,
             )
-            return count
 
         ctx: contextlib.AbstractContextManager
         if session is not None:

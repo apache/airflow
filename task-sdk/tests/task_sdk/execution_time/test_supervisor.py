@@ -61,7 +61,6 @@ from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
-    DeleteVariableCount,
     DeleteXCom,
     DRCount,
     ErrorResponse,
@@ -1062,11 +1061,11 @@ class TestHandleRequest:
             ),
             pytest.param(
                 DeleteVariable(key="test_key"),
-                b'{"count":1,"type":"DeleteVariableCount"}\n',
+                b'{"ok":true,"type":"OKResponse"}\n',
                 "variables.delete",
                 ("test_key",),
                 {},
-                DeleteVariableCount(count=1),
+                OKResponse(ok=True),
                 id="delete_variable",
             ),
             pytest.param(

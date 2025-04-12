@@ -240,7 +240,7 @@ class TestDeleteVariable:
 
         response = client.delete("/execution/variables/non_existent_key")
 
-        assert response.status_code == 200
+        assert response.status_code == 204
 
         vars = session.query(Variable).all()
         assert len(vars) == 1
