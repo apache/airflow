@@ -914,6 +914,11 @@ def provider_action_summary(description: str, message_type: MessageType, package
     is_flag=True,
     help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
 )
+@click.option(
+    "--skip-readme",
+    is_flag=True,
+    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -926,6 +931,7 @@ def prepare_provider_documentation(
     reapply_templates_only: bool,
     skip_git_fetch: bool,
     skip_changelog: bool,
+    skip_readme: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -982,6 +988,7 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    skip_readme=skip_readme,
                 )
             if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
@@ -2046,6 +2053,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
         python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
+        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 

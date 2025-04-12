@@ -1045,7 +1045,6 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_success_callback",
     "has_on_failure_callback",
     "auto_register",
-    "fail_fast",
     "schedule",
 }
 

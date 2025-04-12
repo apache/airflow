@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.10.6
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bring back serve_logs to be in the core (#49031)``
+
+Misc
+~~~~
+
+* ``Remove fab from preinstalled providers (#48457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Improve documentation building iteration (#48760)``
+
 3.10.5
 ......
 

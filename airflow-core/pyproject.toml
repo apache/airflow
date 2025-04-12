@@ -151,7 +151,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]",
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
 ]
 "async" = [
     "eventlet>=0.37.0",
@@ -163,9 +163,6 @@ dependencies = [
 ]
 "apache-webhdfs" = [
     "apache-airflow-providers-apache-hdfs",
-]
-"cgroups" = [
-    "cgroupspy>=0.2.2",
 ]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
@@ -223,7 +220,7 @@ dependencies = [
     "uv>=0.6.13",
 ]
 "all" = [
-    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
 ]
 
 [project.scripts]

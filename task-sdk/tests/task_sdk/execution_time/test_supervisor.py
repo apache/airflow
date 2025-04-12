@@ -72,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     TriggerDagRun,
     VariableResult,
@@ -1053,7 +1055,7 @@ class TestHandleRequest:
                 "variables.set",
                 ("test_key", "test_value", "test_description"),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_variable",
             ),
             pytest.param(
@@ -1147,7 +1149,7 @@ class TestHandleRequest:
                     None,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom",
             ),
             pytest.param(
@@ -1171,7 +1173,7 @@ class TestHandleRequest:
                     None,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom_with_map_index",
             ),
             pytest.param(
@@ -1196,7 +1198,7 @@ class TestHandleRequest:
                     3,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom_with_map_index_and_mapped_length",
             ),
             pytest.param(
@@ -1217,7 +1219,7 @@ class TestHandleRequest:
                     2,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="delete_xcom",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
@@ -1246,7 +1248,7 @@ class TestHandleRequest:
                 "task_instances.set_rtif",
                 (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_rtif",
             ),
             pytest.param(
@@ -1459,6 +1461,21 @@ class TestHandleRequest:
                 DRCount(count=2),
                 id="get_dr_count",
             ),
+            pytest.param(
+                GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
+                b'{"task_states":{"run_id":{"task1":"success","task2":"failed"}},"type":"TaskStatesResult"}\n',
+                "task_instances.get_task_states",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "task_ids": None,
+                    "logical_dates": None,
+                    "run_ids": None,
+                    "task_group_id": "test_group",
+                },
+                TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
+                id="get_task_states",
+            ),
         ],
     )
     def test_handle_requests(
@@ -1525,6 +1542,9 @@ class TestHandleRequest:
         # and deserialize it to the correct message type
 
         # Only decode the buffer if it contains data. An empty buffer implies no response was written.
+        if not val and (mock_response and not isinstance(mock_response, OKResponse)):
+            pytest.fail("Expected a response, but got an empty buffer.")
+
         if val:
             # Using BytesIO to simulate a readable stream for CommsDecoder.
             input_stream = BytesIO(val)
