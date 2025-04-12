@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
-from airflow.utils.log.file_task_handler import StructuredLogMessage
+from airflow.utils.log.file_task_handler import FIRST_TIME_READ_KEY, StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -74,6 +74,10 @@ class TaskLogReader:
         """
         Continuously read log to the end.
 
+        .. note::
+            We don't use `log_pos` anymore, we use `{identifier}_last_log_pos` in the metadata dict to keep track of
+            the last log position of each log source instead.
+
         :param ti: The Task Instance
         :param try_number: the task try number
         :param metadata: A dictionary containing information about how to read the task log
@@ -81,10 +85,14 @@ class TaskLogReader:
         if try_number is None:
             try_number = ti.try_number
 
-        for key in ("end_of_log", "max_offset", "offset", "log_pos"):
+        # We don't use `log_pos` anymore
+        for key in ("end_of_log", "max_offset", "offset"):
             metadata.pop(key, None)
         empty_iterations = 0
 
+        # We use `FIRST_TIME_READ_KEY` to indicate if this is the first time we are reading the log
+        # it should be set to `False` after the first `FileTaskHandler.read` call
+        metadata[FIRST_TIME_READ_KEY] = True
         while True:
             logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
