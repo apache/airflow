@@ -27,8 +27,10 @@ from collections.abc import Generator, Iterable
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
+from itertools import chain
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from types import GeneratorType
+from typing import IO, TYPE_CHECKING, Any, Callable, Optional, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -56,10 +58,11 @@ DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
 SORT_KEY_OFFSET = 10000000
 HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
+PARALLEL_YIELD_SIZE = HEAP_DUMP_SIZE // 100
 
 # These types are similar, but have distinct names to make processing them less error prone
-LogMessages: TypeAlias = Union[list["StructuredLogMessage"], list[str]]
-"""The log messages themselves, either in already sturcutured form, or a single string blob to be parsed later"""
+LogMessages: TypeAlias = list[str]
+"""The legacy format of log messages, represented as a single string blob to be parsed later."""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 LogMetadata: TypeAlias = dict[str, Any]
@@ -304,6 +307,71 @@ def _interleave_logs(*log_streams: RawLogStream) -> Iterable[StructuredLogMessag
     # free memory
     del heap
     del parsed_log_streams
+
+
+def _is_logs_stream_like(logs):
+    """Check if the logs are stream-like."""
+    return isinstance(logs, chain) or isinstance(logs, GeneratorType)
+
+
+def _get_compatible_log_stream(
+    log_messages: LogMessages,
+) -> RawLogStream:
+    """
+    Convert legacy log message blobs into a generator that yields log lines.
+
+    Instead of yielding each log message sequentially, this function interleaves log lines
+    from multiple sources in parallel. This is important to maintain the correct chronological
+    order when consumed by `_interleave_logs`.
+
+    Example:
+    ```
+    log_messages[0]:     a1a2a3a4a5
+    log_messages[1]:   b1b2
+    log_messages[2]:    c1c2c3c4
+
+    Parallel yielding: start from the beginning of each stream
+    output_log_stream -> a1b1c1a2b2c2...
+
+    Sequential yielding: exhaust one stream before moving to the next
+    output_log_stream -> a1a2a3a4a5b1b2c1c2c3c4
+    ```
+
+    :param log_messages: List of legacy log message strings.
+    :return: A generator that yields interleaved log lines.
+    """
+
+    def _parallel_yield_log_streams(log_streams: list[RawLogStream]) -> RawLogStream:
+        """
+        Parallel yield log lines from multiple streams.
+
+        :param log_streams: List of log line generators.
+        :return: A generator that yields lines from each stream in round-robin fashion.
+        """
+        lines_to_yield = []
+        while True:
+            if not log_streams:
+                break
+            # Add line from each stream
+            for stream in log_streams:
+                line: str | None = next(stream, None)
+                if line is None:
+                    log_streams.remove(stream)
+                    continue
+                lines_to_yield.append(line)
+
+            if len(lines_to_yield) >= PARALLEL_YIELD_SIZE:
+                yield from lines_to_yield
+                lines_to_yield.clear()
+
+        # Yield any remaining lines
+        if lines_to_yield:
+            yield from lines_to_yield
+        del lines_to_yield
+
+    return _parallel_yield_log_streams(
+        [_stream_lines_by_chunk(io.StringIO(message)) for message in log_messages]
+    )
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
