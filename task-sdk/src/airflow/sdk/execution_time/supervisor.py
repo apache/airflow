@@ -1064,7 +1064,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 states=msg.states,
             )
         elif isinstance(msg, DeleteVariable):
-            self.client.variables.delete(msg.key)
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return
