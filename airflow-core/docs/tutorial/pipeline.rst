@@ -145,7 +145,7 @@ We'll use the ``SQLExecuteQueryOperator`` to run the SQL statements needed to cr
           );""",
   )
 
-You can optionally please these SQL statements in ``.sql`` files inside your ``dags/`` folder and pass the file path to
+You can optionally place these SQL statements in ``.sql`` files inside your ``dags/`` folder and pass the file path to
 the ``sql=`` argument. This can be a great way to keep your DAG code clean.
 
 Load data into the staging table
