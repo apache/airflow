@@ -264,7 +264,7 @@ def _delete_variable(key: str) -> int:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.comms import DeleteVariable, DeleteVariableCount
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
@@ -273,7 +273,8 @@ def _delete_variable(key: str) -> int:
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
         msg = SUPERVISOR_COMMS.get_message()
-
+    if TYPE_CHECKING:
+        assert isinstance(msg, DeleteVariableCount)
     return msg.delete_count
 
 
