@@ -34,14 +34,70 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.3.1
+10.4.2
 ......
 
-Latest change: 2025-03-07
+Latest change: 2025-04-08
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`8e8c84fed2 <https://github.com/apache/airflow/commit/8e8c84fed21bd2af1bb49e3355d00dc95fb82f38>`__  2025-04-07   ``Update ECS executor to support Task SDK (#48513)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
+10.4.1
+......
+
+Latest change: 2025-04-06
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
+`32b4186010 <https://github.com/apache/airflow/commit/32b418601089ac340aa1408c55cdd206b11879c6>`__  2025-04-05   ``Remove old comment about excluding 'executor_config' (#48830)``
+`1ee519c2c4 <https://github.com/apache/airflow/commit/1ee519c2c4a3fb5973d78f4bfb4262e329b0fccf>`__  2025-04-05   ``No need to exclude executor_config specifically for KE (#48826)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`69f8682514 <https://github.com/apache/airflow/commit/69f8682514ad3889ad24a067cf3ee7cde4ad9161>`__  2025-04-02   ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+`606a3b2cad <https://github.com/apache/airflow/commit/606a3b2cade603728282ca958dc13ad8256c39d0>`__  2025-03-31   ``Fix broken ci on main for k8s cli test (#48595)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`511bd70e1d <https://github.com/apache/airflow/commit/511bd70e1dfffe0b09f2af54079f061ade01fa28>`__  2025-03-27   ``update kubernetes decorator comment (#48447)``
+`4c4de51dc4 <https://github.com/apache/airflow/commit/4c4de51dc4d0e4de8035817f287e7614b77e9742>`__  2025-03-26   ``Handle missing container_statuses in pod_manager.get_container_status (#47936)``
+==================================================================================================  ===========  ==================================================================================
+
+10.4.0
+......
+
+Latest change: 2025-03-26
+
+==================================================================================================  ===========  ================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`204020a329 <https://github.com/apache/airflow/commit/204020a329d954dca14ef30ea7f72c25782da85b>`__  2025-03-22   ``KubernetesPodOperator: add base_container_name to the templated fields (#47864)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`007be76f73 <https://github.com/apache/airflow/commit/007be76f7341d3671de95f6b0607c1dfb72fb778>`__  2025-03-16   ``Remove extra method for async hook getting (#47313)``
+`966ea18112 <https://github.com/apache/airflow/commit/966ea18112987d72fa449abd814c37cf07ed1444>`__  2025-03-16   ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`6994f1f76b <https://github.com/apache/airflow/commit/6994f1f76b6db6f7d50c5990fe02081226a7f2a0>`__  2025-03-12   ``Switch to non-interactive mode where stdin is disabled (#47568)``
+`1b643a4f65 <https://github.com/apache/airflow/commit/1b643a4f653b2eefcd27444ad7dd4159cdda04a9>`__  2025-03-11   `` Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
+==================================================================================================  ===========  ================================================================================================
+
+10.3.1
+......
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `092cc57f02 <https://github.com/apache/airflow/commit/092cc57f0257c55bfa4e7db9aa91d9c2525bca41>`__  2025-03-07   ``Get rid of google-re2 as dependency (#47493)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `1447705482 <https://github.com/apache/airflow/commit/144770548242295dc69d5ea7b7e11a748c246262>`__  2025-03-01   ``Fix codespell issues detected by new codespell (#47259)``

@@ -38,7 +38,7 @@ Upload data from GCS to Google Sheets
 To upload data from Google Cloud Storage to Google Spreadsheet you can use the
 :class:`~airflow.providers.google.suite.transfers.gcs_to_sheets.GCSToGoogleSheetsOperator`.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_to_sheets.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_to_sheets.py
     :language: python
     :dedent: 4
     :start-after: [START upload_gcs_to_sheets]

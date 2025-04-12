@@ -43,14 +43,14 @@ jobs:
         run: >
           python -m pip install --upgrade uv &&
           uv tool run towncrier check
-          --dir .
-          --config newsfragments/config.toml
+          --dir airflow-core
+          --config airflow-core/newsfragments/config.toml
           --compare-with origin/${BASE_REF}
           ||
           {
           printf "\033[1;33mMissing significant newsfragment for PR labeled with
           'airflow3.0:breaking'.\nCheck
-          https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst
+          https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst
           for guidance.\033[m\n"
           &&
           false

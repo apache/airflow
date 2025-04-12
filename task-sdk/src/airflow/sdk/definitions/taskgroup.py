@@ -36,14 +36,14 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
@@ -71,6 +71,11 @@ def _default_dag(instance: TaskGroup):
     if (pg := instance.parent_group) is not None:
         return pg.dag
     return DagContext.get_current()
+
+
+# Mypy does not like a lambda for some reason. An explicit annotated function makes it happy.
+def _validate_group_id(instance, attribute, value: str) -> None:
+    validate_group_key(value)
 
 
 @attrs.define(repr=False)
@@ -106,7 +111,7 @@ class TaskGroup(DAGNode):
     """
 
     _group_id: str | None = attrs.field(
-        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+        validator=attrs.validators.optional(_validate_group_id),
         # This is the default behaviour for attrs, but by specifying this it makes IDEs happier
         alias="group_id",
     )
@@ -338,6 +343,21 @@ class TaskGroup(DAGNode):
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
+        # Helper function to find leaves from a task list or task group
+        def find_leaves(group_or_task) -> list[Any]:
+            while group_or_task:
+                group_or_task_leaves = list(group_or_task.get_leaves())
+                if group_or_task_leaves:
+                    return group_or_task_leaves
+                if group_or_task.upstream_task_ids:
+                    upstream_task_ids_list = list(group_or_task.upstream_task_ids)
+                    return [self.dag.get_task(task_id) for task_id in upstream_task_ids_list]
+                group_or_task = group_or_task.parent_group
+            return []
+
+        # Check if the current TaskGroup is empty
+        leaves = find_leaves(self)
+
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
@@ -345,7 +365,7 @@ class TaskGroup(DAGNode):
             for task in self.get_roots():
                 task.set_upstream(task_or_task_list)
         else:
-            for task in self.get_leaves():
+            for task in leaves:  # Use the fetched leaves
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
@@ -598,7 +618,7 @@ class MappedTaskGroup(TaskGroup):
         self._expand_input = expand_input
 
     def __iter__(self):
-        from airflow.models.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
         for child in self.children.values():
             if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:

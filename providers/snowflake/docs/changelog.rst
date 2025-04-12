@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+6.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Send separate OpenLineage event for each Snowflake query_id (#47736)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 6.1.1
 .....
 
@@ -350,7 +381,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 5.1.1
 .....

@@ -33,7 +33,7 @@ Additional parameters can be provided depending on the queue provider.
 
 The example below shows how to schedule a DAG using MessageQueueTrigger.
 
-.. exampleinclude:: /../../providers/common/messaging/tests/system/common/messaging/example_message_queue_trigger.py
+.. exampleinclude:: /../tests/system/common/messaging/example_message_queue_trigger.py
     :language: python
     :start-after: [START howto_trigger_message_queue]
     :end-before: [END howto_trigger_message_queue]

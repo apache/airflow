@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, Union, overload
 
 import attrs
 
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from airflow.models.asset import AssetModel
+    from airflow.sdk.io.path import ObjectStoragePath
     from airflow.serialization.serialized_objects import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
@@ -60,7 +62,7 @@ log = logging.getLogger(__name__)
 
 
 @attrs.define(frozen=True)
-class AssetUniqueKey:
+class AssetUniqueKey(attrs.AttrsInstance):
     """
     Columns to identify an unique asset.
 
@@ -76,6 +78,13 @@ class AssetUniqueKey:
 
     def to_asset(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
+
+    @staticmethod
+    def from_str(key: str) -> AssetUniqueKey:
+        return AssetUniqueKey(**json.loads(key))
+
+    def to_str(self) -> str:
+        return json.dumps(attrs.asdict(self))
 
 
 @attrs.define(frozen=True)
@@ -121,13 +130,14 @@ def _get_normalized_scheme(uri: str) -> str:
     return parsed.scheme.lower()
 
 
-def _sanitize_uri(uri: str) -> str:
+def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
     """
     Sanitize an asset URI.
 
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
+    uri = str(inp)
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -305,7 +315,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         name: str,
-        uri: str,
+        uri: str | ObjectStoragePath,
         *,
         group: str = ...,
         extra: dict | None = None,
@@ -328,7 +338,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         *,
-        uri: str,
+        uri: str | ObjectStoragePath,
         group: str = ...,
         extra: dict | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
@@ -338,7 +348,7 @@ class Asset(os.PathLike, BaseAsset):
     def __init__(
         self,
         name: str | None = None,
-        uri: str | None = None,
+        uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
         extra: dict | None = None,
@@ -347,7 +357,7 @@ class Asset(os.PathLike, BaseAsset):
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
         elif name is None:
-            name = uri
+            name = str(uri)
         elif uri is None:
             uri = name
 
@@ -445,8 +455,11 @@ class Asset(os.PathLike, BaseAsset):
         yield DagDependency(
             source=source or "asset",
             target=target or "asset",
+            label=self.name,
             dependency_type="asset",
-            dependency_id=self.name,
+            # We can't get asset id at this stage.
+            # This will be updated when running SerializedDagModel.get_dag_dependencies
+            dependency_id=AssetUniqueKey.from_asset(self).to_str(),
         )
 
     def asprofile(self) -> AssetProfile:
@@ -455,7 +468,7 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        return AssetProfile(name=self.name or None, uri=self.uri or None, asset_type=Asset.__name__)
+        return AssetProfile(name=self.name or None, uri=self.uri or None, type=Asset.__name__)
 
 
 class AssetRef(BaseAsset, AttrsInstance):
@@ -467,6 +480,8 @@ class AssetRef(BaseAsset, AttrsInstance):
 
     :meta private:
     """
+
+    _dependency_type: Literal["asset-name-ref", "asset-uri-ref"]
 
     def as_expression(self) -> Any:
         return {"asset_ref": attrs.asdict(self)}
@@ -483,9 +498,10 @@ class AssetRef(BaseAsset, AttrsInstance):
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         (dependency_id,) = attrs.astuple(self)
         yield DagDependency(
-            source=source or "asset-ref",
-            target=target or "asset-ref",
-            dependency_type="asset-ref",
+            source=source or self._dependency_type,
+            target=target or self._dependency_type,
+            label=dependency_id,
+            dependency_type=self._dependency_type,
             dependency_id=dependency_id,
         )
 
@@ -496,12 +512,16 @@ class AssetNameRef(AssetRef):
 
     name: str
 
+    _dependency_type = "asset-name-ref"
+
 
 @attrs.define(hash=True)
 class AssetUriRef(AssetRef):
     """URI reference to an asset."""
 
     uri: str
+
+    _dependency_type = "asset-uri-ref"
 
 
 class Dataset(Asset):
@@ -549,6 +569,7 @@ class AssetAlias(BaseAsset):
         yield DagDependency(
             source=source or "asset-alias",
             target=target or "asset-alias",
+            label=self.name,
             dependency_type="asset-alias",
             dependency_id=self.name,
         )
@@ -637,7 +658,7 @@ class AssetAll(AssetBooleanCondition):
 
 
 @attrs.define
-class AssetAliasEvent:
+class AssetAliasEvent(attrs.AttrsInstance):
     """Representation of asset event to be triggered by an asset alias."""
 
     source_alias_name: str

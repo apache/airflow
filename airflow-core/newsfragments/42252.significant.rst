@@ -1,0 +1,20 @@
+Move bash operators from airflow core to standard provider
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.operators.bash.BashOperator`` → ``airflow.providers.standard.operators.bash.BashOperator``

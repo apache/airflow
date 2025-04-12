@@ -28,9 +28,9 @@ from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.listeners import hookimpl
-from airflow.models import DagRun
+from airflow.models import DagRun, TaskInstance
 from airflow.providers.openlineage import conf
-from airflow.providers.openlineage.extractors import ExtractorManager
+from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_2_10_PLUS,
@@ -53,7 +53,6 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.settings import Session
 
@@ -69,13 +68,15 @@ def _get_try_number_success(val):
 
 def _executor_initializer():
     """
-    Initialize worker processes for the executor used for DagRun listener.
+    Initialize processes for the executor used with DAGRun listener's methods (on scheduler).
 
     This function must be picklable, so it cannot be defined as an inner method or local function.
 
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
     the Airflow database.
     """
+    # This initializer is used only on the scheduler
+    # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
     settings.configure_orm()
 
 
@@ -199,7 +200,9 @@ class OpenLineageListener:
             operator_name = task.task_type.lower()
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
-                task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun=dagrun, task=task, task_instance_state=TaskInstanceState.RUNNING
+                )
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
@@ -231,9 +234,17 @@ class OpenLineageListener:
 
         @hookimpl
         def on_task_instance_success(
-            self, previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance
+            self, previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance | TaskInstance
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance success")
+
+            if isinstance(task_instance, TaskInstance):
+                self._on_task_instance_manual_state_change(
+                    ti=task_instance,
+                    dagrun=task_instance.dag_run,
+                    ti_state=TaskInstanceState.SUCCESS,
+                )
+                return
 
             context = task_instance.get_template_context()
             task = context["task"]
@@ -302,7 +313,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.SUCCESS,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.complete_task(
@@ -331,10 +345,20 @@ class OpenLineageListener:
         def on_task_instance_failed(
             self,
             previous_state: TaskInstanceState,
-            task_instance: TaskInstance,
+            task_instance: RuntimeTaskInstance | TaskInstance,
             error: None | str | BaseException,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance failure")
+
+            if isinstance(task_instance, TaskInstance):
+                self._on_task_instance_manual_state_change(
+                    ti=task_instance,
+                    dagrun=task_instance.dag_run,
+                    ti_state=TaskInstanceState.FAILED,
+                    error=error,
+                )
+                return
+
             context = task_instance.get_template_context()
             task = context["task"]
             if TYPE_CHECKING:
@@ -423,7 +447,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.FAILED,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.fail_task(
@@ -446,6 +473,60 @@ class OpenLineageListener:
             )
 
         self._execute(on_failure, "on_failure", use_fork=True)
+
+    def _on_task_instance_manual_state_change(
+        self,
+        ti: TaskInstance,
+        dagrun: DagRun,
+        ti_state: TaskInstanceState,
+        error: None | str | BaseException = None,
+    ) -> None:
+        self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
+        end_date = timezone.utcnow()
+
+        @print_warning(self.log)
+        def on_state_change():
+            date = dagrun.logical_date or dagrun.run_after
+            parent_run_id = self.adapter.build_dag_run_id(
+                dag_id=dagrun.dag_id,
+                logical_date=date,
+                clear_number=dagrun.clear_number,
+            )
+
+            task_uuid = self.adapter.build_task_instance_run_id(
+                dag_id=dagrun.dag_id,
+                task_id=ti.task_id,
+                try_number=ti.try_number,
+                logical_date=date,
+                map_index=ti.map_index,
+            )
+
+            adapter_kwargs = {
+                "run_id": task_uuid,
+                "job_name": get_job_name(ti),
+                "parent_job_name": dagrun.dag_id,
+                "parent_run_id": parent_run_id,
+                "end_time": end_date.isoformat(),
+                "task": OperatorLineage(),
+                "run_facets": get_airflow_debug_facet(),
+            }
+
+            if ti_state == TaskInstanceState.FAILED:
+                event_type = RunState.FAIL.value.lower()
+                redacted_event = self.adapter.fail_task(**adapter_kwargs, error=error)
+            elif ti_state == TaskInstanceState.SUCCESS:
+                event_type = RunState.COMPLETE.value.lower()
+                redacted_event = self.adapter.complete_task(**adapter_kwargs)
+            else:
+                raise ValueError(f"Unsupported ti_state: `{ti_state}`.")
+
+            operator_name = ti.operator.lower()
+            Stats.gauge(
+                f"ol.event.size.{event_type}.{operator_name}",
+                len(Serde.to_json(redacted_event).encode("utf-8")),
+            )
+
+        self._execute(on_state_change, "on_state_change", use_fork=True)
 
     def _execute(self, callable, callable_name: str, use_fork: bool = False):
         if use_fork:
@@ -472,7 +553,9 @@ class OpenLineageListener:
                 process.wait(conf.execution_timeout())
             except psutil.TimeoutExpired:
                 self.log.warning(
-                    "OpenLineage process %s expired. This should not affect process execution.", pid
+                    "OpenLineage process with pid `%s` expired and will be terminated by listener. "
+                    "This has no impact on actual task execution status.",
+                    pid,
                 )
                 self._terminate_with_wait(process)
             except BaseException:
@@ -481,7 +564,8 @@ class OpenLineageListener:
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            configure_orm(disable_connection_pool=True)
+            if not AIRFLOW_V_3_0_PLUS:
+                configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
             callable()
             self.log.debug("Process with current pid finishes after %s", callable_name)

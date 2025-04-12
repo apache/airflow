@@ -26,7 +26,7 @@ from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, OUT_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, OUT_PATH
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 
@@ -88,11 +88,11 @@ def git_clean():
 
 def tarball_release(version: str, version_without_rc: str, source_date_epoch: int):
     console_print(f"[info]Creating tarball for Airflow {version}")
-    shutil.rmtree(OUT_DIR, ignore_errors=True)
-    DIST_DIR.mkdir(exist_ok=True)
-    OUT_DIR.mkdir(exist_ok=True)
+    shutil.rmtree(OUT_PATH, ignore_errors=True)
+    OUT_PATH.mkdir(exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
     archive_name = f"apache-airflow-{version_without_rc}-source.tar.gz"
-    temporary_archive = OUT_DIR / archive_name
+    temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
             "git",
@@ -110,7 +110,7 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
     if result.returncode != 0:
         console_print(f"[error]Failed to create tarball {temporary_archive} for Airflow {version}")
         exit(result.returncode)
-    final_archive = DIST_DIR / archive_name
+    final_archive = AIRFLOW_DIST_PATH / archive_name
     result = repack_deterministically(
         source_archive=temporary_archive,
         dest_archive=final_archive,
@@ -125,15 +125,15 @@ def tarball_release(version: str, version_without_rc: str, source_date_epoch: in
 
 def create_artifacts_with_hatch(source_date_epoch: int):
     console_print("[info]Creating artifacts with hatch")
-    shutil.rmtree(DIST_DIR, ignore_errors=True)
-    DIST_DIR.mkdir(exist_ok=True)
+    shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
+    AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     run_command(
         ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
     )
     console_print("[success]Successfully prepared Airflow packages:")
-    for file in sorted(DIST_DIR.glob("apache_airflow*")):
+    for file in sorted(AIRFLOW_DIST_PATH.glob("apache_airflow*")):
         console_print(print(file.name))
     console_print()
 
@@ -144,8 +144,8 @@ def create_artifacts_with_docker():
         [
             "breeze",
             "release-management",
-            "prepare-airflow-package",
-            "--package-format",
+            "prepare-airflow-distributions",
+            "--distribution-format",
             "both",
         ],
         check=True,
@@ -243,16 +243,16 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
             [
                 "breeze",
                 "release-management",
-                "prepare-airflow-package",
+                "prepare-airflow-distributions",
                 "--version-suffix-for-pypi",
                 f"{version_suffix}",
-                "--package-format",
+                "--distribution-format",
                 "both",
             ],
             check=True,
         )
         files_to_check = []
-        for files in Path(DIST_DIR).glob("apache_airflow*"):
+        for files in Path(AIRFLOW_DIST_PATH).glob("apache_airflow*"):
             if "-sources" not in files.name:
                 files_to_check.append(files.as_posix())
         run_command(["twine", "check", *files_to_check], check=True)
@@ -293,7 +293,7 @@ def push_release_candidate_tag_to_github(version):
             """
         This step should only be done now and not before, because it triggers an automated
         build of the production docker image, using the packages that are currently released
-        in PyPI (both airflow and latest provider packages).
+        in PyPI (both airflow and latest provider distributions).
         """
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
@@ -345,7 +345,7 @@ def prepare_airflow_tarball(version: str):
     airflow_version = Version(version)
     if not airflow_version.is_prerelease:
         exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(
@@ -381,7 +381,7 @@ def publish_release_candidate(version, previous_version, github_token):
     version_suffix = airflow_version.pre[0] + str(airflow_version.pre[1])
     version_branch = str(airflow_version.release[0]) + "-" + str(airflow_version.release[1])
     version_without_rc = airflow_version.base_version
-    os.chdir(AIRFLOW_SOURCES_ROOT)
+    os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
 
     # List the above variables and ask for confirmation
@@ -405,8 +405,8 @@ def publish_release_candidate(version, previous_version, github_token):
     # # Tag & clean the repo
     git_tag(version)
     git_clean()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
-    shutil.rmtree(DIST_DIR, ignore_errors=True)
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
+    shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     # Create the artifacts
     if confirm_action("Use docker to create artifacts?"):
         create_artifacts_with_docker()

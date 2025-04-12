@@ -210,7 +210,13 @@ def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
 
     if not ti.task.reschedule:
         return False
-
+    if AIRFLOW_V_3_0_PLUS:
+        return (
+            session.query(
+                exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+            ).scalar()
+            is True
+        )
     return (
         session.query(
             exists().where(
@@ -316,6 +322,7 @@ class DagInfo(InfoJsonEncodable):
         "description",
         "fileloc",
         "owner",
+        "owner_links",
         "schedule_interval",  # For Airflow 2.
         "timetable_summary",  # For Airflow 3.
         "start_date",
@@ -366,10 +373,23 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "logical_date",  # Airflow 3
+        "run_after",  # Airflow 3
         "run_id",
         "run_type",
         "start_date",
+        "end_date",
     ]
+
+    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+
+    @classmethod
+    def duration(cls, dagrun: DagRun) -> float | None:
+        if not getattr(dagrun, "end_date", None) or not isinstance(dagrun.end_date, datetime.datetime):
+            return None
+        if not getattr(dagrun, "start_date", None) or not isinstance(dagrun.start_date, datetime.datetime):
+            return None
+        return (dagrun.end_date - dagrun.start_date).total_seconds()
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
@@ -425,7 +445,6 @@ class TaskInfo(InfoJsonEncodable):
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
-        "weight_rule",
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -740,7 +759,9 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception:
                 log.warning(
-                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    "OpenLineage event emission failed. "
+                    "Exception below is being caught but it's printed for visibility. "
+                    "This has no impact on actual task execution status.",
                     exc_info=True,
                 )
 

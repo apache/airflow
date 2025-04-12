@@ -42,11 +42,11 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ORIGINAL_PROVIDERS_DIR,
-    AIRFLOW_PROVIDERS_DIR,
-    BREEZE_SOURCES_DIR,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    BREEZE_SOURCES_PATH,
     DOCS_ROOT,
-    PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
+    PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH,
+    PROVIDER_DEPENDENCIES_JSON_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
     PROVIDER_DATA_SCHEMA_PATH,
@@ -81,12 +81,12 @@ class ProviderPackageDetails(NamedTuple):
     source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
-    original_source_provider_package_path: Path
+    original_source_provider_distribution_path: Path
     root_provider_path: Path
     base_provider_package_path: Path
-    documentation_provider_package_path: Path
-    previous_documentation_provider_package_path: Path
-    previous_source_provider_package_path: Path
+    documentation_provider_distribution_path: Path
+    previous_documentation_provider_distribution_path: Path
+    previous_source_provider_distribution_path: Path
     changelog_path: Path
     provider_description: str
     dependencies: list[str]
@@ -162,14 +162,14 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
 
 
 def clear_cache_for_provider_metadata(provider_yaml_path: Path):
-    get_provider_packages_metadata.cache_clear()
+    get_provider_distributions_metadata.cache_clear()
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
 @clearable_cache
 def get_all_provider_yaml_paths() -> list[Path]:
     """Returns list of provider.yaml files"""
-    return sorted(list(AIRFLOW_PROVIDERS_DIR.glob("**/provider.yaml")))
+    return sorted(list(AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/provider.yaml")))
 
 
 def get_provider_id_from_path(file_path: Path) -> str | None:
@@ -191,7 +191,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
 
 
 @clearable_cache
-def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
+def get_provider_distributions_metadata() -> dict[str, dict[str, Any]]:
     """
     Load all data from providers files
 
@@ -228,21 +228,33 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
         raise SystemExit(1)
 
 
+def filter_provider_info_data(provider_info: dict[str, Any]) -> dict[str, Any]:
+    json_schema_dict = json.loads(PROVIDER_RUNTIME_DATA_SCHEMA_PATH.read_text())
+    runtime_properties = json_schema_dict["properties"].keys()
+    return_dict = {
+        property: provider_info[property]
+        for property in provider_info.keys()
+        if property in runtime_properties
+    }
+    return return_dict
+
+
 def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """Retrieves provider info from the provider yaml file.
 
     :param provider_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
-    provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
+    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     if provider_yaml_dict:
+        provider_yaml_dict = filter_provider_info_data(provider_yaml_dict)
         validate_provider_info_with_runtime_schema(provider_yaml_dict)
     return provider_yaml_dict or {}
 
 
 @lru_cache
 def get_suspended_provider_ids() -> list[str]:
-    return get_available_packages(include_suspended=True, include_regular=False)
+    return get_available_distributions(include_suspended=True, include_regular=False)
 
 
 @lru_cache
@@ -252,7 +264,7 @@ def get_suspended_provider_folders() -> list[str]:
 
 @lru_cache
 def get_excluded_provider_ids(python_version: str) -> list[str]:
-    metadata = get_provider_packages_metadata()
+    metadata = get_provider_distributions_metadata()
     return [
         provider_id
         for provider_id, provider_metadata in metadata.items()
@@ -267,21 +279,21 @@ def get_excluded_provider_folders(python_version: str) -> list[str]:
 
 @lru_cache
 def get_removed_provider_ids() -> list[str]:
-    return get_available_packages(include_removed=True, include_regular=False)
+    return get_available_distributions(include_removed=True, include_regular=False)
 
 
 @lru_cache
 def get_not_ready_provider_ids() -> list[str]:
-    return get_available_packages(include_not_ready=True, include_regular=False)
+    return get_available_distributions(include_not_ready=True, include_regular=False)
 
 
 def get_provider_requirements(provider_id: str) -> list[str]:
-    package_metadata = get_provider_packages_metadata().get(provider_id)
+    package_metadata = get_provider_distributions_metadata().get(provider_id)
     return package_metadata["dependencies"] if package_metadata else []
 
 
 @lru_cache
-def get_available_packages(
+def get_available_distributions(
     include_non_provider_doc_packages: bool = False,
     include_all_providers: bool = False,
     include_suspended: bool = False,
@@ -301,7 +313,7 @@ def get_available_packages(
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
     valid_states = set()
     if include_not_ready:
@@ -324,7 +336,7 @@ def get_available_packages(
     return sorted(set(available_packages))
 
 
-def expand_all_provider_packages(
+def expand_all_provider_distributions(
     short_doc_packages: tuple[str, ...],
     include_removed: bool = False,
     include_not_ready: bool = False,
@@ -333,7 +345,7 @@ def expand_all_provider_packages(
     if "all-providers" in short_doc_packages:
         packages = [package for package in short_doc_packages if package != "all-providers"]
         packages.extend(
-            get_available_packages(include_removed=include_removed, include_not_ready=include_not_ready)
+            get_available_distributions(include_removed=include_removed, include_not_ready=include_not_ready)
         )
         short_doc_packages = tuple(set(packages))
     return short_doc_packages
@@ -386,7 +398,7 @@ def find_matching_long_package_names(
     :param filters: package filters specified
     """
     available_doc_packages = list(
-        get_long_package_names(get_available_packages(include_non_provider_doc_packages=True))
+        get_long_package_names(get_available_distributions(include_non_provider_doc_packages=True))
     )
     if not filters and not short_packages:
         available_doc_packages.extend(filters or ())
@@ -396,7 +408,7 @@ def find_matching_long_package_names(
     processed_package_filters.extend(get_long_package_names(short_packages))
 
     removed_packages: list[str] = [
-        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+        f"apache-airflow-providers-{provider.replace('.', '-')}" for provider in get_removed_provider_ids()
     ]
     all_packages_including_removed: list[str] = available_doc_packages + removed_packages
     invalid_filters = [
@@ -420,15 +432,15 @@ def find_matching_long_package_names(
 
 # !!!! We should not remove those old/original package paths as they are used to get changes
 # When documentation is generated using git_log
-def get_original_source_package_path(provider_id: str) -> Path:
+def get_original_source_distribution_path(provider_id: str) -> Path:
     return AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split("."))
 
 
-def get_previous_source_providers_package_path(provider_id: str) -> Path:
-    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+def get_previous_source_providers_distribution_path(provider_id: str) -> Path:
+    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split("."))
 
 
-def get_previous_documentation_package_path(provider_id: str) -> Path:
+def get_previous_documentation_distribution_path(provider_id: str) -> Path:
     return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
 
 
@@ -436,7 +448,7 @@ def get_previous_documentation_package_path(provider_id: str) -> Path:
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split(".")) / "docs"
+    return AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "docs"
 
 
 def get_pip_package_name(provider_id: str) -> str:
@@ -489,7 +501,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
 
 
 def get_provider_yaml(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
+    return AIRFLOW_PROVIDERS_ROOT_PATH / provider_id.replace(".", "/") / "provider.yaml"
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
@@ -508,7 +520,7 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
 
 
 def get_provider_details(provider_id: str) -> ProviderPackageDetails:
-    provider_info = get_provider_packages_metadata().get(provider_id)
+    provider_info = get_provider_distributions_metadata().get(provider_id)
     if not provider_info:
         raise RuntimeError(f"The provider {provider_id} has no provider.yaml defined.")
     plugins: list[PluginInfo] = []
@@ -526,7 +538,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     pyproject_toml = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
     dependencies = pyproject_toml["project"]["dependencies"]
     changelog_path = provider_yaml_path.parent / "docs" / "changelog.rst"
-    documentation_provider_package_path = get_documentation_package_path(provider_id)
+    documentation_provider_distribution_path = get_documentation_package_path(provider_id)
     root_provider_path = provider_yaml_path.parent
     base_provider_package_path = (provider_yaml_path.parent / "src" / "airflow" / "providers").joinpath(
         *provider_id.split(".")
@@ -539,10 +551,14 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         root_provider_path=root_provider_path,
         base_provider_package_path=base_provider_package_path,
-        original_source_provider_package_path=get_original_source_package_path(provider_id),
-        previous_documentation_provider_package_path=get_previous_documentation_package_path(provider_id),
-        previous_source_provider_package_path=get_previous_source_providers_package_path(provider_id),
-        documentation_provider_package_path=documentation_provider_package_path,
+        original_source_provider_distribution_path=get_original_source_distribution_path(provider_id),
+        previous_documentation_provider_distribution_path=get_previous_documentation_distribution_path(
+            provider_id
+        ),
+        previous_source_provider_distribution_path=get_previous_source_providers_distribution_path(
+            provider_id
+        ),
+        documentation_provider_distribution_path=documentation_provider_distribution_path,
         changelog_path=changelog_path,
         provider_description=provider_info["description"],
         dependencies=dependencies,
@@ -594,8 +610,8 @@ def convert_cross_package_dependencies_to_table(
     prefix = "apache-airflow-providers-"
     base_url = "https://airflow.apache.org/docs/"
     for dependency in cross_package_dependencies:
-        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        url_suffix = f"{dependency.replace('.','-')}"
+        pip_package_name = f"{prefix}{dependency.replace('.', '-')}"
+        url_suffix = f"{dependency.replace('.', '-')}"
         if markdown:
             url = f"[{pip_package_name}]({base_url}{url_suffix})"
         else:
@@ -604,10 +620,10 @@ def convert_cross_package_dependencies_to_table(
     return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
 
 
-def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]:
-    if provider_package_id in get_removed_provider_ids():
+def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
+    if provider_id in get_removed_provider_ids():
         return []
-    return PROVIDER_DEPENDENCIES[provider_package_id]["cross-providers-deps"]
+    return PROVIDER_DEPENDENCIES[provider_id]["cross-providers-deps"]
 
 
 def format_version_suffix(version_suffix: str) -> str:
@@ -642,7 +658,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
+    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
 
     # Most providers require the same python versions, but some may have exclusions
     requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
@@ -661,7 +677,7 @@ def get_provider_jinja_context(
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.root_provider_path,
-            provider_details.documentation_provider_package_path,
+            provider_details.documentation_provider_distribution_path,
         ),
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
@@ -703,7 +719,7 @@ def render_template(
     """
     import jinja2
 
-    template_loader = jinja2.FileSystemLoader(searchpath=BREEZE_SOURCES_DIR / "airflow_breeze" / "templates")
+    template_loader = jinja2.FileSystemLoader(searchpath=BREEZE_SOURCES_PATH / "airflow_breeze" / "templates")
     template_env = jinja2.Environment(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
@@ -769,7 +785,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
             f"[error]Error {e}[/]\n"
             f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
             f'[warning]Please refresh the tags manually via:[/]\n\n"'
-            f'{" ".join(fetch_command)}\n\n'
+            f"{' '.join(fetch_command)}\n\n"
         )
         sys.exit(1)
 
@@ -813,13 +829,6 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     provider_details = get_provider_details(provider_id)
     current_version = provider_details.versions[0]
     return get_version_tag(current_version, provider_id, suffix)
-
-
-IMPLICIT_CROSS_PROVIDERS_DEPENDENCIES = [
-    "common.sql",
-    "fab",
-    "standard",
-]
 
 
 def regenerate_pyproject_toml(
@@ -901,10 +910,9 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = "\n" + "\n".join(cross_provider_dependencies)
     else:  # If there are no cross-provider dependencies, we need to remove the line
         formatted_cross_provider_dependencies = ""
-
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
-    get_pyproject_toml_content = render_template(
+    pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
         extension=".toml",
@@ -913,7 +921,7 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
-    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_pyproject_toml_path.write_text(pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
     )

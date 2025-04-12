@@ -17,41 +17,45 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
-from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from packaging.version import parse
-
-from airflow import __version__ as airflow_version
+from airflow.providers.common.compat.openlineage.check import require_openlineage_version
+from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from packaging.version import Version
-
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
     from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
     from airflow.providers.openlineage.extractors.base import OperatorLineage
 
 
-_AIRFLOW_VERSION: Version = parse(parse(airflow_version).base_version)
+log = logging.getLogger(__name__)
 
 
 def _get_logical_date(task_instance):
     # todo: remove when min airflow version >= 3.0
-    if parse("3") > _AIRFLOW_VERSION:
-        return task_instance.execution_date
-    return task_instance.logical_date
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.logical_date or dagrun.run_after
+
+    if hasattr(task_instance, "logical_date"):
+        date = task_instance.logical_date
+    else:
+        date = task_instance.execution_date
+
+    return date
 
 
 def _get_try_number(val):
     # todo: remove when min airflow version >= 2.10.0
-    if parse("2.10.0") > _AIRFLOW_VERSION:
-        return val.try_number - 1
-    else:
+    if AIRFLOW_V_2_10_PLUS:
         return val.try_number
+    return val.try_number - 1
 
 
+@require_openlineage_version(provider_min_version="2.0.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
@@ -71,14 +75,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
 
-    try:
-        from airflow.providers.openlineage.conf import namespace
-    except ModuleNotFoundError as e:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-        msg = "Please install `apache-airflow-providers-openlineage>=1.7.0`"
-        raise AirflowOptionalProviderFeatureException(e, msg)
-
+    from airflow.providers.openlineage.conf import namespace
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import (
         _PRODUCER,
@@ -87,6 +84,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 
     # if no account_id set this will fallback
+    log.debug("Retrieving information about DBT job run.")
     job_run = operator.hook.get_job_run(
         run_id=operator.run_id, account_id=operator.account_id, include_related=["run_steps,job"]
     ).json()["data"]
@@ -98,6 +96,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     execute_steps = job["execute_steps"]
     run_steps = job_run["run_steps"]
 
+    log.debug("Filtering only DBT invocation steps for further processing.")
     # filter only dbt invocation steps
     steps = []
     for run_step in run_steps:
@@ -110,8 +109,15 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     # catalog is available only if docs are generated
     catalog = None
-    with suppress(Exception):
+    try:
+        log.debug("Retrieving information about catalog artifact from DBT.")
         catalog = operator.hook.get_job_run_artifact(operator.run_id, path="catalog.json").json()["data"]
+    except Exception:  # type: ignore
+        log.info(
+            "Openlineage could not find DBT catalog artifact, usually available when docs are generated."
+            "Proceeding with metadata extraction. "
+            "If you see error logs above about `HTTP error: Not Found` it's safe to ignore them."
+        )
 
     async def get_artifacts_for_steps(steps, artifacts):
         """Get artifacts for a list of steps concurrently."""
@@ -127,16 +133,37 @@ def generate_openlineage_events_from_dbt_cloud_run(
         return await asyncio.gather(*tasks)
 
     # get artifacts for steps concurrently
+    log.debug("Retrieving information about artifacts for all job steps from DBT.")
     step_artifacts = asyncio.run(
         get_artifacts_for_steps(steps=steps, artifacts=["manifest.json", "run_results.json"])
     )
 
+    log.debug("Preparing OpenLineage parent job information to be included in DBT events.")
+    # generate same run id of current task instance
+    parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id=task_instance.dag_id,
+        task_id=operator.task_id,
+        logical_date=_get_logical_date(task_instance),
+        try_number=_get_try_number(task_instance),
+        map_index=task_instance.map_index,
+    )
+
+    parent_job = ParentRunMetadata(
+        run_id=parent_run_id,
+        job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
+        job_namespace=namespace(),
+    )
+    client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+
     # process each step in loop, sending generated events in the same order as steps
-    for artifacts in step_artifacts:
+    for counter, artifacts in enumerate(step_artifacts, 1):
+        log.debug("Parsing information about artifact no. %s.", counter)
+
         # process manifest
         manifest = artifacts["manifest.json"]
 
         if not artifacts.get("run_results.json", None):
+            log.debug("No run results found for artifact no. %s. Skipping.", counter)
             continue
 
         processor = DbtCloudArtifactProcessor(
@@ -150,26 +177,14 @@ def generate_openlineage_events_from_dbt_cloud_run(
             catalog=catalog,
         )
 
-        # generate same run id of current task instance
-        parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
-            dag_id=task_instance.dag_id,
-            task_id=operator.task_id,
-            logical_date=_get_logical_date(task_instance),
-            try_number=_get_try_number(task_instance),
-            map_index=task_instance.map_index,
-        )
-
-        parent_job = ParentRunMetadata(
-            run_id=parent_run_id,
-            job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
-            job_namespace=namespace(),
-        )
         processor.dbt_run_metadata = parent_job
 
         events = processor.parse().events()
-
-        client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
+        log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)
 
         for event in events:
             client.emit(event=event)
+        log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
+
+    log.info("OpenLineage has successfully finished processing information about DBT job run.")
     return OperatorLineage()

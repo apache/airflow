@@ -25,13 +25,20 @@ import time_machine
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.xcom import XCom
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
+from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
+from airflow.providers.standard.utils.weekday import WeekDay
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.weekday import WeekDay
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -105,20 +112,28 @@ class TestBranchDayOfWeekOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.NONE,
-                "branch_3": State.SKIPPED,
-            },
-        )
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            assert exc_info.value.tasks == [("branch_3", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.NONE,
+                    "branch_2": State.NONE,
+                    "branch_3": State.SKIPPED,
+                },
+            )
 
     @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true_with_logical_date(self, dag_maker):
@@ -143,19 +158,52 @@ class TestBranchDayOfWeekOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            },
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            assert exc_info.value.tasks == [("branch_2", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.NONE,
+                    "branch_2": State.SKIPPED,
+                },
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
+    @time_machine.travel("2021-01-25")  # Monday
+    def test_choose_branch_should_use_run_after_when_logical_date_none(self, dag_maker):
+        with dag_maker(
+            "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
+        ):
+            branch_op = BranchDayOfWeekOperator(
+                task_id="make_choice",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                week_day="Wednesday",
+                use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
+            )
+            branch_1 = EmptyOperator(task_id="branch_1")
+            branch_2 = EmptyOperator(task_id="branch_2")
+            branch_1.set_upstream(branch_op)
+            branch_2.set_upstream(branch_op)
+
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            **{"run_after": DEFAULT_DATE},
         )
+        assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"
 
     @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_false(self, dag_maker):
@@ -179,19 +227,27 @@ class TestBranchDayOfWeekOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.SKIPPED,
-                "branch_2": State.NONE,
-            },
-        )
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            assert exc_info.value.tasks == [("branch_1", -1)]
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.SKIPPED,
+                    "branch_2": State.NONE,
+                },
+            )
 
     def test_branch_with_no_weekday(self, dag_maker):
         """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
@@ -276,12 +332,24 @@ class TestBranchDayOfWeekOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
         )
+        branch_op_ti = dr.get_task_instance(branch_op.task_id)
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        tis = dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == "make_choice":
-                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                branch_op_ti.run()
+
+            assert exc_info.value.tasks == [("branch_2", -1)]
+            assert branch_op_ti.xcom_pull(task_ids="make_choice", key=XCOM_SKIPMIXIN_KEY) == {
+                XCOM_SKIPMIXIN_FOLLOWED: ["branch_1"]
+            }
+        else:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            tis = dr.get_task_instances()
+            for ti in tis:
+                if ti.task_id == "make_choice":
+                    assert ti.xcom_pull(task_ids="make_choice") == "branch_1"

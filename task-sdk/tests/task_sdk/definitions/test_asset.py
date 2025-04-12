@@ -37,6 +37,7 @@ from airflow.sdk.definitions.asset import (
     _sanitize_uri,
 )
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.io import ObjectStoragePath
 from airflow.serialization.serialized_objects import SerializedDAG
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
@@ -131,6 +132,12 @@ def test_uri_without_scheme():
     EmptyOperator(task_id="task1", outlets=[asset])
 
 
+def test_objectstoragepath():
+    o = ObjectStoragePath("file:///123/456")
+    a = Asset(name="o", uri=o)
+    assert a.uri == "file:///123/456"
+
+
 def test_fspath():
     uri = "s3://example/asset"
     asset = Asset(uri=uri)
@@ -220,12 +227,12 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
     # Verify serialization and deserialization integrity
-    assert isinstance(
-        deserialized_dag.timetable.asset_condition, AssetAny
-    ), "Deserialized assets should maintain type AssetAny"
-    assert (
-        deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
-    ), "Deserialized assets should match original"
+    assert isinstance(deserialized_dag.timetable.asset_condition, AssetAny), (
+        "Deserialized assets should maintain type AssetAny"
+    )
+    assert deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects, (
+        "Deserialized assets should match original"
+    )
 
 
 def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:

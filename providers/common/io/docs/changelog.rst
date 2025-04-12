@@ -25,6 +25,46 @@
 Changelog
 ---------
 
+1.5.3
+.....
+
+Misc
+~~~~
+
+* ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix common-io and common-compat provider description format (#48864)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+
+1.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix PosixPath not working with file create_asset (#47880)``
+* ``convert non-absolute file path to prevent namespace explosion (#47818)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.5.1
 .....
 
@@ -203,7 +243,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 1.0.1 (YANKED)

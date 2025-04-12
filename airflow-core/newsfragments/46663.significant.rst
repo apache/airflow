@@ -1,0 +1,31 @@
+Removed configuration ``scheduler.allow_trigger_in_future``.
+
+A DAG run with logical date in the future can never be started now. This only affects ``schedule=None``.
+
+Instead of using a future date, you can trigger with ``logical_date=None``. A custom ``run_id`` can be supplied if desired. If a date is needed, it can be passed as a DAG param instead.
+
+Property ``allow_future_exec_dates`` on the DAG class has also been removed.
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] property ``airflow...DAG.allow_future_exec_dates``
+
+  * ``airflow config lint``
+
+    * [x] ``scheduler.allow_trigger_in_future``

@@ -20,19 +20,19 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbAvailableTrigger,
     RdsDbDeletedTrigger,
     RdsDbStoppedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -44,9 +44,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class RdsBaseOperator(BaseOperator):
+class RdsBaseOperator(AwsBaseOperator[RdsHook]):
     """Base operator that implements common functions for all operators."""
 
+    aws_hook_class = RdsHook
     ui_color = "#eeaa88"
     ui_fgcolor = "#ffffff"
 
@@ -62,10 +63,6 @@ class RdsBaseOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
-
-    @cached_property
-    def hook(self) -> RdsHook:
-        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context) -> str:
         """Different implementations for snapshots, tasks and events."""
@@ -92,9 +89,19 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
     :param tags: A dictionary of tags or a list of tags in format `[{"Key": "...", "Value": "..."},]`
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     :param wait_for_completion:  If True, waits for creation of the DB snapshot to complete. (default: True)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is ``None`` or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_snapshot_identifier", "db_identifier", "tags")
+    template_fields = aws_template_fields("db_snapshot_identifier", "db_identifier", "tags")
 
     def __init__(
         self,
@@ -167,9 +174,14 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
         Only when db_type='instance'
     :param source_region: The ID of the region that contains the snapshot to be copied
     :param wait_for_completion:  If True, waits for snapshot copy to complete. (default: True)
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = (
+    template_fields = aws_template_fields(
         "source_db_snapshot_identifier",
         "target_db_snapshot_identifier",
         "tags",
@@ -260,9 +272,16 @@ class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
 
     :param db_type: Type of the DB - either "instance" or "cluster"
     :param db_snapshot_identifier: The identifier for the DB instance or DB cluster snapshot
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_snapshot_identifier",)
+    template_fields = aws_template_fields(
+        "db_snapshot_identifier",
+    )
 
     def __init__(
         self,
@@ -319,9 +338,14 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     :param wait_for_completion:  If True, waits for the DB snapshot export to complete. (default: True)
     :param waiter_interval: The number of seconds to wait before checking the export status. (default: 30)
     :param waiter_max_attempts: The number of attempts to make before failing. (default: 40)
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = (
+    template_fields = aws_template_fields(
         "export_task_identifier",
         "source_arn",
         "s3_bucket_name",
@@ -394,9 +418,16 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
     :param wait_for_completion:  If True, waits for DB snapshot export to cancel. (default: True)
     :param check_interval: The amount of time in seconds to wait between attempts
     :param max_attempts: The maximum number of attempts to be made
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("export_task_identifier",)
+    template_fields = aws_template_fields(
+        "export_task_identifier",
+    )
 
     def __init__(
         self,
@@ -450,9 +481,14 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
     :param tags: A dictionary of tags or a list of tags in format `[{"Key": "...", "Value": "..."},]`
         `USER Tagging <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html>`__
     :param wait_for_completion:  If True, waits for creation of the subscription to complete. (default: True)
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = (
+    template_fields = aws_template_fields(
         "subscription_name",
         "sns_topic_arn",
         "source_type",
@@ -513,9 +549,16 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
         :ref:`howto/operator:RdsDeleteEventSubscriptionOperator`
 
     :param subscription_name: The name of the RDS event notification subscription you want to delete
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("subscription_name",)
+    template_fields = aws_template_fields(
+        "subscription_name",
+    )
 
     def __init__(
         self,
@@ -560,9 +603,16 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_instance_identifier", "db_instance_class", "engine", "rds_kwargs")
+    template_fields = aws_template_fields(
+        "db_instance_identifier", "db_instance_class", "engine", "rds_kwargs"
+    )
 
     def __init__(
         self,
@@ -652,9 +702,14 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_instance_identifier", "rds_kwargs")
+    template_fields = aws_template_fields("db_instance_identifier", "rds_kwargs")
 
     def __init__(
         self,
@@ -735,9 +790,14 @@ class RdsStartDbOperator(RdsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_identifier", "db_type")
+    template_fields = aws_template_fields("db_identifier", "db_type")
 
     def __init__(
         self,
@@ -832,9 +892,14 @@ class RdsStopDbOperator(RdsBaseOperator):
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields = ("db_identifier", "db_snapshot_identifier", "db_type")
+    template_fields = aws_template_fields("db_identifier", "db_snapshot_identifier", "db_type")
 
     def __init__(
         self,

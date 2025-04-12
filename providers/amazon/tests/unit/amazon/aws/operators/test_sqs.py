@@ -25,6 +25,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 REGION_NAME = "eu-west-1"

@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Misc
+~~~~
+
+* ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.0.1
 .....
 
@@ -198,7 +216,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update information about links into the provider.yaml files (#35837)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

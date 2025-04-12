@@ -913,9 +913,10 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_inactivity_error_async(self, mock_list_keys):
+    async def test_s3_key_hook_is_keys_unchanged_inactivity_async(self, mock_list_keys):
         """
-        Test is_key_unchanged gives AirflowException.
+        Test is_key_unchanged gives False response when the key value is unchanged in specified period
+        and not enough objects found.
         """
         mock_list_keys.return_value = []
 
@@ -934,10 +935,7 @@ class TestAwsS3Hook:
             last_activity_time=None,
         )
 
-        assert response == {
-            "status": "error",
-            "message": "FAILURE: Inactivity Period passed, not enough objects found in test_bucket/test",
-        }
+        assert response.get("status") == "pending"
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
@@ -1153,9 +1151,9 @@ class TestAwsS3Hook:
 
             # Test: `bucket_name` should use the explicitly provided value over `service_config`
             test_bucket_name = fake_s3_hook.test_function(bucket_name="some_custom_bucket")
-            assert (
-                test_bucket_name == "some_custom_bucket"
-            ), "Expected provided bucket_name to take precedence over fallback"
+            assert test_bucket_name == "some_custom_bucket", (
+                "Expected provided bucket_name to take precedence over fallback"
+            )
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.

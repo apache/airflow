@@ -25,7 +25,7 @@ import pendulum
 import pytest
 
 from airflow.sdk.api.datamodels._generated import TerminalTIState
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -131,9 +131,15 @@ def test_partial_on_instance() -> None:
 
 def test_partial_on_class() -> None:
     # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id="a", arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
+    op = MockOperator.partial(
+        task_id="a",
+        arg1="a",
+        trigger_rule=TriggerRule.ONE_FAILED,
+        on_execute_callback=id,
+    )
     assert op.kwargs["arg1"] == "a"
     assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
+    assert op.kwargs["on_execute_callback"] == [id]
 
 
 def test_partial_on_class_invalid_ctor_args() -> None:
@@ -155,12 +161,17 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
 
 
 def test_mapped_task_applies_default_args_classic():
-    with DAG("test", default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
+    with DAG(
+        dag_id="test",
+        default_args={"execution_timeout": timedelta(minutes=30), "on_failure_callback": str},
+    ) as dag:
         MockOperator(task_id="simple", arg1=None, arg2=0)
         MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("simple").on_failure_callback == [str]
+    assert dag.get_task("mapped").on_failure_callback == [str]
 
 
 def test_mapped_task_applies_default_args_taskflow():
@@ -179,6 +190,8 @@ def test_mapped_task_applies_default_args_taskflow():
 
     assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
     assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
+    assert dag.get_task("simple").on_success_callback == []
+    assert dag.get_task("mapped").on_success_callback == []
 
 
 @pytest.mark.parametrize(
@@ -623,17 +636,17 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
     assert results == expected_values
 
 
-@pytest.mark.xfail(reason="SkipMixin hasn't been ported over to use the Task Execution API yet")
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
-    from airflow.decorators import task_group
-    from airflow.operators.empty import EmptyOperator
+    from airflow.sdk import task_group
 
     if TYPE_CHECKING:
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.operators.python import ShortCircuitOperator
     else:
         ShortCircuitOperator = pytest.importorskip(
             "airflow.providers.standard.operators.python"
         ).ShortCircuitOperator
+        EmptyOperator = pytest.importorskip("airflow.providers.standard.operators.empty").EmptyOperator
 
     with DAG("test") as dag:
 
@@ -657,44 +670,18 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
             ti.task.execute(context)
 
     assert ti
-    # TODO: these tests might not be right
     mock_supervisor_comms.send_request.assert_has_calls(
         [
-            SetXCom(
-                key="skipmixin_key",
-                value=None,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="return_value",
-                value=True,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="skipmixin_key",
-                value={"skipped": ["group.empty_task"]},
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=1,
+            mock.call(
+                log=mock.ANY,
+                msg=SetXCom(
+                    key="skipmixin_key",
+                    value={"skipped": ["group.empty_task"]},
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id="group.push_xcom_from_shortcircuit",
+                    map_index=1,
+                ),
             ),
         ]
     )
-    #
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
-    #     is True
-    # )
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
-    #     is None
-    # )
-    # assert tis[0].xcom_pull(
-    #     task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
-    # ) == {"skipped": ["group.empty_task"]}

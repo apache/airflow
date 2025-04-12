@@ -175,9 +175,9 @@ class TestS3ToDynamoDBOperator:
         )
         with pytest.raises(AirflowException) as excinfo:
             new_table_op.execute(None)
-        assert "S3 load into DynamoDB table failed with error" in str(
-            excinfo.value
-        ), "Exception message not passed correctly"
+        assert "S3 load into DynamoDB table failed with error" in str(excinfo.value), (
+            "Exception message not passed correctly"
+        )
 
     @mock.patch("botocore.client.BaseClient._make_api_call")
     def test_s3_to_dynamodb_new_table_job_startup_error(self, mock_make_api_call, new_table_op):

@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any
 import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models import XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -36,7 +35,9 @@ if TYPE_CHECKING:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
@@ -125,7 +126,6 @@ class DataprocLink(BaseOperatorLink):
 
     def __attrs_post_init__(self):
         # This link is still used into the selected operators
-        # - airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator
         # - airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator
         # As soon as we remove reference to this link we might deprecate it by add warning message
         # with `stacklevel=3` below in this method.

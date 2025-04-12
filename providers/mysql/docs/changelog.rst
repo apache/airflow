@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+6.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: overwrite 'get-uri' for 'MySQL' (#48706)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 6.2.0
 .....
 
@@ -302,7 +322,7 @@ Misc
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Update information about links into the provider.yaml files (#35837)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

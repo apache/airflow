@@ -22,9 +22,10 @@ description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
 state: ready
-source-date-epoch: 1741508276
+source-date-epoch: 1743477779
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.8.2
   - 3.8.1
   - 3.8.0
   - 3.7.0

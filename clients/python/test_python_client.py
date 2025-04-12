@@ -33,9 +33,7 @@ import uuid
 import airflow_client.client
 import pytest
 
-from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
-from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
+from tests_common.test_utils.api_client_helpers import generate_access_token
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -62,11 +60,11 @@ from airflow_client.client.model.dag_run import DAGRun
 # privileges in Airflow
 
 # Used to initialize FAB and the auth manager, necessary for creating the token.
-create_app()
 
-access_token = FABAuthManagerLogin.create_token(LoginBody(username="admin", password="admin")).jwt_token
+
+access_token = generate_access_token("admin", "admin", "localhost:8080")
 configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/public",
+    host="http://localhost:8080/api/v2",
 )
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg

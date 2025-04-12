@@ -97,9 +97,9 @@ class TestBigqueryTableExistenceSensor:
         mock_hook.return_value.table_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(mock.MagicMock())
-        assert isinstance(
-            exc.value.trigger, BigQueryTableExistenceTrigger
-        ), "Trigger is not a BigQueryTableExistenceTrigger"
+        assert isinstance(exc.value.trigger, BigQueryTableExistenceTrigger), (
+            "Trigger is not a BigQueryTableExistenceTrigger"
+        )
 
     def test_execute_deferred_failure(self):
         """Tests that an expected exception is raised in case of error event"""
@@ -200,9 +200,9 @@ class TestBigqueryTablePartitionExistenceSensor:
         mock_hook.return_value.table_partition_exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
-        assert isinstance(
-            exc.value.trigger, BigQueryTablePartitionExistenceTrigger
-        ), "Trigger is not a BigQueryTablePartitionExistenceTrigger"
+        assert isinstance(exc.value.trigger, BigQueryTablePartitionExistenceTrigger), (
+            "Trigger is not a BigQueryTablePartitionExistenceTrigger"
+        )
 
     def test_execute_with_deferrable_mode_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""

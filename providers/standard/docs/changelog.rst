@@ -35,6 +35,84 @@
 Changelog
 ---------
 
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make default as time.now() for TriggerDagRunOperator (#48969)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
+* ``Get 'LatestOnlyOperator' working with Task SDK (#48945)``
+* ``Fix dagstate trigger to work with TaskSDK (#48747)``
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix default base value (#49013)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+0.3.0
+.....
+
+* ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``
+* ``Make datetime objects in Context as Pendulum objects (#48592)``
+* ``Fix _get_count in sensor_helper.py (#40795)``
+* ``Fix logical_date error in BranchDateTimeOperator and BranchDayOfWeekOperator (#48486)``
+* ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+* ``Migrate standard decorators to standard provider (#48683)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Bump standard provider to 0.3.0 (#48763)``
+
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle null logical date in TimeDeltaSensorAsync (#47652)``
+* ``Fix deprecation warning for 'BranchMixIn' (#47856)``
+* ``Fix DayOfWeekSensor use_task_logical_date condition (#47825)``
+* ``Fix python operators errors when initialising plugins in virtualenv jinja script (#48035)``
+
+Misc
+~~~~
+
+* ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
+* ``Relocate utils/weekday.py to standard provider (#47892)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Rewrite asset event registration (#47677)``
+* ``Implement pre- and post-execute hooks in sdk (#48230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Support '@task.bash' with Task SDK (#48060)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``Remove fixed comments (#47823)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Fix comment typo in PythonOperator (#47558)``
+
 0.1.1
 .....
 

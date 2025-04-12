@@ -26,6 +26,50 @@
 Changelog
 ---------
 
+7.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix overriding_parameters missing in repair_task (#48877)``
+* ``fix for databricks repair buttons not overriding the template parameters (#46704)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix static checks in mock_databricks_hook (#48869)``
+   * ``Improve documentation building iteration (#48760)``
+
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksSQLStatementsOperator (#48507)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+7.2.2
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 7.2.1
 .....
 
@@ -446,7 +490,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
 5.0.0

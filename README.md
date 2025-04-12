@@ -30,9 +30,9 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow)](https://pypi.org/project/apache-airflow/)
 [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/apache-airflow)](https://artifacthub.io/packages/search?repo=apache-airflow)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://x.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
+![Commit Activity](https://img.shields.io/github/commit-activity/m/apache/airflow)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
 <picture width="500">
@@ -87,10 +87,9 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 ## Principles
 
-- **Dynamic**: Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**: Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
-- **Elegant**: Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**: Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+- **Dynamic**: Pipelines are defined in code, enabling dynamic dag generation and parameterization.
+- **Extensible**: The Airflow framework includes a wide range of built-in operators and can be extended to fit your needs.
+- **Flexible**: Airflow leverages the [**Jinja**](https://jinja.palletsprojects.com) templating engine, allowing rich customizations.
 
 <!-- START Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 ## Requirements
@@ -136,7 +135,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals).
 
-Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
+Documentation for dependent projects like provider distributions, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
 <!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
@@ -186,7 +185,7 @@ pip install 'apache-airflow[postgres,google]==2.10.5' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
 ```
 
-For information on installing provider packages, check
+For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 <!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
@@ -231,27 +230,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
+  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/dags.png)
 
 - **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/graph.png)
+  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/duration.png)
+  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
 
 - **Gantt**: Duration and overlap of a DAG.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/gantt.png)
+  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
 
 - **Code**: Quick way to view source code of a DAG.
 
-  ![Code](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/code.png)
+  ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/code.png)
 
 ## Semantic versioning
 
@@ -520,7 +519,7 @@ repository.
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/airflow-core/docs/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Links
 
