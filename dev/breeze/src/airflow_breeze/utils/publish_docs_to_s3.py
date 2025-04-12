@@ -92,7 +92,7 @@ class S3DocsPublish:
 
         return docs_to_process
 
-    def is_doc_exists(self, s3_bucket_doc_location: str) -> bool:
+    def doc_exists(self, s3_bucket_doc_location: str) -> bool:
         parts = s3_bucket_doc_location[5:].split("/", 1)
         bucket = parts[0]
         key = parts[1]
@@ -113,7 +113,7 @@ class S3DocsPublish:
 
     def publish_stable_version_docs(self):
         """
-        Publish stable version docs to S3 meaning, the source dir should have a stable.txt file and it
+        Publish stable version docs to S3. The source dir should have a stable.txt file and it
         publishes to two locations: one with the version folder and another with stable folder
         ex:
         docs/apache-airflow-providers-apache-cassandra/1.0.0
@@ -135,7 +135,7 @@ class S3DocsPublish:
             dest_doc_versioned_folder = f"{self.destination_location}/{doc}/{stable_version}/"
             dest_doc_stable_folder = f"{self.destination_location}/{doc}/stable/"
 
-            if self.is_doc_exists(dest_doc_versioned_folder):
+            if self.doc_exists(dest_doc_versioned_folder):
                 if self.overwrite:
                     get_console().print(f"[info]Overwriting existing version {stable_version} for {doc}\n")
                 else:
@@ -155,7 +155,7 @@ class S3DocsPublish:
     def publish_all_docs(self):
         for doc in self.get_all_eligible_docs:
             dest_doc_folder = f"{self.destination_location}/{doc}/"
-            if self.is_doc_exists(dest_doc_folder):
+            if self.doc_exists(dest_doc_folder):
                 if self.overwrite:
                     get_console().print(f"[info]Overwriting existing {dest_doc_folder}\n")
                 else:
