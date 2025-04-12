@@ -22,7 +22,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from airflow.api_fastapi.execution_api.datamodels.variable import (
-    VariableDeleteBody,
     VariablePostBody,
     VariableResponse,
 )
@@ -94,13 +93,12 @@ def put_variable(variable_key: str, body: VariablePostBody):
 
 @router.delete(
     "/{variable_key}",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def delete_variable(variable_key: str) -> VariableDeleteBody:
+def delete_variable(variable_key: str):
     """Delete an Airflow Variable."""
-    count = Variable.delete(key=variable_key)
-    return VariableDeleteBody(count=count)
+    Variable.delete(key=variable_key)

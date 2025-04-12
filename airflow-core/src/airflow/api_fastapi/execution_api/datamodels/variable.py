@@ -34,9 +34,3 @@ class VariablePostBody(StrictBaseModel):
 
     value: str | None = Field(alias="val")
     description: str | None = Field(default=None)
-
-
-class VariableDeleteBody(StrictBaseModel):
-    """Response body schema for after deleting variables."""
-
-    count: int
