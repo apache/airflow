@@ -89,7 +89,9 @@ def find_min_provider_version(provider_id: str) -> Version | None:
     if not metadata:
         return None
     # We should periodically update the starting date to avoid pip install resolution issues
-    cut_off_date = datetime.fromisoformat("2024-10-12T00:00:00Z")
+    cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc
+    )
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
     versions: list[Version] = sorted([parse_version(version) for version in metadata])
