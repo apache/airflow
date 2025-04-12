@@ -58,7 +58,13 @@ text_example_response_for_get_log = {
 @task_instances_log_router.get(
     "/{task_id}/logs/{try_number}",
     responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ]
+        ),
         status.HTTP_200_OK: {
             "description": "Successful Response",
             "content": text_example_response_for_get_log,
@@ -127,7 +133,18 @@ def get_log(
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    dag = request.app.state.dag_bag.get_dag(dag_id)
+    try:
+        dag = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
     if dag:
         try:
             ti.task = dag.get_task(ti.task_id)

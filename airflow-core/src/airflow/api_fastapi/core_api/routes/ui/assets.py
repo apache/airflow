@@ -38,8 +38,18 @@ def next_run_assets(
     request: Request,
     session: SessionDep,
 ) -> dict:
-    dag = request.app.state.dag_bag.get_dag(dag_id)
-
+    try:
+        dag = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")
 

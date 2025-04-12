@@ -40,7 +40,13 @@ extra_links_router = AirflowRouter(
 
 @extra_links_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
     tags=["Task Instance"],
 )
@@ -55,7 +61,18 @@ def get_extra_links(
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 

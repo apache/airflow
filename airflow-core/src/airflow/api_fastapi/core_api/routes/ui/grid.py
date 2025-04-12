@@ -88,7 +88,18 @@ def grid_data(
     root: str | None = None,
 ) -> GridResponse:
     """Return grid data."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 

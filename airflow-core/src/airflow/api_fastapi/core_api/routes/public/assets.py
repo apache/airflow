@@ -292,7 +292,14 @@ def create_asset_event(
 
 @assets_router.post(
     "/assets/{asset_id}/materialize",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+    ),
     dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
@@ -318,8 +325,19 @@ def materialize_asset(
             f"More than one DAG materializes asset with ID: {asset_id}",
         )
 
-    dag: DAG | None
-    if not (dag := request.app.state.dag_bag.get_dag(dag_id)):
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
+    if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID `{dag_id}` was not found")
 
     return dag.create_dagrun(
