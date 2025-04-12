@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_SOURCES_ROOT }}/docs/_build'
+          path: ${{ env.AIRFLOW_SOURCES_ROOT }}/generated/_build'
           retention-days: '7'
           if-no-files-found: 'error'
           overwrite: 'true'
@@ -149,7 +149,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: airflow-docs
-          path: ${{ env.AIRFLOW_SOURCES_ROOT }}/docs/_build'
+          path: ${{ env.AIRFLOW_SOURCES_ROOT }}/generated/_build'
       - name: Check disk space available
         run: df -h
       # Here we will clone airflow-site repo, but instead will create
