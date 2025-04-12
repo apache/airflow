@@ -85,7 +85,7 @@ class TestPublishDocsToS3:
             self.publish_docs_to_s3.get_all_eligible_docs
 
     @pytest.mark.parametrize(
-        "all_eligible_docs, is_doc_exists, overwrite, expected_source_dest_mapping",
+        "all_eligible_docs, doc_exists, overwrite, expected_source_dest_mapping",
         [
             (
                 ["apache-airflow-providers-amazon", "apache-airflow-providers-google", "apache-airflow"],
@@ -167,21 +167,21 @@ class TestPublishDocsToS3:
     @patch("builtins.open", new_callable=mock_open, read_data="1.0.0")
     @patch.object(S3DocsPublish, "get_all_eligible_docs", new_callable=PropertyMock)
     @patch("os.path.exists")
-    @patch.object(S3DocsPublish, "is_doc_exists")
+    @patch.object(S3DocsPublish, "doc_exists")
     def test_publish_stable_version_docs(
         self,
-        mock_is_doc_exists,
+        mock_doc_exists,
         mock_path_exists,
         mock_get_all_eligible_docs,
         mock_open,
         mock_run_publish,
         all_eligible_docs,
-        is_doc_exists,
+        doc_exists,
         overwrite,
         expected_source_dest_mapping,
     ):
         mock_path_exists.return_value = True
-        mock_is_doc_exists.return_value = is_doc_exists
+        mock_doc_exists.return_value = doc_exists
         mock_get_all_eligible_docs.return_value = all_eligible_docs
         self.publish_docs_to_s3.overwrite = overwrite
         self.publish_docs_to_s3.source_dir_path = "/tmp/docs-archive"
@@ -192,7 +192,7 @@ class TestPublishDocsToS3:
         assert self.publish_docs_to_s3.source_dest_mapping == expected_source_dest_mapping
 
     @pytest.mark.parametrize(
-        "all_eligible_docs, is_doc_exists, overwrite, expected_source_dest_mapping",
+        "all_eligible_docs, doc_exists, overwrite, expected_source_dest_mapping",
         [
             (
                 ["apache-airflow-providers-amazon", "apache-airflow-providers-google", "apache-airflow"],
@@ -248,18 +248,18 @@ class TestPublishDocsToS3:
     )
     @patch.object(S3DocsPublish, "run_publish")
     @patch.object(S3DocsPublish, "get_all_eligible_docs", new_callable=PropertyMock)
-    @patch.object(S3DocsPublish, "is_doc_exists")
+    @patch.object(S3DocsPublish, "doc_exists")
     def test_publish_all_docs(
         self,
-        mock_is_doc_exists,
+        mock_doc_exists,
         mock_get_all_eligible_docs,
         mock_run_publish,
         all_eligible_docs,
-        is_doc_exists,
+        doc_exists,
         overwrite,
         expected_source_dest_mapping,
     ):
-        mock_is_doc_exists.return_value = is_doc_exists
+        mock_doc_exists.return_value = doc_exists
         mock_get_all_eligible_docs.return_value = all_eligible_docs
 
         self.publish_docs_to_s3.overwrite = overwrite
