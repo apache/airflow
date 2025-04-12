@@ -442,7 +442,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
-        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
+        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def get_pandas_df_by_chunks(
         self,
