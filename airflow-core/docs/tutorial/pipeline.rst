@@ -242,6 +242,7 @@ Now that we've defined all our tasks, it's time to put them together into a DAG.
   from airflow.providers.postgres.hooks.postgres import PostgresHook
   from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
+
   @dag(
       dag_id="process_employees",
       schedule="0 0 * * *",
