@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-12T02:16:21.474528
+# This constraints file was automatically generated on 2025-04-13T02:29:08.053856
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -362,7 +362,7 @@ nh3==0.2.21
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.72.0
+openai==1.73.0
 openlineage-integration-common==1.31.0
 openlineage-python==1.31.0
 openlineage_sql==1.31.0
