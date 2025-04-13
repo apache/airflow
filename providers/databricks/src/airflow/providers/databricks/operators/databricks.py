@@ -57,7 +57,8 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import 
+    
     from airflow.sdk.execution_time.xcom import XCom
 else:
     from airflow.models import XCom  # type: ignore[no-redef]
@@ -1361,9 +1362,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         result = {
             "task_key": self.databricks_task_key,
             "depends_on": [
-                {"task_key": self._generate_databricks_task_key(task_id)}
-                for task_id in self.upstream_task_ids
-                if task_id in relevant_upstreams
+                {"task_key": upstream_task.databricks_task_key}
+                for upstream_task in relevant_upstreams
+                if isinstance(upstream_task, DatabricksTaskBaseOperator) and upstream_task.task_id in self.upstream_task_ids
             ],
             **base_task_json,
         }
