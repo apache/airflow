@@ -42,8 +42,8 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param airbyte_job_id: Required. Id of the Airbyte job.
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
-    :param deferrable: Optional. Runs the sensor in deferrable mode. 
-        Defaults to the config value "default_deferrable" or False, if not defined.
+    :param deferrable: Optional. Runs the sensor in deferrable mode. Defaults
+        to the config value "default_deferrable" or False, if not defined.
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
     """
 
