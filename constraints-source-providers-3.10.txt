@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-13T02:28:58.740826
+# This constraints file was automatically generated on 2025-04-13T07:44:59.725977
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -342,7 +342,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.7.2
+limits==4.7.3
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -619,7 +619,7 @@ trino==0.333.0
 twine==6.1.0
 typer==0.15.2
 types-Deprecated==1.2.15.20250304
-types-Markdown==3.7.0.20250322
+types-Markdown==3.8.0.20250413
 types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20250402
 types-aiofiles==24.1.0.20250326
