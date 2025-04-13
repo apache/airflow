@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from airflow.configuration import conf
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -61,7 +62,7 @@ def get_airflow_health() -> dict[str, Any]:
     try:
         latest_dag_processor_job = DagProcessorJobRunner.most_recent_job()
 
-        if latest_dag_processor_job:
+        if conf.getboolean("scheduler", "standalone_dag_processor") and latest_dag_processor_job:
             latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
             if latest_dag_processor_job.is_alive():
                 dag_processor_status = HEALTHY
