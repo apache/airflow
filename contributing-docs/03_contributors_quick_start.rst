@@ -131,6 +131,7 @@ Docker Compose
 
 1. Installing latest version of the Docker Compose plugin
 
+on Debian / Ubuntu,
 Install using the repository:
 
 .. code-block:: bash
@@ -151,10 +152,16 @@ Install manually:
   sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
   sudo chmod +x /usr/local/bin/docker-compose
-
 .. note::
     This option requires you to manage updates manually.
     It is recommended that you set up Docker's repository for easier maintenance.
+
+on macOS, you can also install docker-compose via
+
+.. code-block:: bash
+
+  brew install docker-compose
+
 
 1. Verifying installation
 
