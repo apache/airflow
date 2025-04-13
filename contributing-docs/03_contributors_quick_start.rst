@@ -131,7 +131,7 @@ Docker Compose
 
 1. Installing latest version of the Docker Compose plugin
 
-on Debian / Ubuntu, 
+on Debian / Ubuntu,
 Install using the repository:
 
 .. code-block:: bash
