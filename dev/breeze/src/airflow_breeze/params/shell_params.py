@@ -386,13 +386,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
