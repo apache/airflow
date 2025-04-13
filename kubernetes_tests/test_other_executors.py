@@ -56,7 +56,13 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
 
         self._delete_airflow_pod("scheduler")
 
-        self.ensure_deployment_health("airflow-scheduler")
+        if EXECUTOR == "CeleryExecutor":
+            scheduler_resource_type = "deployment"
+        elif EXECUTOR == "LocalExecutor":
+            scheduler_resource_type = "statefulset"
+        else:
+            raise ValueError(f"Unknown executor {EXECUTOR}")
+        self.ensure_resource_health("airflow-scheduler", resource_type=scheduler_resource_type)
 
         # Wait some time for the operator to complete
         self.monitor_task(
