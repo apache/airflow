@@ -197,7 +197,6 @@ class TestXComObjectStorageBackend:
                 session=session,
             )
             assert str(p) == qry.first().value
-        raise
 
     def test_clear(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
