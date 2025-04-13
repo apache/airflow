@@ -875,16 +875,17 @@ class FileTaskHandler(logging.Handler):
 
         for path in paths:
             sources.append(os.fspath(path))
-            with open(path, encoding="utf-8") as f:
-                # Move the file pointer to the last read position if there is `local_<identifier>_log_pos` in metadata
-                log_pos_name = LAST_LOG_POS_FORMAT.format(identifier=path.name)
-                last_end_log_pos: int = _get_last_log_pos_from_metadata(log_metadata, log_pos_name)
-                current_end_log_pos: int = path.stat().st_size
-                # Update the last read position in the metadata
-                if log_metadata is not None:
-                    log_metadata[log_pos_name] = current_end_log_pos
-                # Read the log file and yield lines
-                log_streams.append(_stream_lines_by_chunk(f, last_end_log_pos, current_end_log_pos))
+            # Move the file pointer to the last read position if there is `local_<identifier>_log_pos` in metadata
+            log_pos_name = LAST_LOG_POS_FORMAT.format(identifier=path.name)
+            last_end_log_pos: int = _get_last_log_pos_from_metadata(log_metadata, log_pos_name)
+            current_end_log_pos: int = path.stat().st_size
+            # Update the last read position in the metadata
+            if log_metadata is not None:
+                log_metadata[log_pos_name] = current_end_log_pos
+            # Read the log file and yield lines
+            log_streams.append(
+                _stream_lines_by_chunk(open(path, encoding="utf-8"), last_end_log_pos, current_end_log_pos)
+            )
         return sources, log_streams
 
     def _read_from_logs_server(
