@@ -55,7 +55,7 @@ class TestKubernetesExecutor(BaseK8STest):
 
         self._delete_airflow_pod("scheduler")
 
-        self.ensure_deployment_health("airflow-scheduler")
+        self.ensure_resource_health("airflow-scheduler")
 
         # Wait some time for the operator to complete
         self.monitor_task(
