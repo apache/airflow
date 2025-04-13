@@ -176,7 +176,7 @@ class _DagDependenciesResolver:
 
     def resolve_asset_ref_dag_dep(
         self, dep_data: dict, ref_type: Literal["asset-name-ref", "asset-uri-ref"]
-    ) -> Sequence[DagDependency]:
+    ) -> Iterator[DagDependency]:
         if ref_type == "asset-name-ref":
             ref_to_asset_id_name = self.asset_ref_name_to_asset_id_name
         elif ref_type == "asset-uri-ref":
@@ -188,43 +188,21 @@ class _DagDependenciesResolver:
 
         dep_id = dep_data["dependency_id"]
         is_source_ref = dep_data["source"] == ref_type
-        dag_deps = []
         if dep_id in ref_to_asset_id_name:
             # The asset ref can be resolved into a valid asset
             asset_id, asset_name = ref_to_asset_id_name[dep_id]
-            dag_deps.append(
-                # asset
-                DagDependency(
-                    source="asset" if is_source_ref else f"{ref_type}:{dep_id}",
-                    target=f"{ref_type}:{dep_id}" if is_source_ref else "asset",
-                    label=asset_name,
-                    dependency_type="asset",
-                    dependency_id=str(asset_id),
-                )
+            yield DagDependency(
+                source="asset" if is_source_ref else dep_data["source"],
+                target=dep_data["target"] if is_source_ref else "asset",
+                label=asset_name,
+                dependency_type="asset",
+                dependency_id=str(asset_id),
             )
 
-            asset_ref_source = f"asset:{asset_id}" if is_source_ref else dep_data["source"]
-            asset_ref_target = dep_data["target"] if is_source_ref else f"asset:{asset_id}"
-        else:
-            asset_ref_source = ref_type if is_source_ref else dep_data["source"]
-            asset_ref_target = dep_data["target"] if is_source_ref else ref_type
-
-        dag_deps.append(
-            # asset ref
-            DagDependency(
-                source=asset_ref_source,
-                target=asset_ref_target,
-                label=dep_id,
-                dependency_type=ref_type,
-                dependency_id=dep_id,
-            )
-        )
-        return dag_deps
-
-    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Sequence[DagDependency]:
+    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
 
-    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Sequence[DagDependency]:
+    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-uri-ref")
 
     def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:

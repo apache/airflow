@@ -342,3 +342,9 @@ class TIRuntimeCheckPayload(StrictBaseModel):
 
     inlets: list[AssetProfile] | None = None
     outlets: list[AssetProfile] | None = None
+
+
+class TaskStatesResponse(BaseModel):
+    """Response for task states with run_id, task and state."""
+
+    task_states: dict[str, Any]

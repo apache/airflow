@@ -56,6 +56,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
+    TaskStatesResponse,
     TerminalTIState,
     VariableResponse,
 )
@@ -77,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -91,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskState,
+    TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
     VariableResult,
@@ -650,7 +653,12 @@ class WatchedSubprocess:
             # If the subprocess writes "Hello, World!" to stdout:
             # - `socket_handler` reads and processes the message.
             # - If EOF is reached, the handler returns False to signal no more reads are expected.
-            need_more = socket_handler(key.fileobj)
+            # - BrokenPipeError should be caught and treated as if the handler returned false, similar
+            # to EOF case
+            try:
+                need_more = socket_handler(key.fileobj)
+            except BrokenPipeError:
+                need_more = False
 
             # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
             # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
@@ -1035,6 +1043,18 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, GetTaskStates):
+            task_states_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(task_states_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(task_states_map)
+            else:
+                resp = task_states_map
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,

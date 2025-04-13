@@ -84,12 +84,14 @@ console.print("[bright_blue]Updating min-provider versions in apache-airflow\n")
 all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
 
 
-def find_min_provider_version(provider_id: str, how_old: timedelta) -> Version | None:
+def find_min_provider_version(provider_id: str) -> Version | None:
     metadata = all_providers_metadata.get(provider_id)
     if not metadata:
         return None
-    current_date = datetime.now(tz=timezone.utc)
-    cut_off_date = current_date - how_old
+    # We should periodically update the starting date to avoid pip install resolution issues
+    cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc
+    )
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
     versions: list[Version] = sorted([parse_version(version) for version in metadata])
@@ -130,7 +132,7 @@ if __name__ == "__main__":
     all_provider_lines = []
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)
-        min_provider_version = find_min_provider_version(provider_id, CUT_OFF_TIMEDELTA)
+        min_provider_version = find_min_provider_version(provider_id)
         if min_provider_version:
             all_provider_lines.append(f'    "{distribution_name}>={min_provider_version}",\n')
             all_optional_dependencies.append(

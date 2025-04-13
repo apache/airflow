@@ -100,7 +100,6 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
-        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -123,7 +122,6 @@ class TestDagRun:
             run_after=data_interval.end,
             start_date=now,
             state=state,
-            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
             session=session,
         )
