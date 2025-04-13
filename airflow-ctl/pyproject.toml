@@ -101,8 +101,7 @@ dev = [
 ]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
-    "apache-airflow-devel-common",
-    "libcst >=1.1.0"
+    "apache-airflow-devel-common"
 ]
 
 # To use:
@@ -128,7 +127,8 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
-custom-formatters = 'misc.datamodel_code_formatter'
+custom-formatters = 'misc.simple_code_formatter'
+custom-formatters-kwargs = 'dev/custom_args.json'
 
 
 input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
