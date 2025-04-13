@@ -382,7 +382,7 @@ class TestXComObjectStorageBackend:
             pytest.param(None, None, id="none"),
         ],
     )
-    def test_serialization_deserialization_basic(self, task_instance, value, expected_value):
+    def test_serialization_deserialization_basic(self, value, expected_value):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
