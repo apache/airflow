@@ -27,7 +27,6 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import Connection
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -161,7 +160,6 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
             logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
-            dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
         )
         dag.sync_to_db()
 

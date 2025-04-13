@@ -1462,8 +1462,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-
             data_interval = dag.get_next_data_interval(dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -1486,7 +1484,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         run_after=dag_model.next_dagrun_create_after,
                         run_type=DagRunType.SCHEDULED,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
-                        dag_version=latest_dag_version,
                         state=DagRunState.QUEUED,
                         creating_job_id=self.job.id,
                         session=session,
@@ -1535,8 +1532,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-
             triggered_date = triggered_dates[dag.dag_id]
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
@@ -1569,7 +1564,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 run_after=triggered_date,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
-                dag_version=latest_dag_version,
                 state=DagRunState.QUEUED,
                 creating_job_id=self.job.id,
                 session=session,
