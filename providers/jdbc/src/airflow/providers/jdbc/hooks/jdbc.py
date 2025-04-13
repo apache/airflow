@@ -238,12 +238,12 @@ class JdbcHook(DbApiHook):
         if conn.login:
             auth_part = quote_plus(conn.login)
             if conn.password:
-                auth_part += f":{quote_plus(conn.password)}"
-            auth_part += "@"
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = "{auth_part}@"
 
         host_part = conn.host or "localhost"
         if conn.port:
-            host_part += f":{conn.port}"
+            host_part = "{host_part}:{conn.port}"
 
         schema_part = f"/{quote_plus(conn.schema)}" if conn.schema else ""
 
@@ -253,6 +253,6 @@ class JdbcHook(DbApiHook):
         if isinstance(sqlalchemy_query, dict):
             query_string = urlencode({k: str(v) for k, v in sqlalchemy_query.items() if v is not None})
             if query_string:
-                uri += f"?{query_string}"
+                uri = f"{uri}?{query_string}"
 
         return uri
