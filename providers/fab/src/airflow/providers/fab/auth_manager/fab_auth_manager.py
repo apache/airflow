@@ -329,24 +329,23 @@ class FabAuthManager(BaseAuthManager[User]):
         if not access_entity:
             # Scenario 1
             return self._is_authorized_dag(method=method, details=details, user=user)
-        else:
-            # Scenario 2
-            resource_types = self._get_fab_resource_types(access_entity)
-            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+        # Scenario 2
+        resource_types = self._get_fab_resource_types(access_entity)
+        dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
 
-            if (details and details.id) and not self._is_authorized_dag(
-                method=dag_method, details=details, user=user
-            ):
-                return False
+        if (details and details.id) and not self._is_authorized_dag(
+            method=dag_method, details=details, user=user
+        ):
+            return False
 
-            return all(
-                (
-                    self._is_authorized(method=method, resource_type=resource_type, user=user)
-                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                    else self._is_authorized_dag_run(method=method, details=details, user=user)
-                )
-                for resource_type in resource_types
+        return all(
+            (
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(method=method, details=details, user=user)
             )
+            for resource_type in resource_types
+        )
 
     def is_authorized_backfill(
         self,

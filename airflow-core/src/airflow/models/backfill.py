@@ -297,34 +297,33 @@ def _create_backfill_dag_run(
                     )
                 )
                 return
-            else:
-                lock = session.execute(
-                    with_row_locks(
-                        query=select(DagRun).where(DagRun.logical_date == info.logical_date),
-                        session=session,
-                        skip_locked=True,
-                    )
+            lock = session.execute(
+                with_row_locks(
+                    query=select(DagRun).where(DagRun.logical_date == info.logical_date),
+                    session=session,
+                    skip_locked=True,
                 )
-                if lock:
-                    _handle_clear_run(
-                        session=session,
-                        dag=dag,
-                        dr=dr,
-                        info=info,
+            )
+            if lock:
+                _handle_clear_run(
+                    session=session,
+                    dag=dag,
+                    dr=dr,
+                    info=info,
+                    backfill_id=backfill_id,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            else:
+                session.add(
+                    BackfillDagRun(
                         backfill_id=backfill_id,
+                        dag_run_id=None,
+                        logical_date=info.logical_date,
+                        exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
                         sort_ordinal=backfill_sort_ordinal,
                     )
-                else:
-                    session.add(
-                        BackfillDagRun(
-                            backfill_id=backfill_id,
-                            dag_run_id=None,
-                            logical_date=info.logical_date,
-                            exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
-                            sort_ordinal=backfill_sort_ordinal,
-                        )
-                    )
-                return
+                )
+            return
 
         try:
             dr = dag.create_dagrun(

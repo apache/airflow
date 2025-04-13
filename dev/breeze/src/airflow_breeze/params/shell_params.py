@@ -699,12 +699,11 @@ class ShellParams:
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
                 get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))

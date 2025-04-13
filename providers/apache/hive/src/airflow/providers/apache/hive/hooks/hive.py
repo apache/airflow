@@ -209,7 +209,7 @@ class HiveCliHook(BaseHook):
                     f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
                 )
             return
-        elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
+        if ":" in conn.host or "/" in conn.host or ";" in conn.host:
             raise ValueError(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )
@@ -609,8 +609,7 @@ class HiveMetastoreHook(BaseHook):
                 self.log.info("Connected to %s:%s", host, conn.port)
                 host_socket.close()
                 return host
-            else:
-                self.log.error("Could not connect to %s:%s", host, conn.port)
+            self.log.error("Could not connect to %s:%s", host, conn.port)
         return None
 
     def get_conn(self) -> Any:
@@ -713,8 +712,7 @@ class HiveMetastoreHook(BaseHook):
 
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
-            else:
-                raise AirflowException("The table isn't partitioned")
+            raise AirflowException("The table isn't partitioned")
 
     @staticmethod
     def _get_max_partition_from_part_specs(

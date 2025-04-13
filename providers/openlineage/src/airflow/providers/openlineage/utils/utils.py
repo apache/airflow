@@ -195,10 +195,9 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkB
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
+    if isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
         return is_task_lineage_enabled(obj)
-    else:
-        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
+    raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
 @provide_session
@@ -714,7 +713,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                if is_json_serializable(item) and hasattr(item, "__dict__"):
                     for dict_key, subval in item.__dict__.items():
                         if type(subval).__name__ == "Proxy":
                             return "<<non-redactable: Proxy>>"
@@ -730,8 +729,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                else:
-                    return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item

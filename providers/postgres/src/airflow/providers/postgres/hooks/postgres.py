@@ -141,9 +141,8 @@ class PostgresHook(DbApiHook):
         }
         if _cursor in cursor_types:
             return cursor_types[_cursor]
-        else:
-            valid_cursors = ", ".join(cursor_types.keys())
-            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+        valid_cursors = ", ".join(cursor_types.keys())
+        raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""

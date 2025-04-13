@@ -245,7 +245,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod = None
         if len(pod_list) > 1:  # and self.reattach_on_restart:
             raise AirflowException(f"More than one pod running with labels: {label_selector}")
-        elif len(pod_list) == 1:
+        if len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
                 "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels

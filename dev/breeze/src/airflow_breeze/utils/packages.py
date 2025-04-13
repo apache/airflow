@@ -377,12 +377,11 @@ def get_short_package_names(long_form_providers: Iterable[str]) -> tuple[str, ..
 def get_short_package_name(long_form_provider: str) -> str:
     if long_form_provider in REGULAR_DOC_PACKAGES:
         return long_form_provider
-    else:
-        if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
-            raise ValueError(
-                f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
-            )
-        return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
+    if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
+        raise ValueError(
+            f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
+        )
+    return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
 
 
 def find_matching_long_package_names(
@@ -641,10 +640,8 @@ def format_version_suffix(version_suffix: str) -> str:
     if version_suffix:
         if version_suffix[0] == "." or version_suffix[0] == "+":
             return version_suffix
-        else:
-            return f".{version_suffix}"
-    else:
-        return ""
+        return f".{version_suffix}"
+    return ""
 
 
 def get_provider_jinja_context(

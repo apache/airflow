@@ -82,7 +82,7 @@ def env_var(var: str, default: str | None = None) -> str:
     """
     if var in os.environ:
         return os.environ[var]
-    elif default is not None:
+    if default is not None:
         return default
     raise ValueError(f"Env var required but not provided: '{var}'")
 
@@ -166,7 +166,7 @@ def match(expected, result, env: Environment) -> bool:
                 return True
             log.error("Rendered value %s does not equal 'true' or %s", rendered, result)
             return False
-        elif expected != result:
+        if expected != result:
             log.error("Expected value %s does not equal result %s", expected, result)
             return False
     elif expected != result:

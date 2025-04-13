@@ -245,9 +245,9 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
             if job_status == self.hook.SUCCESS_STATE:
                 self.log.info("Job completed.")
                 return self.job_id
-            elif job_status == self.hook.FAILURE_STATE:
+            if job_status == self.hook.FAILURE_STATE:
                 raise AirflowException(f"Error while running job: {self.job_id} is in {job_status} state")
-            elif job_status in self.hook.INTERMEDIATE_STATES:
+            if job_status in self.hook.INTERMEDIATE_STATES:
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=BatchJobTrigger(

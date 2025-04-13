@@ -48,8 +48,7 @@ log = logging.getLogger(__name__)
 def get_bundle_storage_root_path():
     if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
         return Path(configured_location)
-    else:
-        return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+    return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 STALE_BUNDLE_TRACKING_FOLDER = get_bundle_storage_root_path() / "_tracking"

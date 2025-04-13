@@ -516,7 +516,7 @@ class _ConcatResult(Sequence):
         for value in self.values:
             if i < 0:
                 break
-            elif i >= (curlen := len(value)):
+            if i >= (curlen := len(value)):
                 i -= curlen
             elif isinstance(value, Sequence):
                 return value[i]

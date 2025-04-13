@@ -149,7 +149,7 @@ def merge_files(files: Iterator[tuple[Path, str]], output_directory: Path) -> Pa
                         record = json.loads(line)
                         if not isinstance(record, dict):
                             raise TypeError
-                        elif not all(field in record for field in REQUIRED_FIELDS):
+                        if not all(field in record for field in REQUIRED_FIELDS):
                             raise ValueError
                     except Exception:
                         bad_records += 1

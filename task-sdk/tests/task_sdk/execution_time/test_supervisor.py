@@ -502,19 +502,18 @@ class TestWatchedSubprocess:
                 if request_count["count"] == 1:
                     # First request succeeds
                     return httpx.Response(status_code=204)
-                else:
-                    # Second request returns a conflict status code
-                    return httpx.Response(
-                        409,
-                        json={
-                            "reason": "not_running",
-                            "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
-                            "current_state": "success",
-                        },
-                    )
-            elif request.url.path == f"/task-instances/{ti_id}/run":
+                # Second request returns a conflict status code
+                return httpx.Response(
+                    409,
+                    json={
+                        "reason": "not_running",
+                        "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
+                        "current_state": "success",
+                    },
+                )
+            if request.url.path == f"/task-instances/{ti_id}/run":
                 return httpx.Response(200, json=make_ti_context_dict())
-            elif request.url.path == f"/task-instances/{ti_id}/state":
+            if request.url.path == f"/task-instances/{ti_id}/state":
                 pytest.fail("Should not have sent a state update request")
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)

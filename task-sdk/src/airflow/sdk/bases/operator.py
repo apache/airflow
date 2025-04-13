@@ -158,7 +158,7 @@ def get_merged_defaults(
 def parse_retries(retries: Any) -> int | None:
     if retries is None:
         return 0
-    elif type(retries) == int:  # noqa: E721
+    if type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -495,7 +495,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             missing_args = non_optional_args.difference(kwargs)
             if len(missing_args) == 1:
                 raise TypeError(f"missing keyword argument {missing_args.pop()!r}")
-            elif missing_args:
+            if missing_args:
                 display = ", ".join(repr(a) for a in sorted(missing_args))
                 raise TypeError(f"missing keyword arguments {display}")
 
@@ -1308,8 +1308,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Returns the Operator's DAG if set, otherwise raises an error."""
         if dag := self._dag:
             return dag
-        else:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+        raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
 
     @dag.setter
     def dag(self, dag: DAG | None) -> None:
@@ -1325,7 +1324,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
-        elif self._dag is not None and self._dag is not dag:
+        if self._dag is not None and self._dag is not dag:
             raise ValueError(f"The DAG assigned to {self} can not be changed.")
 
         if self.__from_mapped:
@@ -1338,7 +1337,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def _convert_retries(retries: Any) -> int | None:
         if retries is None:
             return 0
-        elif type(retries) == int:  # noqa: E721
+        if type(retries) == int:  # noqa: E721
             return retries
         try:
             parsed_retries = int(retries)
@@ -1616,8 +1615,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
             if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
                 raise TaskDeferralTimeout(error)
-            else:
-                raise TaskDeferralError(error)
+            raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)

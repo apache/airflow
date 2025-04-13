@@ -954,7 +954,7 @@ def _handle_trigger_dag_run(
             method_name="execute_complete",
         )
         return _defer_task(defer, ti, log)
-    elif drte.wait_for_completion:
+    if drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",

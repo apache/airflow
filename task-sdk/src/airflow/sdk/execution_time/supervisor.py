@@ -915,7 +915,7 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
-        elif self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
+        if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
         return TerminalTIState.FAILED
 

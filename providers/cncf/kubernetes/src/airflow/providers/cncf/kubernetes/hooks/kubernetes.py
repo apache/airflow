@@ -177,8 +177,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except AirflowNotFoundException:
             if conn_id == cls.default_conn_name:
                 return Connection(conn_id=cls.default_conn_name)
-            else:
-                raise
+            raise
 
     @cached_property
     def conn_extras(self):
@@ -691,9 +690,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 and replicas == ready_replicas
             ):
                 return
-            else:
-                self.log.info("Waiting until Deployment will be ready...")
-                sleep(polling_period_seconds)
+            self.log.info("Waiting until Deployment will be ready...")
+            sleep(polling_period_seconds)
 
             _timeout -= polling_period_seconds
 
@@ -713,10 +711,10 @@ def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
-    elif isinstance(val, str):
+    if isinstance(val, str):
         if val.strip().lower() == "true":
             return True
-        elif val.strip().lower() == "false":
+        if val.strip().lower() == "false":
             return False
     return None
 

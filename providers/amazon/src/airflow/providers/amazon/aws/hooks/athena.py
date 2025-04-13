@@ -208,7 +208,7 @@ class AthenaHook(AwsBaseHook):
         if query_state is None:
             self.log.error("Invalid Query state. Query execution id: %s", query_execution_id)
             return None
-        elif query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
+        if query_state in self.INTERMEDIATE_STATES or query_state in self.FAILURE_STATES:
             self.log.error(
                 'Query is in "%s" state. Cannot fetch results. Query execution id: %s',
                 query_state,

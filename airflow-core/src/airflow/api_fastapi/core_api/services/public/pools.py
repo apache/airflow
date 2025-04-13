@@ -66,7 +66,7 @@ class BulkPoolService(BulkService[PoolBody]):
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"The pools with these pool names: {matched_pool_names} already exist.",
                 )
-            elif action.action_on_existence == BulkActionOnExistence.SKIP:
+            if action.action_on_existence == BulkActionOnExistence.SKIP:
                 create_pool_names = not_found_pool_names
             else:
                 create_pool_names = to_create_pool_names
@@ -97,7 +97,7 @@ class BulkPoolService(BulkService[PoolBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 update_pool_names = matched_pool_names
             else:
                 update_pool_names = to_update_pool_names
@@ -134,7 +134,7 @@ class BulkPoolService(BulkService[PoolBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 delete_pool_names = matched_pool_names
             else:
                 delete_pool_names = to_delete_pool_names

@@ -192,8 +192,7 @@ class GenericRegexpProgressMatcher(AbstractProgressInfoMatcher):
             if self.matcher_for_joined_line is not None and previous_line is not None:
                 list_to_return: list[str] = [previous_line, best_line]
                 return list_to_return
-            else:
-                self.last_good_match[output.file_name] = best_line
+            self.last_good_match[output.file_name] = best_line
         last_match = self.last_good_match.get(output.file_name)
         if last_match is None:
             return None
