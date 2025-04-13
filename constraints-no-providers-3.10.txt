@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-13T13:52:34.390594
+# This constraints file was automatically generated on 2025-04-13T19:46:07.049531
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -526,7 +526,7 @@ sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.46.1
+starlette==0.46.2
 statsd==4.0.1
 std-uritemplate==2.0.3
 structlog==25.2.0
@@ -584,7 +584,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 uuid6==2024.7.10
 uv==0.6.14
-uvicorn==0.34.0
+uvicorn==0.34.1
 uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
