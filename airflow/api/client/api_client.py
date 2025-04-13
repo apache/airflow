@@ -19,8 +19,6 @@
 from __future__ import annotations
 
 import httpx
-
-
 class Client:
     """Base API client for all API clients."""
 
