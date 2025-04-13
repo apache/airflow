@@ -1144,9 +1144,7 @@ def finalize(
         if ti.task.template_fields:
             SUPERVISOR_COMMS.send_request(
                 log=log,
-                msg=SetRenderedFields(
-                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
-                ),
+                msg=SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)),
             )
 
     log.debug("Running finalizers", ti=ti)
