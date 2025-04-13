@@ -67,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     ErrorResponse,
     GetAssetByName,
@@ -1062,6 +1063,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return

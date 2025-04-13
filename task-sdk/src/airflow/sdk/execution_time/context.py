@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
+        OKResponse,
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
@@ -256,6 +257,25 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
     with SUPERVISOR_COMMS.lock:
         SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
+
+
+def _delete_variable(key: str) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+    if TYPE_CHECKING:
+        assert isinstance(msg, OKResponse)
 
 
 class ConnectionAccessor:
