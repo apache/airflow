@@ -23,6 +23,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
+from typing import Literal
 
 import pytest
 import re2
@@ -60,6 +61,9 @@ class BaseK8STest:
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         self.session = self._get_session_with_retries()
+
+        # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
+        self.ensure_resource_health("airflow-webserver")
         try:
             self._ensure_airflow_webserver_is_healthy()
             yield
@@ -190,6 +194,27 @@ class BaseK8STest:
         if state != expected_final_state:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
+
+    @staticmethod
+    def ensure_resource_health(
+        resource_name: str,
+        namespace: str = "airflow",
+        resource_type: Literal["deployment", "statefulset"] = "deployment",
+    ):
+        """Watch the resource until it is healthy.
+
+        Args:
+            resource_name (str): Name of the resource to check.
+            resource_type (str): Type of the resource (e.g., deployment, statefulset).
+            namespace (str): Kubernetes namespace where the resource is located.
+        """
+        rollout_status = check_output(
+            ["kubectl", "rollout", "status", f"{resource_type}/{resource_name}", "-n", namespace, "--watch"],
+        ).decode()
+        if resource_type == "deployment":
+            assert "successfully rolled out" in rollout_status
+        else:
+            assert "roll out complete" in rollout_status
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id, expected_final_state, timeout):
         tries = 0
