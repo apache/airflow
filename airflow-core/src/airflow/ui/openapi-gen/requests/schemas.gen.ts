@@ -1191,10 +1191,6 @@ export const $ConfigResponse = {
       type: "integer",
       title: "Auto Refresh Interval",
     },
-    default_ui_timezone: {
-      type: "string",
-      title: "Default Ui Timezone",
-    },
     hide_paused_dags_by_default: {
       type: "boolean",
       title: "Hide Paused Dags By Default",
@@ -1252,7 +1248,6 @@ export const $ConfigResponse = {
     "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
-    "default_ui_timezone",
     "hide_paused_dags_by_default",
     "instance_name",
     "instance_name_has_markup",

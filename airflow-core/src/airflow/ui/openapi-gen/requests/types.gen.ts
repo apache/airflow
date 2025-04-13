@@ -413,7 +413,6 @@ export type ConfigResponse = {
   navbar_logo_text_color: string;
   page_size: number;
   auto_refresh_interval: number;
-  default_ui_timezone: string;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
   instance_name_has_markup: boolean;
