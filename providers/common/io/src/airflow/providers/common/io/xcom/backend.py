@@ -164,7 +164,10 @@ class XComObjectStorageBackend(BaseXCom):
 
         # When XComObjectStorageBackend is used, xcom value will be serialized using json.dumps
         # likely, we need to deserialize it using json.loads
-        data = json.loads(base_xcom_deser_result, cls=XComDecoder)
+        try:
+            data = json.loads(base_xcom_deser_result, cls=XComDecoder)
+        except (TypeError, ValueError):
+            data = base_xcom_deser_result
         try:
             path = XComObjectStorageBackend._get_full_path(base_xcom_deser_result)
         except (TypeError, ValueError):  # Likely value stored directly in the database.

@@ -170,7 +170,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
+                key=XCOM_RETURN_KEY, value=json.dumps({"key": "bigvaluebigvaluebigvalue" * 100})
             )
 
         value = XCom.get_value(
@@ -197,6 +197,7 @@ class TestXComObjectStorageBackend:
                 session=session,
             )
             assert str(p) == qry.first().value
+        raise
 
     def test_clear(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
@@ -252,7 +253,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+                key=XCOM_RETURN_KEY, value=json.dumps({"key": "superlargevalue" * 100})
             )
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -357,7 +358,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+                key=XCOM_RETURN_KEY, value=json.dumps({"key": "superlargevalue" * 100})
             )
 
         value = XCom.get_value(
