@@ -20,7 +20,8 @@ from __future__ import annotations
 import contextlib
 import textwrap
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
@@ -138,23 +139,22 @@ def get_log(
             ti.task = dag.get_task(ti.task_id)
 
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
+        structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
         encoded_token = None
-        if not metadata.get("end_of_log", False):
-            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-        return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=logs)
-    # text/plain, or something else we don't understand. Return raw log content
+        if not out_metadata.get("end_of_log", False):
+            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(out_metadata)
+        return TaskInstancesLogResponse.model_construct(
+            continuation_token=encoded_token, content=list(structured_log_stream)
+        )
 
-    # We need to exhaust the iterator before we can generate the continuation token.
-    # We could improve this by making it a streaming/async response, and by then setting the header using
-    # HTTP Trailers
-    logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
+    # text/plain, or something else we don't understand. Return raw log content in ndjson format with StreamingResponse
+    log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
     headers = None
     if not metadata.get("end_of_log", False):
         headers = {
             "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
         }
-    return Response(media_type="application/x-ndjson", content=logs, headers=headers)
+    return StreamingResponse(media_type="application/x-ndjson", content=log_stream, headers=headers)
 
 
 @task_instances_log_router.get(
