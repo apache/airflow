@@ -78,8 +78,8 @@
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan
 /dev/ @potiuk @ashb @jedcunningham @gopidesupavan
-/docker-tests/ @potiuk @ashb @gopidesupavan
-/kubernetes-tests/ @potiuk @ashb @gopidesupavan
+/docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
+/kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
 /scripts/ @potiuk @ashb @gopidesupavan
 Dockerfile @potiuk @ashb @gopidesupavan
