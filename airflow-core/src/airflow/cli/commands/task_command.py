@@ -139,7 +139,6 @@ def _get_dag_run(
             run_after=run_after,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
-            dag_version=None,
             state=DagRunState.RUNNING,
             session=session,
         )
