@@ -172,6 +172,19 @@ Full list of unclassified changes
 * ``feat(AIP-84): add auth to /ui/backfills (#47657)``
 * ``forward port fab 1.5.2 to main branch (#45377)``
 * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+* ``Bring back serve_logs to be in the core (#49031)``
+* ``Force use of symetric JWT algorithm for internal logs server (#49029)``
+* ``Move FAB related configs to FAB provider (#49017)``
+* ``Add back methods needed by Flask in 'AirflowAppBuilder' (#48968)``
+* ``Bump webpack (#49016)``
+* ``Add ability to configure PERMANENT_SESSION_LIFETIME in fab for session logout. (#48827)``
+* ``Move wtforms/Werkzeug dependencies to FAB provider (#48970)``
+* ``Bump webpack (#48959)``
+* ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+* ``Apply configuration defined in 'webserver_config.py' to Flask config (#48898)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#48893)``
+* ``Remove fab from preinstalled providers (#48457)``
+* ``Add single endpoint to retrieve menu information (#48762)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -180,6 +193,10 @@ Full list of unclassified changes
    * ``Prepare docs for Mar 2nd wave of providers (#48383)``
    * ``Prepare docs for Nov 1st wave of providers Dec 2024 (#45042)``
    * ``Prepare documentation for FAB 2.0.0rc2 release (#48745)``
+   * ``Remove dev0 suffix from Airflow version (#48934)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Fix default base value (#49013)``
 
 1.5.3
 .....

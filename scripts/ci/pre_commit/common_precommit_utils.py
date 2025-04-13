@@ -300,3 +300,42 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
         if provider_info["state"] != "suspended":
             providers[provider_id] = provider_info
     return providers
+
+
+def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:
+    """
+    Returns list of all imports in file.
+
+    For following code:
+    import os
+    from collections import defaultdict
+    import numpy as np
+    from pandas import DataFrame as DF
+
+    def inner():
+        import json
+        from pathlib import Path, PurePath
+    from __future__ import annotations
+
+    When only_top_level = False then returns
+        ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame']
+    When only_top_level = False then returns
+        ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame', 'json', 'pathlib.Path', 'pathlib.PurePath']
+    """
+    root = ast.parse(file_path.read_text(), file_path.name)
+    imports: list[str] = []
+
+    nodes = ast.iter_child_nodes(root) if only_top_level else ast.walk(root)
+    for node in nodes:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "__future__":
+                continue
+            for alias in node.names:
+                name = alias.name
+                fullname = f"{node.module}.{name}" if node.module else name
+                imports.append(fullname)
+
+    return imports

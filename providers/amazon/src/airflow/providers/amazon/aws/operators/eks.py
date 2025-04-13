@@ -19,18 +19,18 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from ast import literal_eval
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateClusterTrigger,
     EksCreateFargateProfileTrigger,
@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteNodegroupTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
@@ -139,7 +140,7 @@ def _create_compute(
             )
 
 
-class EksCreateClusterOperator(BaseOperator):
+class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
     """
     Creates an Amazon EKS Cluster control plane.
 
@@ -168,13 +169,14 @@ class EksCreateClusterOperator(BaseOperator):
          Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :param create_cluster_kwargs: Optional parameters to pass to the CreateCluster API (templated)
     :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-         If this is None or empty then the default boto3 behaviour is used.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
 
     If compute is assigned the value of 'nodegroup':
 
@@ -200,7 +202,8 @@ class EksCreateClusterOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
@@ -214,7 +217,6 @@ class EksCreateClusterOperator(BaseOperator):
         "fargate_selectors",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
         "region",
     )
 
@@ -233,7 +235,6 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -253,20 +254,23 @@ class EksCreateClusterOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.fargate_profile_name = fargate_profile_name
         self.deferrable = deferrable
+        self.region = region
         super().__init__(
             **kwargs,
         )
 
-    @cached_property
-    def hook(self) -> EksHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         if self.compute:
@@ -302,7 +306,7 @@ class EksCreateClusterOperator(BaseOperator):
                 trigger=EksCreateClusterTrigger(
                     cluster_name=self.cluster_name,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -327,7 +331,7 @@ class EksCreateClusterOperator(BaseOperator):
             compute=self.compute,
             cluster_name=self.cluster_name,
             aws_conn_id=self.aws_conn_id,
-            region=self.region,
+            region=self.region_name,
             wait_for_completion=self.wait_for_completion,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
@@ -354,7 +358,7 @@ class EksCreateClusterOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                     force_delete_compute=False,
                 ),
                 method_name="execute_failed",
@@ -366,7 +370,7 @@ class EksCreateClusterOperator(BaseOperator):
                 compute=self.compute,
                 cluster_name=self.cluster_name,
                 aws_conn_id=self.aws_conn_id,
-                region=self.region,
+                region=self.region_name,
                 wait_for_completion=self.wait_for_completion,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
@@ -387,7 +391,7 @@ class EksCreateClusterOperator(BaseOperator):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
-                        region_name=self.region,
+                        region_name=self.region_name,
                     ),
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -398,7 +402,7 @@ class EksCreateClusterOperator(BaseOperator):
                         nodegroup_name=self.nodegroup_name,
                         cluster_name=self.cluster_name,
                         aws_conn_id=self.aws_conn_id,
-                        region_name=self.region,
+                        region_name=self.region_name,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                     ),
@@ -424,7 +428,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.log.info("%s created successfully", resource)
 
 
-class EksCreateNodegroupOperator(BaseOperator):
+class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
     """
     Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
@@ -440,13 +444,14 @@ class EksCreateNodegroupOperator(BaseOperator):
          The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :param create_nodegroup_kwargs: Optional parameters to pass to the Create Nodegroup API (templated)
     :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
     :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
     :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be created.
@@ -455,14 +460,14 @@ class EksCreateNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
         "cluster_name",
         "nodegroup_subnets",
         "nodegroup_role_arn",
         "nodegroup_name",
         "create_nodegroup_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
         "region",
     )
 
@@ -474,7 +479,6 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
@@ -490,12 +494,19 @@ class EksCreateNodegroupOperator(BaseOperator):
         if deferrable:
             wait_for_completion = False
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
         super().__init__(**kwargs)
+
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         self.log.info(self.task_id)
@@ -516,7 +527,7 @@ class EksCreateNodegroupOperator(BaseOperator):
             compute=self.compute,
             cluster_name=self.cluster_name,
             aws_conn_id=self.aws_conn_id,
-            region=self.region,
+            region=self.region_name,
             wait_for_completion=self.wait_for_completion,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
@@ -532,7 +543,7 @@ class EksCreateNodegroupOperator(BaseOperator):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -549,7 +560,7 @@ class EksCreateNodegroupOperator(BaseOperator):
             raise AirflowException(f"Error creating nodegroup: {validated_event}")
 
 
-class EksCreateFargateProfileOperator(BaseOperator):
+class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
@@ -565,14 +576,14 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargate Profile API
      (templated)
     :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
     :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
     :param deferrable: If True, the operator will wait asynchronously for the profile to be created.
@@ -580,14 +591,14 @@ class EksCreateFargateProfileOperator(BaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
         "cluster_name",
         "pod_execution_role_arn",
         "selectors",
         "fargate_profile_name",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
         "region",
     )
 
@@ -598,9 +609,8 @@ class EksCreateFargateProfileOperator(BaseOperator):
         selectors: list,
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
-        wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
+        wait_for_completion: bool = False,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -614,22 +624,28 @@ class EksCreateFargateProfileOperator(BaseOperator):
         if deferrable:
             wait_for_completion = False
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
         self.compute = "fargate"
+        self.region = region
         super().__init__(
             **kwargs,
         )
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         _create_compute(
             compute=self.compute,
             cluster_name=self.cluster_name,
             aws_conn_id=self.aws_conn_id,
-            region=self.region,
+            region=self.region_name,
             wait_for_completion=self.wait_for_completion,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
@@ -646,7 +662,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region_name=self.region,
+                    region_name=self.region_name,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -663,7 +679,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.log.info("Fargate profile created successfully")
 
 
-class EksDeleteClusterOperator(BaseOperator):
+class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     """
     Deletes the Amazon EKS Cluster control plane and all nodegroups attached to it.
 
@@ -682,6 +698,8 @@ class EksDeleteClusterOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param waiter_max_attempts: The maximum number of attempts to check cluster state
     :param deferrable: If True, the operator will wait asynchronously for the cluster to be deleted.
@@ -690,21 +708,17 @@ class EksDeleteClusterOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
-        "cluster_name",
-        "force_delete_compute",
-        "wait_for_completion",
-        "aws_conn_id",
-        "region",
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name", "force_delete_compute", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         force_delete_compute: bool = False,
-        wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
+        wait_for_completion: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
@@ -715,18 +729,21 @@ class EksDeleteClusterOperator(BaseOperator):
         if deferrable:
             wait_for_completion = False
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.region = region
         super().__init__(**kwargs)
 
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     def execute(self, context: Context):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
         if self.deferrable:
             self.defer(
                 trigger=EksDeleteClusterTrigger(
@@ -734,47 +751,47 @@ class EksDeleteClusterOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                     force_delete_compute=self.force_delete_compute,
                 ),
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
         elif self.force_delete_compute:
-            self.delete_any_nodegroups(eks_hook)
-            self.delete_any_fargate_profiles(eks_hook)
+            self.delete_any_nodegroups()
+            self.delete_any_fargate_profiles()
 
-        eks_hook.delete_cluster(name=self.cluster_name)
+        self.hook.delete_cluster(name=self.cluster_name)
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            self.hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
 
-    def delete_any_nodegroups(self, eks_hook) -> None:
+    def delete_any_nodegroups(self) -> None:
         """
         Delete all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
 
         Amazon EKS managed node groups can be deleted in parallel, so we can send all
         delete commands in bulk and move on once the count of nodegroups is zero.
         """
-        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
+        nodegroups = self.hook.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
             for group in nodegroups:
-                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+                self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
-            eks_hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
+            self.hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
-    def delete_any_fargate_profiles(self, eks_hook) -> None:
+    def delete_any_fargate_profiles(self) -> None:
         """
         Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.
         """
-        fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
+        fargate_profiles = self.hook.list_fargate_profiles(clusterName=self.cluster_name)
         if fargate_profiles:
             self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
             self.log.info("Waiting for Fargate profiles to delete.  This will take some time.")
@@ -782,8 +799,8 @@ class EksDeleteClusterOperator(BaseOperator):
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
                 # so each must be deleted sequentially
-                eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
-                eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+                self.hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+                self.hook.conn.get_waiter("fargate_profile_deleted").wait(
                     clusterName=self.cluster_name, fargateProfileName=profile
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
@@ -795,7 +812,7 @@ class EksDeleteClusterOperator(BaseOperator):
             self.log.info("Cluster deleted successfully.")
 
 
-class EksDeleteNodegroupOperator(BaseOperator):
+class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
     """
     Deletes an Amazon EKS managed node group from an Amazon EKS Cluster.
 
@@ -811,8 +828,10 @@ class EksDeleteNodegroupOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
     :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
     :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be deleted.
@@ -821,21 +840,17 @@ class EksDeleteNodegroupOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = (
-        "cluster_name",
-        "nodegroup_name",
-        "wait_for_completion",
-        "aws_conn_id",
-        "region",
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name", "nodegroup_name", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         nodegroup_name: str,
-        wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
+        wait_for_completion: bool = False,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -844,27 +859,29 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
         super().__init__(**kwargs)
 
-    def execute(self, context: Context):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
-        eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+    def execute(self, context: Context):
+        self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
         if self.deferrable:
             self.defer(
                 trigger=EksDeleteNodegroupTrigger(
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -875,7 +892,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("nodegroup_deleted").wait(
+            self.hook.conn.get_waiter("nodegroup_deleted").wait(
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
 
@@ -886,7 +903,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
             raise AirflowException(f"Error deleting nodegroup: {validated_event}")
 
 
-class EksDeleteFargateProfileOperator(BaseOperator):
+class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
     """
     Deletes an AWS Fargate profile from an Amazon EKS Cluster.
 
@@ -902,8 +919,10 @@ class EksDeleteFargateProfileOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
     :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
     :param deferrable: If True, the operator will wait asynchronously for the profile to be deleted.
@@ -911,21 +930,17 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
-        "cluster_name",
-        "fargate_profile_name",
-        "wait_for_completion",
-        "aws_conn_id",
-        "region",
+    aws_hook_class = EksHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name", "fargate_profile_name", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         fargate_profile_name: str,
-        wait_for_completion: bool = False,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
+        wait_for_completion: bool = False,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -935,19 +950,20 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.fargate_profile_name = fargate_profile_name
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
+        if region is not None:
+            self.region_name = region
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        eks_hook.delete_fargate_profile(
+        self.hook.delete_fargate_profile(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
         if self.deferrable:
@@ -958,7 +974,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region_name=self.region,
+                    region_name=self.region_name,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -967,7 +983,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
-            eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
+            self.hook.conn.get_waiter("fargate_profile_deleted").wait(
                 clusterName=self.cluster_name,
                 fargateProfileName=self.fargate_profile_name,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},

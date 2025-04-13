@@ -636,17 +636,17 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
     assert results == expected_values
 
 
-@pytest.mark.xfail(reason="SkipMixin hasn't been ported over to use the Task Execution API yet")
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
-    from airflow.decorators import task_group
-    from airflow.operators.empty import EmptyOperator
+    from airflow.sdk import task_group
 
     if TYPE_CHECKING:
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.operators.python import ShortCircuitOperator
     else:
         ShortCircuitOperator = pytest.importorskip(
             "airflow.providers.standard.operators.python"
         ).ShortCircuitOperator
+        EmptyOperator = pytest.importorskip("airflow.providers.standard.operators.empty").EmptyOperator
 
     with DAG("test") as dag:
 
@@ -670,44 +670,18 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
             ti.task.execute(context)
 
     assert ti
-    # TODO: these tests might not be right
     mock_supervisor_comms.send_request.assert_has_calls(
         [
-            SetXCom(
-                key="skipmixin_key",
-                value=None,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="return_value",
-                value=True,
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=0,
-            ),
-            SetXCom(
-                key="skipmixin_key",
-                value={"skipped": ["group.empty_task"]},
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id="group.push_xcom_from_shortcircuit",
-                map_index=1,
+            mock.call(
+                log=mock.ANY,
+                msg=SetXCom(
+                    key="skipmixin_key",
+                    value={"skipped": ["group.empty_task"]},
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id="group.push_xcom_from_shortcircuit",
+                    map_index=1,
+                ),
             ),
         ]
     )
-    #
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
-    #     is True
-    # )
-    # assert (
-    #     tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
-    #     is None
-    # )
-    # assert tis[0].xcom_pull(
-    #     task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
-    # ) == {"skipped": ["group.empty_task"]}

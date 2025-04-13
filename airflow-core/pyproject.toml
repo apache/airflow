@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.19.19",
+    "trove-classifiers==2025.4.11.15",
 ]
 build-backend = "hatchling.build"
 
@@ -59,10 +59,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0.dev0"
+version = "3.0.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
+    "aiosqlite>=0.20.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -83,8 +84,10 @@ dependencies = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.115.0,!=0.115.10",
-    "fsspec>=2023.10.0",
+    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
+    "flask>=2.1.1",
     "gitpython>=3.1.40",
+    # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -133,18 +136,12 @@ dependencies = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<4",
-    "wtforms>=3.0,<4",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-io>=1.5.2",
     "apache-airflow-providers-common-sql>=1.24.1",
-    "apache-airflow-providers-openlineage>=2.1.2",
     "apache-airflow-providers-smtp>=2.0.1",
     "apache-airflow-providers-standard>=0.2.0",
-    "apache-airflow-providers-sqlite>=4.0.1",
 ]
 
 
@@ -154,7 +151,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]",
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
 ]
 "async" = [
     "eventlet>=0.37.0",
@@ -166,9 +163,6 @@ dependencies = [
 ]
 "apache-webhdfs" = [
     "apache-airflow-providers-apache-hdfs",
-]
-"cgroups" = [
-    "cgroupspy>=0.2.2",
 ]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
@@ -223,10 +217,10 @@ dependencies = [
     "statsd>=3.3.0",
 ]
 "uv" = [
-    "uv>=0.6.10",
+    "uv>=0.6.13",
 ]
 "all" = [
-    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
 ]
 
 [project.scripts]

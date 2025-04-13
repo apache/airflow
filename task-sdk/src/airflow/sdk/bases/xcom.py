@@ -17,13 +17,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 
 from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom, SetXCom, XComResult
 
 log = structlog.get_logger(logger_name="task")
+
+
+class TIKeyProtocol(Protocol):
+    dag_id: str
+    task_id: str
+    run_id: str
+    map_index: int
 
 
 class BaseXCom:
@@ -116,7 +123,7 @@ class BaseXCom:
     def get_value(
         cls,
         *,
-        ti_key: Any,
+        ti_key: TIKeyProtocol,
         key: str,
     ) -> Any:
         """

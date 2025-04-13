@@ -243,7 +243,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.10"
+AIRFLOW_UV_VERSION = "0.6.13"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -251,7 +251,7 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.10"
+UV_VERSION = "0.6.13"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -909,6 +909,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
+@click.option(
+    "--skip-changelog",
+    is_flag=True,
+    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+)
+@click.option(
+    "--skip-readme",
+    is_flag=True,
+    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -920,6 +930,8 @@ def prepare_provider_documentation(
     provider_distributions: tuple[str],
     reapply_templates_only: bool,
     skip_git_fetch: bool,
+    skip_changelog: bool,
+    skip_readme: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -962,7 +974,7 @@ def prepare_provider_documentation(
                 f"Update release notes for package '{provider_id}' ",
                 skip_printing_title=only_min_version_update,
             ):
-                if not only_min_version_update:
+                if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
@@ -976,8 +988,9 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    skip_readme=skip_readme,
                 )
-            if not only_min_version_update:
+            if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
                     skip_printing_title=only_min_version_update,
@@ -2040,6 +2053,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
         python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
+        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
