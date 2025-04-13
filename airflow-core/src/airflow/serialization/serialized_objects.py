@@ -43,7 +43,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
-    EXPAND_INPUT_EMPTY,
     create_expand_input,
 )
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -52,6 +51,7 @@ from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -248,6 +248,16 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
+def _encode_trigger(trigger: BaseEventTrigger | dict):
+    if isinstance(trigger, dict):
+        return trigger
+    classpath, kwargs = trigger.serialize()
+    return {
+        "classpath": classpath,
+        "kwargs": kwargs,
+    }
+
+
 def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     Encode an asset condition.
@@ -260,15 +270,6 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             return {
                 "name": watcher.name,
                 "trigger": _encode_trigger(watcher.trigger),
-            }
-
-        def _encode_trigger(trigger: BaseEventTrigger | dict):
-            if isinstance(trigger, dict):
-                return trigger
-            classpath, kwargs = trigger.serialize()
-            return {
-                "classpath": classpath,
-                "kwargs": kwargs,
             }
 
         asset = {
@@ -1943,6 +1944,10 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         # This function is complex to implement, for now we delegate deserialize the dag and delegate to that.
         return self._real_dag.next_dagrun_info(*args, **kwargs)
 
+    @property
+    def access_control(self) -> Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None:
+        return BaseSerialization.deserialize(self.data["dag"].get("access_control"))
+
     @cached_property
     def _real_dag(self):
         return SerializedDAG.from_dict(self.data)
@@ -2003,11 +2008,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
             raise ValueError(f"Cannot calculate data interval for run {run}")
 
         return data_interval
-
-    if TYPE_CHECKING:
-        access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(
-            init=False, default=None
-        )
 
 
 @attrs.define()

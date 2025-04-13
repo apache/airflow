@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, type StackProps, IconButton } from "@chakra-ui/react";
+import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
 import { useMemo } from "react";
 import { MdExpand, MdCompress } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -26,7 +26,7 @@ import { useOpenGroups } from "src/context/openGroups";
 
 import { flattenNodes } from "./Grid/utils";
 
-export const ToggleGroups = (props: StackProps) => {
+export const ToggleGroups = (props: ButtonGroupProps) => {
   const { dagId = "" } = useParams();
   const { data: structure } = useStructureServiceStructureData({
     dagId,
@@ -55,7 +55,7 @@ export const ToggleGroups = (props: StackProps) => {
   };
 
   return (
-    <HStack gap={2} {...props}>
+    <ButtonGroup attached size="sm" variant="surface" {...props}>
       <IconButton
         aria-label="Expand all task groups"
         disabled={isExpandDisabled}
@@ -76,6 +76,6 @@ export const ToggleGroups = (props: StackProps) => {
       >
         <MdCompress />
       </IconButton>
-    </HStack>
+    </ButtonGroup>
   );
 };

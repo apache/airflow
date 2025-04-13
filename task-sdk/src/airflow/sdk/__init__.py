@@ -35,6 +35,7 @@ __all__ = [
     "EdgeModifier",
     "Label",
     "Metadata",
+    "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
     "TaskGroup",
@@ -48,6 +49,10 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "setup",
+    "task",
+    "task_group",
+    "teardown",
 ]
 
 __version__ = "1.0.0.alpha1"
@@ -63,12 +68,15 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.decorators import setup, task, teardown
+    from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.io.path import ObjectStoragePath
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
@@ -86,6 +94,7 @@ __lazy_imports: dict[str, str] = {
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "TaskGroup": ".definitions.taskgroup",
@@ -98,6 +107,10 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "setup": ".definitions.decorators",
+    "task": ".definitions.decorators",
+    "task_group": ".definitions.decorators",
+    "teardown": ".definitions.decorators",
 }
 
 

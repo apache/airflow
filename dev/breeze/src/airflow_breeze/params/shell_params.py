@@ -386,13 +386,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
@@ -519,7 +519,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
-        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)

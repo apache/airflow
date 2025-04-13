@@ -25,9 +25,8 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.decorators import task
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset, Metadata
+from airflow.sdk import DAG, Asset, Metadata, task
 
 asset = Asset(uri="s3://output/1.txt", name="test-asset")
 
