@@ -30,7 +30,7 @@ from enum import Enum
 from itertools import chain
 from pathlib import Path
 from types import GeneratorType
-from typing import IO, TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
 from urllib.parse import urljoin
 
 import pendulum
@@ -107,8 +107,9 @@ class StructuredLogMessage(BaseModel):
 
 
 StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
-
 """Structured log stream, containing structured log messages."""
+LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain[StructuredLogMessage]]
+"""Output stream, containing structured log messages or a chain of them."""
 ParsedLog: TypeAlias = tuple[Optional[datetime], int, StructuredLogMessage]
 """Parsed log record, containing timestamp, line_num and the structured log message."""
 ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
@@ -638,7 +639,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: LogMetadata | None = None,
-    ) -> tuple[StructuredLogStream | chain[StructuredLogMessage], LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -712,7 +713,7 @@ class FileTaskHandler(logging.Handler):
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path, metadata)
             source_list.extend(sources)
 
-        out_stream: StructuredLogStream | chain[StructuredLogMessage] = _interleave_logs(
+        out_stream: LogHandlerOutputStream = _interleave_logs(
             *local_logs,
             *remote_logs,
             *executor_logs,
@@ -776,7 +777,7 @@ class FileTaskHandler(logging.Handler):
         task_instance: TaskInstance,
         try_number: int | None = None,
         metadata: LogMetadata | None = None,
-    ) -> tuple[StructuredLogStream | chain[StructuredLogMessage], LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
         """
         Read logs of given task instance from local machine.
 
