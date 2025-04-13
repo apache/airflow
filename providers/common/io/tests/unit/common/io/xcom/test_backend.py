@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import airflow.models.xcom
@@ -102,8 +104,10 @@ class TestXComObjectStorageBackend:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            # When using XComObjectStorageBackend, the value is stored in the db is serialized with json dumps
+            # so we need to mimic that same behavior below.
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key="return_value", value={"key": "value"}
+                key="return_value", value=json.dumps({"key": "value"})
             )
 
         value = XCom.get_value(

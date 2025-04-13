@@ -160,9 +160,13 @@ class XComObjectStorageBackend(BaseXCom):
 
         Compression is inferred from the file extension.
         """
-        data = BaseXCom.deserialize_value(result)
+        base_xcom_deser_result = BaseXCom.deserialize_value(result)
+
+        # When XComObjectStorageBackend is used, xcom value will be serialized using json.dumps
+        # likely, we need to deserialize it using json.loads
+        data = json.loads(base_xcom_deser_result, cls=XComDecoder)
         try:
-            path = XComObjectStorageBackend._get_full_path(data)
+            path = XComObjectStorageBackend._get_full_path(base_xcom_deser_result)
         except (TypeError, ValueError):  # Likely value stored directly in the database.
             return data
         try:
