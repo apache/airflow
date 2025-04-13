@@ -431,8 +431,8 @@ class BaseExecutor(LoggingMixin):
                 if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                     ti = item.ti
 
-                    # If it's None, then the span for the current try_id hasn't been started.
-                    if self.active_spans is not None and self.active_spans.get(ti.try_id) is None:
+                    # If it's None, then the span for the current id hasn't been started.
+                    if self.active_spans is not None and self.active_spans.get(ti.id) is None:
                         from airflow.models.taskinstance import SimpleTaskInstance
 
                         if isinstance(ti, SimpleTaskInstance):
@@ -451,7 +451,7 @@ class BaseExecutor(LoggingMixin):
                             component="task",
                             start_as_current=False,
                         )
-                        self.active_spans.set(ti.try_id, span)
+                        self.active_spans.set(ti.id, span)
                         # Inject the current context into the carrier.
                         carrier = Trace.inject()
                         ti.context_carrier = carrier

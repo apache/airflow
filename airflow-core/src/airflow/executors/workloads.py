@@ -59,7 +59,6 @@ class TaskInstance(BaseModel):
     task_id: str
     dag_id: str
     run_id: str
-    try_id: uuid.UUID
     try_number: int
     map_index: int = -1
 

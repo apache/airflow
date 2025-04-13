@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 import time_machine
 from requests import HTTPError, Response
-from uuid6 import uuid7
 
 from airflow.providers.edge.cli.dataclasses import Job
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _write_pid_to_pidfile
@@ -53,7 +52,6 @@ MOCK_COMMAND = (
             "task_id": "mock",
             "dag_id": "mock",
             "run_id": "mock",
-            "try_id": uuid7(),
             "try_number": 1,
             "pool_slots": 1,
             "queue": "default",

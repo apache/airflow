@@ -183,10 +183,10 @@ class TestCeleryExecutor:
 
             with start_worker(app=app, logfile=sys.stdout, loglevel="info"):
                 ti = workloads.TaskInstance.model_construct(
+                    id=uuid7(),
                     task_id="success",
                     dag_id="id",
                     run_id="abc",
-                    try_id=uuid7(),
                     try_number=0,
                     priority_weight=1,
                     queue=celery_executor_utils.celery_configuration["task_default_queue"],
@@ -243,7 +243,6 @@ class TestCeleryExecutor:
                 start_date=datetime.now(),
             )
             ti = TaskInstance(task=task, run_id="abc")
-            ti.try_id = uuid7()
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )
@@ -280,7 +279,6 @@ class TestCeleryExecutor:
                 start_date=datetime.now(),
             )
             ti = TaskInstance(task=task, run_id="abc")
-            ti.try_id = uuid7()
             workload = workloads.ExecuteTask.model_construct(
                 ti=workloads.TaskInstance.model_validate(ti, from_attributes=True),
             )

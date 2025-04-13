@@ -819,11 +819,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            if (active_ti_span := cls.active_spans.get(ti.try_id)) is not None:
+            if (active_ti_span := cls.active_spans.get(ti.id)) is not None:
                 cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                cls.active_spans.delete(ti.try_id)
+                cls.active_spans.delete(ti.id)
                 ti.span_status = SpanStatus.ENDED
             else:
                 if ti.span_status == SpanStatus.ACTIVE:
@@ -998,12 +998,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _end_active_spans(self, session: Session = NEW_SESSION):
         # No need to do a commit for every update. The annotation will commit all of them once at the end.
         for key, span in self.active_spans.get_all().items():
-            from uuid import UUID
+            ti: TaskInstance | None = session.scalars(
+                select(TaskInstance).where(TaskInstance.id == str(key))
+            ).one_or_none()
 
-            if isinstance(key, UUID):  # ti span.
-                ti: TaskInstance = session.scalars(
-                    select(TaskInstance).where(TaskInstance.try_id == key)
-                ).one()
+            if ti is not None:
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
                     span.end(end_time=datetime_to_nano(ti.end_date))
@@ -1012,7 +1011,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     span.end()
                     ti.span_status = SpanStatus.NEEDS_CONTINUANCE
             else:
-                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == key)).one()
+                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == str(key))).one()
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=span)
 
@@ -1060,14 +1059,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
-            active_ti_span = self.active_spans.get(ti.try_id)
+            active_ti_span = self.active_spans.get(ti.id)
             if active_ti_span is not None:
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
                     active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 else:
                     active_ti_span.end()
-                self.active_spans.delete(ti.try_id)
+                self.active_spans.delete(ti.id)
                 ti.span_status = SpanStatus.ENDED
 
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
@@ -1115,7 +1114,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in tis
                     # If it has started and there is a reference on the active_spans dict,
                     # then it was started by the current scheduler.
-                    if ti.start_date is not None and self.active_spans.get(ti.try_id) is None
+                    if ti.start_date is not None and self.active_spans.get(ti.id) is None
                 ]
 
                 dr_context = Trace.extract(dag_run.context_carrier)
@@ -1135,7 +1134,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.span_status = SpanStatus.ENDED
                     else:
                         ti.span_status = SpanStatus.ACTIVE
-                        self.active_spans.set(ti.try_id, ti_span)
+                        self.active_spans.set(ti.id, ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
