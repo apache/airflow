@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
 LogReaderOutputStream: TypeAlias = Generator[str, None, None]
 
+READ_BATCH_SIZE = 1024
+
 
 class TaskLogReader:
     """Task log reader."""
@@ -102,8 +104,20 @@ class TaskLogReader:
             log_stream, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
 
+            # Don't yield per line, instead yield in batch to speed up the response time
+            # By reading in batch can speed up from less than 1MB/s to more than 10MB/s
+            buffer: list[str] = []
+            counter = 0
             for log in log_stream:
-                yield log.model_dump_json() + "\n"
+                buffer.append(log.model_dump_json() + "\n")
+                counter += 1
+                if counter >= READ_BATCH_SIZE:
+                    yield "".join(buffer)
+                    buffer.clear()
+                    counter = 0
+            if buffer:
+                yield "".join(buffer)
+                buffer.clear()
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
