@@ -162,8 +162,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     # For a dagrun span
     #   - key: dag_run.run_id | value: span
+    #   - dagrun keys will be prefixed with 'dr:'.
     # For a ti span
-    #   - key: ti.key | value: span
+    #   - key: ti.id | value: span
+    #   - taskinstance keys will be prefixed with 'ti:'.
     active_spans = ThreadSafeDict()
 
     def __init__(
@@ -819,11 +821,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            if (active_ti_span := cls.active_spans.get(ti.id)) is not None:
+            if (active_ti_span := cls.active_spans.get("ti:" + ti.id)) is not None:
                 cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                cls.active_spans.delete(ti.id)
+                cls.active_spans.delete("ti:" + ti.id)
                 ti.span_status = SpanStatus.ENDED
             else:
                 if ti.span_status == SpanStatus.ACTIVE:
@@ -997,20 +999,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _end_active_spans(self, session: Session = NEW_SESSION):
         # No need to do a commit for every update. The annotation will commit all of them once at the end.
-        for key, span in self.active_spans.get_all().items():
-            ti: TaskInstance | None = session.scalars(
-                select(TaskInstance).where(TaskInstance.id == str(key))
-            ).one_or_none()
+        for prefixed_key, span in self.active_spans.get_all().items():
+            # Use partition to split on the first occurrence of ':'.
+            prefix, sep, key = prefixed_key.partition(":")
 
-            if ti is not None:
-                if ti.state in State.finished:
-                    self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
-                    span.end(end_time=datetime_to_nano(ti.end_date))
-                    ti.span_status = SpanStatus.ENDED
-                else:
-                    span.end()
-                    ti.span_status = SpanStatus.NEEDS_CONTINUANCE
-            else:
+            if prefix == "ti":
+                ti: TaskInstance | None = session.scalars(
+                    select(TaskInstance).where(TaskInstance.id == key)
+                ).one_or_none()
+
+                if ti is not None:
+                    if ti.state in State.finished:
+                        self.set_ti_span_attrs(span=span, state=ti.state, ti=ti)
+                        span.end(end_time=datetime_to_nano(ti.end_date))
+                        ti.span_status = SpanStatus.ENDED
+                    else:
+                        span.end()
+                        ti.span_status = SpanStatus.NEEDS_CONTINUANCE
+            elif prefix == "dr":
                 dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == str(key))).one()
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=span)
@@ -1025,7 +1031,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         span_name="current_scheduler_exited", parent_context=initial_dag_run_context
                     ) as s:
                         s.set_attribute("trace_status", "needs continuance")
+            else:
+                self.log.error("Found key with unknown prefix: '%s'", prefixed_key)
 
+        # Even if there is a key with an unknown prefix, clear the dict.
+        # If this method has been called, the scheduler is exiting.
         self.active_spans.clear()
 
     def _end_spans_of_externally_ended_ops(self, session: Session):
@@ -1047,7 +1057,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ).all()
 
         for dag_run in dag_runs_should_end:
-            active_dagrun_span = self.active_spans.get(dag_run.run_id)
+            active_dagrun_span = self.active_spans.get("dr:" + dag_run.run_id)
             if active_dagrun_span is not None:
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=active_dagrun_span)
@@ -1055,18 +1065,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_dagrun_span.end(end_time=datetime_to_nano(dag_run.end_date))
                 else:
                     active_dagrun_span.end()
-                self.active_spans.delete(dag_run.run_id)
+                self.active_spans.delete("dr:" + dag_run.run_id)
                 dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
-            active_ti_span = self.active_spans.get(ti.id)
+            active_ti_span = self.active_spans.get("ti:" + ti.id)
             if active_ti_span is not None:
                 if ti.state in State.finished:
                     self.set_ti_span_attrs(span=active_ti_span, state=ti.state, ti=ti)
                     active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
                 else:
                     active_ti_span.end()
-                self.active_spans.delete(ti.id)
+                self.active_spans.delete("ti:" + ti.id)
                 ti.span_status = SpanStatus.ENDED
 
     def _recreate_unhealthy_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session):
@@ -1101,7 +1111,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 carrier = Trace.inject()
                 # Update the context_carrier and leave the SpanStatus as ACTIVE.
                 dag_run.context_carrier = carrier
-                self.active_spans.set(dag_run.run_id, dr_span)
+                self.active_spans.set("dr:" + dag_run.run_id, dr_span)
 
                 tis = dag_run.get_task_instances(session=session)
 
@@ -1114,7 +1124,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for ti in tis
                     # If it has started and there is a reference on the active_spans dict,
                     # then it was started by the current scheduler.
-                    if ti.start_date is not None and self.active_spans.get(ti.id) is None
+                    if ti.start_date is not None and self.active_spans.get("ti:" + ti.id) is None
                 ]
 
                 dr_context = Trace.extract(dag_run.context_carrier)
@@ -1134,7 +1144,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.span_status = SpanStatus.ENDED
                     else:
                         ti.span_status = SpanStatus.ACTIVE
-                        self.active_spans.set(ti.id, ti_span)
+                        self.active_spans.set("ti:" + ti.id, ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -1832,7 +1842,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (
                 dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
-                and self.active_spans.get(dag_run.run_id) is None
+                and self.active_spans.get("dr:" + dag_run.run_id) is None
             ):
                 # If the dag_run has been previously scheduled by another job and there is no active span,
                 # then check if the job is still healthy.
