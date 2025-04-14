@@ -21,7 +21,7 @@ dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE"]
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.9, <3.14"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -44,7 +44,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-
 dependencies = [
     "apache-airflow-core<=3.1.0,>=3.0.0",
     "aiologic>=0.14.0",
@@ -55,7 +54,8 @@ dependencies = [
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum>=3.0.0,<4.0;python_version>="3.12" and python_version<"3.13"',
+    'pendulum @ git+https://github.com/python-pendulum/pendulum.git ; python_version>="3.13"',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=25.2.0",
@@ -84,6 +84,9 @@ path = "src/airflow/sdk/__init__.py"
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
 exclude = ["src/airflow/__init__.py"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 extend = "../pyproject.toml"

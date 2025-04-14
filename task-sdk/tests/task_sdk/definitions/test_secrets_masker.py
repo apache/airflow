@@ -477,6 +477,7 @@ class TestMaskSecretAdapter:
         with patch(
             "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
         ):
+            # TODO(potiuk): likely we can remove that patch
             with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
                 yield
 

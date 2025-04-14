@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 MODIFIED_DAG_MODULE_NAME = "unusual_prefix_{path_hash}_{module_name}"
 
 
+# TODO(potiuk): check if regexp pattern matching here is safe
 class _IgnoreRule(Protocol):
     """Interface for ignore rules for structural subtyping."""
 

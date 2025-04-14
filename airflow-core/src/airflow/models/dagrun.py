@@ -319,6 +319,7 @@ class DagRun(Base, LoggingMixin):
             return None
         if re.match(RUN_ID_REGEX, run_id):
             return run_id
+        # TODO(potiuk): check if regexp pattern matching here is safe
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
         if regex and re.match(regex, run_id):
             return run_id
