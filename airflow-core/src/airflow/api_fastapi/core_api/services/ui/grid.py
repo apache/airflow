@@ -185,6 +185,9 @@ def fill_task_instance_summaries(
     task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
 
     for (task_id, run_id), tis in grouped_task_instances.items():
+        if not tis:
+            continue
+
         sdm = _get_serdag(tis[0], session)
         serdag_cache[sdm.id] = serdag_cache.get(sdm.id) or sdm.dag
         dag = serdag_cache[sdm.id]
