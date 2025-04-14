@@ -33,7 +33,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.settings import _ENABLE_AIP_44, force_traceback_session_for_untrusted_components
 from airflow.typing_compat import ParamSpec
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
@@ -139,7 +139,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         signer = JWTSigner(
-            secret_key=conf.get("core", "internal_api_secret_key"),
+            secret_key=get_signing_key("core", "internal_api_secret_key"),
             expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
             audience="api",
         )
