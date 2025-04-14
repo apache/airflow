@@ -327,6 +327,7 @@ class Variable(Base, LoggingMixin):
             TaskSDKVariable.delete(
                 key=key,
             )
+            return 1
 
         ctx: contextlib.AbstractContextManager
         if session is not None:

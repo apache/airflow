@@ -198,6 +198,15 @@ class _DagDependenciesResolver:
                 dependency_type="asset",
                 dependency_id=str(asset_id),
             )
+        else:
+            yield DagDependency(
+                source=dep_data["source"],
+                target=dep_data["target"],
+                # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                label=dep_data.get("label", dep_id),
+                dependency_type=dep_data["dependency_type"],
+                dependency_id=dep_id,
+            )
 
     def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")

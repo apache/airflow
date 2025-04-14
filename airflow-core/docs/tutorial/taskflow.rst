@@ -88,6 +88,11 @@ The function's return value is passed to the next task — no manual use of ``XC
 uses ``XComs`` to manage data passing automatically, abstracting away the complexity of manual XCom management from the
 previous methods. You'll define ``transform`` and ``load`` tasks using the same pattern.
 
+Notice the use of ``@task(multiple_outputs=True)`` above — this tells Airflow that the function returns a dictionary of
+values that should be split into individual XComs. Each key in the returned dictionary becomes its own XCom entry, which
+makes it easy to reference specific values in downstream tasks. If you omit ``multiple_outputs=True``, the entire
+dictionary is stored as a single XCom instead, and must be accessed as a whole.
+
 Step 3: Build the Flow
 ----------------------
 
@@ -341,10 +346,55 @@ incrementally to TaskFlow.
 
 You can chain Taskflow and traditional tasks using ``>>`` or pass data using the ``.output`` attribute.
 
+.. _taskflow/accessing_context_variables:
+
 Templating in TaskFlow
 ''''''''''''''''''''''
+
 Like traditional tasks, decorated TaskFlow functions support templated arguments — including loading content from files
 or using runtime parameters.
+
+When running your callable, Airflow will pass a set of keyword arguments that
+can be used in your function. This set of kwargs correspond exactly to what you
+can use in your Jinja templates. For this to work, you can add context keys you
+would like to receive in the function as keyword arguments.
+
+For example, the callable in the code block below will get values of the ``ti``
+and ``next_ds`` context variables:
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(*, ti, next_ds):
+       pass
+
+
+You can also choose to receive the entire context with ``**kwargs``. Note that
+this can incur a slight performance penalty since Airflow will need to
+expand the entire context that likely contains many things you don't actually
+need. It is therefore more recommended for you to use explicit arguments, as
+demonstrated in the previous paragraph.
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(**kwargs):
+       ti = kwargs["ti"]
+       next_ds = kwargs["next_ds"]
+
+Also, sometimes you might want to access the context somewhere deep in the stack, but you do not want to pass
+the context variables from the task callable. You can still access execution context via the ``get_current_context``
+method.
+
+.. code-block:: python
+
+    from airflow.providers.standard.operators.python import get_current_context
+
+
+    def some_function_in_your_library():
+        context = get_current_context()
+        ti = context["ti"]
+
 
 Arguments passed to decorated functions are automatically templated. You can also template file using
 ``templates_exts``:
@@ -353,6 +403,7 @@ Arguments passed to decorated functions are automatically templated. You can als
 
     @task(templates_exts=[".sql"])
     def read_sql(sql): ...
+
 
 Conditional Execution
 '''''''''''''''''''''
