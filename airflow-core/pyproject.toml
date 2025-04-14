@@ -221,7 +221,7 @@ dependencies = [
     "uv>=0.6.13",
 ]
 "all" = [
-    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[aiobotocore,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
 ]
 
 [project.scripts]

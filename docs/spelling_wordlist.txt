@@ -576,6 +576,7 @@ ecb
 ECR
 ecs
 EdDSA
+edgeexecutor
 EdgeModifier
 EdgeModifiers
 EDITMSG
