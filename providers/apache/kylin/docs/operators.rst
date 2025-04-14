@@ -15,59 +15,60 @@
    specific language governing permissions and limitations
    under the License.
 
-.. _howto/operator:DruidOperator:
+.. _howto/operator:KylinOperator:
 
-SQLExecuteQueryOperator to connect to Apache Druid
-====================================================
+SQLExecuteQueryOperator to connect to Apache Kylin
+===================================================
 
 Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator>` to execute SQL queries against an
-`Apache Druid <https://druid.apache.org/>`__ cluster.
+`Apache Kylin <https://kylin.apache.org/docs/overview>`__ cluster.
 
 .. note::
-    Previously, a dedicated operator for Druid might have been used.
-    After deprecation, please use the ``SQLExecuteQueryOperator`` instead.
+    There is no dedicated operator for Apache Kylin.
+    Please use the ``SQLExecuteQueryOperator`` instead.
 
 .. note::
-    Make sure you have installed the ``apache-airflow-providers-apache-druid`` package to enable Druid support.
+    Make sure you have installed the necessary provider package (e.g. ``apache-airflow-providers-apache-kylin``)
+    to enable Apache Kylin support.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-Use the ``conn_id`` argument to connect to your Apache Druid instance where
+Use the ``conn_id`` argument to connect to your Apache Kylin instance where
 the connection metadata is structured as follows:
 
-.. list-table:: Druid Airflow Connection Metadata
+.. list-table:: Kylin Airflow Connection Metadata
    :widths: 25 25
    :header-rows: 1
 
    * - Parameter
      - Input
    * - Host: string
-     - Druid broker hostname or IP address
+     - Kylin server hostname or IP address
    * - Schema: string
-     - Not applicable (leave blank)
+     - The default project name (optional)
    * - Login: string
-     - Not applicable (leave blank)
+     - Username for authentication (default: ADMIN)
    * - Password: string
-     - Not applicable (leave blank)
+     - Password for authentication (default: KYLIN)
    * - Port: int
-     - Druid broker port (default: 8082)
+     - Kylin service port (default: 7070)
    * - Extra: JSON
      - Additional connection configuration, such as:
-       ``{"endpoint": "/druid/v2/sql/", "method": "POST"}``
+       ``{"use_ssl": false}``
 
-An example usage of the SQLExecuteQueryOperator to connect to Apache Druid is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to Apache Kylin is as follows:
 
-.. exampleinclude:: /../tests/system/apache/druid/example_druid.py
+.. exampleinclude:: /../tests/system/apache/kylin/example_kylin.py
    :language: python
-   :start-after: [START howto_operator_druid]
-   :end-before: [END howto_operator_druid]
+   :start-after: [START howto_operator_kylin]
+   :end-before: [END howto_operator_kylin]
 
 Reference
 ^^^^^^^^^
 For further information, see:
 
-* `Apache Druid Documentation <https://druid.apache.org/docs/latest/>`__
+* `Apache Kylin Documentation <https://kylin.apache.org/docs/>`__
 
 .. note::
   Parameters provided directly via SQLExecuteQueryOperator() take precedence over those specified
