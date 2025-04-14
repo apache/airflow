@@ -1615,7 +1615,7 @@ def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
         )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
