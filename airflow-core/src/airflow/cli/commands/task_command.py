@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
+    from airflow.typing_compat import Self
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -139,7 +140,6 @@ def _get_dag_run(
             run_after=run_after,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
-            dag_version=None,
             state=DagRunState.RUNNING,
             session=session,
         )
@@ -258,7 +258,7 @@ def task_state(args) -> None:
     dag = get_dag(args.subdir, args.dag_id, from_db=True)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
-    print(ti.current_state())
+    print(ti.state)
 
 
 @cli_utils.action_cli(check_db=False)
@@ -516,7 +516,7 @@ class LoggerMutationHelper:
     def reset(self) -> None:
         self.apply(self.source_logger)
 
-    def __enter__(self) -> LoggerMutationHelper:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:

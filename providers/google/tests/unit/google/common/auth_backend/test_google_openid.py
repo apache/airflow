@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 from unittest import mock
 
 import pytest
@@ -77,6 +78,9 @@ def admin_user(google_openid_app):
     return role_admin
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("airflow.providers.fab") is None, reason="FAB provider is not installed"
+)
 @pytest.mark.db_test
 class TestGoogleOpenID:
     @pytest.fixture(autouse=True)

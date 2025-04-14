@@ -22,8 +22,7 @@ from __future__ import annotations
 import pendulum
 import requests
 
-from airflow.decorators import dag, task
-from airflow.io.path import ObjectStoragePath
+from airflow.sdk import ObjectStoragePath, dag, task
 
 # [END import_module]
 

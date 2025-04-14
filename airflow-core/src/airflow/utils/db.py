@@ -92,7 +92,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "0e9519b56710",
+    "3.0.0": "29ce7909c52b",
 }
 
 
@@ -1533,7 +1533,7 @@ class LazySelectSequence(Sequence[T]):
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, collections.abc.Sequence):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())

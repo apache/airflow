@@ -70,7 +70,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">Edit Variable</Heading>
+            <Heading size="xl">Edit Connection</Heading>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />

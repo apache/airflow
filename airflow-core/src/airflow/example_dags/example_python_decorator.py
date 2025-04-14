@@ -29,7 +29,7 @@ from pprint import pprint
 
 import pendulum
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 
 log = logging.getLogger(__name__)
 

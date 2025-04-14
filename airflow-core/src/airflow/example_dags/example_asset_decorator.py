@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
-from airflow.sdk import Asset, asset
+from airflow.sdk import Asset, asset, dag, task
 
 
 @asset(uri="s3://bucket/asset1_producer", schedule=None)

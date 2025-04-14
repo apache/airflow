@@ -375,6 +375,22 @@ class TestTaskInstanceOperations:
         )
         client.task_instances.reschedule(ti_id, msg)
 
+    def test_task_instance_up_for_retry(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "up_for_retry"
+                assert actual_body["end_date"] == "2024-10-31T12:00:00Z"
+                return httpx.Response(
+                    status_code=204,
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_instances.retry(ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"))
+
     @pytest.mark.parametrize(
         "rendered_fields",
         [
@@ -404,7 +420,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
 
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_get_count_basic(self):
         """Test basic get_count functionality with just dag_id."""
@@ -447,6 +463,48 @@ class TestTaskInstanceOperations:
             states=states,
         )
         assert result.count == 10
+
+    def test_get_task_states_basic(self):
+        """Test basic get_task_states functionality with just dag_id."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/states"
+            assert request.url.params.get("dag_id") == "test_dag"
+            assert request.url.params.get("task_group_id") == "group1"
+            return httpx.Response(
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_task_states(dag_id="test_dag", task_group_id="group1")
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
+
+    def test_get_task_states_with_all_params(self):
+        """Test get_task_states with all optional parameters."""
+
+        logical_dates_str = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
+        logical_dates = [timezone.parse(d) for d in logical_dates_str]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/task-instances/states"
+            assert request.method == "GET"
+            params = request.url.params
+            assert params["dag_id"] == "test_dag"
+            assert params["task_group_id"] == "group1"
+            assert params.get_list("logical_dates") == logical_dates_str
+            assert params.get_list("task_ids") == []
+            assert params.get_list("run_ids") == []
+            return httpx.Response(
+                200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_task_states(
+            dag_id="test_dag",
+            task_group_id="group1",
+            logical_dates=logical_dates,
+        )
+        assert result.task_states == {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}
 
 
 class TestVariableOperations:
@@ -539,7 +597,22 @@ class TestVariableOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
+
+    def test_variable_delete_success(self):
+        # Simulate a successful response from the server when deleting a variable
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.method == "DELETE" and request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"count": 1},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        result = client.variables.delete(key="test_key")
+        assert result == OKResponse(ok=True)
 
 
 class TestXCOMOperations:
@@ -690,7 +763,7 @@ class TestXCOMOperations:
             key="key",
             value=values,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_map_index(self):
         # Simulate a successful response from the server when setting an xcom with map_index passed
@@ -715,7 +788,7 @@ class TestXCOMOperations:
             value="value1",
             map_index=2,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
     def test_xcom_set_with_mapped_length(self):
         # Simulate a successful response from the server when setting an xcom with mapped_length
@@ -742,7 +815,7 @@ class TestXCOMOperations:
             map_index=2,
             mapped_length=3,
         )
-        assert result == {"ok": True}
+        assert result == OKResponse(ok=True)
 
 
 class TestConnectionOperations:

@@ -65,7 +65,16 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
-SECRETS_TO_SKIP_MASKING_FOR_TESTS = {"airflow"}
+SECRETS_TO_SKIP_MASKING = {"airflow"}
+"""Common terms that should be excluded from masking in both production and tests"""
+
+
+@cache
+def get_min_secret_length() -> int:
+    """Get minimum length for a secret to be considered for masking from airflow.cfg."""
+    from airflow.configuration import conf
+
+    return conf.getint("logging", "min_length_masked_secret", fallback=5)
 
 
 @cache
@@ -164,6 +173,7 @@ class SecretsMasker(logging.Filter):
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
     MAX_RECURSION_DEPTH = 5
+    _has_warned_short_secret = False
 
     def __init__(self):
         super().__init__()
@@ -346,12 +356,32 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (self._test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
+            if not secret:
+                return
+
+            if secret.lower() in SECRETS_TO_SKIP_MASKING:
+                return
+
+            min_length = get_min_secret_length()
+            if len(secret) < min_length:
+                if not SecretsMasker._has_warned_short_secret:
+                    log.warning(
+                        "Skipping masking for a secret as it's too short (<%d chars)",
+                        min_length,
+                        extra={self.ALREADY_FILTERED_FLAG: True},
+                    )
+                    SecretsMasker._has_warned_short_secret = True
                 return
 
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
+                    if len(s) < min_length:
+                        continue
+
+                    if s.lower() in SECRETS_TO_SKIP_MASKING:
+                        continue
+
                     pattern = re.escape(s)
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)

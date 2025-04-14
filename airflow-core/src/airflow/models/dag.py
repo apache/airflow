@@ -29,6 +29,7 @@ from collections.abc import Collection, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from pathlib import Path
 from re import Pattern
 from typing import (
     TYPE_CHECKING,
@@ -76,6 +77,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads import BundleInfo
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -235,10 +237,10 @@ def get_asset_triggered_next_run_info(
     }
 
 
-def _triggerer_is_healthy():
+def _triggerer_is_healthy(session: Session):
     from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
-    job = TriggererJobRunner.most_recent_job()
+    job = TriggererJobRunner.most_recent_job(session=session)
     return job and job.is_alive()
 
 
@@ -254,7 +256,6 @@ def _create_orm_dagrun(
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
-    dag_version: DagVersion | None,
     creating_job_id: int | None,
     backfill_id: int | None,
     triggered_by: DagRunTriggeredByType,
@@ -288,8 +289,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    if not dag_version:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
@@ -747,7 +747,12 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
+        return session.scalar(select(~DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_is_stale(self, session=NEW_SESSION) -> None:
+        """Return a boolean indicating whether this DAG is stale."""
+        return session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
@@ -1679,6 +1684,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
+            # Start a mock span so that one is present and not started downstream. We
+            # don't care about otel in dag.test and starting the span during dagrun update
+            # is not functioning properly in this context anyway.
+            dr.start_dr_spans_if_needed(tis=[])
 
             tasks = self.task_dict
             self.log.debug("starting dagrun")
@@ -1715,7 +1724,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
-                triggerer_running = _triggerer_is_healthy()
+                triggerer_running = _triggerer_is_healthy(session)
                 for ti in scheduled_tis:
                     ti.task = tasks[ti.task_id]
 
@@ -1728,8 +1737,26 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if use_executor:
                         if executor.has_task(ti):
                             continue
-                        # Send the task to the executor
-                        executor.queue_task_instance(ti, ignore_ti_state=True)
+                        # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
+                        from airflow.executors import workloads
+                        from airflow.executors.base_executor import BaseExecutor
+
+                        if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+                            workload = workloads.ExecuteTask.make(
+                                ti,
+                                dag_rel_path=Path(self.fileloc),
+                                generator=executor.jwt_generator,
+                                # For the system test/debug purpose, we use the default bundle which uses
+                                # local file system. If it turns out to be a feature people want, we could
+                                # plumb the Bundle to use as a parameter to dag.test
+                                bundle_info=BundleInfo(name="dags-folder"),
+                            )
+                            executor.queue_workload(workload, session=session)
+                            ti.state = TaskInstanceState.QUEUED
+                            session.commit()
+                        else:
+                            # Send the task to the executor
+                            executor.queue_task_instance(ti, ignore_ti_state=True)
                     else:
                         # Run the task locally
                         try:
@@ -1764,7 +1791,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1838,7 +1864,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
@@ -1885,6 +1910,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_asset_trigger_references(orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
 
         dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
 
@@ -1914,7 +1940,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
         session.commit()
 
@@ -1930,14 +1956,14 @@ class DAG(TaskSDKDag, LoggingMixin):
         :return: None
         """
         for dag in session.scalars(
-            select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
+            select(DagModel).where(DagModel.last_parsed_time < expiration_date, ~DagModel.is_stale)
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
                 dag.last_parsed_time.isoformat(),
             )
-            dag.is_active = False
+            dag.is_stale = True
             session.merge(dag)
             session.commit()
 
@@ -2130,7 +2156,7 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_active = Column(Boolean, default=False)
+    is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
@@ -2279,7 +2305,7 @@ class DagModel(Base):
 
     def get_is_active(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
-        return self.is_active
+        return not self.is_stale
 
     @staticmethod
     @provide_session
@@ -2364,14 +2390,14 @@ class DagModel(Base):
             .options(
                 load_only(
                     cls.relative_fileloc,
-                    cls.is_active,
+                    cls.is_stale,
                 ),
             )
         )
 
         for dm in dag_models:
             if dm.relative_fileloc not in rel_filelocs:
-                dm.is_active = False
+                dm.is_stale = True
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
@@ -2444,7 +2470,7 @@ class DagModel(Base):
             select(cls)
             .where(
                 cls.is_paused == expression.false(),
-                cls.is_active == expression.true(),
+                cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
@@ -2592,7 +2618,6 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
-        dag_version=DagVersion.get_latest_version(dag.dag_id, session=session),
         start_date=start_date or logical_date,
         session=session,
     )

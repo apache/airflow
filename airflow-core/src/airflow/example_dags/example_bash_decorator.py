@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
-from airflow.sdk import chain
+from airflow.sdk import chain, dag, task
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -92,7 +91,7 @@ def example_bash_decorator():
     def _get_files_in_cwd() -> list[str]:
         from pathlib import Path
 
-        dir_contents = Path.cwd().glob("airflow/example_dags/*.py")
+        dir_contents = Path.cwd().glob("airflow-core/src/airflow/example_dags/*.py")
         files = [str(elem) for elem in dir_contents if elem.is_file()]
 
         return files

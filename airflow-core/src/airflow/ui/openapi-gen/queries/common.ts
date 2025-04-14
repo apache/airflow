@@ -38,16 +38,16 @@ import {
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 
-export type AuthLinksServiceGetAuthLinksDefaultResponse = Awaited<
-  ReturnType<typeof AuthLinksService.getAuthLinks>
+export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<
+  ReturnType<typeof AuthLinksService.getAuthMenus>
 >;
-export type AuthLinksServiceGetAuthLinksQueryResult<
-  TData = AuthLinksServiceGetAuthLinksDefaultResponse,
+export type AuthLinksServiceGetAuthMenusQueryResult<
+  TData = AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useAuthLinksServiceGetAuthLinksKey = "AuthLinksServiceGetAuthLinks";
-export const UseAuthLinksServiceGetAuthLinksKeyFn = (queryKey?: Array<unknown>) => [
-  useAuthLinksServiceGetAuthLinksKey,
+export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";
+export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) => [
+  useAuthLinksServiceGetAuthMenusKey,
   ...(queryKey ?? []),
 ];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;
@@ -360,10 +360,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -373,10 +373,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -391,10 +391,10 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       dagIdPattern,
       dagIds,
       dagRunsLimit,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       tags,
@@ -636,6 +636,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -652,6 +653,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -673,6 +675,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -775,10 +778,10 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -792,10 +795,10 @@ export const UseDagServiceGetDagsKeyFn = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -814,10 +817,10 @@ export const UseDagServiceGetDagsKeyFn = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,

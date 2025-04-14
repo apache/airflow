@@ -24,9 +24,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import task
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, task
 
 
 @task.branch()

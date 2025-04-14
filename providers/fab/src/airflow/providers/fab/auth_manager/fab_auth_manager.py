@@ -155,7 +155,7 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
-    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
     MenuItem.DOCS: RESOURCE_DOCS,
@@ -181,7 +181,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cached_property
     def apiserver_endpoint(self) -> str:
-        return conf.get("api", "base_url")
+        return conf.get("api", "base_url", fallback="/")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
