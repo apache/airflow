@@ -126,9 +126,9 @@ class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
 
         if isinstance(key, AssetUniqueKey):
             return f"Asset(name={key.name!r}, uri={key.uri!r})"
-        elif isinstance(key, AssetNameRef):
+        if isinstance(key, AssetNameRef):
             return f"Asset.ref(name={key.name!r})"
-        elif isinstance(key, AssetUriRef):
+        if isinstance(key, AssetUriRef):
             return f"Asset.ref(uri={key.uri!r})"
         return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
 

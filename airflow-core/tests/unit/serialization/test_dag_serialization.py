@@ -1002,8 +1002,7 @@ class TestStringifiedDAGs:
                 dag = DAG(dag_id="simple_dag", schedule=None, params=val)
             # further tests not relevant
             return
-        else:
-            dag = DAG(dag_id="simple_dag", schedule=None, params=val)
+        dag = DAG(dag_id="simple_dag", schedule=None, params=val)
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag_json = SerializedDAG.to_json(dag)
@@ -1093,15 +1092,14 @@ class TestStringifiedDAGs:
                 )
             # further tests not relevant
             return
-        else:
-            BaseOperator(
-                task_id="simple_task",
-                dag=dag,
-                params=val,
-                start_date=datetime(2019, 8, 1),
-            )
-            serialized_dag = SerializedDAG.to_dict(dag)
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        BaseOperator(
+            task_id="simple_task",
+            dag=dag,
+            params=val,
+            start_date=datetime(2019, 8, 1),
+        )
+        serialized_dag = SerializedDAG.to_dict(dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         if val:
             assert "params" in serialized_dag["dag"]["tasks"][0]["__var"]

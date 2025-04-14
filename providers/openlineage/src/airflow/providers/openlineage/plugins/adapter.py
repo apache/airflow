@@ -109,8 +109,7 @@ class OpenLineageAdapter(LoggingMixin):
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
             return config
-        else:
-            self.log.debug("OpenLineage config_path configuration not found.")
+        self.log.debug("OpenLineage config_path configuration not found.")
 
         # Second, try to get transport config
         transport_config = conf.transport()

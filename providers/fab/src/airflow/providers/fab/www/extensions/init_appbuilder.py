@@ -236,8 +236,7 @@ class AirflowAppBuilder:
         """
         if self.app:
             return self.app
-        else:
-            return current_app
+        return current_app
 
     @property
     def get_session(self):

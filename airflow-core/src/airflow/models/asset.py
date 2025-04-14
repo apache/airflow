@@ -211,8 +211,7 @@ class AssetAliasModel(Base):
 
         if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def to_public(self) -> AssetAlias:
         from airflow.sdk.definitions.asset import AssetAlias
@@ -290,7 +289,7 @@ class AssetModel(Base):
     def __init__(self, name: str = "", uri: str = "", **kwargs):
         if not name and not uri:
             raise TypeError("must provide either 'name' or 'uri'")
-        elif not name:
+        if not name:
             name = uri
         elif not uri:
             uri = name
@@ -642,8 +641,7 @@ class AssetDagRunQueue(Base):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.asset_id == other.asset_id and self.target_dag_id == other.target_dag_id
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.__mapper__.primary_key)

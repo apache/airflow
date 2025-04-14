@@ -63,7 +63,6 @@ def requires_authentication(function: T):
     def decorated(*args, **kwargs):
         if auth_current_user() is not None or current_app.config.get("AUTH_ROLE_PUBLIC", None):
             return function(*args, **kwargs)
-        else:
-            return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})
+        return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})
 
     return cast("T", decorated)

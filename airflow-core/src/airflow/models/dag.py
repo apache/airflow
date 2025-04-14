@@ -176,7 +176,7 @@ def _get_model_data_interval(
         if end is not None:
             raise InconsistentDataInterval(instance, start_field_name, end_field_name)
         return None
-    elif end is None:
+    if end is None:
         raise InconsistentDataInterval(instance, start_field_name, end_field_name)
     return DataInterval(start, end)
 
@@ -2504,8 +2504,7 @@ class DagModel(Base):
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        else:
-            last_automated_data_interval = last_automated_dag_run
+        last_automated_data_interval = last_automated_dag_run
         next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None

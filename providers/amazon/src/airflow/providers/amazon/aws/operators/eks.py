@@ -276,11 +276,11 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         if self.compute:
             if self.compute not in SUPPORTED_COMPUTE_VALUES:
                 raise ValueError("Provided compute type is not supported.")
-            elif (self.compute == "nodegroup") and not self.nodegroup_role_arn:
+            if (self.compute == "nodegroup") and not self.nodegroup_role_arn:
                 raise ValueError(
                     MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn")
                 )
-            elif (self.compute == "fargate") and not self.fargate_pod_execution_role_arn:
+            if (self.compute == "fargate") and not self.fargate_pod_execution_role_arn:
                 raise ValueError(
                     MISSING_ARN_MSG.format(
                         compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
@@ -349,7 +349,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "failed":
+        if event["status"] == "failed":
             self.log.error("Cluster failed to start and will be torn down.")
             self.hook.delete_cluster(name=self.cluster_name)
             self.defer(
@@ -414,7 +414,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         if event is None:
             self.log.info("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "deleted":
+        if event["status"] == "deleted":
             self.log.info("Cluster deleted")
         raise AirflowException("Error creating cluster")
 

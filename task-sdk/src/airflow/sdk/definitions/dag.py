@@ -172,8 +172,7 @@ def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
 def _convert_access_control(value, self_: DAG):
     if hasattr(self_, "_upgrade_outdated_dag_access_control"):
         return self_._upgrade_outdated_dag_access_control(value)
-    else:
-        return value
+    return value
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -512,16 +511,15 @@ class DAG:
         # delattr(self, "schedule")
         if isinstance(schedule, Timetable):
             return schedule
-        elif isinstance(schedule, BaseAsset):
+        if isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
-        elif isinstance(schedule, Collection) and not isinstance(schedule, str):
+        if isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, BaseAsset) for x in schedule):
                 raise ValueError(
                     "All elements in 'schedule' should be either assets, asset references, or asset aliases"
                 )
             return AssetTriggeredTimetable(AssetAll(*schedule))
-        else:
-            return _create_timetable(schedule, instance.timezone)
+        return _create_timetable(schedule, instance.timezone)
 
     @timezone.default
     def _extract_tz(instance):
@@ -944,12 +942,11 @@ class DAG:
             task_id in self.task_dict and self.task_dict[task_id] is not task
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
-        else:
-            self.task_dict[task_id] = task
-            # TODO: Task-SDK: this type ignore shouldn't be needed!
-            task.dag = self  # type: ignore[assignment]
-            # Add task_id to used_group_ids to prevent group_id and task_id collisions.
-            self.task_group.used_group_ids.add(task_id)
+        self.task_dict[task_id] = task
+        # TODO: Task-SDK: this type ignore shouldn't be needed!
+        task.dag = self  # type: ignore[assignment]
+        # Add task_id to used_group_ids to prevent group_id and task_id collisions.
+        self.task_group.used_group_ids.add(task_id)
 
         FailFastDagInvalidTriggerRule.check(fail_fast=self.fail_fast, trigger_rule=task.trigger_rule)
 
@@ -991,8 +988,7 @@ class DAG:
         empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
-        else:
-            return empty
+        return empty
 
     def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
         """

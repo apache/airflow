@@ -27,16 +27,15 @@ def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
     """
     if string_field is None:
         return None
-    elif bq_type == "INTEGER":
+    if bq_type == "INTEGER":
         return int(string_field)
-    elif bq_type in ("FLOAT", "TIMESTAMP"):
+    if bq_type in ("FLOAT", "TIMESTAMP"):
         return float(string_field)
-    elif bq_type == "BOOLEAN":
+    if bq_type == "BOOLEAN":
         if string_field not in ["true", "false"]:
             raise ValueError(f"{string_field} must have value 'true' or 'false'")
         return string_field == "true"
-    else:
-        return string_field
+    return string_field
 
 
 def convert_job_id(job_id: str | list[str], project_id: str, location: str | None) -> Any:
@@ -51,5 +50,4 @@ def convert_job_id(job_id: str | list[str], project_id: str, location: str | Non
     location = location or "US"
     if isinstance(job_id, list):
         return [f"{project_id}:{location}:{i}" for i in job_id]
-    else:
-        return f"{project_id}:{location}:{job_id}"
+    return f"{project_id}:{location}:{job_id}"

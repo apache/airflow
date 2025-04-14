@@ -107,8 +107,7 @@ class NameDeterminer:
         # Not enough parameters to construct the name. Trying to use the name from Product / ProductSet.
         if explicit_name:
             return entity
-        else:
-            raise AirflowException(ERR_UNABLE_TO_CREATE.format(label=self.label, id_label=self.id_label))
+        raise AirflowException(ERR_UNABLE_TO_CREATE.format(label=self.label, id_label=self.id_label))
 
 
 class CloudVisionHook(GoogleBaseHook):

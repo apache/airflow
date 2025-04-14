@@ -16,6 +16,8 @@
 # under the License.
 """Serialized DAG and BaseOperator."""
 
+# TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
+# ruff: noqa: RET505
 from __future__ import annotations
 
 import collections.abc
@@ -1394,7 +1396,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
-            elif k == "downstream_task_ids":
+            if k == "downstream_task_ids":
                 v = set(v)
             elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
                 # If operator's execution_timeout is None and core.default_task_execution_timeout is not None,

@@ -666,11 +666,8 @@ class SelectiveChecks:
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
             return True
-        else:
-            get_console().print(
-                f"[warning]{source_area} disabled because it did not match any changed files[/]"
-            )
-            return False
+        get_console().print(f"[warning]{source_area} disabled because it did not match any changed files[/]")
+        return False
 
     @cached_property
     def mypy_checks(self) -> list[str]:
@@ -881,25 +878,22 @@ class SelectiveChecks:
         if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
-            else:
-                return ["Providers"]
-        else:
-            all_providers_source_files = self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
-            )
-            assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
+            return ["Providers"]
+        all_providers_source_files = self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+        )
+        assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
 
-            if (
-                len(all_providers_source_files) == 0
-                and len(assets_source_files) == 0
-                and not self.needs_api_tests
-            ):
-                # IF API tests are needed, that will trigger extra provider checks
-                return []
-            else:
-                affected_providers = self._find_all_providers_affected(
-                    include_docs=False,
-                )
+        if (
+            len(all_providers_source_files) == 0
+            and len(assets_source_files) == 0
+            and not self.needs_api_tests
+        ):
+            # IF API tests are needed, that will trigger extra provider checks
+            return []
+        affected_providers = self._find_all_providers_affected(
+            include_docs=False,
+        )
         candidate_test_types: set[str] = set()
         if isinstance(affected_providers, AllProvidersSentinel):
             if split_to_individual_providers:
@@ -1419,30 +1413,27 @@ class SelectiveChecks:
 
         if all_source_files and new_ui_source_files and not remaining_files:
             return True
-        else:
-            return False
+        return False
 
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_tests:
             return []
-        else:
-            return [
-                integration
-                for integration in TESTABLE_CORE_INTEGRATIONS
-                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-            ]
+        return [
+            integration
+            for integration in TESTABLE_CORE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
         if not self.run_tests:
             return []
-        else:
-            return [
-                integration
-                for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-            ]
+        return [
+            integration
+            for integration in TESTABLE_PROVIDERS_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):

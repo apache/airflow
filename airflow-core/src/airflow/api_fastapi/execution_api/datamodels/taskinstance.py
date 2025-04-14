@@ -195,13 +195,13 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
 
     if state == TIState.SUCCESS:
         return "success"
-    elif state in set(TerminalTIState):
+    if state in set(TerminalTIState):
         return "_terminal_"
-    elif state == TIState.DEFERRED:
+    if state == TIState.DEFERRED:
         return "deferred"
-    elif state == TIState.UP_FOR_RESCHEDULE:
+    if state == TIState.UP_FOR_RESCHEDULE:
         return "up_for_reschedule"
-    elif state == TIState.UP_FOR_RETRY:
+    if state == TIState.UP_FOR_RETRY:
         return "up_for_retry"
     return "_other_"
 

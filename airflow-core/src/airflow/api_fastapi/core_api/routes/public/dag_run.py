@@ -275,15 +275,14 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
-    else:
-        dag.clear(
-            run_id=dag_run_id,
-            task_ids=None,
-            only_failed=body.only_failed,
-            session=session,
-        )
-        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-        return dag_run_cleared
+    dag.clear(
+        run_id=dag_run_id,
+        task_ids=None,
+        only_failed=body.only_failed,
+        session=session,
+    )
+    dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    return dag_run_cleared
 
 
 @dag_run_router.get(

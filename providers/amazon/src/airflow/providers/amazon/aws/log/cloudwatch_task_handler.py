@@ -56,8 +56,7 @@ def json_serialize_legacy(value: Any) -> str | None:
     """
     if isinstance(value, (date, datetime)):
         return value.isoformat()
-    else:
-        return None
+    return None
 
 
 def json_serialize(value: Any) -> str | None:

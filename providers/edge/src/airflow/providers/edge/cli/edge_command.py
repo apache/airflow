@@ -98,8 +98,7 @@ force_use_internal_api_on_edge_worker()
 def _status_signal() -> signal.Signals:
     if IS_WINDOWS:
         return signal.SIGBREAK  # type: ignore[attr-defined]
-    else:
-        return signal.SIGUSR2
+    return signal.SIGUSR2
 
 
 SIG_STATUS = _status_signal()
@@ -133,18 +132,16 @@ def _write_pid_to_pidfile(pid_file_path: str):
         pid_stored_in_pid_file = read_pid_from_pidfile(pid_file_path)
         if os.getpid() == pid_stored_in_pid_file:
             raise SystemExit("A PID file has already been written")
-        else:
-            # PID file was written by dead or already running instance
-            if psutil.pid_exists(pid_stored_in_pid_file):
-                # case 1: another instance uses the same path for its PID file
-                raise SystemExit(
-                    f"The PID file {pid_file_path} contains the PID of another running process. "
-                    "Configuration issue: edge worker instance must use different PID file paths!"
-                )
-            else:
-                # case 2: previous instance crashed without cleaning up its PID file
-                logger.warning("PID file is orphaned. Cleaning up.")
-                remove_existing_pidfile(pid_file_path)
+        # PID file was written by dead or already running instance
+        if psutil.pid_exists(pid_stored_in_pid_file):
+            # case 1: another instance uses the same path for its PID file
+            raise SystemExit(
+                f"The PID file {pid_file_path} contains the PID of another running process. "
+                "Configuration issue: edge worker instance must use different PID file paths!"
+            )
+        # case 2: previous instance crashed without cleaning up its PID file
+        logger.warning("PID file is orphaned. Cleaning up.")
+        remove_existing_pidfile(pid_file_path)
     logger.debug("PID file written to %s.", pid_file_path)
     write_pid_to_pidfile(pid_file_path)
 

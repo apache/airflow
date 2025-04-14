@@ -389,10 +389,9 @@ def _get_all_changes_for_package(
             if not only_min_version_update:
                 _print_changes_table(changes_table)
             return False, [array_of_changes], changes_table
-        else:
-            if not only_min_version_update:
-                get_console().print(f"[info]No changes for {provider_id}")
-            return False, [], ""
+        if not only_min_version_update:
+            get_console().print(f"[info]No changes for {provider_id}")
+        return False, [], ""
     if len(provider_details.versions) == 1:
         get_console().print(
             f"[info]The provider '{provider_id}' has never been released but it is ready to release!\n"
@@ -754,7 +753,7 @@ def update_release_notes(
             if answer == Answer.NO:
                 get_console().print(f"\n[warning]Skipping provider: {provider_id} on user request![/]\n")
                 raise PrepareReleaseDocsUserSkippedException()
-            elif answer == Answer.QUIT:
+            if answer == Answer.QUIT:
                 raise PrepareReleaseDocsUserQuitException()
         elif not list_of_list_of_changes:
             get_console().print(

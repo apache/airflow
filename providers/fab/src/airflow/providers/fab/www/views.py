@@ -74,8 +74,7 @@ class FabIndexView(IndexView):
             response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
 
             return response
-        else:
-            return redirect(conf.get("api", "base_url", fallback="/"), code=302)
+        return redirect(conf.get("api", "base_url", fallback="/"), code=302)
 
 
 def show_traceback(error):

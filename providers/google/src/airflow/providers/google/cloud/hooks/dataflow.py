@@ -262,15 +262,14 @@ class _DataflowJobsController(LoggingMixin):
         """
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
-        elif self._jobs:
+        if self._jobs:
             return [self.fetch_job_by_id(job["id"]) for job in self._jobs]
-        elif self._job_name:
+        if self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
                 self._job_id = jobs[0]["id"]
             return jobs
-        else:
-            raise ValueError("Missing both dataflow job ID and name.")
+        raise ValueError("Missing both dataflow job ID and name.")
 
     def fetch_job_by_id(self, job_id: str) -> dict[str, str]:
         """
@@ -435,12 +434,12 @@ class _DataflowJobsController(LoggingMixin):
                 f"'{current_expected_state}' is invalid."
                 f" The value should be any of the following: {terminal_states}"
             )
-        elif is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
+        if is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
             raise AirflowException(
                 "Google Cloud Dataflow job's expected terminal state cannot be "
                 "JOB_STATE_DONE while it is a streaming job"
             )
-        elif not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
+        if not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
             raise AirflowException(
                 "Google Cloud Dataflow job's expected terminal state cannot be "
                 "JOB_STATE_DRAINED while it is a batch job"

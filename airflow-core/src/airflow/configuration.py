@@ -124,8 +124,7 @@ def expand_env_var(env_var: str | None) -> str | None:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:
             return interpolated
-        else:
-            env_var = interpolated
+        env_var = interpolated
 
 
 def run_command(command: str) -> str:
@@ -1160,13 +1159,12 @@ class AirflowConfigParser(ConfigParser):
             val = val.split("#")[0].strip()
         if val in ("t", "true", "1"):
             return True
-        elif val in ("f", "false", "0"):
+        if val in ("f", "false", "0"):
             return False
-        else:
-            raise AirflowConfigException(
-                f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+        raise AirflowConfigException(
+            f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
+            f'Current value: "{val}".'
+        )
 
     def getint(self, section: str, key: str, **kwargs) -> int:  # type: ignore[override]
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
@@ -2020,7 +2018,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             f"but got a directory {airflow_config.__fspath__()!r}."
         )
         raise IsADirectoryError(msg)
-    elif not airflow_config.exists():
+    if not airflow_config.exists():
         log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
         config_directory = airflow_config.parent
         if not config_directory.exists():

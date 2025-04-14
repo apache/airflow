@@ -41,8 +41,7 @@ def read_from_cache_file(param_name: str) -> str | None:
     cache_exists = check_if_cache_exists(param_name)
     if cache_exists:
         return (Path(BUILD_CACHE_PATH) / f".{param_name}").read_text().strip()
-    else:
-        return None
+    return None
 
 
 def touch_cache_file(param_name: str, root_dir: Path = BUILD_CACHE_PATH):

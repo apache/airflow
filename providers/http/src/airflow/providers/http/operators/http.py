@@ -276,8 +276,7 @@ class HttpOperator(BaseOperator):
 
             self.paginate_async(context=context, response=response, previous_responses=paginated_responses)
             return self.process_response(context=context, response=response)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
     def paginate_async(
         self, context: Context, response: Response, previous_responses: None | list[Response] = None

@@ -5662,8 +5662,7 @@ class TestSchedulerJob:
                     if call_count < retry_times - 1:
                         call_count += 1
                         raise OperationalError("any_statement", "any_params", "any_orig")
-                    else:
-                        return session.execute(*args, **kwargs)
+                    return session.execute(*args, **kwargs)
 
                 return side_effect
 

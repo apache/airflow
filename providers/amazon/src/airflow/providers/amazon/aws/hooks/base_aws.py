@@ -191,15 +191,13 @@ class BaseSessionFactory(LoggingMixin):
                 session = self.get_async_session()
                 self._apply_session_kwargs(session)
                 return session
-            else:
-                return boto3.session.Session(region_name=self.region_name)
-        elif not self.role_arn:
+            return boto3.session.Session(region_name=self.region_name)
+        if not self.role_arn:
             if deferrable:
                 session = self.get_async_session()
                 self._apply_session_kwargs(session)
                 return session
-            else:
-                return self.basic_session
+            return self.basic_session
 
         # Values stored in ``AwsConnectionWrapper.session_kwargs`` are intended to be used only
         # to create the initial boto3 session.
@@ -624,7 +622,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                 if is_resource_type:
                     raise LookupError("Requested `resource_type`, but `client_type` was set instead.")
                 return self.client_type
-            elif self.resource_type:
+            if self.resource_type:
                 if not is_resource_type:
                     raise LookupError("Requested `client_type`, but `resource_type` was set instead.")
                 return self.resource_type
@@ -840,15 +838,14 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         if "/" in role:
             return role
-        else:
-            session = self.get_session(region_name=region_name)
-            _client = session.client(
-                service_name="iam",
-                endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
-                config=self.config,
-                verify=self.verify,
-            )
-            return _client.get_role(RoleName=role)["Role"]["Arn"]
+        session = self.get_session(region_name=region_name)
+        _client = session.client(
+            service_name="iam",
+            endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
+            config=self.config,
+            verify=self.verify,
+        )
+        return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):

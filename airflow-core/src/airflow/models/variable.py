@@ -120,10 +120,8 @@ class Variable(Base, LoggingMixin):
             if default is not None:
                 Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
                 return default
-            else:
-                raise ValueError("Default Value must be set")
-        else:
-            return obj
+            raise ValueError("Default Value must be set")
+        return obj
 
     @classmethod
     def get(
@@ -169,16 +167,13 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            else:
-                raise KeyError(f"Variable {key} does not exist")
-        else:
-            if deserialize_json:
-                obj = json.loads(var_val)
-                mask_secret(obj, key)
-                return obj
-            else:
-                mask_secret(var_val, key)
-                return var_val
+            raise KeyError(f"Variable {key} does not exist")
+        if deserialize_json:
+            obj = json.loads(var_val)
+            mask_secret(obj, key)
+            return obj
+        mask_secret(var_val, key)
+        return var_val
 
     @staticmethod
     def set(

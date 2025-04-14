@@ -413,9 +413,9 @@ class TaskGroup(DAGNode):
             for down_task in task.downstream_list:
                 if down_task.task_id == exclude:
                     continue
-                elif down_task.task_id not in ids:
+                if down_task.task_id not in ids:
                     continue
-                elif not down_task.is_teardown:
+                if not down_task.is_teardown:
                     return True
             return False
 

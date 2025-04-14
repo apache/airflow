@@ -80,10 +80,10 @@ class AirbyteJobSensor(BaseSensorOperator):
         if status == JobStatusEnum.FAILED:
             message = f"Job failed: \n{job}"
             raise AirflowException(message)
-        elif status == JobStatusEnum.CANCELLED:
+        if status == JobStatusEnum.CANCELLED:
             message = f"Job was cancelled: \n{job}"
             raise AirflowException(message)
-        elif status == JobStatusEnum.SUCCEEDED:
+        if status == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True
 

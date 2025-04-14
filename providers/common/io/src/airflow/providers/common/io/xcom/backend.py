@@ -131,10 +131,9 @@ class XComObjectStorageBackend(BaseXCom):
         if threshold < 0 or len(s_val_encoded) < threshold:  # Either no threshold or value is small enough.
             if AIRFLOW_V_3_0_PLUS:
                 return BaseXCom.serialize_value(value)
-            else:
-                # TODO: Remove this branch once we drop support for Airflow 2
-                # This is for Airflow 2.10 where the value is expected to be bytes
-                return s_val_encoded
+            # TODO: Remove this branch once we drop support for Airflow 2
+            # This is for Airflow 2.10 where the value is expected to be bytes
+            return s_val_encoded
 
         base_path = _get_base_path()
         while True:  # Safeguard against collisions.

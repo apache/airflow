@@ -93,9 +93,8 @@ class LatestOnlyOperator(BaseBranchOperator):
             # we return an empty list, thus the parent BaseBranchOperator
             # won't exclude any downstream tasks from skipping.
             return []
-        else:
-            self.log.info("Latest, allowing execution to proceed.")
-            return list(context["task"].get_direct_relative_ids(upstream=False))
+        self.log.info("Latest, allowing execution to proceed.")
+        return list(context["task"].get_direct_relative_ids(upstream=False))
 
     def _get_next_run_info(self, context: Context, dag_run: DagRun) -> DagRunInfo | None:
         dag: DAG = context["dag"]  # type: ignore[assignment]

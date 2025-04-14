@@ -2925,9 +2925,8 @@ def modify_single_file_constraints(
             constraints_file.write_text(constraint_content)
         get_console().print("[success]Updated.[/]")
         return True
-    else:
-        get_console().print("[warning]The file has not been modified.[/]")
-        return False
+    get_console().print("[warning]The file has not been modified.[/]")
+    return False
 
 
 def modify_all_constraint_files(
@@ -2959,10 +2958,9 @@ def confirm_modifications(constraints_repo: Path) -> bool:
     confirm = user_confirm("Do you want to continue?")
     if confirm == Answer.YES:
         return True
-    elif confirm == Answer.NO:
+    if confirm == Answer.NO:
         return False
-    else:
-        sys.exit(1)
+    sys.exit(1)
 
 
 def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:

@@ -261,7 +261,7 @@ class DagBag(LoggingMixin):
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
                 return self.dags[dag_id]
-            elif dag_id in self.dags:
+            if dag_id in self.dags:
                 del self.dags[dag_id]
         return self.dags.get(dag_id)
 

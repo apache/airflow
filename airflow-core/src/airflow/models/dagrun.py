@@ -126,10 +126,9 @@ def _creator_note(val):
     """Creator the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
-    elif isinstance(val, dict):
+    if isinstance(val, dict):
         return DagRunNote(**val)
-    else:
-        return DagRunNote(*val)
+    return DagRunNote(*val)
 
 
 class DagRun(Base, LoggingMixin):
