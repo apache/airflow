@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-13T19:45:57.033568
+# This constraints file was automatically generated on 2025-04-14T13:53:02.457701
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -209,7 +209,7 @@ gitdb==4.0.12
 google-ads==26.0.1
 google-analytics-admin==0.23.6
 google-api-core==2.24.2
-google-api-python-client==2.166.0
+google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
@@ -226,10 +226,10 @@ google-cloud-build==3.31.1
 google-cloud-compute==1.29.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.26.0
+google-cloud-datacatalog==3.26.1
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.9.0
+google-cloud-dataplex==2.10.0
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
@@ -239,7 +239,7 @@ google-cloud-logging==3.11.4
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
-google-cloud-orchestration-airflow==1.17.3
+google-cloud-orchestration-airflow==1.17.4
 google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
@@ -247,18 +247,18 @@ google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
 google-cloud-secret-manager==2.23.2
 google-cloud-spanner==3.53.0
-google-cloud-speech==2.31.1
+google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
-google-cloud-texttospeech==2.25.1
+google-cloud-texttospeech==2.26.0
 google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
-google-cloud-workflows==1.18.0
+google-cloud-workflows==1.18.1
 google-crc32c==1.7.1
 google-resumable-media==2.7.2
-googleapis-common-protos==1.69.2
+googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
