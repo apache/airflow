@@ -1295,10 +1295,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op["_operator_name"] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
-        serialize_op["_is_empty"] = op.inherits_from_empty_operator
+        if op.inherits_from_empty_operator:
+            serialize_op["_is_empty"] = True
 
         # Used to determine if an Operator is inherited from SkipMixin or BranchMixin
-        serialize_op["_can_skip_downstream"] = op.inherits_from_skipmixin
+        if op.inherits_from_skipmixin:
+            serialize_op["_can_skip_downstream"] = True
 
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
@@ -1792,9 +1794,17 @@ class SerializedDAG(DAG, BaseSerialization):
         dag_renames = [
             ("_dag_id", "dag_id"),
             ("_task_group", "task_group"),
+            ("_access_control", "access_control"),
         ]
         task_renames = [("_task_type", "task_type")]
-        tasks_remove = ["_log_config_logger_name", "deps"]
+        #
+        tasks_remove = [
+            "_log_config_logger_name",
+            "deps",
+            "sla",
+            # Operator extra links from Airflow 2 won't work anymore, only new ones, so remove these
+            "_operator_extra_links",
+        ]
 
         ser_obj["__version"] = 2
 
@@ -1830,6 +1840,10 @@ class SerializedDAG(DAG, BaseSerialization):
         for old, new in dag_renames:
             dag_dict[new] = dag_dict.pop(old)
 
+        if default_args := dag_dict.get("default_args"):
+            for k in tasks_remove:
+                default_args["__var"].pop(k, None)
+
         if sched := dag_dict.pop("schedule_interval", None):
             if sched is None:
                 dag_dict["timetable"] = {
@@ -1863,8 +1877,8 @@ class SerializedDAG(DAG, BaseSerialization):
                     raise ValueError(f"Unknown schedule_interval field {sched!r}")
             elif sched.get("__type") == "timedelta":
                 dag_dict["timetable"] = {
-                    "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
-                    "__var": {"delta": sched["__var"], "interval": 0},
+                    "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "__var": {"delta": sched["__var"]},
                 }
         elif timetable := dag_dict.get("timetable"):
             if timetable["__type"] in {

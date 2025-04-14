@@ -41,8 +41,7 @@ class DagVersionResponse(BaseModel):
     def bundle_url(self) -> str | None:
         if self.bundle_name:
             return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
-        else:
-            return None
+        return None
 
 
 class DAGVersionCollectionResponse(BaseModel):
