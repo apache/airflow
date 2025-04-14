@@ -16,6 +16,8 @@
 # under the License.
 """Serialized DAG and BaseOperator."""
 
+# TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
+# ruff: noqa: RET505
 from __future__ import annotations
 
 import collections.abc
@@ -206,7 +208,8 @@ def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
     plugins_manager.initialize_timetables_plugins()
     if plugins_manager.timetable_classes:
         return plugins_manager.timetable_classes.get(importable_string)
-    return None
+    else:
+        return None
 
 
 def _get_registered_priority_weight_strategy(
@@ -219,7 +222,8 @@ def _get_registered_priority_weight_strategy(
     plugins_manager.initialize_priority_weight_strategy_plugins()
     if plugins_manager.priority_weight_strategy_classes:
         return plugins_manager.priority_weight_strategy_classes.get(importable_string)
-    return None
+    else:
+        return None
 
 
 class _TimetableNotRegistered(ValueError):
@@ -694,54 +698,54 @@ class BaseSerialization:
             if isinstance(var, enum.Enum):
                 return var.value
             return var
-        if isinstance(var, dict):
+        elif isinstance(var, dict):
             return cls._encode(
                 {str(k): cls.serialize(v, strict=strict) for k, v in var.items()},
                 type_=DAT.DICT,
             )
-        if isinstance(var, list):
+        elif isinstance(var, list):
             return [cls.serialize(v, strict=strict) for v in var]
-        if var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
-        if isinstance(var, OutletEventAccessors):
+        elif isinstance(var, OutletEventAccessors):
             return cls._encode(
                 encode_outlet_event_accessors(var),
                 type_=DAT.ASSET_EVENT_ACCESSORS,
             )
-        if isinstance(var, AssetUniqueKey):
+        elif isinstance(var, AssetUniqueKey):
             return cls._encode(
                 attrs.asdict(var),
                 type_=DAT.ASSET_UNIQUE_KEY,
             )
-        if isinstance(var, AssetAliasUniqueKey):
+        elif isinstance(var, AssetAliasUniqueKey):
             return cls._encode(
                 attrs.asdict(var),
                 type_=DAT.ASSET_ALIAS_UNIQUE_KEY,
             )
-        if isinstance(var, DAG):
+        elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
-        if isinstance(var, Resources):
+        elif isinstance(var, Resources):
             return var.to_dict()
-        if isinstance(var, MappedOperator):
+        elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
-        if isinstance(var, TaskSDKBaseOperator):
+        elif isinstance(var, TaskSDKBaseOperator):
             var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
-        if isinstance(var, cls._datetime_types):
+        elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
-        if isinstance(var, datetime.timedelta):
+        elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-        if isinstance(var, (Timezone, FixedTimezone)):
+        elif isinstance(var, (Timezone, FixedTimezone)):
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
-        if isinstance(var, relativedelta.relativedelta):
+        elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
-        if isinstance(var, TaskInstanceKey):
+        elif isinstance(var, TaskInstanceKey):
             return cls._encode(
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        if isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
+        elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
                 cls.serialize(
@@ -750,7 +754,7 @@ class BaseSerialization:
                 ),
                 type_=DAT.AIRFLOW_EXC_SER,
             )
-        if isinstance(var, (KeyError, AttributeError)):
+        elif isinstance(var, (KeyError, AttributeError)):
             return cls._encode(
                 cls.serialize(
                     {
@@ -762,7 +766,7 @@ class BaseSerialization:
                 ),
                 type_=DAT.BASE_EXC_SER,
             )
-        if isinstance(var, BaseTrigger):
+        elif isinstance(var, BaseTrigger):
             return cls._encode(
                 cls.serialize(
                     var.serialize(),
@@ -770,9 +774,9 @@ class BaseSerialization:
                 ),
                 type_=DAT.BASE_TRIGGER,
             )
-        if callable(var):
+        elif callable(var):
             return str(get_python_source(var))
-        if isinstance(var, set):
+        elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
             try:
                 return cls._encode(
@@ -841,7 +845,7 @@ class BaseSerialization:
         """
         if cls._is_primitive(encoded_var):
             return encoded_var
-        if isinstance(encoded_var, list):
+        elif isinstance(encoded_var, list):
             return [cls.deserialize(v) for v in encoded_var]
 
         if not isinstance(encoded_var, dict):
@@ -862,32 +866,32 @@ class BaseSerialization:
             }
             d["conn"] = ConnectionAccessor()
             return Context(**d)
-        if type_ == DAT.DICT:
+        elif type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
-        if type_ == DAT.ASSET_EVENT_ACCESSORS:
+        elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             return decode_outlet_event_accessors(var)
-        if type_ == DAT.ASSET_UNIQUE_KEY:
+        elif type_ == DAT.ASSET_UNIQUE_KEY:
             return AssetUniqueKey(name=var["name"], uri=var["uri"])
-        if type_ == DAT.ASSET_ALIAS_UNIQUE_KEY:
+        elif type_ == DAT.ASSET_ALIAS_UNIQUE_KEY:
             return AssetAliasUniqueKey(name=var["name"])
-        if type_ == DAT.DAG:
+        elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
-        if type_ == DAT.OP:
+        elif type_ == DAT.OP:
             return SerializedBaseOperator.deserialize_operator(var)
-        if type_ == DAT.DATETIME:
+        elif type_ == DAT.DATETIME:
             return from_timestamp(var)
-        if type_ == DAT.POD:
+        elif type_ == DAT.POD:
             if not _has_kubernetes():
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
-        if type_ == DAT.TIMEDELTA:
+        elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
-        if type_ == DAT.TIMEZONE:
+        elif type_ == DAT.TIMEZONE:
             return decode_timezone(var)
-        if type_ == DAT.RELATIVEDELTA:
+        elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
-        if type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
+        elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
             deser = cls.deserialize(var)
             exc_cls_name = deser["exc_cls_name"]
             args = deser["args"]
@@ -898,41 +902,42 @@ class BaseSerialization:
             else:
                 exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
-        if type_ == DAT.BASE_TRIGGER:
+        elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var)
             tr_cls = import_string(tr_cls_name)
             return tr_cls(**kwargs)
-        if type_ == DAT.SET:
+        elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
-        if type_ == DAT.TUPLE:
+        elif type_ == DAT.TUPLE:
             return tuple(cls.deserialize(v) for v in var)
-        if type_ == DAT.PARAM:
+        elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
-        if type_ == DAT.XCOM_REF:
+        elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
-        if type_ == DAT.ASSET:
+        elif type_ == DAT.ASSET:
             return decode_asset(var)
-        if type_ == DAT.ASSET_ALIAS:
+        elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
-        if type_ == DAT.ASSET_ANY:
+        elif type_ == DAT.ASSET_ANY:
             return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
-        if type_ == DAT.ASSET_ALL:
+        elif type_ == DAT.ASSET_ALL:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
-        if type_ == DAT.ASSET_REF:
+        elif type_ == DAT.ASSET_REF:
             return Asset.ref(**var)
-        if type_ == DAT.SIMPLE_TASK_INSTANCE:
+        elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
-        if type_ == DAT.CONNECTION:
+        elif type_ == DAT.CONNECTION:
             return Connection(**var)
-        if type_ == DAT.TASK_CALLBACK_REQUEST:
+        elif type_ == DAT.TASK_CALLBACK_REQUEST:
             return TaskCallbackRequest.from_json(var)
-        if type_ == DAT.DAG_CALLBACK_REQUEST:
+        elif type_ == DAT.DAG_CALLBACK_REQUEST:
             return DagCallbackRequest.from_json(var)
-        if type_ == DAT.TASK_INSTANCE_KEY:
+        elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
-        if type_ == DAT.ARG_NOT_SET:
+        elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
-        raise TypeError(f"Invalid type {type_!s} in deserialization.")
+        else:
+            raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
     _deserialize_datetime = from_timestamp
     _deserialize_timezone = parse_timezone
