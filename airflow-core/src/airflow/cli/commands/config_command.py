@@ -622,6 +622,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "zombie_detection_interval"),
         renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_detection_interval"),
     ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "child_process_log_directory"),
+        renamed_to=ConfigParameter("logging", "dag_processor_child_process_log_directory"),
+    ),
     # celery
     ConfigChange(
         config=ConfigParameter("celery", "stalled_task_timeout"),
