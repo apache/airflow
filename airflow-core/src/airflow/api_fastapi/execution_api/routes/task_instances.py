@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
+from collections import defaultdict
+from typing import Annotated, Any
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
@@ -34,6 +35,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PrevSuccessfulDagRunResponse,
+    TaskStatesResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -607,36 +609,7 @@ def get_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        # Get all tasks in the task group
-        dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
-        if not dag:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                detail={
-                    "reason": "not_found",
-                    "message": f"DAG {dag_id} not found",
-                },
-            )
-
-        task_group = dag.task_group_dict.get(task_group_id)
-        if not task_group:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                detail={
-                    "reason": "not_found",
-                    "message": f"Task group {task_group_id} not found in DAG {dag_id}",
-                },
-            )
-
-        # First get all task instances to get the task_id, map_index pairs
-        group_tasks = session.scalars(
-            select(TI).where(
-                TI.dag_id == dag_id,
-                TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
-                *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
-                *([TI.run_id.in_(run_ids)] if run_ids else []),
-            )
-        ).all()
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
         task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
@@ -659,7 +632,43 @@ def get_count(
             query = query.where(TI.state.in_(states))
 
     count = session.scalar(query)
+
     return count or 0
+
+
+@router.get("/states", status_code=status.HTTP_200_OK)
+def get_task_states(
+    dag_id: str,
+    session: SessionDep,
+    task_ids: Annotated[list[str] | None, Query()] = None,
+    task_group_id: Annotated[str | None, Query()] = None,
+    logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
+    run_ids: Annotated[list[str] | None, Query()] = None,
+) -> TaskStatesResponse:
+    """Get the task states for the given criteria."""
+    run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
+
+    query = select(TI).where(TI.dag_id == dag_id)
+
+    if task_ids:
+        query = query.where(TI.task_id.in_(task_ids))
+
+    if logical_dates:
+        query = query.where(TI.logical_date.in_(logical_dates))
+
+    if run_ids:
+        query = query.where(TI.run_id.in_(run_ids))
+
+    results = session.scalars(query).all()
+
+    [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in results]
+
+    if task_group_id:
+        group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
+
+        [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
+
+    return TaskStatesResponse(task_states=run_id_task_state_map)
 
 
 @ti_id_router.only_exists_in_older_versions
@@ -700,6 +709,41 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
     # retries from the task SDK now, we can handle using max_tries
     return max_tries != 0 and try_number <= max_tries
+
+
+def _get_group_tasks(dag_id: str, task_group_id: str, session: SessionDep, logical_dates=None, run_ids=None):
+    # Get all tasks in the task group
+    dag = DagBag(read_dags_from_db=True).get_dag(dag_id, session)
+    if not dag:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"DAG {dag_id} not found",
+            },
+        )
+
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
+            },
+        )
+
+    # First get all task instances to get the task_id, map_index pairs
+    group_tasks = session.scalars(
+        select(TI).where(
+            TI.dag_id == dag_id,
+            TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
+            *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
+            *([TI.run_id.in_(run_ids)] if run_ids else []),
+        )
+    ).all()
+
+    return group_tasks
 
 
 # This line should be at the end of the file to ensure all routes are registered

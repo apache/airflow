@@ -35,9 +35,11 @@ from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetVariable,
+    OKResponse,
     PutVariable,
     VariableResult,
 )
@@ -54,12 +56,12 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable],
+    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable, DeleteVariable],
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
 
@@ -293,6 +295,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 resp = var
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return

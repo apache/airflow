@@ -303,6 +303,8 @@ class ExternalTaskSensor(BaseSensorOperator):
             return self._poke_af2(dttm_filter)
 
     def _poke_af3(self, context: Context, dttm_filter: list[datetime.datetime]) -> bool:
+        from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
+
         self._has_checked_existence = True
         ti = context["ti"]
 
@@ -315,12 +317,12 @@ class ExternalTaskSensor(BaseSensorOperator):
                     states=states,
                 )
             elif self.external_task_group_id:
-                return ti.get_ti_count(
+                run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
                     logical_dates=dttm_filter,
-                    states=states,
                 )
+                return _get_count_by_matched_states(run_id_task_state_map, states)
             else:
                 return ti.get_dr_count(
                     dag_id=self.external_dag_id,

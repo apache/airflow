@@ -263,7 +263,9 @@ def get_client(kind: ClientKind = ClientKind.CLI):
     """
     api_client = None
     try:
-        credentials = Credentials().load()
+        credentials = Credentials()
+        if kind == ClientKind.CLI:
+            credentials = credentials.load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),

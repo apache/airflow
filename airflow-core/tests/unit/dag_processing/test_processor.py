@@ -211,6 +211,41 @@ class TestDagFileProcessor:
             assert len(all_vars) == 1
             assert all_vars[0].key == "mykey"
 
+    def test_top_level_variable_delete(self, tmp_path: pathlib.Path):
+        from airflow.models.variable import Variable as VariableORM
+
+        logger_filehandle = MagicMock()
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            Variable.set(key="mykey", value="myvalue")
+            Variable.delete(key="mykey")
+            try:
+                v = Variable.get(key="mykey")
+            except Exception:
+                v = "not-found"
+
+            with DAG(v):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        proc = DagFileProcessorProcess.start(
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        with create_session() as session:
+            result = proc.parsing_result
+            assert result is not None
+            assert result.import_errors == {}
+            assert result.serialized_dags[0].dag_id == "not-found"
+
+            all_vars = session.query(VariableORM).all()
+            assert len(all_vars) == 0
+
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
         logger_filehandle = MagicMock()
 
