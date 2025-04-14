@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -108,7 +107,7 @@ class TestXComObjectStorageBackend:
             # When using XComObjectStorageBackend, the value is stored in the db is serialized with json dumps
             # so we need to mimic that same behavior below.
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key="return_value", value=json.dumps({"key": "value"})
+                key="return_value", value={"key": "value"}
             )
 
         value = XCom.get_value(
@@ -171,7 +170,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value=json.dumps({"key": "bigvaluebigvaluebigvalue" * 100})
+                key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
             )
 
         value = XCom.get_value(
@@ -253,7 +252,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value=json.dumps({"key": "superlargevalue" * 100})
+                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -358,7 +357,7 @@ class TestXComObjectStorageBackend:
 
         if AIRFLOW_V_3_0_PLUS:
             mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value=json.dumps({"key": "superlargevalue" * 100})
+                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
             )
 
         value = XCom.get_value(
