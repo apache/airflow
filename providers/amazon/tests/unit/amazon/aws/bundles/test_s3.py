@@ -24,9 +24,9 @@ import boto3
 import pytest
 from moto import mock_aws
 
+import airflow.version
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.amazon.aws.bundles.s3 import S3DagBundle
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import db
 
@@ -38,6 +38,9 @@ AWS_CONN_ID_REGION = "eu-central-1"
 AWS_CONN_ID_DEFAULT = "aws_default"
 S3_BUCKET_NAME = "my-airflow-dags-bucket"
 S3_BUCKET_PREFIX = "project1/dags"
+
+if airflow.version.version.strip().startswith("3"):
+    from airflow.providers.amazon.aws.bundles.s3 import S3DagBundle
 
 
 @pytest.fixture
@@ -74,6 +77,7 @@ def bundle_temp_dir(tmp_path):
         yield tmp_path
 
 
+@pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
 class TestS3DagBundle:
     @classmethod
     def teardown_class(cls) -> None:
