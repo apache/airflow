@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.dag import DAG as SchedulerDAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
@@ -35,6 +35,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, task as task_decorator
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -385,6 +386,43 @@ class TestSerializedDagModel:
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
+
+    def test_get_dependencies_with_asset_ref(self, dag_maker, session):
+        asset_name = "name"
+        asset_uri = "test://asset1"
+        asset_id = 1
+
+        db.clear_db_assets()
+        session.add_all(
+            [
+                AssetModel(id=asset_id, uri=asset_uri, name=asset_name),
+                AssetActive(uri=asset_uri, name=asset_name),
+            ]
+        )
+        session.commit()
+        with dag_maker(
+            dag_id="test_get_dependencies_with_asset_ref_example",
+            start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+            schedule=[Asset.ref(uri=asset_uri), Asset.ref(uri="test://no-such-asset/")],
+        ) as dag:
+            BashOperator(task_id="any", bash_command="sleep 5")
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+
+        dependencies = SDM.get_dag_dependencies(session=session)
+        assert dependencies == {
+            "test_get_dependencies_with_asset_ref_example": [
+                DagDependency(
+                    source="asset",
+                    target="test_get_dependencies_with_asset_ref_example",
+                    label=asset_name,
+                    dependency_type="asset",
+                    dependency_id=f"{asset_id}",
+                )
+            ]
+        }
+
+        db.clear_db_assets()
 
     @pytest.mark.parametrize("min_update_interval", [0, 10])
     @mock.patch.object(DagVersion, "get_latest_version")

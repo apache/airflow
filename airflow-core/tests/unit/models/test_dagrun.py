@@ -100,7 +100,6 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
-        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -123,7 +122,6 @@ class TestDagRun:
             run_after=data_interval.end,
             start_date=now,
             state=state,
-            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
             session=session,
         )
@@ -2403,8 +2401,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task_instance_id=ti.id,
-        try_number=ti.try_number,
+        ti_id=ti.id,
         start_date=timezone.datetime(2017, 1, 1),
         end_date=timezone.datetime(2017, 1, 2),
         reschedule_date=timezone.datetime(2017, 1, 1),

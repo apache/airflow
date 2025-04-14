@@ -31,15 +31,15 @@ class DagDependency:
     source: str
     target: str
     label: str
-    dependency_type: Literal["asset", "asset-name-ref", "asset-uri-ref", "asset-alias", "trigger", "sensor"]
+    dependency_type: Literal["asset", "asset-alias", "asset-name-ref", "asset-uri-ref", "trigger", "sensor"]
     dependency_id: str | None = None
 
     @property
     def node_id(self):
         """Node ID for graph rendering."""
         val = f"{self.dependency_type}"
-        if self.dependency_type not in ("asset", "asset-alias"):
-            val += f":{self.source}:{self.target}"
+        if self.dependency_type not in ("asset", "asset-alias", "asset-name-ref", "asset-uri-ref"):
+            val = f"{val}:{self.source}:{self.target}"
         if self.dependency_id:
-            val += f":{self.dependency_id}"
+            val = f"{val}:{self.dependency_id}"
         return val

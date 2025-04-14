@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for reading/writing task logs to HDFS in Airflow 3 (#48788)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 4.7.1
 .....
 

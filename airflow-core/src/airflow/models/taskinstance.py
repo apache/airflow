@@ -39,7 +39,6 @@ import attrs
 import dill
 import jinja2
 import lazy_object_proxy
-import pendulum
 import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -134,6 +133,7 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Update
@@ -392,7 +392,7 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -411,13 +411,21 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
             TaskInstanceState.FAILED,
         ):
             continue
-        task = task_instance.task.dag.task_dict[ti.task_id]
-        if not task.is_teardown:
+        if task_teardown_map:
+            teardown = task_teardown_map[ti.task_id]
+        else:
+            task = task_instance.task.dag.task_dict[ti.task_id]
+            teardown = task.is_teardown
+        if not teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
+                msg = "Forcing task to fail due to dag's `fail_fast` setting."
+                session.add(Log(event="fail task", extra=msg, task_instance=ti.key))
                 ti.error(session)
             else:
                 log.info("Setting task %s to SKIPPED due to dag's `fail_fast` setting.", ti.task_id)
+                msg = "Skipping task due to dag's `fail_fast` setting."
+                session.add(Log(event="skip task", extra=msg, task_instance=ti.key))
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
@@ -447,12 +455,10 @@ def clear_task_instances(
     # taskinstance uuids:
     task_instance_ids: list[str] = []
     dag_bag = DagBag(read_dags_from_db=True)
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     for ti in tis:
         task_instance_ids.append(ti.id)
-        TaskInstanceHistory.record_ti(ti, session)
-        ti.try_id = uuid7()
+        ti.prepare_db_for_next_try(session)
         if ti.state == TaskInstanceState.RUNNING:
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
@@ -476,11 +482,6 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-
-    if task_instance_ids:
-        # Clear all reschedules related to the ti to clear
-        delete_qry = TR.__table__.delete().where(TR.ti_id.in_(task_instance_ids))
-        session.execute(delete_qry)
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -1106,45 +1107,6 @@ def _get_previous_dagrun(
     return None
 
 
-def _get_previous_logical_date(
-    *,
-    task_instance: TaskInstance,
-    state: DagRunState | None,
-    session: Session,
-) -> pendulum.DateTime | None:
-    """
-    Get logical date from property previous_ti_success.
-
-    :param task_instance: the task instance
-    :param session: SQLAlchemy ORM Session
-    :param state: If passed, it only take into account instances of a specific state.
-
-    :meta private:
-    """
-    log.debug("previous_logical_date was called")
-    prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    return pendulum.instance(prev_ti.logical_date) if prev_ti and prev_ti.logical_date else None
-
-
-def _get_previous_start_date(
-    *,
-    task_instance: TaskInstance,
-    state: DagRunState | None,
-    session: Session,
-) -> pendulum.DateTime | None:
-    """
-    Return the start date from property previous_ti_success.
-
-    :param task_instance: the task instance
-    :param state: If passed, it only take into account instances of a specific state.
-    :param session: SQLAlchemy ORM Session
-    """
-    log.debug("previous_start_date was called")
-    prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    # prev_ti may not exist and prev_ti.start_date may be None.
-    return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
-
-
 def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) -> None:
     """
     Send alert email with exception information.
@@ -1475,7 +1437,6 @@ def _handle_reschedule(
     session.add(
         TaskReschedule(
             ti.id,
-            ti.try_number,
             actual_start_date,
             ti.end_date,
             reschedule_exception.reschedule_date,
@@ -1525,7 +1486,6 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
-    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
@@ -1915,7 +1875,7 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_url = conf.get_mandatory_value("api", "BASE_URL")
+        base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
         map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
         _log_uri = f"{base_url}dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
@@ -1984,33 +1944,48 @@ class TaskInstance(Base, LoggingMixin):
         :param keep_local_changes: Force all attributes to the values from the database if False (the default),
             or if True don't overwrite locally set attributes
         """
-        source = TaskInstance.get_task_instance(
+        query = select(
+            # Select the columns, not the ORM object, to bypass any session/ORM caching layer
+            c
+            for c in TaskInstance.__table__.columns
+        ).filter_by(
             dag_id=self.dag_id,
-            task_id=self.task_id,
             run_id=self.run_id,
+            task_id=self.task_id,
             map_index=self.map_index,
-            lock_for_update=lock_for_update,
-            session=session,
         )
-        if source:
-            from sqlalchemy.orm import attributes
 
-            source_state = inspect(source)
-            if source_state is None:
-                raise RuntimeError(f"Unable to inspect SQLAlchemy state of {type(source)}: {source}")
+        if lock_for_update:
+            query = query.with_for_update()
+
+        source = session.execute(query).mappings().one_or_none()
+        if source:
             target_state = inspect(self)
             if target_state is None:
                 raise RuntimeError(f"Unable to inspect SQLAlchemy state of {type(self)}: {self}")
-            for name, attr in source_state.attrs.items():
-                if keep_local_changes and target_state.attrs[name].history.has_changes():
+
+            # To deal with `@hybrid_property` we need to get the names from `mapper.columns`
+            for attr_name, col in target_state.mapper.columns.items():
+                if keep_local_changes and target_state.attrs[attr_name].history.has_changes():
                     continue
 
-                val = attr.loaded_value
+                set_committed_value(self, attr_name, source[col.name])
 
-                if val is not attributes.NO_VALUE:
-                    set_committed_value(self, name, val)
+            # ID may have changed, update SQLAs state and object tracking
+            newkey = session.identity_key(type(self), (self.id,))
 
-            target_state.key = source_state.key
+            # Delete anything under the new key
+            if newkey != target_state.key:
+                old = session.identity_map.get(newkey)
+                if old is not self and old is not None:
+                    session.expunge(old)
+                target_state.key = newkey
+
+            if target_state.attrs.dag_run.loaded_value is not NO_VALUE:
+                dr_key = session.identity_key(type(self.dag_run), (self.dag_run.id,))
+                if (dr := session.identity_map.get(dr_key)) is not None:
+                    set_committed_value(self, "dag_run", dr)
+
         else:
             self.state = None
 
@@ -2058,32 +2033,6 @@ class TaskInstance(Base, LoggingMixin):
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
-    @staticmethod
-    def _set_state(ti: TaskInstance, state, session: Session) -> bool:
-        if not isinstance(ti, TaskInstance):
-            ti = session.scalars(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == ti.task_id,
-                    TaskInstance.dag_id == ti.dag_id,
-                    TaskInstance.run_id == ti.run_id,
-                    TaskInstance.map_index == ti.map_index,
-                )
-            ).one()
-
-        if ti.state == state:
-            return False
-
-        current_time = timezone.utcnow()
-        ti.log.debug("Setting task state for %s to %s", ti, state)
-        ti.state = state
-        ti.start_date = ti.start_date or current_time
-        if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
-            ti.end_date = ti.end_date or current_time
-            ti.duration = (ti.end_date - ti.start_date).total_seconds()
-
-        session.merge(ti)
-        return True
-
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
         """
@@ -2093,13 +2042,35 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: Was the state changed
         """
-        return self._set_state(ti=self, state=state, session=session)
+        if self.state == state:
+            return False
+
+        current_time = timezone.utcnow()
+        self.log.debug("Setting task state for %s to %s", self, state)
+        if self not in session:
+            self.refresh_from_db(session)
+        self.state = state
+        self.start_date = self.start_date or current_time
+        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
+            self.end_date = self.end_date or current_time
+            self.duration = (self.end_date - self.start_date).total_seconds()
+        session.merge(self)
+        session.flush()
+        return True
 
     @property
     def is_premature(self) -> bool:
         """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
         # is the task still in the retry waiting period?
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
+
+    def prepare_db_for_next_try(self, session: Session):
+        """Update the metadata with all the records needed to put this TI in queued for the next try."""
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        TaskInstanceHistory.record_ti(self, session=session)
+        session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
+        self.id = uuid7()
 
     @provide_session
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:
@@ -2157,32 +2128,6 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         """
         return _get_previous_ti(task_instance=self, state=state, session=session)
-
-    @provide_session
-    def get_previous_logical_date(
-        self,
-        state: DagRunState | None = None,
-        session: Session = NEW_SESSION,
-    ) -> pendulum.DateTime | None:
-        """
-        Return the logical date from property previous_ti_success.
-
-        :param state: If passed, it only take into account instances of a specific state.
-        :param session: SQLAlchemy ORM Session
-        """
-        return _get_previous_logical_date(task_instance=self, state=state, session=session)
-
-    @provide_session
-    def get_previous_start_date(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
-    ) -> pendulum.DateTime | None:
-        """
-        Return the start date from property previous_ti_success.
-
-        :param state: If passed, it only take into account instances of a specific state.
-        :param session: SQLAlchemy ORM Session
-        """
-        return _get_previous_start_date(task_instance=self, state=state, session=session)
 
     @provide_session
     def are_dependencies_met(
@@ -2334,20 +2279,6 @@ class TaskInstance(Base, LoggingMixin):
         set_committed_value(self, "dag_run", dr)
 
         return dr
-
-    @classmethod
-    @provide_session
-    def ensure_dag(cls, task_instance: TaskInstance, session: Session = NEW_SESSION) -> DAG:
-        """Ensure that task has a dag object associated, might have been removed by serialization."""
-        if TYPE_CHECKING:
-            assert task_instance.task
-        if task_instance.task.dag is None:
-            task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
-                dag_id=task_instance.dag_id, session=session
-            )
-        if TYPE_CHECKING:
-            assert task_instance.task.dag
-        return task_instance.task.dag
 
     @classmethod
     @provide_session
@@ -3073,10 +3004,7 @@ class TaskInstance(Base, LoggingMixin):
                 # If the task instance is in the running state, it means it raised an exception and
                 # about to retry so we record the task instance history. For other states, the task
                 # instance was cleared and already recorded in the task instance history.
-                from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-                TaskInstanceHistory.record_ti(ti, session=session)
-                ti.try_id = uuid7()
+                ti.prepare_db_for_next_try(session)
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
@@ -3632,21 +3560,14 @@ class TaskInstance(Base, LoggingMixin):
 
     def get_first_reschedule_date(self, context: Context) -> datetime | None:
         """Get the first reschedule date for the task instance."""
-        # TODO: AIP-72: Remove this after `ti.run` is migrated to use Task SDK
-        max_tries: int = self.max_tries or 0
-
         if TYPE_CHECKING:
             assert isinstance(self.task, BaseOperator)
-
-        retries: int = self.task.retries or 0
-        first_try_number = max_tries - retries + 1
 
         with create_session() as session:
             start_date = session.scalar(
                 select(TaskReschedule)
                 .where(
                     TaskReschedule.ti_id == str(self.id),
-                    TaskReschedule.try_number >= first_try_number,
                 )
                 .order_by(TaskReschedule.id.asc())
                 .with_only_columns(TaskReschedule.start_date)
@@ -3794,6 +3715,7 @@ class TaskInstanceNote(Base):
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
     )
 

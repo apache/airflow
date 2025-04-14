@@ -50,9 +50,11 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
+    TaskStatesResult,
     TICount,
     VariableResult,
     XComResult,
@@ -225,6 +227,7 @@ ToTriggerRunner = Annotated[
         DagRunStateResult,
         DRCount,
         TICount,
+        TaskStatesResult,
         ErrorResponse,
     ],
     Field(discriminator="type"),
@@ -242,6 +245,7 @@ ToTriggerSupervisor = Annotated[
         GetVariable,
         GetXCom,
         GetTICount,
+        GetTaskStates,
         GetDagRunState,
         GetDRCount,
     ],
@@ -360,7 +364,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
-        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+        from airflow.sdk.api.datamodels._generated import (
+            ConnectionResponse,
+            TaskStatesResponse,
+            VariableResponse,
+            XComResponse,
+        )
 
         resp: BaseModel | None = None
         dump_opts = {}
@@ -424,10 +433,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = dr_count
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = dr_resp
+            resp = DagRunStateResult.from_api_response(dr_resp)
 
         elif isinstance(msg, GetTICount):
-            ti_count = self.client.task_instances.get_count(
+            resp = self.client.task_instances.get_count(
                 dag_id=msg.dag_id,
                 task_ids=msg.task_ids,
                 task_group_id=msg.task_group_id,
@@ -435,7 +444,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
-            resp = ti_count.model_dump_json().encode()
+
+        elif isinstance(msg, GetTaskStates):
+            run_id_task_state_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(run_id_task_state_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(run_id_task_state_map)
+            else:
+                resp = run_id_task_state_map
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 
