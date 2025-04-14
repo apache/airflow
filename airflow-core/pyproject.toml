@@ -138,10 +138,10 @@ dependencies = [
     "uuid6>=2024.7.10",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-io>=1.5.2",
-    "apache-airflow-providers-common-sql>=1.24.1",
-    "apache-airflow-providers-smtp>=2.0.1",
-    "apache-airflow-providers-standard>=0.2.0",
+    "apache-airflow-providers-common-io>=1.5.3",
+    "apache-airflow-providers-common-sql>=1.25.0",
+    "apache-airflow-providers-smtp>=2.0.2",
+    "apache-airflow-providers-standard>=0.4.0",
 ]
 
 
