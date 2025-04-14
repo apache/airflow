@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex, VStack } from "@chakra-ui/react";
+import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { LuFileWarning } from "react-icons/lu";
@@ -27,13 +27,12 @@ import { useLocalStorage } from "usehooks-ts";
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
-import { StateBadge } from "src/components/StateBadge";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import { WarningAlert } from "src/components/WarningAlert";
-import { Accordion, ProgressBar } from "src/components/ui";
+import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
+import ActionButton from "src/components/ui/ActionButton";
+import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -62,6 +61,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { data: warningData } = useDagWarningServiceListDagWarnings({
     dagId,
   });
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -97,40 +97,28 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
-              {(Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0) && (
-                <Accordion.Root
-                  collapsible
-                  height="full"
-                  maxH="fit-content"
-                  mb={4}
-                  mt={4}
-                  overflow="auto"
-                  size="lg"
-                  variant="outline"
-                >
-                  <Accordion.Item key="dagIssues" mx={2} value="dagIssues">
-                    <Accordion.ItemTrigger cursor="button">
-                      <Flex gap="0.5rem">
-                        <StateBadge colorPalette="failed" height={7} title="Dag Issues">
-                          <LuFileWarning size="1.25rem" />
-                        </StateBadge>
-                        <p>Issues</p>
-                      </Flex>
-                    </Accordion.ItemTrigger>
-                    <Accordion.ItemContent>
-                      <VStack>
-                        <ErrorAlert error={error} />
-                        {warningData?.dag_warnings.map((warningItem) => (
-                          <WarningAlert
-                            key={`${warningItem.dag_id}-${warningItem.timestamp}`}
-                            warning={warningItem}
-                          />
-                        ))}
-                      </VStack>
-                    </Accordion.ItemContent>
-                  </Accordion.Item>
-                </Accordion.Root>
-              )}
+              {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                <>
+                  <ActionButton
+                    actionName="Trigger Dag"
+                    colorPalette={Boolean(error) ? "red" : "orange"}
+                    icon={<LuFileWarning />}
+                    marginBottom="-1"
+                    marginTop="2"
+                    onClick={onOpen}
+                    rounded="full"
+                    text={String(warningData?.total_entries ?? 0 + Number(error))}
+                    variant="solid"
+                  />
+
+                  <DAGWarningsModal
+                    error={error}
+                    onClose={onClose}
+                    open={open}
+                    warnings={warningData?.dag_warnings}
+                  />
+                </>
+              ) : undefined}
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
               <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
