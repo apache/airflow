@@ -1295,6 +1295,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests/.*\.py$
+        exclude: .*generated.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-ctl
@@ -1360,7 +1361,10 @@ repos:
       - id: generate-airflowctl-datamodels
         name: Generate Datamodels for AirflowCTL
         language: python
-        entry: uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen
+        entry: >
+          bash -c '
+          uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
+           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/core_api/.*\.py$
         require_serial: true
