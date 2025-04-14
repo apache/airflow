@@ -6449,7 +6449,7 @@ paths:
           type: string
           enum:
           - application/json
-          - text/plain
+          - application/x-ndjson
           - '*/*'
           default: '*/*'
           title: Accept
@@ -6460,10 +6460,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstancesLogResponse'
-            text/plain:
+            application/x-ndjson:
               schema:
                 type: string
-                example: 'content
+                example: '{"content": "content"}
+
+                  {"content": "content"}
 
                   '
         '401':
