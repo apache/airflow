@@ -1179,7 +1179,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
-    log.debug(
+    log.info(
         "Secrets backends loaded for worker",
         count=len(backends),
         backend_classes=[type(b).__name__ for b in backends],
