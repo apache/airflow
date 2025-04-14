@@ -53,7 +53,7 @@ export const AssetSchedule = ({ dag }: Props) => {
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {nextRunEvents.length === 1 ? (
-            ((nextRun?.asset_expression as { all: Array<AssetResponse> }).all[0]?.name ??
+            ((nextRun?.asset_expression as { expr: AssetResponse | undefined }).expr?.name ??
             nextRunEvents[0]?.uri)
           ) : (
             <>
