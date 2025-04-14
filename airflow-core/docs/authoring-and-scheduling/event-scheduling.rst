@@ -34,7 +34,7 @@ message queue, and triggers an asset update when a relevant event occurs.
 The ``watchers`` parameter in the ``Asset`` definition allows you to associate multiple ``AssetWatcher`` instances with an
 asset, enabling it to respond to various event sources.
 
-See :doc:`providers/common/messaging/docs/triggers` for more information and examples.
+See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
 ----------------------------------------------
