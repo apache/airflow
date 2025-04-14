@@ -42,7 +42,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
-    TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
     TIStateUpdate,
     TISuccessStatePayload,
@@ -669,34 +668,6 @@ def get_task_states(
         [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
-
-
-@ti_id_router.only_exists_in_older_versions
-@ti_id_router.post(
-    "/{task_instance_id}/runtime-checks",
-    status_code=status.HTTP_204_NO_CONTENT,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
-    responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "Task Instance failed the runtime checks."},
-        status.HTTP_409_CONFLICT: {
-            "description": "Task Instance isn't in a running state. Cannot perform runtime checks."
-        },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
-            "description": "Invalid payload for requested runtime checks on the Task Instance."
-        },
-    },
-)
-def ti_runtime_checks(
-    task_instance_id: UUID,
-    payload: TIRuntimeCheckPayload,
-    session: SessionDep,
-):
-    ti_id_str = str(task_instance_id)
-    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if task_instance.state != TaskInstanceState.RUNNING:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT)
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

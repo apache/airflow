@@ -337,13 +337,6 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class TIRuntimeCheckPayload(StrictBaseModel):
-    """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
-
-    inlets: list[AssetProfile] | None = None
-    outlets: list[AssetProfile] | None = None
-
-
 class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
