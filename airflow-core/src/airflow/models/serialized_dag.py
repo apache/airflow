@@ -216,26 +216,28 @@ class _DagDependenciesResolver:
 
     def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         dep_id = dep_data["dependency_id"]
-        for asset_id, asset_name in self.alias_names_to_asset_ids_names[dep_id]:
-            is_source_alias = dep_data["source"] == "asset-alias"
-            yield from [
+        assets = self.alias_names_to_asset_ids_names[dep_id]
+        if assets:
+            for asset_id, asset_name in assets:
+                is_source_alias = dep_data["source"] == "asset-alias"
                 # asset
-                DagDependency(
+                yield DagDependency(
                     source="asset" if is_source_alias else f"asset-alias:{dep_id}",
                     target=f"asset-alias:{dep_id}" if is_source_alias else "asset",
                     label=asset_name,
                     dependency_type="asset",
                     dependency_id=str(asset_id),
-                ),
+                )
                 # asset alias
-                DagDependency(
+                yield DagDependency(
                     source=f"asset:{asset_id}" if is_source_alias else dep_data["source"],
                     target=dep_data["target"] if is_source_alias else f"asset:{asset_id}",
                     label=dep_id,
                     dependency_type="asset-alias",
                     dependency_id=dep_id,
-                ),
-            ]
+                )
+        else:
+            yield DagDependency(**dep_data)
 
 
 class SerializedDagModel(Base):
@@ -656,7 +658,6 @@ class SerializedDagModel(Base):
             if load_json is not None
             else query.all()
         )
-
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag
