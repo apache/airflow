@@ -364,7 +364,8 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    log = mock.MagicMock()
+    run(ti, context=ti.get_template_context(), log=log)
 
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
@@ -373,6 +374,9 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
         ),
         log=mock.ANY,
     )
+
+    log.exception.assert_not_called()
+    log.error.assert_called_with(mock.ANY, exit_code=10)
 
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
