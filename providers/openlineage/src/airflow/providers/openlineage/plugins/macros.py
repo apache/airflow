@@ -59,25 +59,11 @@ def lineage_run_id(task_instance: TaskInstance):
         For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    if AIRFLOW_V_3_0_PLUS:
-        context = task_instance.get_template_context()
-        if hasattr(task_instance, "dag_run"):
-            dag_run = task_instance.dag_run
-        elif hasattr(context, "dag_run"):
-            dag_run = context["dag_run"]
-        if hasattr(dag_run, "logical_date") and dag_run.logical_date:
-            date = dag_run.logical_date
-        else:
-            date = dag_run.run_after
-    elif hasattr(task_instance, "logical_date"):
-        date = task_instance.logical_date
-    else:
-        date = task_instance.execution_date
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
         try_number=task_instance.try_number,
-        logical_date=date,
+        logical_date=_get_logical_date(task_instance),
         map_index=task_instance.map_index,
     )
 
@@ -101,3 +87,44 @@ def lineage_parent_id(task_instance: TaskInstance):
             lineage_run_id(task_instance),
         )
     )
+
+
+def lineage_root_parent_id(task_instance: TaskInstance):
+    return "/".join(
+        (
+            lineage_job_namespace(),
+            lineage_root_job_name(task_instance),
+            lineage_root_run_id(task_instance),
+        )
+    )
+
+
+def lineage_root_job_name(task_instance: TaskInstance):
+    return task_instance.dag_id
+
+
+def lineage_root_run_id(task_instance: TaskInstance):
+    return OpenLineageAdapter.build_dag_run_id(
+        dag_id=task_instance.dag_id,
+        logical_date=_get_logical_date(task_instance),
+        clear_number=task_instance.dag_run.clear_number,
+    )
+
+
+def _get_logical_date(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        context = task_instance.get_template_context()
+        if hasattr(task_instance, "dag_run"):
+            dag_run = task_instance.dag_run
+        elif hasattr(context, "dag_run"):
+            dag_run = context["dag_run"]
+        if hasattr(dag_run, "logical_date") and dag_run.logical_date:
+            date = dag_run.logical_date
+        else:
+            date = dag_run.run_after
+    elif hasattr(task_instance, "logical_date"):
+        date = task_instance.logical_date
+    else:
+        date = task_instance.execution_date
+    return date
