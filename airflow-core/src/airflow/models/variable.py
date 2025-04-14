@@ -302,7 +302,7 @@ class Variable(Base, LoggingMixin):
             )
 
     @staticmethod
-    def delete(key: str, session: Session | None = None) -> int:
+    def delete(key: str, session: Session | None = None) -> None | int:
         """
         Delete an Airflow Variable for a given key.
 
@@ -327,6 +327,7 @@ class Variable(Base, LoggingMixin):
             TaskSDKVariable.delete(
                 key=key,
             )
+            return None
 
         ctx: contextlib.AbstractContextManager
         if session is not None:
