@@ -40,8 +40,8 @@ EXAMPLE_CONTEXT = {
         task_id="task_id",
         try_number=1,
         map_index=1,
-        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11)),
         logical_date=dt.datetime(2024, 11, 11),
+        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11), clear_number=0),
     )
 }
 EXAMPLE_HTTP_TRANSPORT_CONFIG = {
@@ -74,6 +74,9 @@ EXAMPLE_PARENT_JOB_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
     "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
+    "spark.openlineage.rootParentJobName": "dag_id",
+    "spark.openlineage.rootParentJobNamespace": "default",
 }
 EXAMPLE_TRANSPORT_SPARK_PROPERTIES = {
     "spark.openlineage.transport.type": "http",
@@ -174,6 +177,9 @@ def test_get_transport_information_as_spark_properties_composite_transport_type(
                 "spark.openlineage.parentJobNamespace": "another_namespace",
                 "spark.openlineage.parentJobName": "another_job_name",
                 "spark.openlineage.parentRunId": "another_run_id",
+                "spark.openlineage.rootParentJobNamespace": "another_namespace",
+                "spark.openlineage.rootParentJobName": "another_job_name",
+                "spark.openlineage.rootParentRunId": "another_run_id",
             },
             True,
         ),

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, urlparse, urlunparse
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.snowflake.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
@@ -98,6 +99,20 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
     return urlunparse((parts.scheme, hostname, parts.path, parts.params, parts.query, parts.fragment))
 
 
+def _get_logical_date(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun = task_instance.get_template_context()["dag_run"]
+        return dagrun.logical_date or dagrun.run_after
+
+    if hasattr(task_instance, "logical_date"):
+        date = task_instance.logical_date
+    else:
+        date = task_instance.execution_date
+
+    return date
+
+
 # todo: move this run_id logic into OpenLineage's listener to avoid differences
 def _get_ol_run_id(task_instance) -> str:
     """
@@ -108,19 +123,6 @@ def _get_ol_run_id(task_instance) -> str:
     enabling a proper connection between events.
     """
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-
-    def _get_logical_date():
-        # todo: remove when min airflow version >= 3.0
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun = task_instance.get_template_context()["dag_run"]
-            return dagrun.logical_date or dagrun.run_after
-
-        if hasattr(task_instance, "logical_date"):
-            date = task_instance.logical_date
-        else:
-            date = task_instance.execution_date
-
-        return date
 
     def _get_try_number_success():
         """We are running this in the _on_complete, so need to adjust for try_num changes."""
@@ -135,9 +137,17 @@ def _get_ol_run_id(task_instance) -> str:
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
-        logical_date=_get_logical_date(),
+        logical_date=_get_logical_date(task_instance),
         try_number=_get_try_number_success(),
         map_index=task_instance.map_index,
+    )
+
+
+def _get_ol_dag_run_id(task_instance) -> str:
+    return OpenLineageAdapter.build_dag_run_id(
+        dag_id=task_instance.dag_id,
+        logical_date=_get_logical_date(task_instance),
+        clear_number=task_instance.dag_run.clear_number,
     )
 
 
@@ -154,12 +164,20 @@ def _get_parent_run_facet(task_instance):
     from airflow.providers.openlineage.conf import namespace
 
     parent_run_id = _get_ol_run_id(task_instance)
+    root_parent_run_id = _get_ol_dag_run_id(task_instance)
 
     return parent_run.ParentRunFacet(
         run=parent_run.Run(runId=parent_run_id),
         job=parent_run.Job(
             namespace=namespace(),
             name=f"{task_instance.dag_id}.{task_instance.task_id}",
+        ),
+        root=parent_run.Root(
+            run=parent_run.RootRun(runId=root_parent_run_id),
+            job=parent_run.RootJob(
+                name=task_instance.dag_id,
+                namespace=namespace(),
+            ),
         ),
     )
 

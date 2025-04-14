@@ -148,10 +148,19 @@ def generate_openlineage_events_from_dbt_cloud_run(
         map_index=task_instance.map_index,
     )
 
+    root_parent_run_id = OpenLineageAdapter.build_dag_run_id(
+        dag_id=task_instance.dag_id,
+        logical_date=_get_logical_date(task_instance),
+        clear_number=task_instance.dag_run.clear_number,
+    )
+
     parent_job = ParentRunMetadata(
         run_id=parent_run_id,
         job_name=f"{task_instance.dag_id}.{task_instance.task_id}",
         job_namespace=namespace(),
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_name=task_instance.dag_id,
+        root_parent_job_namespace=namespace(),
     )
     client = get_openlineage_listener().adapter.get_or_create_openlineage_client()
 
