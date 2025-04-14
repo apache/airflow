@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
 import logging
@@ -133,10 +134,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             msg = copy.copy(event)
             created = None
             if ts := msg.pop("timestamp", None):
-                try:
+                with contextlib.suppress(Exception):
                     created = datetime.fromisoformat(ts)
-                except Exception:
-                    pass
             record = logRecordFactory(
                 name, level, pathname="", lineno=0, msg=msg, args=(), exc_info=None, func=None, sinfo=None
             )

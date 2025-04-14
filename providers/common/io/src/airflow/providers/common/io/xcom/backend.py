@@ -162,12 +162,10 @@ class XComObjectStorageBackend(BaseXCom):
         data = base_xcom_deser_result
 
         if not AIRFLOW_V_3_0_PLUS:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 # When XComObjectStorageBackend is used, xcom value will be serialized using json.dumps
                 # likely, we need to deserialize it using json.loads
                 data = json.loads(base_xcom_deser_result, cls=XComDecoder)
-            except (TypeError, ValueError):
-                pass
         try:
             path = XComObjectStorageBackend._get_full_path(base_xcom_deser_result)
         except (TypeError, ValueError):  # Likely value stored directly in the database.

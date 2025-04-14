@@ -22,6 +22,7 @@ See also: https://docs.sqlalchemy.org/en/21/orm/mapping_styles.html#orm-imperati
 
 from __future__ import annotations
 
+import contextlib
 import warnings
 
 from sqlalchemy.exc import InvalidRequestError, SADeprecationWarning
@@ -31,8 +32,6 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 
 def test_setup_event_handlers_no_sa_deprecation_warning():
     warnings.simplefilter("error", category=SADeprecationWarning)
-    try:
-        setup_event_handlers(engine=None)
-    except InvalidRequestError:
+    with contextlib.suppress(InvalidRequestError):
         # We are only interested in the warning that may be issued at the beginning of the method.
-        pass
+        setup_event_handlers(engine=None)

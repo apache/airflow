@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import glob
 import operator
 import os
@@ -1414,10 +1415,8 @@ def tag_providers(
             get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
             if clean_local_tags:
                 for tag in tags:
-                    try:
+                    with contextlib.suppress(subprocess.CalledProcessError):
                         run_command(["git", "tag", "-d", tag], check=True)
-                    except subprocess.CalledProcessError:
-                        pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")
             else:
                 get_console().print(

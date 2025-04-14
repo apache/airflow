@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -34,14 +34,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
-try:
+with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         DagAccessEntity,
         DagDetails,
     )
-except ImportError:
-    pass
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 

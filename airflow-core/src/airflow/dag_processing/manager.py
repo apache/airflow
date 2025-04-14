@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import importlib
 import inspect
@@ -400,10 +401,8 @@ class DagFileProcessorManager(LoggingMixin):
         bundles_to_refresh: set[str] = set()
         for file in files:
             # Try removing the file if already present
-            try:
+            with contextlib.suppress(ValueError):
                 self._file_queue.remove(file)
-            except ValueError:
-                pass
             # enqueue file to the start of the queue.
             self._file_queue.appendleft(file)
             bundles_to_refresh.add(file.bundle_name)

@@ -460,11 +460,9 @@ class WatchedSubprocess:
                 # Run the child entrypoint
                 _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
-                try:
+                with suppress(BaseException):
                     # We can't use log here, as if we except out of _fork_main something _weird_ went on.
                     print("Exception in _fork_main, exiting with code 124", e, file=sys.stderr)
-                except BaseException as e:
-                    pass
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)

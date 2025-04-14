@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
 from copy import deepcopy
 from datetime import datetime as dt
@@ -326,12 +327,10 @@ class CustomObjectLauncher(LoggingMixin):
         driver_state = spark_job_info.get("status", {}).get("applicationState", {}).get("state", "SUBMITTED")
         if driver_state == CustomObjectStatus.FAILED:
             err = spark_job_info.get("status", {}).get("applicationState", {}).get("errorMessage", "N/A")
-            try:
+            with contextlib.suppress(Exception):
                 self.pod_manager.fetch_container_logs(
                     pod=self.pod_spec, container_name="spark-kubernetes-driver"
                 )
-            except Exception:
-                pass
             raise AirflowException(f"Spark Job Failed. Error stack: {err}")
         return driver_state == CustomObjectStatus.SUBMITTED
 

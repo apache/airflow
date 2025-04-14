@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 import attr
@@ -95,10 +96,8 @@ class DepContext:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
             for ti in finished_tis:
                 if not getattr(ti, "task", None) is not None and dag_run.dag:
-                    try:
+                    with contextlib.suppress(TaskNotFound):
                         ti.task = dag_run.dag.get_task(ti.task_id)
-                    except TaskNotFound:
-                        pass
 
             self.finished_tis = finished_tis
         else:

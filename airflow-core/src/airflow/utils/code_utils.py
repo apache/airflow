@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import os
@@ -37,16 +38,12 @@ def get_python_source(x: Any) -> str | None:
         source_code = inspect.getsource(x.func)
 
     if source_code is None:
-        try:
+        with contextlib.suppress(TypeError):
             source_code = inspect.getsource(x)
-        except TypeError:
-            pass
 
     if source_code is None:
-        try:
+        with contextlib.suppress(TypeError, AttributeError):
             source_code = inspect.getsource(x.__call__)
-        except (TypeError, AttributeError):
-            pass
 
     if source_code is None:
         source_code = f"No source code available for {type(x)}"
