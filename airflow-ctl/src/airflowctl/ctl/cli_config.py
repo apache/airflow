@@ -31,6 +31,8 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, NamedTuple, Union
 
+import rich
+
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
@@ -418,9 +420,9 @@ class CommandFactory:
 
             if datamodel:
                 method_params = datamodel.model_validate(method_params)
-                print(operation_method_object(method_params))
+                rich.print(operation_method_object(method_params))
             else:
-                print(operation_method_object(**method_params))
+                rich.print(operation_method_object(**method_params))
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(

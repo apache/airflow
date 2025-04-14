@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests/core/ApiError";
 import type { DAGSourceResponse } from "openapi/requests/types.gen";
-import DagVersionSelect from "src/components/DagVersionSelect";
+import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardButton } from "src/components/ui";

@@ -480,6 +480,7 @@ class TestBranchOperator(BasePythonTest):
                 branch_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
+                branch_2_ti.task = self.branch_2
                 assert branch_2_ti.state == TaskInstanceState.SKIPPED
                 branch_2_ti.set_state(None)
                 branch_2_ti.run()
@@ -761,6 +762,7 @@ class TestShortCircuitOperator(BasePythonTest):
                 sc_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 op1_ti = dr.get_task_instance(task_id="op1", session=session)
+                op1_ti.task = self.op1
                 assert op1_ti.state == TaskInstanceState.SKIPPED
                 op1_ti.set_state(None)
                 op1_ti.run()
@@ -1709,6 +1711,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
                 # FIXME
                 if self.opcls != BranchExternalPythonOperator:
+                    branch_2_ti.task = self.branch_2
                     assert branch_2_ti.state == TaskInstanceState.SKIPPED
                     branch_2_ti.set_state(None, session=session)
                     branch_2_ti.run()

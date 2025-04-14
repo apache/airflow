@@ -283,6 +283,14 @@ class TITargetStatePayload(BaseModel):
     state: IntermediateTIState
 
 
+class TaskStatesResponse(BaseModel):
+    """
+    Response for task states with run_id, task and state.
+    """
+
+    task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
 class TerminalStateNonSuccess(str, Enum):
     """
     TaskInstance states that can be reported without extra information.

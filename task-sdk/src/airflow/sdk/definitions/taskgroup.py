@@ -343,6 +343,21 @@ class TaskGroup(DAGNode):
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
 
+        # Helper function to find leaves from a task list or task group
+        def find_leaves(group_or_task) -> list[Any]:
+            while group_or_task:
+                group_or_task_leaves = list(group_or_task.get_leaves())
+                if group_or_task_leaves:
+                    return group_or_task_leaves
+                if group_or_task.upstream_task_ids:
+                    upstream_task_ids_list = list(group_or_task.upstream_task_ids)
+                    return [self.dag.get_task(task_id) for task_id in upstream_task_ids_list]
+                group_or_task = group_or_task.parent_group
+            return []
+
+        # Check if the current TaskGroup is empty
+        leaves = find_leaves(self)
+
         for task_like in task_or_task_list:
             self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
@@ -350,7 +365,7 @@ class TaskGroup(DAGNode):
             for task in self.get_roots():
                 task.set_upstream(task_or_task_list)
         else:
-            for task in self.get_leaves():
+            for task in leaves:  # Use the fetched leaves
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
