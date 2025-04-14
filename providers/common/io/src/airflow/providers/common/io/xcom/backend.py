@@ -118,8 +118,7 @@ class XComObjectStorageBackend(BaseXCom):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> bytes | str:
-        # we will always serialize ourselves and not by BaseXCom as the deserialize method
-        # from BaseXCom accepts only XCom objects and not the value directly
+        # We will use this serialized value to write to the object store.
         s_val = json.dumps(value, cls=XComEncoder)
         s_val_encoded = s_val.encode("utf-8")
 
