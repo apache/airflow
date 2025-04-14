@@ -253,8 +253,10 @@ class TestConfigLint:
 
             output = temp_stdout.getvalue()
 
-        normalized_output = re.sub(r"\s+", " ", output.strip())
-        normalized_message = re.sub(r"\s+", " ", removed_config.message.strip())
+        normalized_output = re.sub(r"\s+", " ", output.strip()) if output else ""
+        normalized_message = (
+            re.sub(r"\s+", " ", removed_config.message.strip()) if removed_config.message else ""
+        )
 
         assert normalized_message.lower() in normalized_output.lower()
 

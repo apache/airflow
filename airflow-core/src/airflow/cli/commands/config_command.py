@@ -128,7 +128,7 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed:
+        if self.was_removed and not self.remove_if_equals:
             return (
                 f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
                 f"from `{self.config.section}` section. "
@@ -564,13 +564,15 @@ CONFIGS_CHANGES = [
         old_default="True",
         new_default="False",
         was_removed=False,
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "create_delta_data_intervals"),
         default_change=True,
-        old_default=True,
-        new_default=False,
+        old_default="True",
+        new_default="False",
         was_removed=False,
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
@@ -825,10 +827,6 @@ def update_config(args) -> None:
     the old airflow.cfg file.
 
     CLI Arguments:
-        --dry-run: flag (optional)
-            Dry-run mode (print the changes without modifying airflow.cfg)
-            Example: --dry-run
-
         --fix: flag (optional)
             Automatically fix/apply the breaking changes (or all changes if --all-recommendations is also
             specified)
@@ -836,7 +834,7 @@ def update_config(args) -> None:
 
         --all-recommendations: flag (optional)
             Include non-breaking (recommended) changes as well as breaking ones.
-            Can be used with --dry-run or --fix.
+            Can be used with --fix.
             Example: --all-recommendations
 
         --section: str (optional)

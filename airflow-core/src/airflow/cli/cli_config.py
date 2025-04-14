@@ -820,7 +820,7 @@ ARG_UPDATE_CONFIG_FIX = Arg(
 
 ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
     ("--all-recommendations",),
-    help="Include non-breaking (recommended) changes along with breaking ones. (Use with --fix or --dry-run)",
+    help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
     action="store_true",
 )
 
