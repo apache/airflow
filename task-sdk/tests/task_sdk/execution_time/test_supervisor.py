@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     DRCount,
     ErrorResponse,
@@ -1057,6 +1058,15 @@ class TestHandleRequest:
                 {},
                 OKResponse(ok=True),
                 id="set_variable",
+            ),
+            pytest.param(
+                DeleteVariable(key="test_key"),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "variables.delete",
+                ("test_key",),
+                {},
+                OKResponse(ok=True),
+                id="delete_variable",
             ),
             pytest.param(
                 DeferTask(next_method="execute_callback", classpath="my-classpath"),

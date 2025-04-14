@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
+    from airflow.typing_compat import Self
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -515,7 +516,7 @@ class LoggerMutationHelper:
     def reset(self) -> None:
         self.apply(self.source_logger)
 
-    def __enter__(self) -> LoggerMutationHelper:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
