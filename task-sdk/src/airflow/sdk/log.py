@@ -525,10 +525,15 @@ def relative_path_from_logger(logger) -> Path | None:
 def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     raw_logger = getattr(logger, "_logger")
 
-    relative_path = relative_path_from_logger(raw_logger)
-
     handler = load_remote_log_handler()
-    if not handler or not relative_path:
+    if not handler:
+        return
+
+    try:
+        relative_path = relative_path_from_logger(raw_logger)
+    except Exception:
+        return
+    if not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()
