@@ -693,7 +693,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
                         f"Returned output was type {type(xcom_value)} "
                         "expected dictionary for multiple_outputs"
                     )
-                for key in xcom_value.keys():
+                for key in xcom_value:
                     if not isinstance(key, str):
                         raise AirflowException(
                             "Returned dictionary keys must be strings when using "
