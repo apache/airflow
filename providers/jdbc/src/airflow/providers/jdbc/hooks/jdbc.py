@@ -22,6 +22,7 @@ import warnings
 from contextlib import contextmanager
 from threading import RLock
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote_plus, urlencode
 
 import jaydebeapi
 import jpype
@@ -220,3 +221,38 @@ class JdbcHook(DbApiHook):
         with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             return conn.jconn.getAutoCommit()
         return False
+
+    def get_uri(self) -> str:
+        """Get the connection URI for the JDBC connection."""
+        conn = self.connection
+        extra = conn.extra_dejson
+
+        scheme = extra.get("sqlalchemy_scheme")
+        if not scheme:
+            return conn.host
+
+        driver = extra.get("sqlalchemy_driver")
+        uri_prefix = f"{scheme}+{driver}" if driver else scheme
+
+        auth_part = ""
+        if conn.login:
+            auth_part = quote_plus(conn.login)
+            if conn.password:
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = f"{auth_part}@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part = f"{host_part}:{conn.port}"
+
+        schema_part = f"/{quote_plus(conn.schema)}" if conn.schema else ""
+
+        uri = f"{uri_prefix}://{auth_part}{host_part}{schema_part}"
+
+        sqlalchemy_query = extra.get("sqlalchemy_query", {})
+        if isinstance(sqlalchemy_query, dict):
+            query_string = urlencode({k: str(v) for k, v in sqlalchemy_query.items() if v is not None})
+            if query_string:
+                uri = f"{uri}?{query_string}"
+
+        return uri
