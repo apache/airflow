@@ -432,7 +432,7 @@ class DbApiHook(BaseHook):
         """
         if df_type == "pandas":
             return self._get_pandas_df(sql, parameters, **kwargs)
-        elif df_type == "polars":
+        if df_type == "polars":
             return self._get_polars_df(sql, parameters, **kwargs)
 
     def _get_pandas_df(
@@ -510,7 +510,7 @@ class DbApiHook(BaseHook):
         """
         if df_type == "pandas":
             return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
-        elif df_type == "polars":
+        if df_type == "polars":
             return self._get_polars_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
 
     def _get_pandas_df_by_chunks(
@@ -564,14 +564,12 @@ class DbApiHook(BaseHook):
             )
 
         with closing(self.get_conn()) as conn:
-            yield from pl.read_database(
-                sql,
-                connection=conn,
-                execute_options=parameters,
-                iter_batches=True,
-                batch_size=chunksize,
-                **kwargs,
-            )
+            execute_options = None
+            if parameters is not None:
+                if isinstance(parameters, Mapping):
+                    execute_options = dict(parameters)
+
+            yield from pl.read_database(sql, connection=conn, execute_options=execute_options, batch_size=chunksize, **kwargs)
 
     def get_records(
         self,
