@@ -24,7 +24,7 @@ Messaging Triggers
 Wait for a message in a queue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use the :class:`~airflow.providers.common.messaging.triggers.messaging.msg_queue.MessageQueueTrigger` to wait for a message in a
+Use the :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` to wait for a message in a
 queue. Parameters of the trigger are:
 
 - ``queue`` - the queue identifier
