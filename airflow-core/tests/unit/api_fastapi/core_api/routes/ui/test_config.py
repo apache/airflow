@@ -41,20 +41,6 @@ mock_config_response = {
     "audit_view_excluded_events": "",
     "audit_view_included_events": "",
     "test_connection": "Disabled",
-    "state_color_mapping": {
-        "deferred": "mediumpurple",
-        "failed": "red",
-        "queued": "gray",
-        "removed": "lightgrey",
-        "restarting": "violet",
-        "running": "lime",
-        "scheduled": "tan",
-        "skipped": "hotpink",
-        "success": "green",
-        "up_for_reschedule": "turquoise",
-        "up_for_retry": "gold",
-        "upstream_failed": "orange",
-    },
     "dashboard_alert": [],
 }
 
@@ -86,24 +72,7 @@ def mock_config_data():
                 "audit_view_included_events": "",
             }
         }
-        with patch(
-            "airflow.settings.STATE_COLORS",
-            {
-                "deferred": "mediumpurple",
-                "failed": "red",
-                "queued": "gray",
-                "removed": "lightgrey",
-                "restarting": "violet",
-                "running": "lime",
-                "scheduled": "tan",
-                "skipped": "hotpink",
-                "success": "green",
-                "up_for_reschedule": "turquoise",
-                "up_for_retry": "gold",
-                "upstream_failed": "orange",
-            },
-        ):
-            yield mock_conf
+        yield mock_conf
 
 
 class TestGetConfig:

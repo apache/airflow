@@ -424,9 +424,6 @@ export type ConfigResponse = {
   audit_view_excluded_events: string;
   audit_view_included_events: string;
   test_connection: string;
-  state_color_mapping: {
-    [key: string]: unknown;
-  };
   dashboard_alert: Array<UIAlert>;
 };
 
