@@ -198,6 +198,8 @@ class _DagDependenciesResolver:
                 dependency_type="asset",
                 dependency_id=str(asset_id),
             )
+        else:
+            yield DagDependency(**dep_data)
 
     def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
