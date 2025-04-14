@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 sys.path.insert(0, AIRFLOW_CORE_SOURCES_PATH.as_posix())
 sys.path.insert(0, str(AIRFLOW_ROOT_PATH))  # make sure setup is imported from Airflow
 
+
 task_sdk_root = Path(__file__).parents[1]
 
 
