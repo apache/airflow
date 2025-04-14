@@ -138,7 +138,7 @@ def get_log(
         with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
 
-    if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
+    if accept == Mimetype.JSON:  # only specified application/json will return JSON
         structured_log_stream, out_metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
         encoded_token = None
         if not out_metadata.get("end_of_log", False):
