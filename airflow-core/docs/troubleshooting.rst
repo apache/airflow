@@ -36,10 +36,10 @@ Below are some example scenarios that could cause a task's state to change by a 
 - A user marked the task as successful or failed in the Airflow UI.
 - An external script or process used the :doc:`Airflow REST API <stable-rest-api-ref>` to change the state of a task.
 
-LocalTaskJob killed
--------------------
+TaskRunner killed
+-----------------
 
-Sometimes, Airflow or some adjacent system will kill a task instance's ``LocalTaskJob``, causing the task instance to fail.
+Sometimes, Airflow or some adjacent system will kill a task instance's ``TaskRunner``, causing the task instance to fail.
 
 Here are some examples that could cause such an event:
 

@@ -563,10 +563,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
                     f"Kubernetes spark exit code is: {self._spark_exit_code}"
                 )
-            else:
-                raise AirflowException(
-                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
-                )
+            raise AirflowException(
+                f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
+            )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
 

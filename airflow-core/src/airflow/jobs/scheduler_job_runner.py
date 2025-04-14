@@ -558,8 +558,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
-                    else:
-                        executor_slots_available[executor_obj.name] -= 1
+                    executor_slots_available[executor_obj.name] -= 1
                 else:
                     # This is a defensive guard for if we happen to have a task who's executor cannot be
                     # found. The check in the dag parser should make this not realistically possible but the

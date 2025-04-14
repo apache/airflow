@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import platform
@@ -563,11 +564,9 @@ def skip_db_test(item):
         if next(item.iter_markers(name="non_db_test_override"), None):
             # non_db_test can override the db_test set for example on module or class level
             return
-        else:
-            pytest.skip(
-                f"The test is skipped as it is DB test "
-                f"and --skip-db-tests is flag is passed to pytest. {item}"
-            )
+        pytest.skip(
+            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
+        )
     if next(item.iter_markers(name="backend"), None):
         # also automatically skip tests marked with `backend` marker as they are implicitly
         # db tests
@@ -582,14 +581,13 @@ def only_run_db_test(item):
     ):
         # non_db_test at individual level can override the db_test set for example on module or class level
         return
-    else:
-        if next(item.iter_markers(name="backend"), None):
-            # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-            return
-        pytest.skip(
-            f"The test is skipped as it is not a DB tests "
-            f"and --run-db-tests-only flag is passed to pytest. {item}"
-        )
+    if next(item.iter_markers(name="backend"), None):
+        # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
+        return
+    pytest.skip(
+        f"The test is skipped as it is not a DB tests "
+        f"and --run-db-tests-only flag is passed to pytest. {item}"
+    )
 
 
 def skip_if_integration_disabled(marker, item):
@@ -1815,25 +1813,22 @@ def cap_structlog():
     from structlog import configure, get_config
 
     class LogCapture(structlog.testing.LogCapture):
+        # Partial comparison -- only check keys passed in, or the "event"/message if a single value is given
         def __contains__(self, target):
-            import operator
+            if not isinstance(target, dict):
+                target = {"event": target}
 
-            if isinstance(target, str):
-
-                def predicate(e):
-                    return e["event"] == target
-            elif isinstance(target, dict):
-                # Partial comparison -- only check keys passed in
-                get = operator.itemgetter(*target.keys())
-                want = tuple(target.values())
-
-                def predicate(e):
+            def predicate(e):
+                def check_one(key, want):
                     try:
-                        return get(e) == want
+                        val = e.get(key)
+                        if isinstance(want, re.Pattern):
+                            return want.match(val)
+                        return val == want
                     except Exception:
                         return False
-            else:
-                raise TypeError(f"Can't search logs using {type(target)}")
+
+                return all(itertools.starmap(check_one, target.items()))
 
             return any(predicate(e) for e in self.entries)
 

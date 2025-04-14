@@ -1092,9 +1092,8 @@ def find_airflow_container() -> str | None:
             # On docker-compose v1 we get '--------' as output here
             stop_exec_on_error(docker_compose_ps_command.returncode)
         return container_running
-    else:
-        stop_exec_on_error(1)
-        return None
+    stop_exec_on_error(1)
+    return None
 
 
 @main.command(

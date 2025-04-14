@@ -4861,22 +4861,21 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
         ]
-    elif backend == "postgres":
+    if backend == "postgres":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
         ]
-    elif backend == "sqlite":
+    if backend == "sqlite":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
         ]
-    else:
-        raise RuntimeError(f"unknown backend {backend!r}")
+    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):

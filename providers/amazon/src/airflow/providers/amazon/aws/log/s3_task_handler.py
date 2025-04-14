@@ -162,8 +162,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             for key in keys:
                 logs.append(self.s3_read(key, return_error=True))
             return messages, logs
-        else:
-            return messages, None
+        return messages, None
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):

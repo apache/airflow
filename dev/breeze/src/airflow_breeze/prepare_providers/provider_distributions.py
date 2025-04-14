@@ -294,6 +294,6 @@ def get_packages_list_to_act_on(
             and (package.strip() not in removed_provider_ids or include_removed)
             and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
-    elif provider_distributions:
+    if provider_distributions:
         return list(provider_distributions)
     return get_available_distributions(include_removed=include_removed, include_not_ready=include_not_ready)

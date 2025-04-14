@@ -139,7 +139,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         if status.lower() in NeptuneHook.AVAILABLE_STATES:
             self.log.info("Neptune cluster %s is already available.", self.cluster_id)
             return {"db_cluster_id": self.cluster_id}
-        elif status.lower() in NeptuneHook.ERROR_STATES:
+        if status.lower() in NeptuneHook.ERROR_STATES:
             # some states will not allow you to start the cluster
             self.log.error(
                 "Neptune cluster %s is in error state %s and cannot be started", self.cluster_id, status
@@ -259,7 +259,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         if status.lower() in NeptuneHook.STOPPED_STATES:
             self.log.info("Neptune cluster %s is already stopped.", self.cluster_id)
             return {"db_cluster_id": self.cluster_id}
-        elif status.lower() in NeptuneHook.ERROR_STATES:
+        if status.lower() in NeptuneHook.ERROR_STATES:
             # some states will not allow you to stop the cluster
             self.log.error(
                 "Neptune cluster %s is in error state %s and cannot be stopped", self.cluster_id, status

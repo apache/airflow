@@ -109,5 +109,4 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
     # Allow using decorator with and without arguments
     if _func is None:
         return retry_decorator
-    else:
-        return retry_decorator(_func)
+    return retry_decorator(_func)

@@ -108,17 +108,16 @@ def ip_configuration() -> dict[str, Any]:
             "enablePrivatePathForGoogleCloudServices": True,
             "privateNetwork": f"projects/{PROJECT_ID}/global/networks/default",
         }
-    else:
-        # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
-        # Consider specifying your network mask
-        # for allowing requests only from the trusted sources, not from anywhere.
-        return {
-            "ipv4Enabled": True,
-            "requireSsl": False,
-            "authorizedNetworks": [
-                {"value": "0.0.0.0/0"},
-            ],
-        }
+    # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
+    # Consider specifying your network mask
+    # for allowing requests only from the trusted sources, not from anywhere.
+    return {
+        "ipv4Enabled": True,
+        "requireSsl": False,
+        "authorizedNetworks": [
+            {"value": "0.0.0.0/0"},
+        ],
+    }
 
 
 def cloud_sql_instance_create_body(database_provider: dict[str, Any]) -> dict[str, Any]:

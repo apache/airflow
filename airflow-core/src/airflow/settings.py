@@ -231,8 +231,7 @@ def _get_async_conn_uri_from_sync(sync_uri):
     aiolib = AIO_LIBS_MAPPING.get(scheme)
     if aiolib:
         return f"{scheme}+{aiolib}:{rest}"
-    else:
-        return sync_uri
+    return sync_uri
 
 
 def configure_vars():

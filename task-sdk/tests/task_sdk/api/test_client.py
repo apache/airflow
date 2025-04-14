@@ -978,7 +978,7 @@ class TestDagRunOperations:
                         }
                     },
                 )
-            elif request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
                 return httpx.Response(status_code=204)
             return httpx.Response(status_code=422)
 

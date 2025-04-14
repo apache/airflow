@@ -102,5 +102,4 @@ class DynamoDBHook(AwsBaseHook):
             error_code = e.response.get("Error", {}).get("Code")
             if error_code == "ImportNotFoundException":
                 raise AirflowException("S3 import into Dynamodb job not found.")
-            else:
-                raise e
+            raise e

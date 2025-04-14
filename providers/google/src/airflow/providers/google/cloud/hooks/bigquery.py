@@ -1376,8 +1376,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         def var_print(var_name):
             if var_name is None:
                 return ""
-            else:
-                return f"Format exception for {var_name}: "
+            return f"Format exception for {var_name}: "
 
         if table_input.count(".") + table_input.count(":") > 3:
             raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")
@@ -1955,8 +1954,7 @@ def split_tablename(
     def var_print(var_name):
         if var_name is None:
             return ""
-        else:
-            return f"Format exception for {var_name}: "
+        return f"Format exception for {var_name}: "
 
     if table_input.count(".") + table_input.count(":") > 3:
         raise ValueError(f"{var_print(var_name)}Use either : or . to specify project got {table_input}")

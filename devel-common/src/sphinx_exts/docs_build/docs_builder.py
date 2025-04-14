@@ -82,8 +82,7 @@ class AirflowDocsBuilder:
         if self.is_versioned:
             version = "stable"
             return GENERATED_PATH / "_build" / "docs" / self.package_name / version
-        else:
-            return GENERATED_PATH / "_build" / "docs" / self.package_name
+        return GENERATED_PATH / "_build" / "docs" / self.package_name
 
     @property
     def log_spelling_filename(self) -> Path:
@@ -109,18 +108,17 @@ class AirflowDocsBuilder:
     def _src_dir(self) -> Path:
         if self.package_name == "helm-chart":
             return AIRFLOW_CONTENT_ROOT_PATH / "chart" / "docs"
-        elif self.package_name == "apache-airflow":
+        if self.package_name == "apache-airflow":
             return AIRFLOW_CONTENT_ROOT_PATH / "airflow-core" / "docs"
-        elif self.package_name == "docker-stack":
+        if self.package_name == "docker-stack":
             return AIRFLOW_CONTENT_ROOT_PATH / "docker-stack-docs"
-        elif self.package_name == "apache-airflow-providers":
+        if self.package_name == "apache-airflow-providers":
             return AIRFLOW_CONTENT_ROOT_PATH / "providers-summary-docs"
-        elif self.package_name.startswith("apache-airflow-providers-"):
+        if self.package_name.startswith("apache-airflow-providers-"):
             package_paths = self.package_name[len("apache-airflow-providers-") :].split("-")
             return (AIRFLOW_CONTENT_ROOT_PATH / "providers").joinpath(*package_paths) / "docs"
-        else:
-            console.print(f"[red]Unknown package name: {self.package_name}")
-            sys.exit(1)
+        console.print(f"[red]Unknown package name: {self.package_name}")
+        sys.exit(1)
 
     @property
     def _generated_api_dir(self) -> Path:
@@ -300,8 +298,7 @@ def get_available_providers_distributions(include_suspended: bool = False):
 def get_short_form(package_name: str) -> str | None:
     if package_name.startswith("apache-airflow-providers-"):
         return package_name.replace("apache-airflow-providers-", "").replace("-", ".")
-    else:
-        return None
+    return None
 
 
 def get_long_form(package_name: str) -> str | None:

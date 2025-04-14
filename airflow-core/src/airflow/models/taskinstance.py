@@ -309,9 +309,8 @@ def _run_raw_task(
                 ti.clear_next_method_args()
                 TaskInstance.save_to_db(ti=ti, session=session)
                 return None
-            else:
-                ti.handle_failure(e, test_mode, context, session=session)
-                raise
+            ti.handle_failure(e, test_mode, context, session=session)
+            raise
         except SystemExit as e:
             # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
             # Therefore, here we must handle only error codes.
@@ -589,10 +588,9 @@ def _creator_note(val):
     """Creator the ``note`` association proxy."""
     if isinstance(val, str):
         return TaskInstanceNote(content=val)
-    elif isinstance(val, dict):
+    if isinstance(val, dict):
         return TaskInstanceNote(**val)
-    else:
-        return TaskInstanceNote(*val)
+    return TaskInstanceNote(*val)
 
 
 def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Operator):
@@ -3502,7 +3500,7 @@ class TaskInstance(Base, LoggingMixin):
                     ),
                 }
             )
-        elif bind.dialect.name == "postgresql":
+        if bind.dialect.name == "postgresql":
             return query.values(
                 {
                     "end_date": end_date,

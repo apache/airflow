@@ -278,8 +278,7 @@ class MongoHook(BaseHook):
 
         if find_one:
             return collection.find_one(query, projection, **kwargs)
-        else:
-            return collection.find(query, projection, **kwargs)
+        return collection.find(query, projection, **kwargs)
 
     def insert_one(
         self, mongo_collection: str, doc: dict, mongo_db: str | None = None, **kwargs

@@ -713,7 +713,7 @@ logging:
         There are a few existing configurations that assume this is set to the default.
         If you choose to override this you may need to update the
         ``[logging] dag_processor_manager_log_location`` and
-        ``[logging] child_process_log_directory settings`` as well.
+        ``[logging] dag_processor_child_process_log_directory settings`` as well.
       version_added: 2.0.0
       type: string
       example: ~
@@ -872,6 +872,13 @@ logging:
       example: ~
       default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
         {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+    dag_processor_child_process_log_directory:
+      description: |
+        Determines the directory where logs for the child processes of the dag processor will be stored
+      version_added: ~
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/logs/dag_processor"
     log_formatter_class:
       description: |
         Determines the formatter class used by Airflow for structuring its log messages
@@ -2159,13 +2166,6 @@ scheduler:
       type: float
       example: ~
       default: "300.0"
-    child_process_log_directory:
-      description: |
-        Determines the directory where logs for the child processes of the scheduler will be stored
-      version_added: ~
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/scheduler"
     task_instance_heartbeat_timeout:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
