@@ -103,8 +103,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     actionName="Trigger Dag"
                     colorPalette={Boolean(error) ? "red" : "orange"}
                     icon={<LuFileWarning />}
+                    margin="2"
                     marginBottom="-1"
-                    marginTop="2"
                     onClick={onOpen}
                     rounded="full"
                     text={String(warningData?.total_entries ?? 0 + Number(error))}
