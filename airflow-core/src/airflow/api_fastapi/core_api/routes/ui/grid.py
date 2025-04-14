@@ -214,7 +214,7 @@ def grid_data(
             (task_id_parent, run_id): parent_tis[(task_id_parent, run_id)] + parent_tis[(task_id, run_id)]
             for task_id, task_map in task_group_map.items()
             if task_map["is_group"]
-            for (task_id_parent, run_id), tis in parent_tis.items()
+            for (task_id_parent, run_id), tis in list(parent_tis.items())
             if task_id_parent == task_map["parent_id"]
         }
     )
