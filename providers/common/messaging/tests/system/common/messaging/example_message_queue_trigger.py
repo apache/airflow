@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+# [START howto_trigger_message_queue]
 from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-
-# [START howto_trigger_message_queue]
 from airflow.sdk import DAG, Asset, AssetWatcher
 
 # Define a trigger that listens to an external message queue (AWS SQS in this case)
