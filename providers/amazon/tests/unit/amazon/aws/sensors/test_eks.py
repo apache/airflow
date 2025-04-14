@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -105,6 +105,18 @@ class TestEksClusterStateSensor:
         assert str(raised_exception.value) == expected_message
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
+    @pytest.mark.db_test
+    def test_region_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as w:
+            w.sensor = EksClusterStateSensor(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                target_state=self.target_state,
+                aws_conn_id="test_conn_id",
+                region="us-east-1",
+            )
+        assert w.sensor.hook.region_name == "us-east-1"
+
 
 class TestEksFargateProfileStateSensor:
     @pytest.fixture(autouse=True)
@@ -116,6 +128,18 @@ class TestEksFargateProfileStateSensor:
             fargate_profile_name=FARGATE_PROFILE_NAME,
             target_state=self.target_state,
         )
+
+    @pytest.mark.db_test
+    def test_region_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as w:
+            w.sensor = EksFargateProfileStateSensor(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                fargate_profile_name=FARGATE_PROFILE_NAME,
+                target_state=self.target_state,
+                region="us-east-2",
+            )
+        assert w.sensor.region_name == "us-east-2"
 
     @mock.patch.object(EksHook, "get_fargate_profile_state", return_value=FargateProfileStates.ACTIVE)
     def test_poke_reached_target_state(self, mock_get_fargate_profile_state):
@@ -164,6 +188,18 @@ class TestEksNodegroupStateSensor:
             nodegroup_name=NODEGROUP_NAME,
             target_state=self.target_state,
         )
+
+    @pytest.mark.db_test
+    def test_region_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as w:
+            w.sensor = EksNodegroupStateSensor(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                nodegroup_name=NODEGROUP_NAME,
+                target_state=self.target_state,
+                region="us-east-2",
+            )
+        assert w.sensor.region_name == "us-east-2"
 
     @mock.patch.object(EksHook, "get_nodegroup_state", return_value=NodegroupStates.ACTIVE)
     def test_poke_reached_target_state(self, mock_get_nodegroup_state):

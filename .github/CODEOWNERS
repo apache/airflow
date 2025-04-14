@@ -22,8 +22,8 @@
 /docs/helm-chart @dstandish @jedcunningham
 
 # API
-/airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar
-/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
+/airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
+/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
@@ -78,8 +78,8 @@
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan
 /dev/ @potiuk @ashb @jedcunningham @gopidesupavan
-/docker-tests/ @potiuk @ashb @gopidesupavan
-/kubernetes-tests/ @potiuk @ashb @gopidesupavan
+/docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
+/kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
 /scripts/ @potiuk @ashb @gopidesupavan
 Dockerfile @potiuk @ashb @gopidesupavan

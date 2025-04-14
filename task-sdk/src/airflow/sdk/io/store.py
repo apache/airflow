@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
@@ -111,14 +110,15 @@ class ObjectStore:
 
         return attach(protocol=protocol, conn_id=conn_id, storage_options=data["storage_options"])
 
-    def __eq__(self, other):
-        self_fs = None
-        other_fs = None
-        with suppress(ValueError):
-            self_fs = self.fs
-        with suppress(ValueError):
-            other_fs = other.fs
-        return isinstance(other, type(self)) and other.conn_id == self.conn_id and self_fs == other_fs
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ObjectStore):
+            return NotImplemented
+        if self.conn_id != other.conn_id:
+            return False
+        try:
+            return self.fs == other.fs
+        except ValueError:
+            return False
 
 
 _STORE_CACHE: dict[str, ObjectStore] = {}

@@ -466,6 +466,7 @@ decrypted
 Decrypts
 dedented
 deduplicate
+deduplicated
 deduplication
 deepcopy
 deepcopying
@@ -1491,6 +1492,7 @@ rmse
 rmsle
 rmspe
 Roadmap
+roadmap
 Robinhood
 roc
 RoleBinding

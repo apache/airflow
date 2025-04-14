@@ -166,6 +166,14 @@ CONFIGS_CHANGES = [
         "raising a hard error on validation failure.",
     ),
     ConfigChange(
+        config=ConfigParameter("core", "dag_default_view"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dag_orientation"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "dataset_manager_class"),
         renamed_to=ConfigParameter("core", "asset_manager_class"),
     ),
