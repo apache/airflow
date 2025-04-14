@@ -605,6 +605,7 @@ DEFAULT_EXTRAS = [
     "celery",
     "cncf-kubernetes",
     "common-io",
+    "common-messaging",
     "docker",
     "elasticsearch",
     "fab",
