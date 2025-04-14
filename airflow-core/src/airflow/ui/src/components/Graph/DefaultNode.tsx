@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading } from "@chakra-ui/react";
+import { Flex, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 
 import { NodeWrapper } from "./NodeWrapper";
@@ -33,7 +33,7 @@ export const DefaultNode = ({ data: { height, label, width } }: NodeProps<NodeTy
       p={2}
       width={`${width}px`}
     >
-      <Heading size="md">{label}</Heading>
+      <Text>{label}</Text>
     </Flex>
   </NodeWrapper>
 );
