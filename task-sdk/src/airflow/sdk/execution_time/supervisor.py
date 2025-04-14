@@ -67,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     ErrorResponse,
     GetAssetByName,
@@ -1062,6 +1063,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1174,7 +1177,15 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
+
+    return backends
 
 
 def supervise(

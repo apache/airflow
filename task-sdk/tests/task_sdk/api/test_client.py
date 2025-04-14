@@ -599,6 +599,21 @@ class TestVariableOperations:
         result = client.variables.set(key="test_key", value="test_value", description="test_description")
         assert result == OKResponse(ok=True)
 
+    def test_variable_delete_success(self):
+        # Simulate a successful response from the server when deleting a variable
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.method == "DELETE" and request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"count": 1},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        result = client.variables.delete(key="test_key")
+        assert result == OKResponse(ok=True)
+
 
 class TestXCOMOperations:
     """

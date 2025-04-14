@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
-    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.protocols import DeltaType
 
 log = logging.getLogger(__name__)
 
@@ -282,7 +282,7 @@ class SafeOtelLogger:
         *args,
         tags: Attributes = None,
         **kwargs,
-    ) -> TimerProtocol:
+    ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
         return _OtelTimer(self, stat, tags)
 

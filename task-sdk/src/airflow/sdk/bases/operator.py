@@ -218,6 +218,7 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "inlets": [],
     "outlets": [],
     "allow_nested_operators": True,
+    "executor_config": {},
 }
 
 
@@ -334,8 +335,7 @@ else:
         )
 
         # Fill fields not provided by the user with default values.
-        for k, v in _PARTIAL_DEFAULTS.items():
-            partial_kwargs.setdefault(k, v)
+        partial_kwargs.update((k, v) for k, v in _PARTIAL_DEFAULTS.items() if k not in partial_kwargs)
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -355,7 +355,6 @@ else:
         partial_kwargs["max_retry_delay"] = BaseOperator._convert_max_retry_delay(
             partial_kwargs.get("max_retry_delay", None)
         )
-        partial_kwargs.setdefault("executor_config", {})
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
             partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))

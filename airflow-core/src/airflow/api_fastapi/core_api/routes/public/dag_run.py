@@ -72,7 +72,6 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
-from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -411,7 +410,6 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
-            dag_version=DagVersion.get_latest_version(dag.dag_id),
             state=DagRunState.QUEUED,
             session=session,
         )
