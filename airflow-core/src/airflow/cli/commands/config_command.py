@@ -820,7 +820,7 @@ def update_config(args) -> None:
     By default, this command will perform a dry-run (showing the changes only) and list only
     the breaking configuration changes by scanning the current configuration file for parameters that have
     been renamed, removed, or had their default values changed in Airflow 3.0. To see or fix all recommended
-    changes, use the --all-recommendation argument. To automatically update your airflow.cfg file, use
+    changes, use the --all-recommendations argument. To automatically update your airflow.cfg file, use
     the --fix argument. This command cleans up the existing comments in airflow.cfg but creates a backup of
     the old airflow.cfg file.
 
@@ -830,14 +830,14 @@ def update_config(args) -> None:
             Example: --dry-run
 
         --fix: flag (optional)
-            Automatically fix/apply the breaking changes (or all changes if --all-recommendation is also
+            Automatically fix/apply the breaking changes (or all changes if --all-recommendations is also
             specified)
             Example: --fix
 
-        --all-recommendation: flag (optional)
+        --all-recommendations: flag (optional)
             Include non-breaking (recommended) changes as well as breaking ones.
             Can be used with --dry-run or --fix.
-            Example: --all-recommendation
+            Example: --all-recommendations
 
         --section: str (optional)
             Comma-separated list of configuration sections to update.
@@ -860,21 +860,21 @@ def update_config(args) -> None:
             airflow config update
 
         2. Dry-run mode showing all recommendations:
-            airflow config update --all-recommendation
+            airflow config update --all-recommendations
 
         3. Apply (fix) only breaking changes:
             airflow config update --fix
 
         4. Apply (fix) all recommended changes:
-            airflow config update --fix --all-recommendation
+            airflow config update --fix --all-recommendations
 
-        3. Show changes only the specific sections:
+        5. Show changes only the specific sections:
             airflow config update --section core,database
 
-        4.Show changes only the specific options:
+        6.Show changes only the specific options:
             airflow config update --option sql_alchemy_conn,dag_concurrency
 
-        5. Ignores the specific section:
+        7. Ignores the specific section:
             airflow config update --ignore-section webserver
 
     :param args: The CLI arguments for updating configuration.
