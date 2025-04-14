@@ -210,19 +210,19 @@ def upgrade():
         while True:
             result = conn.execute(
                 text(
-                    f"""
+                    """
                     WITH cte AS (
                         SELECT ctid
                         FROM task_instance
                         WHERE id IS NULL
-                        LIMIT {batch_size}
+                        LIMIT :batch_size
                     )
                     UPDATE task_instance
                     SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))
                     FROM cte
                     WHERE task_instance.ctid = cte.ctid
                     """
-                )
+                ).bindparams(batch_size=batch_size)
             )
             row_count = result.rowcount
             if row_count == 0:
