@@ -51,6 +51,7 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -1062,6 +1063,11 @@ class DataflowHook(GoogleBaseHook):
         )
         jobs_controller.cancel()
 
+    @deprecated(
+        planned_removal_date="July 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.dataflow.DataflowHook.launch_beam_yaml_job",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def start_sql_job(
         self,

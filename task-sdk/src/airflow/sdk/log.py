@@ -26,7 +26,7 @@ import sys
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
@@ -319,7 +319,7 @@ def configure_logging(
                 raise ValueError(
                     f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
                 )
-            output = output.buffer
+            output = cast("TextIO", output).buffer
         if TYPE_CHECKING:
             # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
             # runtime. mypy doesn't grok that though
@@ -341,6 +341,12 @@ def configure_logging(
 
     if _warnings_showwarning is None:
         _warnings_showwarning = warnings.showwarning
+
+        if sys.platform == "darwin":
+            # This warning is not "end-user actionable" so we silence it.
+            warnings.filterwarnings(
+                "ignore", r"This process \(pid=\d+\) is multi-threaded, use of fork\(\).*"
+            )
         # Capture warnings and show them via structlog
         warnings.showwarning = _showwarning
 
