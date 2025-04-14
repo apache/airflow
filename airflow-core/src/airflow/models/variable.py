@@ -35,6 +35,7 @@ from airflow.sdk import SecretCache
 from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -224,31 +225,32 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        new_variable = Variable(key=key, val=stored_value, description=description)
-        
         ctx: contextlib.AbstractContextManager
         if session is not None:
             ctx = contextlib.nullcontext(session)
         else:
             ctx = create_session()
-        
+
         with ctx as session:
-            
+            new_variable = Variable(key=key, val=stored_value, description=description)
+
             # Perform dialect-specific upsert operation
             dialect_name = session.get_bind().dialect.name
 
+            # Map of dialect names to their corresponding module paths
+            dialect_insert_map = {
+                "postgresql": "sqlalchemy.dialects.postgresql.insert",
+                "mysql": "sqlalchemy.dialects.mysql.insert",
+                "sqlite": "sqlalchemy.dialects.sqlite.insert",
+            }
+
             # Use SQLAlchemy Core for supported dialects
-            if dialect_name in ("postgresql", "mysql", "sqlite"):
+            if dialect_name in dialect_insert_map:
                 val = new_variable._val
                 is_encrypted = new_variable.is_encrypted
 
-                # Import dialect-specific insert function
-                if dialect_name == "postgresql":
-                    from sqlalchemy.dialects.postgresql import insert
-                elif dialect_name == "mysql":
-                    from sqlalchemy.dialects.mysql import insert
-                elif dialect_name == "sqlite":
-                    from sqlalchemy.dialects.sqlite import insert
+                # Dynamically import dialect-specific insert function
+                insert = import_string(dialect_insert_map[dialect_name])
 
                 # Create the insert statement (common for all dialects)
                 stmt = insert(Variable).values(
@@ -294,7 +296,6 @@ class Variable(Base, LoggingMixin):
             SecretCache.invalidate_variable(key)
 
     @staticmethod
-    @provide_session
     def update(
         key: str,
         value: Any,
