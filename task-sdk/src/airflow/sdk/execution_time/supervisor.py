@@ -1238,6 +1238,8 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
+    log = structlog.get_logger(logger_name="supervisor")
+
     log.info(
         "Secrets backends loaded for worker",
         count=len(backends),
