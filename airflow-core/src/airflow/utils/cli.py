@@ -116,7 +116,7 @@ def action_cli(func=None, check_db=True):
                 metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
-        return cast(T, wrapper)
+        return cast("T", wrapper)
 
     if func:
         return action_logging(func)
@@ -155,7 +155,7 @@ def _build_metrics(func_name, namespace):
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
                 for sensitive_field in sensitive_fields:
                     if command.startswith(f"{sensitive_field}="):
-                        full_command[idx] = f'{sensitive_field}={"*" * 8}'
+                        full_command[idx] = f"{sensitive_field}={'*' * 8}"
 
     # handle conn-json and conn-uri separately as it requires different handling
     if "--conn-json" in full_command:
@@ -174,6 +174,7 @@ def _build_metrics(func_name, namespace):
         uri_index = full_command.index("--conn-uri") + 1
         conn_uri = full_command[uri_index]
         parsed_uri = urlparse(conn_uri)
+        netloc = parsed_uri.netloc
         if parsed_uri.password:
             password = "*" * 8
             netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
@@ -265,7 +266,8 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models import DagBag
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
 
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
@@ -274,6 +276,8 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
         dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
+        # Create a SchedulerDAG since some of the CLI commands rely on DB access
+        dag = DAG.from_sdk_dag(dag)
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
@@ -288,12 +292,12 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     return dag
 
 
-def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
+def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
     if not use_regex:
-        return [get_dag(subdir, dag_id)]
+        return [get_dag(subdir=subdir, dag_id=dag_id, from_db=from_db)]
     dagbag = DagBag(process_subdir(subdir))
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
@@ -377,10 +381,6 @@ def should_use_colors(args) -> bool:
     return is_terminal_support_colors()
 
 
-def should_ignore_depends_on_past(args) -> bool:
-    return args.depends_on_past == "ignore"
-
-
 def suppress_logs_and_warning(f: T) -> T:
     """Suppress logging and warning messages in cli functions."""
 
@@ -400,7 +400,7 @@ def suppress_logs_and_warning(f: T) -> T:
                     # levels of individual loggers
                     logging.disable(logging.NOTSET)
 
-    return cast(T, _wrapper)
+    return cast("T", _wrapper)
 
 
 def validate_dag_bundle_arg(bundle_names: list[str]) -> None:

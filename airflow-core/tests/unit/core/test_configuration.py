@@ -46,6 +46,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 from unit.utils.test_config import (
     remove_all_configurations,
@@ -266,6 +267,7 @@ key1 = true
         ):
             assert test_conf.getboolean(section, key) is False
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -336,6 +338,7 @@ sql_alchemy_conn = airflow
         # is True
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
+    @skip_if_force_lowest_dependencies_marker
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -737,7 +740,7 @@ key3 = value3
             run_command('bash -c "exit 1"')
 
     def test_confirm_unittest_mod(self):
-        assert conf.get("core", "unit_test_mode")
+        assert conf.getboolean("core", "unit_test_mode")
 
     def test_enum_default_task_weight_rule_from_conf(self):
         test_conf = AirflowConfigParser(default_config="")
@@ -886,6 +889,7 @@ key7 =
         assert isinstance(test_conf.gettimedelta("default", "key7"), type(None))
         assert test_conf.gettimedelta("default", "key7") is None
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             (
@@ -903,6 +907,7 @@ key7 =
         assert len(backends) == 2
         assert "SystemsManagerParameterStoreBackend" in backend_classes
 
+    @skip_if_force_lowest_dependencies_marker
     @conf_vars(
         {
             (
@@ -923,6 +928,7 @@ key7 =
         assert systems_manager.kwargs == {}
         assert systems_manager.use_ssl is False
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
         (
             "secrets_backend",
@@ -960,7 +966,7 @@ key7 =
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
                 '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
                 "airflow.secrets.local_filesystem.LocalFilesystemBackend",
-                {"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"},
+                {"connections_file": "/files/conn.json", "variables_file": "/files/var.json"},
                 id="worker-backend-and-kwargs-not-defined",
             ),
         ],
@@ -996,7 +1002,10 @@ key7 =
             backends = ensure_secrets_loaded(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
             secrets_backend = backends[0]
             assert secrets_backend.__class__.__name__ in expected_backend
-            all(secrets_backend.__dict__.get(k) == v for k, v in expected_backend_kwargs.items())
+
+            # Verify kwargs are properly applied to the backend instance
+            for key, value in expected_backend_kwargs.items():
+                assert getattr(secrets_backend, key) == value
 
 
 @mock.patch.dict(
@@ -1104,7 +1113,7 @@ class TestDeprecatedConf:
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1133,7 +1142,7 @@ sql_alchemy_conn=sqlite://test
         test_conf = AirflowConfigParser(
             default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1169,7 +1178,7 @@ sql_alchemy_conn=sqlite://test
             test_conf = AirflowConfigParser(
                 default_config="""
 [core]
-executor=SequentialExecutor
+executor=LocalExecutor
 [database]
 sql_alchemy_conn=sqlite://test
 """
@@ -1685,6 +1694,7 @@ sql_alchemy_conn=sqlite://test
         assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_sensitive_values():
     from airflow.settings import conf
 
@@ -1721,6 +1731,7 @@ def test_sensitive_values():
     assert sensitive_values == conf.sensitive_config_values
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_restore_and_reload_provider_configuration():
     from airflow.settings import conf
 
@@ -1735,6 +1746,7 @@ def test_restore_and_reload_provider_configuration():
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_error_when_contributing_to_existing_section():
     from airflow.settings import conf
 

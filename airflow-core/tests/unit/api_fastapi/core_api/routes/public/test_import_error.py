@@ -82,12 +82,13 @@ def clear_db():
 def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
-            bundle_name=BUNDLE_NAME,
+            bundle_name=bundle,
             filename=filename,
             stacktrace=stacktrace,
             timestamp=timestamp,
         )
-        for filename, stacktrace, timestamp in zip(
+        for bundle, filename, stacktrace, timestamp in zip(
+            (BUNDLE_NAME, BUNDLE_NAME, None),
             (FILENAME1, FILENAME2, FILENAME3),
             (STACKTRACE1, STACKTRACE2, STACKTRACE3),
             (TIMESTAMP1, TIMESTAMP2, TIMESTAMP3),
@@ -148,6 +149,16 @@ class TestGetImportError:
                     "bundle_name": BUNDLE_NAME,
                 },
             ),
+            (
+                2,
+                200,
+                {
+                    "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP3),
+                    "filename": FILENAME3,
+                    "stack_trace": STACKTRACE3,
+                    "bundle_name": None,
+                },
+            ),
             (None, 404, {}),
         ],
     )
@@ -158,7 +169,7 @@ class TestGetImportError:
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
         )
         import_error_id = import_error.id if import_error else IMPORT_ERROR_NON_EXISTED_ID
-        response = test_client.get(f"/api/v2/importErrors/{import_error_id}")
+        response = test_client.get(f"/importErrors/{import_error_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -168,12 +179,12 @@ class TestGetImportError:
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
         import_error_id = import_errors[0].id
-        response = unauthenticated_test_client.get(f"/api/v2/importErrors/{import_error_id}")
+        response = unauthenticated_test_client.get(f"/importErrors/{import_error_id}")
         assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self, unauthorized_test_client, import_errors):
         import_error_id = import_errors[0].id
-        response = unauthorized_test_client.get(f"/api/v2/importErrors/{import_error_id}")
+        response = unauthorized_test_client.get(f"/importErrors/{import_error_id}")
         assert response.status_code == 403
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
@@ -185,7 +196,7 @@ class TestGetImportError:
         mock_is_authorized_dag = set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager)
         # Act
-        response = test_client.get(f"/api/v2/importErrors/{import_error_id}")
+        response = test_client.get(f"/importErrors/{import_error_id}")
         # Assert
         mock_is_authorized_dag.assert_called_once_with(method="GET", user=mock.ANY)
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
@@ -200,7 +211,7 @@ class TestGetImportError:
         set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {permitted_dag_model.dag_id})
         # Act
-        response = test_client.get(f"/api/v2/importErrors/{import_error_id}")
+        response = test_client.get(f"/importErrors/{import_error_id}")
         # Assert
         assert response.status_code == 200
         assert response.json() == {
@@ -296,7 +307,7 @@ class TestGetImportErrors:
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/api/v2/importErrors", params=query_params)
+        response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -309,11 +320,11 @@ class TestGetImportErrors:
         ] == expected_filenames
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/importErrors")
+        response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/api/v2/importErrors")
+        response = unauthorized_test_client.get("/importErrors")
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -346,7 +357,7 @@ class TestGetImportErrors:
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
-        response = test_client.get("/api/v2/importErrors")
+        response = test_client.get("/importErrors")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
         assert response.status_code == 200

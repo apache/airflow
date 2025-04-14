@@ -73,8 +73,7 @@ return_code = 0
 verify_all_commands_described_in_docs()
 if is_regeneration_needed():
     console.print(
-        "\n[bright_blue]Some of the commands changed since last time "
-        "images were generated. Regenerating.\n"
+        "\n[bright_blue]Some of the commands changed since last time images were generated. Regenerating.\n"
     )
     return_code = 1
     res = subprocess.run(

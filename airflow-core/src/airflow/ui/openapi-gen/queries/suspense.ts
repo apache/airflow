@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -38,12 +39,12 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinksSuspense = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenusSuspense = <
+  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -51,8 +52,8 @@ export const useAuthLinksServiceGetAuthLinksSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenus() as TData,
     ...options,
   });
 /**
@@ -566,7 +567,7 @@ export const useConnectionServiceGetConnectionsSuspense = <
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -582,10 +583,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -595,10 +596,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -614,10 +615,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -631,10 +632,10 @@ export const useDagsServiceRecentDagRunsSuspense = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -1018,6 +1019,7 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -1039,6 +1041,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -1055,6 +1058,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1077,6 +1081,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1097,6 +1102,7 @@ export const useDagRunServiceGetDagRunsSuspense = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1241,7 +1247,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1266,10 +1272,10 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1283,10 +1289,10 @@ export const useDagServiceGetDagsSuspense = <
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1306,10 +1312,10 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -1327,10 +1333,10 @@ export const useDagServiceGetDagsSuspense = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -2965,5 +2971,31 @@ export const useLoginServiceLogoutSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
     queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });
+/**
+ * Not Found Handler
+ * Catch all route to handle invalid endpoints.
+ * @param data The data for the request.
+ * @param data.restOfPath
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDefaultServiceNotFoundHandlerSuspense = <
+  TData = Common.DefaultServiceNotFoundHandlerDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    restOfPath,
+  }: {
+    restOfPath: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }, queryKey),
+    queryFn: () => DefaultService.notFoundHandler({ restOfPath }) as TData,
     ...options,
   });

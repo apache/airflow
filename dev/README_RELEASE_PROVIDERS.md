@@ -79,11 +79,11 @@ print the command that you should run.
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
 You can read more about the command line tools used to generate the packages in the
-[Provider details](PROVIDER_PACKAGE_DETAILS.md).
+[Provider details](PROVIDER_DISTRIBUTIONS_DETAILS.md).
 
 # Bump min Airflow version for providers
 
-1. Update `BASE_PROVIDERS_COMPATIBILITY_CHECKS` in `src/airflow_breeze/global_constants.py` to remove
+1. Update `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py` to remove
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
@@ -296,7 +296,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
+  breeze release-management prepare-provider-documentation --include-removed-providers --answer yes
 ```
 
 In case you prepare provider documentation for just a few selected providers, you can run:
@@ -353,6 +353,12 @@ should keep the final version number without the rc suffix, even if they are rc1
 They also need to be signed and have checksum files. You can generate the checksum/signature files by running
 the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
 generates corresponding .asc and .sha512 files for each file to sign.
+note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
+
+```shell script
+brew install libassuan
+brew install gnupg
+```
 
 ## Build and sign the source and convenience packages
 
@@ -388,6 +394,9 @@ pushd dist
 ../dev/sign.sh *
 popd
 ```
+
+If you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
+check above steps to install them.
 
 ## Commit the source packages to Apache SVN repo
 

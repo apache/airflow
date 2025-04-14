@@ -56,7 +56,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
     from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BranchMixIn
+    from airflow.operators.branch import BranchMixIn  # type: ignore[no-redef]
 
 
 log = logging.getLogger(__name__)
@@ -66,10 +66,12 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
 
+    from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
+    from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
+
     try:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
+    except ImportError:  # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
@@ -190,14 +192,22 @@ class PythonOperator(BaseOperator):
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.context import context_get_outlet_events
+        # This needs to be lazy because subclasses may implement execute_callable
+        # by running a separate process that can't use the eager result.
+        def __prepare_execution() -> tuple[ExecutionCallableRunner, OutletEventAccessorsProtocol] | None:
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.sdk.execution_time.callback_runner import create_executable_runner
+                from airflow.sdk.execution_time.context import context_get_outlet_events
 
-            self._asset_events = context_get_outlet_events(context)
-        elif AIRFLOW_V_2_10_PLUS:
-            from airflow.utils.context import context_get_outlet_events
+                return create_executable_runner, context_get_outlet_events(context)
+            if AIRFLOW_V_2_10_PLUS:
+                from airflow.utils.context import context_get_outlet_events  # type: ignore
+                from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
 
-            self._dataset_events = context_get_outlet_events(context)
+                return ExecutionCallableRunner, context_get_outlet_events(context)
+            return None
+
+        self.__prepare_execution = __prepare_execution
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -210,19 +220,18 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
+    __prepare_execution: Callable[[], tuple[ExecutionCallableRunner, OutletEventAccessorsProtocol] | None]
+
     def execute_callable(self) -> Any:
         """
         Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
-        try:
-            from airflow.utils.operator_helpers import ExecutionCallableRunner
-        except ImportError:
-            # Handle Pre Airflow 2.10 case where ExecutionCallableRunner was not available
+        if (execution_preparation := self.__prepare_execution()) is None:
             return self.python_callable(*self.op_args, **self.op_kwargs)
-        asset_events = self._asset_events if AIRFLOW_V_3_0_PLUS else self._dataset_events
-        runner = ExecutionCallableRunner(self.python_callable, asset_events, logger=self.log)
+        create_execution_runner, asset_events = execution_preparation
+        runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -451,8 +460,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
-                f"Unsupported serializer {serializer!r}. "
-                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+                f"Unsupported serializer {serializer!r}. Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
 
@@ -1133,7 +1141,6 @@ def _get_current_context() -> Mapping[str, Any]:
 
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
-            "Current context was requested but no context was found! "
-            "Are you running within an Airflow task?"
+            "Current context was requested but no context was found! Are you running within an Airflow task?"
         )
     return _CURRENT_CONTEXT[-1]

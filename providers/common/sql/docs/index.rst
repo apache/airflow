@@ -78,7 +78,7 @@ apache-airflow-providers-common-sql package
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.24.1b1
+Release: 1.25.0
 
 Provider package
 ----------------
@@ -111,7 +111,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -132,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-sql 1.24.1b1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-sql 1.24.1b1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.24.1b1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.25.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.25.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.25.0-py3-none-any.whl.sha512>`__)

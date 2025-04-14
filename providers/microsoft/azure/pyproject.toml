@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.2.1"
+version = "12.3.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -80,17 +80,18 @@ dependencies = [
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
+    "flask-appbuilder>=4.0.0",
     # msgraph-core 1.1.8 has a bug which causes ABCMeta object is not subscriptable error
     # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/781
-    "msgraph-core>=1.0.0,!=1.1.8",
+    "msgraph-core>=1.3.3",
     # msgraph-core has transient import failures with microsoft-kiota-http==1.3.4
     # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/706
-    "microsoft-kiota-http>=1.3.0,!=1.3.4",
-    "microsoft-kiota-serialization-json==1.0.0",
-    "microsoft-kiota-serialization-text==1.0.0",
+    "microsoft-kiota-http>=1.8.0,<2.0.0",
+    "microsoft-kiota-serialization-json>=1.8.0",
+    "microsoft-kiota-serialization-text>=1.8.0",
     # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
     # see https://github.com/apache/airflow/issues/43036
-    "microsoft-kiota-abstractions<1.4.0",
+    "microsoft-kiota-abstractions>=1.8.0,<2.0.0",
     "msal-extensions>=1.1.0",
 ]
 
@@ -121,6 +122,23 @@ dev = [
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "pywinrm>=0.5.0",
+    "moto>=5.1.2",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
 
 [tool.uv.sources]
@@ -130,12 +148,11 @@ apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
-apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.2.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.2.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

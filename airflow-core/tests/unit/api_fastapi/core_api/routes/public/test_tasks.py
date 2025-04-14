@@ -24,9 +24,9 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -45,7 +45,7 @@ class TestTaskEndpoint:
     unscheduled_task_id2 = "unscheduled_task_2"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
-    api_prefix = "/api/v2/dags"
+    api_prefix = "/dags"
 
     def create_dags(self, test_client):
         with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:

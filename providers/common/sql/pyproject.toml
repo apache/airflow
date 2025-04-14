@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.24.1b1"
+version = "1.25.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -86,6 +86,26 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-mysql",
+    "apache-airflow-providers-postgres",
+    "apache-airflow-providers-odbc",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
 
 [tool.uv.sources]
@@ -95,12 +115,11 @@ apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
-apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.24.1b1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.24.1b1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.25.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.25.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

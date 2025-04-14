@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+
+log = structlog.get_logger(__name__)
 
 
 class AssetManager(LoggingMixin):
@@ -125,6 +128,7 @@ class AssetManager(LoggingMixin):
             select(AssetModel)
             .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
+                joinedload(AssetModel.active),
                 joinedload(AssetModel.aliases),
                 joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
             )
@@ -132,6 +136,9 @@ class AssetManager(LoggingMixin):
         if not asset_model:
             cls.logger().warning("AssetModel %s not found", asset)
             return None
+
+        if not asset_model.active:
+            cls.logger().warning("Emitting event for inactive AssetModel %s", asset)
 
         cls._add_asset_alias_association(
             alias_names=source_alias_names, asset_model=asset_model, session=session
@@ -154,7 +161,7 @@ class AssetManager(LoggingMixin):
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 
         dags_to_queue_from_asset = {
-            ref.dag for ref in asset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
+            ref.dag for ref in asset_model.consuming_dags if not ref.dag.is_stale and not ref.dag.is_paused
         }
 
         dags_to_queue_from_asset_alias = set()
@@ -174,7 +181,7 @@ class AssetManager(LoggingMixin):
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.consuming_dags
-                    if alias_ref.dag.is_active and not alias_ref.dag.is_paused
+                    if not alias_ref.dag.is_stale and not alias_ref.dag.is_paused
                 }
 
         dags_to_queue_from_asset_ref = set(
@@ -204,17 +211,26 @@ class AssetManager(LoggingMixin):
     @staticmethod
     def notify_asset_created(asset: Asset):
         """Run applicable notification actions when an asset is created."""
-        get_listener_manager().hook.on_asset_created(asset=asset)
+        try:
+            get_listener_manager().hook.on_asset_created(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
 
     @staticmethod
     def notify_asset_alias_created(asset_assets: AssetAlias):
         """Run applicable notification actions when an asset alias is created."""
-        get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
+        try:
+            get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
+        except Exception:
+            log.exception("error calling listener")
 
     @staticmethod
     def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
-        get_listener_manager().hook.on_asset_changed(asset=asset)
+        try:
+            get_listener_manager().hook.on_asset_changed(asset=asset)
+        except Exception:
+            log.exception("error calling listener")
 
     @classmethod
     def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:

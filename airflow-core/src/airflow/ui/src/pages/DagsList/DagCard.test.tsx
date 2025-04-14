@@ -28,6 +28,7 @@ import { DagCard } from "./DagCard";
 
 const mockDag = {
   asset_expression: null,
+  bundle_name: "dags-folder",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
   description: null,
@@ -35,8 +36,8 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
-  is_active: true,
   is_paused: false,
+  is_stale: false,
   last_expired: null,
   last_parsed_time: "2024-08-22T13:50:10.372238+00:00",
   latest_dag_runs: [],
@@ -48,6 +49,7 @@ const mockDag = {
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-23T00:00:00+00:00",
   owners: ["airflow"],
+  relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "",
   timetable_summary: "",
@@ -64,7 +66,7 @@ describe("DagCard", () => {
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
 
-  it("DagCard should show +X more text if there are more than 3 tags", () => {
+  it("DagCard should not show +X more text if there is only +1 over the limit", () => {
     const tags = [
       { dag_id: "id", name: "tag1" },
       { dag_id: "id", name: "tag2" },
@@ -79,6 +81,26 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText(", +1 more")).toBeInTheDocument();
+    expect(screen.queryByText("tag4")).toBeInTheDocument();
+    expect(screen.queryByText(", +1 more")).toBeNull();
+  });
+
+  it("DagCard should show +X more text if there are more than 3 tags", () => {
+    const tags = [
+      { dag_id: "id", name: "tag1" },
+      { dag_id: "id", name: "tag2" },
+      { dag_id: "id", name: "tag3" },
+      { dag_id: "id", name: "tag4" },
+      { dag_id: "id", name: "tag5" },
+    ] satisfies Array<DagTagResponse>;
+
+    const expandedMockDag = {
+      ...mockDag,
+      tags,
+    } satisfies DAGWithLatestDagRunsResponse;
+
+    render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
+    expect(screen.getByText(", +2 more")).toBeInTheDocument();
   });
 });

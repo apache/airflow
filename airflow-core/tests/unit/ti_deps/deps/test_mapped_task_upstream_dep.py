@@ -101,7 +101,7 @@ def test_mapped_task_upstream_dep(
     expect_failed_dep: bool,
     testcase: str,
 ):
-    from airflow.decorators import task, task_group
+    from airflow.sdk import task, task_group
 
     with dag_maker(session=session):
 
@@ -161,7 +161,7 @@ def test_mapped_task_upstream_dep(
 def test_step_by_step(
     dag_maker, session: Session, failure_mode: TaskInstanceState | None, skip_upstream: bool, testcase: str
 ):
-    from airflow.decorators import task, task_group
+    from airflow.sdk import task, task_group
 
     with dag_maker(session=session):
 
@@ -276,7 +276,7 @@ def test_step_by_step(
 
 
 def test_mapped_in_mapped_task_group(dag_maker, session: Session):
-    from airflow.decorators import task, task_group
+    from airflow.sdk import task, task_group
 
     with dag_maker(session=session):
 
@@ -300,7 +300,7 @@ def test_mapped_in_mapped_task_group(dag_maker, session: Session):
 
 @pytest.mark.parametrize("testcase", ["task", "group"])
 def test_no_mapped_dependencies(dag_maker, session: Session, testcase: str):
-    from airflow.decorators import task, task_group
+    from airflow.sdk import task, task_group
 
     with dag_maker(session=session):
 
@@ -346,7 +346,7 @@ def test_non_mapped_operator(dag_maker, session: Session):
 
 
 def test_non_mapped_task_group(dag_maker, session: Session):
-    from airflow.decorators import task_group
+    from airflow.sdk import task_group
 
     with dag_maker(session=session):
 
@@ -368,7 +368,7 @@ def test_non_mapped_task_group(dag_maker, session: Session):
 def test_upstream_mapped_expanded(
     dag_maker, session: Session, upstream_instance_state: TaskInstanceState | None, testcase: str
 ):
-    from airflow.decorators import task, task_group
+    from airflow.sdk import task, task_group
 
     with dag_maker(session=session):
 

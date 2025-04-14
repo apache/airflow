@@ -48,8 +48,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
       onChange={(event) => handleChange(event.target.value)}
       size="sm"
       type={rest.type}
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      value={param.value !== null && param.value !== undefined ? String(param.value).slice(0, 16) : ""}
+      value={((param.value ?? "") as string).slice(0, 16)}
     />
   );
 };

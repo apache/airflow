@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.2.1"
+version = "4.3.2"
 description = "Provider package apache-airflow-providers-dbt-cloud for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -58,6 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
+    "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-http",
     "asgiref>=2.3.0",
     "aiohttp>=3.9.2",
@@ -68,10 +69,7 @@ dependencies = [
 [project.optional-dependencies]
 # pip install apache-airflow-providers-dbt-cloud[openlineage]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=1.7.0",
-]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow-providers-openlineage>=2.0.0",
 ]
 
 [dependency-groups]
@@ -85,6 +83,22 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
@@ -92,12 +106,11 @@ apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
-apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.2.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.2.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.3.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.3.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

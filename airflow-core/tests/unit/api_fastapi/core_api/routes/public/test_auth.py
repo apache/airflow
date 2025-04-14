@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -45,8 +45,9 @@ class TestGetLogin(TestAuthEndpoint):
             {"next": "http://localhost:8080", "other_param": "something_else"},
         ],
     )
-    def test_should_respond_307(self, test_client, params):
-        response = test_client.get("/api/v2/auth/login", follow_redirects=False, params=params)
+    @patch("airflow.api_fastapi.core_api.routes.public.auth.is_safe_url", return_value=True)
+    def test_should_respond_307(self, mock_is_safe_url, test_client, params):
+        response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
         assert (
@@ -64,7 +65,7 @@ class TestGetLogin(TestAuthEndpoint):
     )
     @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
     def test_should_respond_400(self, test_client, params):
-        response = test_client.get("/api/v2/auth/login", follow_redirects=False, params=params)
+        response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
 
@@ -86,7 +87,7 @@ class TestLogout(TestAuthEndpoint):
         expected_redirection,
     ):
         test_client.app.state.auth_manager.get_url_logout.return_value = mock_logout_url
-        response = test_client.get("/api/v2/auth/logout", follow_redirects=False)
+        response = test_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
         assert response.headers["location"] == expected_redirection

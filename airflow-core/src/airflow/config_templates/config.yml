@@ -70,7 +70,7 @@ core:
     executor:
       description: |
         The executor class that airflow should use. Choices include
-        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
+        ``LocalExecutor``, ``CeleryExecutor``,
         ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
@@ -114,7 +114,7 @@ core:
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
         schedulers in your cluster, is the maximum number of task instances with the running
-        state in the metadata database. Setting this value to zero allows unlimited parallelism.
+        state in the metadata database. The value must be larger or equal 1.
       version_added: ~
       type: string
       example: ~
@@ -701,8 +701,8 @@ database:
         from BaseDBManager
       version_added: 3.0.0
       type: string
-      example: ~
-      default: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+      example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+      default: ~
 logging:
   description: ~
   options:
@@ -892,6 +892,14 @@ logging:
       type: string
       default: ""
       example: "urllib.parse.quote"
+    min_length_masked_secret:
+      description: |
+        The minimum length of a secret to be masked in log messages.
+        Secrets shorter than this length will not be masked.
+      version_added: 3.0.0
+      type: integer
+      default: "5"
+      example: ~
     task_log_prefix_template:
       description: |
         Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``
@@ -1290,17 +1298,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-debug:
-  description: ~
-  options:
-    fail_fast:
-      description: |
-        Used only with ``DebugExecutor``. If set to ``True`` DAG will fail with first
-        failed task. Helpful for debugging purposes.
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
 api:
   description: ~
   options:
@@ -1311,8 +1308,8 @@ api:
         should contain the API server endpoint.
       version_added: ~
       type: string
-      example: ~
-      default: "http://localhost:8080"
+      example: "https://my-airflow.company.com"
+      default: ~
     host:
       description: |
         The ip specified when starting the api server
@@ -1439,6 +1436,42 @@ workers:
       sensitive: true
       example: ~
       default: ""
+    min_heartbeat_interval:
+      description: |
+        The minimum interval (in seconds) at which the worker checks the task instance's
+        heartbeat status with the API server to confirm it is still alive.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "5"
+    max_failed_heartbeats:
+      description: |
+        The maximum number of consecutive failed heartbeats before terminating the task instance process.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "3"
+    execution_api_retries:
+      description: |
+        The maximum number of retry attempts to the execution API server.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "5"
+    execution_api_retry_wait_min:
+      description: |
+        The minimum amount of time (in seconds) to wait before retrying a failed API request.
+      version_added: 3.0.0
+      type: float
+      example: ~
+      default: "1.0"
+    execution_api_retry_wait_max:
+      description: |
+        The maximum amount of time (in seconds) to wait before retrying a failed API request.
+      version_added: 3.0.0
+      type: float
+      example: ~
+      default: "90.0"
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
@@ -1675,22 +1708,6 @@ webserver:
       type: string
       example: ~
       default: "Access is Denied"
-    config_file:
-      description: |
-        Path of webserver config file used for configuring the webserver parameters
-      version_added: 2.7.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/webserver_config.py"
-    base_url:
-      description: |
-        The base url of your website: Airflow cannot guess what domain or CNAME you are using.
-        This is used to create links in the Log Url column in the Browse - Task Instances menu,
-        as well as in any automated emails sent by Airflow that contain links to your webserver.
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
     default_ui_timezone:
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or
@@ -1701,28 +1718,9 @@ webserver:
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    session_backend:
-      description: |
-        The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
-        ``database`` backend, sessions are store in the database and they can be
-        managed there (for example when you reset password of the user, all sessions for that user are
-        deleted). For the ``securecookie`` backend, sessions are stored in encrypted cookies on the client
-        side. The ``securecookie`` mechanism is 'lighter' than database backend, but sessions are not deleted
-        when you reset password of the user, which means that other than waiting for expiry time, the only
-        way to invalidate all sessions for a user is to change secret_key and restart webserver (which
-        also invalidates and logs out all other user's sessions).
-
-        When you are using ``database`` backend, make sure to keep your database session table small
-        by periodically running ``airflow db clean --table session`` command, especially if you have
-        automated API calls that will create a new session for each call rather than reuse the sessions
-        stored in browser cookies.
-      version_added: 2.2.4
-      type: string
-      example: securecookie
-      default: database
     secret_key:
       description: |
-        Secret key used to run your flask app. It should be as random as possible. However, when running
+        Secret key used to run your api server. It should be as random as possible. However, when running
         more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
         one of them will error with "CSRF session token is missing".
         The webserver key is also used to authorize requests to Celery workers when logs are retrieved.
@@ -1829,14 +1827,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    session_lifetime_minutes:
-      description: |
-        The UI cookie lifetime in minutes. User will be logged out from UI after
-        ``[webserver] session_lifetime_minutes`` of non-activity
-      version_added: 1.10.13
-      type: integer
-      example: ~
-      default: "43200"
     instance_name:
       description: |
         Sets a custom page title for the DAGs overview page and site title for all pages
@@ -2478,7 +2468,7 @@ dag_processor:
         [
             {
                 "name": "my-git-repo",
-                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
                 "kwargs": {
                     "subdir": "dags",
                     "tracking_ref": "main",

@@ -35,7 +35,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
+from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -45,6 +45,8 @@ from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
+
+    from airflow.api_fastapi.common.types import UIAlert
 
 log = logging.getLogger(__name__)
 
@@ -127,6 +129,19 @@ STATE_COLORS = {
     "up_for_retry": "gold",
     "upstream_failed": "orange",
 }
+
+# Display alerts on the dashboard
+# Useful for warning about setup issues or announcing changes to end users
+# List of UIAlerts, which allows for specifying the content and category
+# message to be shown. For example:
+#   from airflow.api_fastapi.common.types import UIAlert
+#
+#   DASHBOARD_UIALERTS = [
+#       UIAlert(text="Welcome to Airflow", category="info"),
+#       UIAlert(text="Upgrade tomorrow [help](https://www.example.com)", category="warning"), #With markdown support
+#   ]
+#
+DASHBOARD_UIALERTS: list[UIAlert] = []
 
 
 @functools.cache
@@ -390,9 +405,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
     def clean_in_fork():
-        if engine:
+        _globals = globals()
+        if engine := _globals.get("engine"):
             engine.dispose(close=False)
-        if async_engine:
+        if async_engine := _globals.get("async_engine"):
             async_engine.sync_engine.dispose(close=False)
 
     os.register_at_fork(after_in_child=clean_in_fork)
@@ -567,19 +583,6 @@ def prepare_syspath_for_dags_folder():
     """Update sys.path to include the DAGs folder."""
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
-
-
-def get_session_lifetime_config():
-    """Get session timeout configs and handle outdated configs gracefully."""
-    session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    minutes_per_day = 24 * 60
-    if not session_lifetime_minutes:
-        session_lifetime_days = 30
-        session_lifetime_minutes = minutes_per_day * session_lifetime_days
-
-    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
-
-    return int(session_lifetime_minutes)
 
 
 def import_local_settings():

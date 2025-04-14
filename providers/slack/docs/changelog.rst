@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+9.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix discord and slack provider icon url (#48680)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
+9.0.3
+.....
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 9.0.2
 .....
 

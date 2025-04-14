@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import attrs
+import structlog
 
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.helpers import prevent_duplicates
@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.sdk.definitions.context import Context
+
+log = structlog.get_logger(__name__)
 
 
 @attrs.define(
@@ -44,8 +46,7 @@ if TYPE_CHECKING:
     getstate_setstate=False,
     repr=False,
 )
-# TODO: Task-SDK: Multiple inheritance is a crime. There must be a better way
-class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[misc] # It complains about weight_rule being different
+class MappedOperator(TaskSDKMappedOperator):  # type: ignore[misc] # It complains about weight_rule being different
     """Object representing a mapped operator in a DAG."""
 
     def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
@@ -57,6 +58,13 @@ class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[m
 
         :meta private:
         """
+        if self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
+            log.warning(
+                "Starting a mapped task from triggerer is currently unsupported",
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+            )
+        return False
         # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
             return False

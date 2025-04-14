@@ -34,7 +34,7 @@ DAG1_ID = "test_dag1"
 DAG2_ID = "test_dag2"
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
-API_PREFIX = "/api/v2/dagStats"
+API_PREFIX = "/dagStats"
 
 
 class TestDagStatsEndpoint:
@@ -51,7 +51,7 @@ class TestDagStatsEndpoint:
             dag_id=DAG1_ID,
             fileloc="/tmp/dag_stats_1.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -76,7 +76,7 @@ class TestDagStatsEndpoint:
             dag_id=DAG2_ID,
             fileloc="/tmp/dag_stats_2.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -93,7 +93,7 @@ class TestDagStatsEndpoint:
             dag_id=DAG3_ID,
             fileloc="/tmp/dag_stats_3.py",
             timetable_summary="2 2 * * *",
-            is_active=False,
+            is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),

@@ -34,14 +34,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.24.1b1
-........
+1.25.0
+......
 
-Latest change: 2025-03-17
+Latest change: 2025-04-02
+
+==================================================================================================  ===========  ===============================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===============================================================================
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`65b90d855e <https://github.com/apache/airflow/commit/65b90d855ea22d10f6c159e27a677638839e1b6d>`__  2025-04-02   ``Add requires_result_fetch Configuration to SQLExecuteQueryOperator (#46997)``
+`47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``
+`347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+==================================================================================================  ===========  ===============================================================================
+
+1.24.1
+......
+
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  ======================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`e6c0793b27 <https://github.com/apache/airflow/commit/e6c0793b27313a6eae918a90661e5f68231f7687>`__  2025-03-22   ``Do not allow semicolon in partition_clause (#48098)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
 `91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
 `935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
 `a6f6733b35 <https://github.com/apache/airflow/commit/a6f6733b3586e025715d6e8d6033f8ce2a0fa1cf>`__  2025-03-15   ``AIP-72: Implement short circuit and branch operators (#46584)``

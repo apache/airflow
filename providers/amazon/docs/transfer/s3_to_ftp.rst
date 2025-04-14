@@ -42,7 +42,7 @@ To get more information about this operator visit:
 
 Example usage:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_s3_to_ftp.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_to_ftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_ftp]

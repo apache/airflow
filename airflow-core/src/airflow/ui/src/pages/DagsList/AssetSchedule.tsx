@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import { FiDatabase } from "react-icons/fi";
 
 import { useAssetServiceNextRunAssets } from "openapi/queries";
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { AssetResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { Button, Popover } from "src/components/ui";
@@ -40,7 +40,7 @@ export const AssetSchedule = ({ dag }: Props) => {
       return true;
     }
     if (ev.lastUpdate !== null && dag.latest_dag_runs[0]?.run_after !== undefined) {
-      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0]?.run_after);
+      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0].run_after);
     }
 
     return false;
@@ -53,10 +53,12 @@ export const AssetSchedule = ({ dag }: Props) => {
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {nextRunEvents.length === 1 ? (
-            nextRunEvents[0]?.uri
+            ((nextRun?.asset_expression as { all: Array<AssetResponse> }).all[0]?.name ??
+            nextRunEvents[0]?.uri)
           ) : (
             <>
-              {pendingEvents.length} of {nextRunEvents.length} datasets updated
+              {pendingEvents.length}
+              {nextRunEvents.length > 1 ? ` of ${nextRunEvents.length} ` : " "}assets updated
             </>
           )}
         </Button>

@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
-import operator
 from functools import cache
+from operator import methodcaller
+from typing import Callable
+from uuid import UUID
 
+from sqlalchemy import select
 from typing_extensions import Any
 
 from airflow import DAG
@@ -30,25 +33,28 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTaskInstanceSummary,
 )
+from airflow.api_fastapi.core_api.datamodels.ui.structure import (
+    StructureDataResponse,
+)
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import task_group_to_dict
 
 
 @cache
-def get_task_group_children_getter() -> operator.methodcaller:
+def get_task_group_children_getter() -> Callable:
     """Get the Task Group Children Getter for the DAG."""
-    sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
+    sort_order = conf.get("webserver", "grid_view_sorting_order")
     if sort_order == "topological":
-        return operator.methodcaller("topological_sort")
-    if sort_order == "hierarchical_alphabetical":
-        return operator.methodcaller("hierarchical_alphabetical_sort")
-    raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
+        return methodcaller("topological_sort")
+    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
@@ -83,10 +89,11 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
     def _fill_task_group_map(
         task_node: BaseOperator | MappedTaskGroup | TaskMap | None,
         parent_node: BaseOperator | MappedTaskGroup | TaskMap | None,
-    ):
+    ) -> None:
         """Recursively fill the Task Group Map."""
         if task_node is None:
             return
+
         if isinstance(task_node, MappedOperator):
             task_nodes[task_node.node_id] = {
                 "is_group": False,
@@ -96,22 +103,19 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
             # Add the Task Count to the Parent Node because parent node is a Task Group
             _append_child_task_count_to_parent(child_task_count=task_node, parent_node=parent_node)
             return
-        elif isinstance(task_node, TaskGroup):
-            task_count = (
-                task_node
-                if _is_task_node_mapped_task_group(task_node)
-                else len([child for child in get_task_group_children_getter()(task_node)])
-            )
+
+        if isinstance(task_node, TaskGroup):
+            task_count = task_node if _is_task_node_mapped_task_group(task_node) else len(task_node.children)
             task_nodes[task_node.node_id] = {
                 "is_group": True,
                 "parent_id": parent_node.node_id if parent_node else None,
                 "task_count": [task_count],
             }
-            return [
+            for child in get_task_group_children_getter()(task_node):
                 _fill_task_group_map(task_node=child, parent_node=task_node)
-                for child in get_task_group_children_getter()(task_node)
-            ]
-        elif isinstance(task_node, BaseOperator):
+            return
+
+        if isinstance(task_node, BaseOperator):
             task_nodes[task_node.task_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,
@@ -151,7 +155,6 @@ def _get_total_task_count(
 def fill_task_instance_summaries(
     grouped_task_instances: dict[tuple[str, str], list],
     task_instance_summaries_to_fill: dict[str, list],
-    task_node_map: dict[str, dict[str, Any]],
     session: SessionDep,
 ) -> None:
     """
@@ -177,7 +180,16 @@ def fill_task_instance_summaries(
         )
         for (task_id, run_id), tis in grouped_task_instances.items()
     }
+
+    serdag_cache: dict[UUID, SerializedDAG] = {}
+    task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
+
     for (task_id, run_id), tis in grouped_task_instances.items():
+        sdm = _get_serdag(tis[0], session)
+        serdag_cache[sdm.id] = serdag_cache.get(sdm.id) or sdm.dag
+        dag = serdag_cache[sdm.id]
+        task_group_map_cache[sdm.id] = task_group_map_cache.get(sdm.id) or get_task_group_map(dag=dag)
+        task_node_map = task_group_map_cache[sdm.id]
         ti_try_number = max([ti.try_number for ti in tis])
         ti_start_date = min([ti.start_date for ti in tis if ti.start_date], default=None)
         ti_end_date = max([ti.end_date for ti in tis if ti.end_date], default=None)
@@ -202,6 +214,7 @@ def fill_task_instance_summaries(
                 for state in state_priority
             }
         )
+
         # Update Nested Task Group States by aggregating the child states
         child_states.update(
             {
@@ -210,7 +223,7 @@ def fill_task_instance_summaries(
                 )
                 + 1
                 for task_node_id in get_child_task_map(task_id, task_node_map)
-                if task_node_map[task_node_id]["is_group"]
+                if task_node_map[task_node_id]["is_group"] and (task_node_id, run_id) in overall_states
             }
         )
 
@@ -241,3 +254,57 @@ def fill_task_instance_summaries(
                 note=ti_note,
             )
         )
+
+
+def get_structure_from_dag(dag: DAG) -> StructureDataResponse:
+    """If we do not have TIs, we just get the structure from the DAG."""
+    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    return StructureDataResponse(nodes=nodes, edges=[])
+
+
+def _get_serdag(ti, session):
+    dag_version = ti.dag_version
+    if not dag_version:
+        dag_version = session.scalar(
+            select(DagVersion)
+            .where(
+                DagVersion.dag_id == ti.dag_id,
+            )
+            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
+            .limit(1)
+        )
+    if not dag_version:
+        raise RuntimeError("No dag_version object could be found.")
+    return dag_version.serialized_dag
+
+
+def get_combined_structure(task_instances, session):
+    """Given task instances with varying DAG versions, get a combined structure."""
+    merged_nodes = []
+    # we dedup with serdag, as serdag.dag varies somehow?
+    serdags = {_get_serdag(ti, session) for ti in task_instances}
+    dags = [serdag.dag for serdag in serdags]
+    for dag in dags:
+        nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+        _merge_node_dicts(merged_nodes, nodes)
+
+    return StructureDataResponse(nodes=merged_nodes, edges=[])
+
+
+def _merge_node_dicts(current, new) -> None:
+    current_ids = {node["id"] for node in current}
+    for node in new:
+        if node["id"] in current_ids:
+            current_node = _get_node_by_id(current, node["id"])
+            # if we have children, merge those as well
+            if "children" in current_node:
+                _merge_node_dicts(current_node["children"], node["children"])
+        else:
+            current.append(node)
+
+
+def _get_node_by_id(nodes, node_id):
+    for node in nodes:
+        if node["id"] == node_id:
+            return node
+    return {}

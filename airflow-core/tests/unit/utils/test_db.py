@@ -35,8 +35,10 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, Table, select
 
 from airflow.models import Base as airflow_base
+from airflow.providers.fab.auth_manager.models.db import FABDBManager
 from airflow.settings import engine
 from airflow.utils.db import (
+    _REVISION_HEADS_MAP,
     LazySelectSequence,
     _get_alembic_config,
     check_migrations,
@@ -68,7 +70,9 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-
+        # test FAB models
+        for table_name, table in FABDBManager.metadata.tables.items():
+            all_meta_data._add_table(table_name, table.schema, table)
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             engine.connect(),
@@ -131,11 +135,35 @@ class TestDb:
         check_migrations(0)
         check_migrations(1)
 
+    @pytest.mark.parametrize(
+        "auth, expected",
+        [
+            (
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+                },
+                1,
+            ),
+            (
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+                },
+                2,
+            ),
+        ],
+    )
     @mock.patch("alembic.command")
-    def test_upgradedb(self, mock_alembic_command):
-        upgradedb()
-        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
-        assert mock_alembic_command.upgrade.call_count == 2
+    def test_upgradedb(self, mock_alembic_command, auth, expected):
+        with conf_vars(auth):
+            upgradedb()
+            mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+            assert mock_alembic_command.upgrade.call_count == expected
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
@@ -264,3 +292,13 @@ class TestDb:
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
         assert bool(lss) is False
+
+    @conf_vars({("core", "unit_test_mode"): "False"})
+    @mock.patch("airflow.utils.db.inspect")
+    def test_upgradedb_raises_if_lower_than_v3_0_0(self, mock_inspect, caplog):
+        mock_inspect.return_value.has_table.return_value = False
+        downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
+        assert (
+            "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
+            "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
+        ) in caplog.text

@@ -34,6 +34,9 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
+# Here we should add the second level paths that we want to have sub-packages in
+KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 try:
@@ -129,7 +132,7 @@ def run_command_via_breeze_shell(
     cmd: list[str],
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     backend: str = "none",
-    executor: str = "SequentialExecutor",
+    executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
     project_name: str = "pre-commit",
     skip_environment_initialization: bool = True,
@@ -149,6 +152,7 @@ def run_command_via_breeze_shell(
         "--quiet",
         "--restart",
         "--skip-image-upgrade-check",
+        # Note: The terminal is disabled - because pre-commit is run inside git without pseudo-terminal
         "--tty",
         "disabled",
     ]
@@ -296,3 +300,42 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
         if provider_info["state"] != "suspended":
             providers[provider_id] = provider_info
     return providers
+
+
+def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:
+    """
+    Returns list of all imports in file.
+
+    For following code:
+    import os
+    from collections import defaultdict
+    import numpy as np
+    from pandas import DataFrame as DF
+
+    def inner():
+        import json
+        from pathlib import Path, PurePath
+    from __future__ import annotations
+
+    When only_top_level = False then returns
+        ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame']
+    When only_top_level = False then returns
+        ['os', 'collections.defaultdict', 'numpy', 'pandas.DataFrame', 'json', 'pathlib.Path', 'pathlib.PurePath']
+    """
+    root = ast.parse(file_path.read_text(), file_path.name)
+    imports: list[str] = []
+
+    nodes = ast.iter_child_nodes(root) if only_top_level else ast.walk(root)
+    for node in nodes:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "__future__":
+                continue
+            for alias in node.names:
+                name = alias.name
+                fullname = f"{node.module}.{name}" if node.module else name
+                imports.append(fullname)
+
+    return imports

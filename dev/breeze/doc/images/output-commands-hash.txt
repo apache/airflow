@@ -3,7 +3,6 @@
 # This command should fix the conflict and regenerate help images that you have conflict with.
 main:ffb1a766b791beaf5f8a983587db870f
 build-docs:2e9882744f219e56726548ce2d13c3f5
-ci:find-backtracking-candidates:17fe56b867a745e5032a08dfcd3f73ee
 ci:fix-ownership:3e5a73533cc96045e72cb258783cfc96
 ci:free-space:49af17b032039c05c41a7a8283f365cc
 ci:get-workflow-info:8246038093359b9c3c110043419473e2

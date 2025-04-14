@@ -21,11 +21,11 @@ name: Common Messaging
 description: |
   ``Common Messaging Provider``
 
-state: not-ready
+state: ready
 source-date-epoch: 1741121853
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 1.0.0b1
+  - 1.0.0
 
 triggers:
   - integration-name: Message queue

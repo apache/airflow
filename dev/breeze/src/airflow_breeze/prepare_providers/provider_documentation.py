@@ -32,6 +32,7 @@ from shutil import copyfile
 from time import time
 from typing import Any, NamedTuple
 
+from packaging.version import Version, parse
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
@@ -482,6 +483,29 @@ def _mark_latest_changes_as_documentation_only(
     raise PrepareReleaseDocsChangesOnlyException()
 
 
+VERSION_MAJOR_INDEX = 0
+VERSION_MINOR_INDEX = 1
+VERSION_PATCHLEVEL_INDEX = 2
+
+
+def bump_version(v: Version, index: int) -> Version:
+    versions = list(v.release)
+    versions[index] += 1
+
+    if index == VERSION_MAJOR_INDEX:
+        versions[VERSION_MINOR_INDEX] = 0
+        versions[VERSION_PATCHLEVEL_INDEX] = 0
+    elif index == VERSION_MINOR_INDEX:
+        versions[VERSION_PATCHLEVEL_INDEX] = 0
+
+    # Handle pre-release and dev version formatting
+    pre = f"{v.pre[0]}{v.pre[1]}" if v.pre else ""
+    dev = f".dev{v.dev}" if v.dev is not None else ""
+    return parse(
+        f"{versions[VERSION_MAJOR_INDEX]}.{versions[VERSION_MINOR_INDEX]}.{versions[VERSION_PATCHLEVEL_INDEX]}{pre}{dev}"
+    )
+
+
 def _update_version_in_provider_yaml(
     provider_id: str,
     type_of_change: TypeOfChange,
@@ -494,23 +518,22 @@ def _update_version_in_provider_yaml(
     """
     provider_details = get_provider_details(provider_id)
     version = provider_details.versions[0]
-    import semver
 
-    v = semver.VersionInfo.parse(version)
+    v = parse(version)
     with_breaking_changes = False
     maybe_with_new_features = False
     if type_of_change == TypeOfChange.BREAKING_CHANGE:
-        v = v.bump_major()
+        v = bump_version(v, VERSION_MAJOR_INDEX)
         with_breaking_changes = True
         # we do not know, but breaking changes may also contain new features
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.FEATURE:
-        v = v.bump_minor()
+        v = bump_version(v, VERSION_MINOR_INDEX)
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.BUGFIX:
-        v = v.bump_patch()
+        v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     elif type_of_change == TypeOfChange.MISC:
-        v = v.bump_patch()
+        v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     provider_yaml_path = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     updated_provider_yaml_content = re.sub(
@@ -735,8 +758,7 @@ def update_release_notes(
                 raise PrepareReleaseDocsUserQuitException()
         elif not list_of_list_of_changes:
             get_console().print(
-                f"\n[warning]Provider: {provider_id} - "
-                f"skipping documentation generation. No changes![/]\n"
+                f"\n[warning]Provider: {provider_id} - skipping documentation generation. No changes![/]\n"
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
@@ -785,7 +807,8 @@ def update_release_notes(
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(provider_id=provider_id, type_of_change=type_of_change)
                 )
-                _update_source_date_epoch_in_provider_yaml(provider_id)
+                if not reapply_templates_only:
+                    _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,
@@ -793,7 +816,8 @@ def update_release_notes(
                 only_min_version_update=only_min_version_update,
             )
     else:
-        _update_source_date_epoch_in_provider_yaml(provider_id)
+        if not reapply_templates_only:
+            _update_source_date_epoch_in_provider_yaml(provider_id)
 
     provider_details = get_provider_details(provider_id)
     current_release_version = provider_details.versions[0]
@@ -832,7 +856,8 @@ def update_release_notes(
                 provider_id=provider_id,
                 type_of_change=type_of_change,
             )
-            _update_source_date_epoch_in_provider_yaml(provider_id)
+            if not reapply_templates_only:
+                _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,
@@ -1101,6 +1126,18 @@ def _generate_get_provider_info_py(context: dict[str, Any], provider_details: Pr
     )
 
 
+def _generate_docs_conf(context: dict[str, Any], provider_details: ProviderPackageDetails):
+    docs_conf_content = render_template(
+        template_name="conf",
+        context=context,
+        extension=".py",
+        keep_trailing_newline=True,
+    )
+    docs_conf_path = provider_details.root_provider_path / "docs" / "conf.py"
+    docs_conf_path.write_text(docs_conf_content)
+    get_console().print(f"[info]Generated {docs_conf_path} for the {provider_details.provider_id} provider\n")
+
+
 def _generate_readme_rst(context: dict[str, Any], provider_details: ProviderPackageDetails):
     get_provider_readme_content = render_template(
         template_name="PROVIDER_README",
@@ -1118,6 +1155,7 @@ def _generate_readme_rst(context: dict[str, Any], provider_details: ProviderPack
 def _generate_build_files_for_provider(
     context: dict[str, Any],
     provider_details: ProviderPackageDetails,
+    skip_readme: bool,
 ):
     init_py_content = black_format(
         render_template(
@@ -1129,7 +1167,9 @@ def _generate_build_files_for_provider(
     )
     init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
-    _generate_readme_rst(context, provider_details)
+    if not skip_readme:
+        _generate_readme_rst(context, provider_details)
+    _generate_docs_conf(context, provider_details)
     regenerate_pyproject_toml(context, provider_details, version_suffix=None)
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(
@@ -1153,13 +1193,14 @@ def _replace_min_airflow_version_in_provider_yaml(
 
 
 def update_min_airflow_version_and_build_files(
-    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
+    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool, skip_readme: bool
 ):
     """Updates min airflow version in provider yaml and __init__.py
 
     :param provider_id: provider package id
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :param skip_readme: skip updating readme: skip_readme
     :return:
     """
     provider_details = get_provider_details(provider_id)
@@ -1173,6 +1214,7 @@ def update_min_airflow_version_and_build_files(
     _generate_build_files_for_provider(
         context=jinja_context,
         provider_details=provider_details,
+        skip_readme=skip_readme,
     )
     _replace_min_airflow_version_in_provider_yaml(
         context=jinja_context, provider_yaml_path=provider_details.provider_yaml_path

@@ -25,13 +25,28 @@
 Changelog
 ---------
 
-1.24.1b1
-........
+1.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add requires_result_fetch Configuration to SQLExecuteQueryOperator (#46997)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``
+
+1.24.1
+......
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix get_hook() got an unexpected keyword argument 'hook_params' in SQLExecuteQueryTrigger (#47728)``
+* ``Do not allow semicolon in partition_clause (#48098)``
 
 Misc
 ~~~~
@@ -41,6 +56,9 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
    * ``Remove links to x/twitter.com (#47801)``
 
 1.24.0

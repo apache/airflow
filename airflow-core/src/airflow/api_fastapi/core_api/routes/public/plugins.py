@@ -41,6 +41,6 @@ def get_plugins(
 ) -> PluginCollectionResponse:
     plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
     return PluginCollectionResponse(
-        plugins=cast(list[PluginResponse], plugins_info[offset.value :][: limit.value]),
+        plugins=cast("list[PluginResponse]", plugins_info[offset.value :][: limit.value]),
         total_entries=len(plugins_info),
     )

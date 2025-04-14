@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import ParseResult, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -50,7 +50,17 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+auth_description = (
+    "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
+    "the Authorization header of each request. This token is used to verify the identity of "
+    "the client and ensure that they have the appropriate permissions to access the "
+    "requested resources. "
+    "You can use the endpoint ``POST /auth/token`` in order to generate a JWT token. "
+    "Upon successful authentication, the server will issue a JWT token that contains the necessary "
+    "information (such as user identity and scope) to authenticate subsequent requests. "
+    "To learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html."
+)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", description=auth_description)
 
 
 async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
@@ -319,21 +329,34 @@ def _requires_access(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
-def is_safe_url(target_url: str) -> bool:
+def is_safe_url(target_url: str, request: Request | None = None) -> bool:
     """
     Check that the URL is safe.
 
     Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
     is a valid normalized path.
     """
-    base_url = conf.get("api", "base_url")
+    parsed_bases: tuple[tuple[str, ParseResult], ...] = ()
 
-    parsed_base = urlparse(base_url)
-    parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+    # Check if the target URL matches either the configured base URL, or the URL used to make the request
+    if request is not None:
+        url = str(request.base_url)
+        parsed_bases += ((url, urlparse(url)),)
+    if base_url := conf.get("api", "base_url", fallback=None):
+        parsed_bases += ((base_url, urlparse(base_url)),)
 
-    target_path = Path(parsed_target.path).resolve()
+    if not parsed_bases:
+        # Can't enforce any security check.
+        return True
 
-    if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
-        return False
+    for base_url, parsed_base in parsed_bases:
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
-    return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
+        target_path = Path(parsed_target.path).resolve()
+
+        if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
+            continue
+
+        if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
+            return True
+    return False

@@ -23,6 +23,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import attrs
 from azure.core.exceptions import HttpResponseError
 
 from airflow.configuration import conf
@@ -34,34 +35,36 @@ if TYPE_CHECKING:
     import logging
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
-class WasbTaskHandler(FileTaskHandler, LoggingMixin):
-    """
-    WasbTaskHandler is a python log handler that handles and reads task instance logs.
+@attrs.define
+class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
+    remote_base: str
+    base_log_folder: Path = attrs.field(converter=Path)
+    delete_local_copy: bool
 
-    It extends airflow FileTaskHandler and uploads to and reads from Wasb remote storage.
-    """
+    wasb_container: str
 
-    trigger_should_wrap = True
+    processors = ()
 
-    def __init__(
-        self,
-        base_log_folder: str,
-        wasb_log_folder: str,
-        wasb_container: str,
-        **kwargs,
-    ) -> None:
-        super().__init__(base_log_folder)
-        self.handler: logging.FileHandler | None = None
-        self.wasb_container = wasb_container
-        self.remote_base = wasb_log_folder
-        self.log_relative_path = ""
-        self.closed = False
-        self.upload_on_close = True
-        self.delete_local_copy = kwargs.get(
-            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
-        )
+    def upload(self, path: str | os.PathLike, ti: RuntimeTI):
+        """Upload the given log path to the remote storage."""
+        path = Path(path)
+        if path.is_absolute():
+            local_loc = path
+            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+        else:
+            local_loc = self.base_log_folder.joinpath(path)
+            remote_loc = os.path.join(self.remote_base, path)
+
+        if local_loc.is_file():
+            # read log and remove old logs to get just the latest additions
+            log = local_loc.read_text()
+            has_uploaded = self.write(log, remote_loc)
+            if has_uploaded and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
     @cached_property
     def hook(self):
@@ -81,53 +84,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
-        super().set_context(ti, identifier=identifier)
-        # Local location and remote location is needed to open and
-        # upload local log file to Wasb remote storage.
-        if TYPE_CHECKING:
-            assert self.handler is not None
-
-        full_path = self.handler.baseFilename
-        self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
-        is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
-        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
-
-    def close(self) -> None:
-        """Close and upload local log file to remote storage Wasb."""
-        # When application exit, system shuts down all handlers by
-        # calling close method. Here we check if logger is already
-        # closed to prevent uploading the log to remote storage multiple
-        # times when `logging.shutdown` is called.
-        if self.closed:
-            return
-
-        super().close()
-
-        if not self.upload_on_close:
-            return
-
-        local_loc = os.path.join(self.local_base, self.log_relative_path)
-        remote_loc = os.path.join(self.remote_base, self.log_relative_path)
-        if os.path.exists(local_loc):
-            # read log and remove old logs to get just the latest additions
-            with open(local_loc) as logfile:
-                log = logfile.read()
-            wasb_write = self.wasb_write(log, remote_loc, append=True)
-
-            if wasb_write and self.delete_local_copy:
-                shutil.rmtree(os.path.dirname(local_loc))
-        # Mark closed so we don't double write if close is called twice
-        self.closed = True
-
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
-        worker_log_relative_path = self._render_filename(ti, try_number)
         # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
         # unlike others with shceme in URL itself to identify the correct handler.
         # This puts limitations on ways users can name the base_path.
-        prefix = os.path.join(self.remote_base, worker_log_relative_path)
+        prefix = os.path.join(self.remote_base, relative_path)
         blob_names = []
         try:
             blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
@@ -143,8 +106,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             else:
                 messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
-            if not AIRFLOW_V_3_0_PLUS:
-                messages.append(f"No logs found in WASB; ti={ti}")
+            return messages, None
 
         for name in sorted(blob_names):
             remote_log = ""
@@ -191,7 +153,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
             return ""
 
-    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
+    def write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
         Write the log to the remote_log_location. Fails silently if no hook was created.
 
@@ -210,3 +172,82 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             self.log.exception("Could not write logs to %s", remote_log_location)
             return False
         return True
+
+
+class WasbTaskHandler(FileTaskHandler, LoggingMixin):
+    """
+    WasbTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from Wasb remote storage.
+    """
+
+    trigger_should_wrap = True
+
+    def __init__(
+        self,
+        base_log_folder: str,
+        wasb_log_folder: str,
+        wasb_container: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(base_log_folder)
+        self.handler: logging.FileHandler | None = None
+        self.log_relative_path = ""
+        self.closed = False
+        self.upload_on_close = True
+        self.io = WasbRemoteLogIO(
+            base_log_folder=base_log_folder,
+            remote_base=wasb_log_folder,
+            wasb_container=wasb_container,
+            delete_local_copy=kwargs.get(
+                "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+            ),
+        )
+
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+        super().set_context(ti, identifier=identifier)
+        # Local location and remote location is needed to open and
+        # upload local log file to Wasb remote storage.
+        if TYPE_CHECKING:
+            assert self.handler is not None
+
+        self.ti = ti
+        full_path = self.handler.baseFilename
+        self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
+        is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
+        self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
+
+    def close(self) -> None:
+        """Close and upload local log file to remote storage Wasb."""
+        # When application exit, system shuts down all handlers by
+        # calling close method. Here we check if logger is already
+        # closed to prevent uploading the log to remote storage multiple
+        # times when `logging.shutdown` is called.
+        if self.closed:
+            return
+
+        super().close()
+
+        if not self.upload_on_close:
+            return
+
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
+
+        # Mark closed so we don't double write if close is called twice
+        self.closed = True
+
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
+        # Explicitly getting log relative path is necessary as the given
+        # task instance might be different than task instance passed in
+        # in set_context method.
+        worker_log_rel_path = self._render_filename(ti, try_number)
+
+        messages, logs = self.io.read(worker_log_rel_path, ti)
+
+        if logs is None:
+            logs = []
+            if not AIRFLOW_V_3_0_PLUS:
+                messages.append(f"No logs found in WASB; ti={ti}")
+
+        return messages, logs

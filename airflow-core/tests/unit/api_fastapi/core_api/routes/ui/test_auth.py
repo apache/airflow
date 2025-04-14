@@ -20,7 +20,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.api_fastapi.common.types import ExtraMenuItem
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 
 pytestmark = pytest.mark.db_test
 
@@ -28,27 +29,32 @@ pytestmark = pytest.mark.db_test
 class TestGetAuthLinks:
     @mock.patch("airflow.api_fastapi.core_api.routes.ui.auth.get_auth_manager")
     def test_should_response_200(self, mock_get_auth_manager, test_client):
+        mock_get_auth_manager.return_value.get_authorized_menu_items.return_value = [
+            MenuItem.VARIABLES,
+            MenuItem.CONNECTIONS,
+        ]
         mock_get_auth_manager.return_value.get_extra_menu_items.return_value = [
             ExtraMenuItem(text="name1", href="path1"),
             ExtraMenuItem(text="name2", href="path2"),
         ]
-        response = test_client.get("/ui/auth/links")
+        response = test_client.get("/auth/menus")
 
         assert response.status_code == 200
         assert response.json() == {
-            "menu_items": [
+            "authorized_menu_items": ["Variables", "Connections"],
+            "extra_menu_items": [
                 {"text": "name1", "href": "path1"},
                 {"text": "name2", "href": "path2"},
             ],
-            "total_entries": 2,
         }
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/ui/auth/links")
+        response = unauthenticated_test_client.get("/auth/menus")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
 
-    def test_with_unauthorized_user(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/ui/auth/links")
+    @mock.patch.object(SimpleAuthManager, "filter_authorized_menu_items", return_value=[])
+    def test_with_unauthorized_user(self, _, unauthorized_test_client):
+        response = unauthorized_test_client.get("/auth/menus")
         assert response.status_code == 200
-        assert response.json() == {"menu_items": [], "total_entries": 0}
+        assert response.json() == {"authorized_menu_items": [], "extra_menu_items": []}

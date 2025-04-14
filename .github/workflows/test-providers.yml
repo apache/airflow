@@ -46,7 +46,7 @@ on:  # yamllint disable-line rule:truthy
           (airflow-version, python-versions, remove-providers, run-tests)
         required: true
         type: string
-      providers-test-types-list-as-string:
+      providers-test-types-list-as-strings-in-json:
         description: "List of parallel provider test types as string"
         required: true
         type: string
@@ -161,18 +161,20 @@ jobs:
   # All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
-    name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
+    # yamllint disable rule:line-length
+    name: Compat ${{ matrix.compat.airflow-version }}:P${{ matrix.compat.python-version }}:${{ matrix.compat.test-types.description }}
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{fromJSON(inputs.providers-compatibility-tests-matrix)}}
+        compat: ${{fromJSON(inputs.providers-compatibility-tests-matrix)}}
+        test-types: ${{ fromJSON(inputs.providers-test-types-list-as-strings-in-json) }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
-      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.compat.python-version }}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "true"
@@ -185,11 +187,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+      - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: "linux/amd64"
-          python: ${{ matrix.python-version }}
+          python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
@@ -197,28 +199,27 @@ jobs:
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
           --distribution-format wheel
-      - name: >
-          Remove incompatible Airflow
-          ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider distributions
+      # yamllint disable rule:line-length
+      - name: Remove incompatible Airflow ${{ matrix.compat.airflow-version }}:Python ${{ matrix.compat.python-version }} provider distributions
         env:
-          REMOVE_PROVIDERS: ${{ matrix.remove-providers }}
+          REMOVE_PROVIDERS: ${{ matrix.compat.remove-providers }}
         run: |
           for provider in ${REMOVE_PROVIDERS}; do
             echo "Removing incompatible provider: ${provider}"
-            rm -vf dist/apache_airflow_providers_${provider/./_}*
+            rm -vf dist/apache_airflow_providers_${provider/./_}-*
           done
-        if: matrix.remove-providers != ''
+        if: matrix.compat.remove-providers != ''
       - name: "Download airflow package: wheel"
         run: |
-          pip download "apache-airflow==${{ matrix.airflow-version }}" -d dist --no-deps
+          pip download "apache-airflow==${{ matrix.compat.airflow-version }}" -d dist --no-deps
       - name: >
           Install and verify all provider distributions and airflow on
-          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+          Airflow ${{ matrix.compat.airflow-version }}:Python ${{ matrix.compat.python-version }}
         # We do not need to run import check if we run tests, the tests should cover all the import checks
         # automatically
-        if: matrix.run-tests != 'true'
+        if: matrix.compat.run-tests != 'true'
         env:
-          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
+          AIRFLOW_VERSION: "${{ matrix.compat.airflow-version }}"
         run: >
           breeze release-management verify-provider-distributions
           --use-distributions-from-dist
@@ -231,13 +232,13 @@ jobs:
         run: df -H
         shell: bash
       - name: >
-          Run provider unit tests on
-          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
-        if: matrix.run-tests == 'true'
+          Run provider unit tests on Airflow ${{ matrix.compat.airflow-version }}:Python
+          ${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
+        if: matrix.compat.run-tests == 'true'
         env:
-          PROVIDERS_TEST_TYPES: "${{ inputs.providers-test-types-list-as-string }}"
-          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
-          REMOVE_PROVIDERS: "${{ matrix.remove-providers }}"
+          PROVIDERS_TEST_TYPES: "${{ matrix.test-types.test_types }}"
+          AIRFLOW_VERSION: "${{ matrix.compat.airflow-version }}"
+          REMOVE_PROVIDERS: "${{ matrix.compat.remove-providers }}"
         run: >
           breeze testing providers-tests --run-in-parallel
           --parallel-test-types "${PROVIDERS_TEST_TYPES}"

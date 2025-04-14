@@ -24,8 +24,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.cli import cli_parser
+from airflow.cli.commands import config_command
 from airflow.cli.commands.legacy_commands import check_legacy_command
-from airflow.cli.commands.remote_commands import config_command
 
 
 class TestCliDeprecatedCommandsValue:
@@ -48,7 +48,6 @@ class TestCliDeprecatedCommandsValue:
         mock_action._prog_prefix = "airflow"
         with pytest.raises(
             ArgumentError,
-            match="argument : Command `airflow webserver` has been removed. "
-            "Please use `airflow api-server`",
+            match="argument : Command `airflow webserver` has been removed. Please use `airflow api-server`",
         ):
             check_legacy_command(mock_action, "webserver")

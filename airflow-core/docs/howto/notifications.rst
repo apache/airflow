@@ -17,7 +17,7 @@
 
 Creating a notifier
 ===================
-The :class:`~airflow.notifications.basenotifier.BaseNotifier` is an abstract class that provides a basic
+The :class:`~airflow.sdk.definitions.notifier.BaseNotifier` is an abstract class that provides a basic
 structure for sending notifications in Airflow using the various ``on_*__callback``.
 It is intended for providers to extend and customize for their specific needs.
 
@@ -31,7 +31,7 @@ Here's an example of how you can create a Notifier class:
 
 .. code-block:: python
 
-    from airflow.notifications.basenotifier import BaseNotifier
+    from airflow.sdk import BaseNotifier
     from my_provider import send_message
 
 
@@ -58,7 +58,7 @@ Here's an example of using the above notifier:
 
     from datetime import datetime
 
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     from myprovider.notifier import MyNotifier

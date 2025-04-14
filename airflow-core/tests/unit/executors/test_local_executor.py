@@ -30,6 +30,8 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
 pytestmark = pytest.mark.db_test
 
 # Runtime is fine, we just can't run the tests on macOS
@@ -123,10 +125,7 @@ class TestLocalExecutor:
     @skip_spawn_mp_start
     @pytest.mark.parametrize(
         ("parallelism",),
-        [
-            pytest.param(0, id="unlimited"),
-            pytest.param(2, id="limited"),
-        ],
+        [pytest.param(2, id="limited")],
     )
     def test_execution(self, parallelism: int):
         self._test_execute(parallelism=parallelism)
@@ -150,6 +149,7 @@ class TestLocalExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
+    @skip_if_force_lowest_dependencies_marker
     @pytest.mark.execution_timeout(5)
     def test_clean_stop_on_signal(self):
         import signal

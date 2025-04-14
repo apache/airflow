@@ -17,18 +17,12 @@
 
 from __future__ import annotations
 
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class MenuItem(BaseModel):
-    """Menu Item for responses."""
-
-    text: str
-    href: str
 
 
 class MenuItemCollectionResponse(BaseModel):
     """Menu Item Collection serializer for responses."""
 
-    menu_items: list[MenuItem]
-    total_entries: int
+    authorized_menu_items: list[MenuItem]
+    extra_menu_items: list[ExtraMenuItem]

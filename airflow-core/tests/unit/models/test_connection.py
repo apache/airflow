@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 import re
+import sys
+from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 
 class TestConnection:
@@ -273,3 +277,64 @@ class TestConnection:
             "stream": True,
             "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
         }
+
+    @mock.patch("airflow.sdk.Connection.get")
+    def test_get_connection_from_secrets_task_sdk_success(self, mock_get):
+        """Test the get_connection_from_secrets method with Task SDK success path."""
+        from airflow.sdk import Connection as SDKConnection
+
+        expected_connection = SDKConnection(conn_id="test_conn", conn_type="test_type")
+        mock_get.return_value = expected_connection
+
+        mock_task_runner = mock.MagicMock()
+        mock_task_runner.SUPERVISOR_COMMS = True
+
+        with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
+            result = Connection.get_connection_from_secrets("test_conn")
+
+            assert result.conn_id == "test_conn"
+            assert result.conn_type == "test_type"
+
+    @mock.patch("airflow.sdk.Connection")
+    def test_get_connection_from_secrets_task_sdk_not_found(self, mock_task_sdk_connection):
+        """Test the get_connection_from_secrets method with Task SDK not found path."""
+        mock_task_runner = mock.MagicMock()
+        mock_task_runner.SUPERVISOR_COMMS = True
+
+        mock_task_sdk_connection.get.side_effect = AirflowRuntimeError(
+            error=ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
+        )
+
+        with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
+            with pytest.raises(AirflowNotFoundException):
+                Connection.get_connection_from_secrets("test_conn")
+
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.sdk.Connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    def test_get_connection_from_secrets_metastore_backend(
+        self, mock_db_backend, mock_env_backend, mock_task_sdk_connection
+    ):
+        """Test the get_connection_from_secrets should call all the backends."""
+
+        mock_env_backend.return_value = None
+        mock_db_backend.return_value = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Mock TaskSDK Connection to verify it is never imported
+        mock_task_sdk_connection.get.side_effect = Exception("TaskSDKConnection should not be used")
+
+        result = Connection.get_connection_from_secrets("test_conn")
+
+        expected_connection = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Verify the result is from MetastoreBackend
+        assert result.conn_id == expected_connection.conn_id
+        assert result.conn_type == expected_connection.conn_type
+
+        # Verify TaskSDKConnection was never used
+        mock_task_sdk_connection.get.assert_not_called()
+
+        # Verify the backends were called
+        mock_env_backend.assert_called_once_with(conn_id="test_conn")
+        mock_db_backend.assert_called_once_with(conn_id="test_conn")

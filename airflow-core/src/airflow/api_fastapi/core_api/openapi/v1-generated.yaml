@@ -7,12 +7,12 @@ info:
     Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
-  /ui/auth/links:
+  /ui/auth/menus:
     get:
       tags:
       - Auth Links
-      summary: Get Auth Links
-      operationId: get_auth_links
+      summary: Get Auth Menus
+      operationId: get_auth_menus
       responses:
         '200':
           description: Successful Response
@@ -44,6 +44,7 @@ paths:
             application/json:
               schema:
                 type: object
+                additionalProperties: true
                 title: Response Next Run Assets
         '422':
           description: Validation Error
@@ -179,13 +180,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -2560,6 +2561,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Updated At Lte
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
       - name: state
         in: query
         required: false
@@ -3210,13 +3219,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Display Name Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -3379,13 +3388,13 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id Pattern
-      - name: only_active
+      - name: exclude_stale
         in: query
         required: false
         schema:
           type: boolean
           default: true
-          title: Only Active
+          title: Exclude Stale
       - name: paused
         in: query
         required: false
@@ -7303,6 +7312,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/{rest_of_path}:
+    get:
+      summary: Not Found Handler
+      description: Catch all route to handle invalid endpoints.
+      operationId: not_found_handler
+      parameters:
+      - name: rest_of_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rest Of Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -7443,7 +7476,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra
         source_task_id:
@@ -7498,7 +7532,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra
         created_at:
@@ -7571,6 +7606,7 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
+          additionalProperties: true
           type: object
           title: Dag Run Conf
           default: {}
@@ -7606,6 +7642,7 @@ components:
           format: date-time
           title: To Date
         dag_run_conf:
+          additionalProperties: true
           type: object
           title: Dag Run Conf
         is_paused:
@@ -7705,6 +7742,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
@@ -7750,6 +7789,7 @@ components:
           default: []
         errors:
           items:
+            additionalProperties: true
             type: object
           type: array
           title: Errors
@@ -8187,8 +8227,14 @@ components:
           type: string
           title: Test Connection
         state_color_mapping:
+          additionalProperties: true
           type: object
           title: State Color Mapping
+        dashboard_alert:
+          items:
+            $ref: '#/components/schemas/UIAlert'
+          type: array
+          title: Dashboard Alert
       type: object
       required:
       - navbar_color
@@ -8210,6 +8256,7 @@ components:
       - audit_view_included_events
       - test_connection
       - state_color_mapping
+      - dashboard_alert
       title: ConfigResponse
       description: configuration serializer.
     ConfigSection:
@@ -8346,7 +8393,8 @@ components:
           - type: 'null'
         extra_fields:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Extra Fields
       type: object
@@ -8441,6 +8489,7 @@ components:
           type: integer
           title: Asset Id
         extra:
+          additionalProperties: true
           type: object
           title: Extra
       additionalProperties: false
@@ -8476,9 +8525,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8491,6 +8540,16 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        relative_fileloc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Relative Fileloc
         fileloc:
           type: string
           title: Fileloc
@@ -8571,7 +8630,8 @@ components:
           title: Dag Run Timeout
         asset_expression:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Asset Expression
         doc_md:
@@ -8598,7 +8658,8 @@ components:
           title: Is Paused Upon Creation
         params:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Params
         render_template_as_native_obj:
@@ -8643,9 +8704,11 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
+      - bundle_name
+      - relative_fileloc
       - fileloc
       - description
       - timetable_summary
@@ -8700,9 +8763,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -8715,6 +8778,16 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        relative_fileloc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Relative Fileloc
         fileloc:
           type: string
           title: Fileloc
@@ -8794,9 +8867,11 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
+      - bundle_name
+      - relative_fileloc
       - fileloc
       - description
       - timetable_summary
@@ -8928,8 +9003,11 @@ components:
         state:
           $ref: '#/components/schemas/DagRunState'
         triggered_by:
-          $ref: '#/components/schemas/DagRunTriggeredByType'
+          anyOf:
+          - $ref: '#/components/schemas/DagRunTriggeredByType'
+          - type: 'null'
         conf:
+          additionalProperties: true
           type: object
           title: Conf
         note:
@@ -9210,9 +9288,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
-        is_active:
+        is_stale:
           type: boolean
-          title: Is Active
+          title: Is Stale
         last_parsed_time:
           anyOf:
           - type: string
@@ -9225,6 +9303,16 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        relative_fileloc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Relative Fileloc
         fileloc:
           type: string
           title: Fileloc
@@ -9296,7 +9384,8 @@ components:
           title: Owners
         asset_expression:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Asset Expression
         latest_dag_runs:
@@ -9314,9 +9403,11 @@ components:
       - dag_id
       - dag_display_name
       - is_paused
-      - is_active
+      - is_stale
       - last_parsed_time
       - last_expired
+      - bundle_name
+      - relative_fileloc
       - fileloc
       - description
       - timetable_summary
@@ -9726,6 +9817,19 @@ components:
       type: object
       title: ExtraLinksResponse
       description: Extra Links Response.
+    ExtraMenuItem:
+      properties:
+        text:
+          type: string
+          title: Text
+        href:
+          type: string
+          title: Href
+      type: object
+      required:
+      - text
+      - href
+      title: ExtraMenuItem
     FastAPIAppResponse:
       properties:
         app:
@@ -9745,6 +9849,21 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
+    FastAPIRootMiddlewareResponse:
+      properties:
+        middleware:
+          type: string
+          title: Middleware
+        name:
+          type: string
+          title: Name
+      additionalProperties: true
+      type: object
+      required:
+      - middleware
+      - name
+      title: FastAPIRootMiddlewareResponse
+      description: Serializer for Plugin FastAPI root middleware responses.
     GridDAGRunwithTIs:
       properties:
         dag_run_id:
@@ -9794,11 +9913,6 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
-        version_number:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Version Number
         note:
           anyOf:
           - type: string
@@ -9821,7 +9935,6 @@ components:
       - logical_date
       - data_interval_start
       - data_interval_end
-      - version_number
       - note
       - task_instances
       title: GridDAGRunwithTIs
@@ -9833,9 +9946,12 @@ components:
             $ref: '#/components/schemas/GridDAGRunwithTIs'
           type: array
           title: Dag Runs
+        structure:
+          $ref: '#/components/schemas/StructureDataResponse'
       type: object
       required:
       - dag_runs
+      - structure
       title: GridResponse
       description: Response model for the Grid UI.
     GridTaskInstanceSummary:
@@ -9901,7 +10017,8 @@ components:
         detail:
           anyOf:
           - type: string
-          - type: object
+          - additionalProperties: true
+            type: object
           title: Detail
       type: object
       required:
@@ -9980,7 +10097,9 @@ components:
           type: string
           title: Filename
         bundle_name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Bundle Name
         stack_trace:
           type: string
@@ -10078,33 +10197,37 @@ components:
       title: JobResponse
       description: Job serializer for responses.
     MenuItem:
-      properties:
-        text:
-          type: string
-          title: Text
-        href:
-          type: string
-          title: Href
-      type: object
-      required:
-      - text
-      - href
+      type: string
+      enum:
+      - Assets
+      - Audit Log
+      - Config
+      - Connections
+      - Dags
+      - Docs
+      - Plugins
+      - Pools
+      - Providers
+      - Variables
+      - XComs
       title: MenuItem
-      description: Menu Item for responses.
+      description: Define all menu items defined in the menu.
     MenuItemCollectionResponse:
       properties:
-        menu_items:
+        authorized_menu_items:
           items:
             $ref: '#/components/schemas/MenuItem'
           type: array
-          title: Menu Items
-        total_entries:
-          type: integer
-          title: Total Entries
+          title: Authorized Menu Items
+        extra_menu_items:
+          items:
+            $ref: '#/components/schemas/ExtraMenuItem'
+          type: array
+          title: Extra Menu Items
       type: object
       required:
-      - menu_items
-      - total_entries
+      - authorized_menu_items
+      - extra_menu_items
       title: MenuItemCollectionResponse
       description: Menu Item Collection serializer for responses.
     NodeResponse:
@@ -10123,6 +10246,8 @@ components:
           - asset-condition
           - asset
           - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
           - dag
           - sensor
           - trigger
@@ -10240,6 +10365,11 @@ components:
             $ref: '#/components/schemas/FastAPIAppResponse'
           type: array
           title: Fastapi Apps
+        fastapi_root_middlewares:
+          items:
+            $ref: '#/components/schemas/FastAPIRootMiddlewareResponse'
+          type: array
+          title: Fastapi Root Middlewares
         appbuilder_views:
           items:
             $ref: '#/components/schemas/AppBuilderViewResponse'
@@ -10279,6 +10409,7 @@ components:
       - macros
       - flask_blueprints
       - fastapi_apps
+      - fastapi_root_middlewares
       - appbuilder_views
       - appbuilder_menu_items
       - global_operator_extra_links
@@ -10900,6 +11031,7 @@ components:
           - type: 'null'
           title: Rendered Map Index
         rendered_fields:
+          additionalProperties: true
           type: object
           title: Rendered Fields
         trigger:
@@ -11321,12 +11453,14 @@ components:
           title: Operator Name
         params:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Params
         class_ref:
           anyOf:
-          - type: object
+          - additionalProperties: true
+            type: object
           - type: 'null'
           title: Class Ref
         is_mapped:
@@ -11426,6 +11560,7 @@ components:
           - type: 'null'
           title: Run After
         conf:
+          additionalProperties: true
           type: object
           title: Conf
         note:
@@ -11486,6 +11621,24 @@ components:
       - latest_triggerer_heartbeat
       title: TriggererInfoResponse
       description: Triggerer info serializer for responses.
+    UIAlert:
+      properties:
+        text:
+          type: string
+          title: Text
+        category:
+          type: string
+          enum:
+          - info
+          - warning
+          - error
+          title: Category
+      type: object
+      required:
+      - text
+      - category
+      title: UIAlert
+      description: Optional alert to be shown at the top of the page.
     ValidationError:
       properties:
         loc:
@@ -11758,7 +11911,15 @@ components:
   securitySchemes:
     OAuth2PasswordBearer:
       type: oauth2
+      description: To authenticate Airflow API requests, clients must include a JWT
+        (JSON Web Token) in the Authorization header of each request. This token is
+        used to verify the identity of the client and ensure that they have the appropriate
+        permissions to access the requested resources. You can use the endpoint ``POST
+        /auth/token`` in order to generate a JWT token. Upon successful authentication,
+        the server will issue a JWT token that contains the necessary information
+        (such as user identity and scope) to authenticate subsequent requests. To
+        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
       flows:
         password:
           scopes: {}
-          tokenUrl: token
+          tokenUrl: /auth/token

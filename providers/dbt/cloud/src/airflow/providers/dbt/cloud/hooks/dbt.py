@@ -166,7 +166,7 @@ def provide_account_id(func: T) -> T:
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return cast("T", wrapper)
 
 
 class DbtCloudHook(HttpHook):
@@ -569,8 +569,7 @@ class DbtCloudHook(HttpHook):
 
         if cause is not None and len(cause) > DBT_CAUSE_MAX_LENGTH:
             warnings.warn(
-                f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
-                f" characters and will be truncated.",
+                f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH} characters and will be truncated.",
                 UserWarning,
                 stacklevel=2,
             )

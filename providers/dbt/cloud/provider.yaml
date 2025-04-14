@@ -22,9 +22,11 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 state: ready
-source-date-epoch: 1741508729
+source-date-epoch: 1743836022
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.3.2
+  - 4.3.1
   - 4.2.1
   - 4.2.0
   - 4.0.0

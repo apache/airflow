@@ -143,11 +143,12 @@ github:
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
+    # Procedure for adding new member is listed in
+    # https://github.com/apache/airflow/blob/main/ISSUE_TRIAGE_PROCESS.rst#L97
     - aritra24
     - omkar-foss
     - nathadfield
     - sunank200
-    - vatsrahul1001
     - cmarteepants
     - karenbraganz
     - gyli
@@ -158,6 +159,3 @@ notifications:
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org
   discussions: commits@airflow.apache.org
-
-meta:
-  prevgen: true

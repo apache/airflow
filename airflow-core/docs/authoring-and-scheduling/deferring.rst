@@ -67,7 +67,7 @@ When writing a deferrable operators these are the main points to consider:
     from typing import Any
 
     from airflow.configuration import conf
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
     from airflow.utils.context import Context
 
@@ -147,6 +147,7 @@ There's some design constraints to be aware of when writing your own trigger:
 * If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is running in multiple places. If you only fire one event and don't need to pass information back to the operator, you can just set the payload to ``None``.
 * A trigger can suddenly be removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
 * In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
+* Your trigger must not come from a dag bundle - anywhere else on ``sys.path`` is fine. The triggerer does not initialize any bundles when running a trigger.
 
 .. note::
 
@@ -176,7 +177,7 @@ Here's a basic example of how a sensor might trigger deferral:
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
     if TYPE_CHECKING:
@@ -198,13 +199,74 @@ When your operator resumes, Airflow adds a ``context`` object and an ``event`` o
 
 If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
 
-You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
-
 Let's take a deeper look into the ``WaitOneHourSensor`` example above. This sensor is just a thin wrapper around the trigger. It defers to the trigger, and specifies a different method to come back to when the trigger fires.  When it returns immediately, it marks the sensor as successful.
 
 The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work anywhere inside your operator's code, even when nested many calls deep inside ``execute()``. You can also raise ``TaskDeferred`` manually, which uses the same arguments as ``self.defer``.
 
 ``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
+
+Deferring multiple times
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Imagine a scenario where you would like your operator to iterate over a list of items that could vary in length, and defer processing of each item.
+
+For example, submitting multiple queries to a database, or processing multiple files.
+
+You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
+
+Below is an outline of how you can achieve this.
+
+.. code-block:: python
+
+    import asyncio
+
+    from airflow.sdk import BaseOperator
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+
+    class MyItemTrigger(BaseTrigger):
+        def __init__(self, item):
+            super().__init__()
+            self.item = item
+
+        def serialize(self):
+            return (self.__class__.__module__ + "." + self.__class__.__name__, {"item": self.item})
+
+        async def run(self):
+            result = None
+            try:
+                # Somehow process the item to calculate the result
+                ...
+                yield TriggerEvent({"result": result})
+            except Exception as e:
+                yield TriggerEvent({"error": str(e)})
+
+
+    class MyItemsOperator(BaseOperator):
+        def __init__(self, items, **kwargs):
+            super().__init__(**kwargs)
+            self.items = items
+
+        def execute(self, context, current_item_index=0, event=None):
+            last_result = None
+            if event is not None:
+                # execute method was deferred
+                if "error" in event:
+                    raise Exception(event["error"])
+                last_result = event["result"]
+                current_item_index += 1
+
+            try:
+                current_item = self.items[current_item_index]
+            except IndexError:
+                return last_result
+
+            self.defer(
+                trigger=MyItemTrigger(item),
+                method_name="execute",  # The trigger will call this same method again
+                kwargs={"current_item_index": current_item_index},
+            )
+
 
 Triggering Deferral from Task Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -228,7 +290,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -259,7 +321,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -286,7 +348,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
             return
 
 
-The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (fallbacks to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage.
+The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (with a fallback to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage.
 
 After the trigger has finished executing, the task may be sent back to the worker to execute the ``next_method``, or the task instance may end directly. (Refer to :ref:`Exiting deferred task from Triggers<deferring/exiting_from_trigger>`) If the task is sent back to the worker, the arguments in the ``__init__`` method will still take effect before the ``next_method`` is executed, but they will not affect the execution of the trigger.
 
@@ -298,7 +360,7 @@ After the trigger has finished executing, the task may be sent back to the worke
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:

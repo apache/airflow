@@ -23,7 +23,7 @@ import logging
 import zlib
 from collections.abc import Iterable, Iterator, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -45,7 +45,7 @@ from airflow.models.dagrun import DagRun
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
+from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import Operator
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
@@ -174,51 +174,36 @@ class _DagDependenciesResolver:
         dep_data["dependency_id"] = str(self.asset_key_to_id[unique_key])
         return DagDependency(**dep_data)
 
-    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Sequence[DagDependency]:
-        dep_id = dep_data["dependency_id"]
-        is_source_ref = dep_data["source"] == "asest-name-ref"
-        asset_id, asset_name = self.asset_ref_name_to_asset_id_name[dep_id]
-        return [
-            # asset
-            DagDependency(
-                source="asset" if is_source_ref else f"asset-name-ref:{dep_id}",
-                target=f"asset-name-ref:{dep_id}" if is_source_ref else "asset",
-                label=asset_name,
-                dependency_type="asset",
-                dependency_id=str(asset_id),
-            ),
-            # asset ref
-            DagDependency(
-                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
-                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
-                label=dep_id,
-                dependency_type="asset-name-ref",
-                dependency_id=dep_id,
-            ),
-        ]
+    def resolve_asset_ref_dag_dep(
+        self, dep_data: dict, ref_type: Literal["asset-name-ref", "asset-uri-ref"]
+    ) -> Iterator[DagDependency]:
+        if ref_type == "asset-name-ref":
+            ref_to_asset_id_name = self.asset_ref_name_to_asset_id_name
+        elif ref_type == "asset-uri-ref":
+            ref_to_asset_id_name = self.asset_ref_uri_to_asset_id_name
+        else:
+            raise ValueError(
+                f"ref_type {ref_type} is invalid. It should be either asset-name-ref or asset-uri-ref"
+            )
 
-    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Sequence[DagDependency]:
         dep_id = dep_data["dependency_id"]
-        is_source_ref = dep_data["source"] == "asest-uri-ref"
-        asset_id, asset_name = self.asset_ref_uri_to_asset_id_name[dep_id]
-        return [
-            # asset
-            DagDependency(
-                source="asset" if is_source_ref else f"asset-uri-ref:{dep_id}",
-                target=f"asset-uri-ref:{dep_id}" if is_source_ref else "asset",
+        is_source_ref = dep_data["source"] == ref_type
+        if dep_id in ref_to_asset_id_name:
+            # The asset ref can be resolved into a valid asset
+            asset_id, asset_name = ref_to_asset_id_name[dep_id]
+            yield DagDependency(
+                source="asset" if is_source_ref else dep_data["source"],
+                target=dep_data["target"] if is_source_ref else "asset",
                 label=asset_name,
                 dependency_type="asset",
                 dependency_id=str(asset_id),
-            ),
-            # asset ref
-            DagDependency(
-                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
-                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
-                label=dep_id,
-                dependency_type="asset-uri-ref",
-                dependency_id=dep_id,
-            ),
-        ]
+            )
+
+    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
+        return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
+
+    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
+        return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-uri-ref")
 
     def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         dep_id = dep_data["dependency_id"]
@@ -289,14 +274,17 @@ class SerializedDagModel(Base):
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
     dag_version_id = Column(
-        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
     dag_version = relationship("DagVersion", back_populates="serialized_dag")
 
     load_op_links = True
 
     def __init__(self, dag: DAG | LazyDeserializedDAG) -> None:
-        from airflow.models.dag import DAG
+        from airflow.sdk import DAG
 
         self.dag_id = dag.dag_id
         dag_data = {}
@@ -380,10 +368,12 @@ class SerializedDagModel(Base):
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
             if session.scalar(
-                select(literal(True)).where(
+                select(literal(True))
+                .where(
                     cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                 )
+                .select_from(cls)
             ):
                 return False
 
@@ -556,32 +546,6 @@ class SerializedDagModel(Base):
         """
         return session.scalar(cls.latest_item_select_object(dag_id))
 
-    @staticmethod
-    @provide_session
-    def bulk_sync_to_db(
-        dags: list[DAG] | list[LazyDeserializedDAG],
-        bundle_name: str,
-        bundle_version: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Save DAGs as Serialized DAG objects in the database.
-
-        Each DAG is saved in a separate database query.
-
-        :param dags: the DAG objects to save to the DB
-        :param session: ORM Session
-        :return: None
-        """
-        for dag in dags:
-            SerializedDagModel.write_dag(
-                dag=dag,
-                bundle_name=bundle_name,
-                bundle_version=bundle_version,
-                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                session=session,
-            )
-
     @classmethod
     @provide_session
     def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
@@ -649,36 +613,43 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
+        load_json: Callable | None
+        if COMPRESS_SERIALIZED_DAGS is False:
+            if session.bind.dialect.name in ["sqlite", "mysql"]:
+                data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
+
+                def load_json(deps_data):
+                    return json.loads(deps_data) if deps_data else []
+            else:
+                data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
+                load_json = None
+        else:
+            data_col_to_select = cls._data_compressed
+
+            def load_json(deps_data):
+                return json.loads(zlib.decompress(deps_data))["dag"]["dag_dependencies"] if deps_data else []
+
         latest_sdag_subquery = (
             select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
         )
-        if session.bind.dialect.name in ["sqlite", "mysql"]:
-            query = session.execute(
-                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
-                .join(
-                    latest_sdag_subquery,
-                    (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    & (cls.created_at == latest_sdag_subquery.c.max_created),
-                )
-                .join(cls.dag_model)
-                .where(DagModel.is_active)
+        query = session.execute(
+            select(cls.dag_id, data_col_to_select)
+            .join(
+                latest_sdag_subquery,
+                (cls.dag_id == latest_sdag_subquery.c.dag_id)
+                & (cls.created_at == latest_sdag_subquery.c.max_created),
             )
-            iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
-        else:
-            iterator = session.execute(
-                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
-                .join(
-                    latest_sdag_subquery,
-                    (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    & (cls.created_at == latest_sdag_subquery.c.max_created),
-                )
-                .join(cls.dag_model)
-                .where(DagModel.is_active)
-            ).all()
+            .join(cls.dag_model)
+            .where(~DagModel.is_stale)
+        )
+        iterator = (
+            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
+            if load_json is not None
+            else query.all()
+        )
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
-
         return dag_depdendencies_by_dag
 
     @staticmethod

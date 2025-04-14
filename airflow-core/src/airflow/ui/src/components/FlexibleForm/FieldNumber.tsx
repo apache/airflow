@@ -51,8 +51,7 @@ export const FieldNumber = ({ name }: FlexibleFormElementProps) => {
       name={`element_${name}`}
       onValueChange={(event) => handleChange(event.value)}
       size="sm"
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      value={String(param.value ?? "")}
+      value={(param.value ?? "") as string}
     >
       <NumberInputField />
     </NumberInputRoot>

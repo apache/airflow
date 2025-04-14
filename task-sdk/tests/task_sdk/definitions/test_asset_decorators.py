@@ -26,16 +26,24 @@ from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
 
 
 @pytest.fixture
-def example_asset_func(request):
-    name = "example_asset_func"
-    if getattr(request, "param", None) is not None:
-        name = request.param
+def func_fixer(request):
+    name = getattr(request, "param", None) or "example_asset_func"
 
+    def fixer(f):
+        """Pretend 'f' is not nested."""
+        f.__name__ = f.__qualname__ = name
+        return f
+
+    fixer.fixed_name = name
+    return fixer
+
+
+@pytest.fixture
+def example_asset_func(func_fixer):
+    @func_fixer
     def _example_asset_func():
         return "This is example_asset"
 
-    _example_asset_func.__name__ = name
-    _example_asset_func.__qualname__ = name
     return _example_asset_func
 
 
@@ -47,17 +55,17 @@ def example_asset_definition(example_asset_func):
 
 
 @pytest.fixture
-def example_asset_func_with_valid_arg_as_inlet_asset():
+def example_asset_func_with_valid_arg_as_inlet_asset(func_fixer):
+    @func_fixer
     def _example_asset_func(self, context, inlet_asset_1, inlet_asset_2):
         return "This is example_asset"
 
-    _example_asset_func.__name__ = "example_asset_func"
-    _example_asset_func.__qualname__ = "example_asset_func"
     return _example_asset_func
 
 
 @pytest.fixture
-def example_asset_func_with_valid_arg_as_inlet_asset_and_default():
+def example_asset_func_with_valid_arg_as_inlet_asset_and_default(func_fixer):
+    @func_fixer
     def _example_asset_func(
         inlet_asset_1,
         inlet_asset_2="default overwrites valid asset name",
@@ -65,8 +73,6 @@ def example_asset_func_with_valid_arg_as_inlet_asset_and_default():
     ):
         return "This is example_asset"
 
-    _example_asset_func.__name__ = "example_asset_func"
-    _example_asset_func.__qualname__ = "example_asset_func"
     return _example_asset_func
 
 
@@ -113,12 +119,45 @@ class TestAssetDecorator:
 
         assert err.value.args[0] == "nested function not supported"
 
-    @pytest.mark.parametrize("example_asset_func", ("self", "context"), indirect=True)
-    def test_with_invalid_asset_name(self, example_asset_func):
+    @pytest.mark.parametrize("func_fixer", ("self", "context"), indirect=True)
+    def test_with_invalid_asset_name(self, func_fixer):
+        @func_fixer
+        def example_asset_func():
+            pass
+
         with pytest.raises(ValueError) as err:
             asset(schedule=None)(example_asset_func)
+        assert err.value.args[0] == f"prohibited name for asset: {func_fixer.fixed_name}"
 
-        assert err.value.args[0].startswith("prohibited name for asset: ")
+    def test_with_star(self, func_fixer):
+        @func_fixer
+        def example_asset_func(*args):
+            pass
+
+        with pytest.raises(TypeError) as err:
+            asset(schedule=None)(example_asset_func)
+        assert err.value.args[0] == "wildcard '*args' is not supported in @asset"
+
+    def test_with_starstar(self, func_fixer):
+        @func_fixer
+        def example_asset_func(**kwargs):
+            pass
+
+        with pytest.raises(TypeError) as err:
+            asset(schedule=None)(example_asset_func)
+        assert err.value.args[0] == "wildcard '**kwargs' is not supported in @asset"
+
+    def test_with_posonly(self, func_fixer):
+        @func_fixer
+        def example_asset_func(self, /):
+            pass
+
+        with pytest.raises(TypeError) as err:
+            asset(schedule=None)(example_asset_func)
+        assert (
+            err.value.args[0]
+            == "positional-only argument 'self' without a default is not supported in @asset"
+        )
 
     @pytest.mark.parametrize(
         "provided_uri, expected_uri",
@@ -160,7 +199,7 @@ class TestAssetMultiDecorator:
 
 class TestAssetDefinition:
     @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
-    @mock.patch("airflow.models.dag.DAG")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
     def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
@@ -186,7 +225,7 @@ class TestAssetDefinition:
 
 class TestMultiAssetDefinition:
     @mock.patch("airflow.sdk.definitions.asset.decorators._AssetMainOperator.from_definition")
-    @mock.patch("airflow.models.dag.DAG")
+    @mock.patch("airflow.sdk.definitions.dag.DAG")
     def test__attrs_post_init__(self, DAG, from_definition, example_asset_func_with_valid_arg_as_inlet_asset):
         definition = asset.multi(
             schedule=None,

@@ -23,6 +23,7 @@ import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import type { NodeResponse } from "openapi/requests/types.gen";
 
 export type TaskNameProps = {
+  readonly childCount?: number;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean;
   readonly isOpen?: boolean;
@@ -38,6 +39,7 @@ const iconStyle: CSSProperties = {
 };
 
 export const TaskName = ({
+  childCount,
   isGroup = false,
   isMapped = false,
   isOpen = false,
@@ -49,7 +51,15 @@ export const TaskName = ({
   // We don't have a task group details page to link to
   if (isGroup) {
     return (
-      <Text fontSize="md" fontWeight="bold" {...rest}>
+      <Text
+        fontSize="md"
+        fontWeight="bold"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        title={label}
+        whiteSpace="nowrap"
+        {...rest}
+      >
         {label}
         {isMapped ? " [ ]" : undefined}
       </Text>
@@ -57,9 +67,17 @@ export const TaskName = ({
   }
 
   return (
-    <Text fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
+    <Text
+      fontSize={isZoomedOut ? "lg" : "md"}
+      fontWeight="bold"
+      overflow="hidden"
+      textOverflow="ellipsis"
+      title={label}
+      whiteSpace="nowrap"
+      {...rest}
+    >
       {label}
-      {isMapped ? " [ ]" : undefined}
+      {isMapped ? ` [${childCount ?? " "}]` : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />

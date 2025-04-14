@@ -27,6 +27,44 @@
 Changelog
 ---------
 
+12.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``add message_id, reply_to, and message_headers to send message operator (#47522)``
+
+Misc
+~~~~
+
+* ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+* ``Updated msgraph-core and kiota libraries (#48589)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Revert "Remove Upper Pin package microsoft-kiota-abstractions (#48461)" (#48535)``
+   * ``Remove Upper Pin package microsoft-kiota-abstractions (#48461)``
+
+12.2.2
+......
+
+Misc
+~~~~
+
+* ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Remove default_view property from DAG class and model (#47616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 12.2.1
 ......
 

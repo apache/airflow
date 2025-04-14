@@ -40,10 +40,9 @@ import shutil
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from subprocess import CalledProcessError, CompletedProcess
 
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, OUT_PATH, REPRODUCIBLE_PATH
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
 
 def get_source_date_epoch(path: Path):
@@ -78,7 +77,7 @@ def setlocale(name: str):
 
 def repack_deterministically(
     source_archive: Path, dest_archive: Path, prepend_path=None, timestamp=0
-) -> CompletedProcess | CalledProcessError:
+) -> RunCommandResult:
     """Repack a .tar.gz archive in a deterministic (reproducible) manner.
 
     See https://reproducible-builds.org/docs/archives/ for more details."""
