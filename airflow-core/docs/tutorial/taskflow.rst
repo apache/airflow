@@ -88,6 +88,11 @@ The function's return value is passed to the next task — no manual use of ``XC
 uses ``XComs`` to manage data passing automatically, abstracting away the complexity of manual XCom management from the
 previous methods. You'll define ``transform`` and ``load`` tasks using the same pattern.
 
+Notice the use of ``@task(multiple_outputs=True)`` above — this tells Airflow that the function returns a dictionary of
+values that should be split into individual XComs. Each key in the returned dictionary becomes its own XCom entry, which
+makes it easy to reference specific values in downstream tasks. If you omit ``multiple_outputs=True``, the entire
+dictionary is stored as a single XCom instead, and must be accessed as a whole.
+
 Step 3: Build the Flow
 ----------------------
 
