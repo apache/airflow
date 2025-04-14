@@ -89,6 +89,8 @@ def find_min_provider_version(provider_id: str) -> Version | None:
     if not metadata:
         return None
     # We should periodically update the starting date to avoid pip install resolution issues
+    # TODO: when min Python version is 3.11 change back the code to fromisoformat
+    # https://github.com/apache/airflow/pull/49155/files
     cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc
     )
