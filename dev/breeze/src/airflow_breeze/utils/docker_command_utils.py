@@ -836,12 +836,11 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    else:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
-        return command_result
+    get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+    if get_verbose():
+        get_console().print(command_result.stderr)
+    notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
+    return command_result
 
 
 def notify_on_unhealthy_backend_container(project_name: str, backend: str, output: Output | None = None):

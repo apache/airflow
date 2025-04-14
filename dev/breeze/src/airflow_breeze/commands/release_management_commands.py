@@ -914,6 +914,11 @@ def provider_action_summary(description: str, message_type: MessageType, package
     is_flag=True,
     help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
 )
+@click.option(
+    "--skip-readme",
+    is_flag=True,
+    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -926,6 +931,7 @@ def prepare_provider_documentation(
     reapply_templates_only: bool,
     skip_git_fetch: bool,
     skip_changelog: bool,
+    skip_readme: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -982,6 +988,7 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    skip_readme=skip_readme,
                 )
             if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
@@ -2918,9 +2925,8 @@ def modify_single_file_constraints(
             constraints_file.write_text(constraint_content)
         get_console().print("[success]Updated.[/]")
         return True
-    else:
-        get_console().print("[warning]The file has not been modified.[/]")
-        return False
+    get_console().print("[warning]The file has not been modified.[/]")
+    return False
 
 
 def modify_all_constraint_files(
@@ -2952,10 +2958,9 @@ def confirm_modifications(constraints_repo: Path) -> bool:
     confirm = user_confirm("Do you want to continue?")
     if confirm == Answer.YES:
         return True
-    elif confirm == Answer.NO:
+    if confirm == Answer.NO:
         return False
-    else:
-        sys.exit(1)
+    sys.exit(1)
 
 
 def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:

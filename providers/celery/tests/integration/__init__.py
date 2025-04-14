@@ -15,27 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
-
-from cadwyn import VersionChange, endpoint, schema
-
-from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams
-
-
-class RemoveTIRuntimeChecksEndpoint(VersionChange):
-    """Remove the runtime-check endpoint as it does nothing anymore."""
-
-    description = __doc__
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/task-instances/{task_instance_id}/runtime-checks", ["POST"]).existed,
-    )
-
-
-class AddIncludePriorDatesParam(VersionChange):
-    """Add the `include_prior_dates` query parameter to the GET XCom API."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(GetXcomFilterParams).field("include_prior_dates").didnt_exist,
-    )
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore

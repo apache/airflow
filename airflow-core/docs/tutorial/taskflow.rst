@@ -268,7 +268,7 @@ run your function.
 
 Example (dynamically created virtualenv):
 
-.. exampleinclude:: /../src/airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_python_venv]
@@ -286,7 +286,7 @@ made available in all workers that can execute the tasks in the same location.
 
 Example with ``@task.external_python`` (using immutable, pre-existing virtualenv):
 
-.. exampleinclude:: /../src/airflow/example_dags/example_python_operator.py
+.. exampleinclude:: /../src/airflow/example_dags/example_python_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_python]

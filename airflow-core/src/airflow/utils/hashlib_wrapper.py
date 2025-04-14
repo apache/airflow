@@ -24,11 +24,11 @@ if TYPE_CHECKING:
     from _typeshed import ReadableBuffer
 
 
-def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
+def md5(string: ReadableBuffer = b"", /) -> hashlib._Hash:
     """
     Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
 
-    :param __string: The data to hash. Default to empty str byte.
+    :param string: The data to hash. Default to empty str byte.
     :return: The hashed value.
     """
-    return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
+    return hashlib.md5(string, usedforsecurity=False)  # type: ignore

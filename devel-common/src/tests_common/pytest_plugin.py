@@ -563,11 +563,9 @@ def skip_db_test(item):
         if next(item.iter_markers(name="non_db_test_override"), None):
             # non_db_test can override the db_test set for example on module or class level
             return
-        else:
-            pytest.skip(
-                f"The test is skipped as it is DB test "
-                f"and --skip-db-tests is flag is passed to pytest. {item}"
-            )
+        pytest.skip(
+            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
+        )
     if next(item.iter_markers(name="backend"), None):
         # also automatically skip tests marked with `backend` marker as they are implicitly
         # db tests
@@ -582,14 +580,13 @@ def only_run_db_test(item):
     ):
         # non_db_test at individual level can override the db_test set for example on module or class level
         return
-    else:
-        if next(item.iter_markers(name="backend"), None):
-            # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-            return
-        pytest.skip(
-            f"The test is skipped as it is not a DB tests "
-            f"and --run-db-tests-only flag is passed to pytest. {item}"
-        )
+    if next(item.iter_markers(name="backend"), None):
+        # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
+        return
+    pytest.skip(
+        f"The test is skipped as it is not a DB tests "
+        f"and --run-db-tests-only flag is passed to pytest. {item}"
+    )
 
 
 def skip_if_integration_disabled(marker, item):
@@ -995,10 +992,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs.setdefault("dag_version", None)
                 kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
-                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 

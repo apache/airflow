@@ -16,6 +16,8 @@
 # under the License.
 """Serialized DAG and BaseOperator."""
 
+# TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
+# ruff: noqa: RET505
 from __future__ import annotations
 
 import collections.abc
@@ -1394,7 +1396,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
-            elif k == "downstream_task_ids":
+            if k == "downstream_task_ids":
                 v = set(v)
             elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
                 # If operator's execution_timeout is None and core.default_task_execution_timeout is not None,
@@ -1976,6 +1978,14 @@ class LazyDeserializedDAG(pydantic.BaseModel):
             set(filter(None, (task[Encoding.VAR].get("owner") for task in self.data["dag"]["tasks"])))
         )
 
+    @staticmethod
+    def _get_mapped_operator_ports(task: dict, direction: str):
+        return task["partial_kwargs"][direction]
+
+    @staticmethod
+    def _get_base_operator_ports(task: dict, direction: str):
+        return task[direction]
+
     def get_task_assets(
         self,
         inlets: bool = True,
@@ -1984,13 +1994,18 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.data["dag"]["tasks"]:
             task = task[Encoding.VAR]
+            if task.get("_is_mapped"):
+                ports_getter = self._get_mapped_operator_ports
+            else:
+                ports_getter = self._get_base_operator_ports
             directions = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
-                if not (ports := task.get(direction)):
+                try:
+                    ports = ports_getter(task, direction)
+                except KeyError:
                     continue
-
                 for port in ports:
                     obj = BaseSerialization.deserialize(port)
                     if isinstance(obj, of_type):

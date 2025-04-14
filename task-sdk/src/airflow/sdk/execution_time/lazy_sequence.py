@@ -97,7 +97,7 @@ class LazyXComSequence(Sequence[T]):
             msg = SUPERVISOR_COMMS.get_message()
             if isinstance(msg, ErrorResponse):
                 raise RuntimeError(msg)
-            elif not isinstance(msg, XComCountResponse):
+            if not isinstance(msg, XComCountResponse):
                 raise TypeError(f"Got unexpected response to GetXComCount: {msg}")
             self._len = msg.len
         return self._len
@@ -112,11 +112,10 @@ class LazyXComSequence(Sequence[T]):
         if isinstance(key, int):
             if key >= 0:
                 return self._get_item(key)
-            else:
-                # val[-1] etc.
-                return self._get_item(len(self) + key)
+            # val[-1] etc.
+            return self._get_item(len(self) + key)
 
-        elif isinstance(key, slice):
+        if isinstance(key, slice):
             # This implements the slicing syntax. We want to optimize negative slicing (e.g. seq[-10:]) by not
             # doing an additional COUNT query (via HEAD http request) if possible. We can do this unless the
             # start and stop have different signs (i.e. one is positive and another negative).

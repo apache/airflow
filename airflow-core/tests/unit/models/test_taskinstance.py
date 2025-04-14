@@ -4719,25 +4719,25 @@ class TestMappedTaskInstanceReceiveValue:
     def test_map_has_dag_version(self, dag_maker, session):
         from airflow.models.dag_version import DagVersion
 
-        known_versions = {}
+        known_versions = []
 
         with dag_maker(dag_id="test", session=session) as dag:
 
             @dag.task
             def show(value, *, ti):
-                known_versions[ti.map_index] = ti.dag_version_id
+                # let's record the dag version ids we observe on the tis
+                known_versions.append(ti.dag_version_id)
 
             show.expand(value=[1, 2, 3])
-
+        # ensure that there is a dag_version record in the db
         dag_version = session.merge(DagVersion(dag_id="test", bundle_name="test"))
-
-        dag_maker.create_dagrun(dag_version=dag_version)
+        dag_maker.create_dagrun()
         task = dag.get_task("show")
         for ti in session.scalars(select(TI)):
             ti.refresh_from_task(task)
             ti.run()
-
-        assert known_versions == {0: dag_version.id, 1: dag_version.id, 2: dag_version.id}
+        # verify that we only saw the dag version we created
+        assert known_versions == [dag_version.id] * 3
 
     @pytest.mark.parametrize(
         "upstream_return, expected_outputs",
@@ -4861,22 +4861,21 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
         ]
-    elif backend == "postgres":
+    if backend == "postgres":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
         ]
-    elif backend == "sqlite":
+    if backend == "sqlite":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
         ]
-    else:
-        raise RuntimeError(f"unknown backend {backend!r}")
+    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):

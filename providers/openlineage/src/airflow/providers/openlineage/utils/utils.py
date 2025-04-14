@@ -54,7 +54,9 @@ from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AI
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 try:
     from airflow.sdk import BaseOperator as SdkBaseOperator
@@ -195,40 +197,41 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkB
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
+    if isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
         return is_task_lineage_enabled(obj)
-    else:
-        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
+    raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
-@provide_session
-def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-    from sqlalchemy import exists
+if not AIRFLOW_V_3_0_PLUS:
 
-    if not isinstance(ti.task, BaseSensorOperator):
-        return False
+    @provide_session
+    def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+        from sqlalchemy import exists
 
-    if not ti.task.reschedule:
-        return False
-    if AIRFLOW_V_3_0_PLUS:
+        if not isinstance(ti.task, BaseSensorOperator):
+            return False
+
+        if not ti.task.reschedule:
+            return False
+        if AIRFLOW_V_3_0_PLUS:
+            return (
+                session.query(
+                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+                ).scalar()
+                is True
+            )
         return (
             session.query(
-                exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+                exists().where(
+                    TaskReschedule.dag_id == ti.dag_id,
+                    TaskReschedule.task_id == ti.task_id,
+                    TaskReschedule.run_id == ti.run_id,
+                    TaskReschedule.map_index == ti.map_index,
+                    TaskReschedule.try_number == ti.try_number,
+                )
             ).scalar()
             is True
         )
-    return (
-        session.query(
-            exists().where(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti.task_id,
-                TaskReschedule.run_id == ti.run_id,
-                TaskReschedule.map_index == ti.map_index,
-                TaskReschedule.try_number == ti.try_number,
-            )
-        ).scalar()
-        is True
-    )
 
 
 class InfoJsonEncodable(dict):
@@ -714,7 +717,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                if is_json_serializable(item) and hasattr(item, "__dict__"):
                     for dict_key, subval in item.__dict__.items():
                         if type(subval).__name__ == "Proxy":
                             return "<<non-redactable: Proxy>>"
@@ -730,8 +733,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                else:
-                    return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item

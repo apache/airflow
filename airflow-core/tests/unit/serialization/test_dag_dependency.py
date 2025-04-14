@@ -14,21 +14,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+import pytest
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TIRunContext
+from airflow.serialization.dag_dependency import DagDependency
 
 
-class AddConsumedAssetEventsField(VersionChange):
-    """Add the `consumed_asset_events` to DagRun model."""
+class TestDagDependency:
+    @pytest.mark.parametrize("dep_type", ("asset", "asset-alias", "asset-name-ref", "asset-uri-ref"))
+    def test_node_id_with_asset(self, dep_type):
+        dag_dep = DagDependency(
+            source=dep_type,
+            target="target",
+            label="label",
+            dependency_type=dep_type,
+            dependency_id="id",
+        )
+        assert dag_dep.node_id == f"{dep_type}:id"
 
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("consumed_asset_events").didnt_exist,)
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore
-    def remove_consumed_asset_events(response: ResponseInfo):  # type: ignore
-        response.body["dag_run"].pop("consumed_asset_events")
+    def test_node_id(self):
+        dag_dep = DagDependency(
+            source="source",
+            target="target",
+            label="label",
+            dependency_type="trigger",
+            dependency_id="id",
+        )
+        assert dag_dep.node_id == "trigger:source:target:id"

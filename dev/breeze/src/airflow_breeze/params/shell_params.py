@@ -386,13 +386,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
@@ -699,12 +699,11 @@ class ShellParams:
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
                 get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))

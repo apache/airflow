@@ -40,7 +40,7 @@ export const AssetSchedule = ({ dag }: Props) => {
       return true;
     }
     if (ev.lastUpdate !== null && dag.latest_dag_runs[0]?.run_after !== undefined) {
-      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0]?.run_after);
+      return dayjs(ev.lastUpdate).isAfter(dag.latest_dag_runs[0].run_after);
     }
 
     return false;
@@ -53,7 +53,11 @@ export const AssetSchedule = ({ dag }: Props) => {
         <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {nextRunEvents.length === 1 ? (
-            ((nextRun?.asset_expression as { all: Array<AssetResponse> }).all[0]?.name ??
+            ((nextRun?.asset_expression as { all: Array<{ asset: AssetResponse }> | undefined }).all?.at(0)
+              ?.asset.name ??
+            (nextRun?.asset_expression as { any: Array<{ asset: AssetResponse }> | undefined }).any?.at(0)
+              ?.asset.name ??
+            (nextRun?.asset_expression as { asset: AssetResponse | undefined }).asset?.name ??
             nextRunEvents[0]?.uri)
           ) : (
             <>

@@ -341,8 +341,7 @@ class FileTaskHandler(logging.Handler):
                 logical_date=date,
                 try_number=try_number,
             )
-        else:
-            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _get_executor_get_task_log(
         self, ti: TaskInstance

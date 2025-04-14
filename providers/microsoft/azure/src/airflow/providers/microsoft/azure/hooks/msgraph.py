@@ -89,7 +89,7 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
-            elif status_code == HTTPStatus.NOT_FOUND:
+            if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
         return value
