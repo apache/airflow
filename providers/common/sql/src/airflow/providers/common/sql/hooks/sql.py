@@ -379,6 +379,41 @@ class DbApiHook(BaseHook):
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
 
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
+        """
+        Execute the sql and returns a pandas dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        return self._get_pandas_df(sql, parameters, **kwargs)
+
+    @deprecated(
+        reason="Replaced by function `get_df_by_chunks`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
+        return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+
     def get_df(
         self,
         sql,
@@ -424,53 +459,6 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        **kwargs,
-    ) -> DataFrame:
-        """
-        Execute the sql and returns a pandas dataframe.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        return self._get_pandas_df(sql, parameters, **kwargs)
-
-    def get_pandas_df_by_chunks(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        **kwargs,
-    ) -> Generator[DataFrame, None, None]:
-        """
-        Execute the sql and return a generator.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with
-        :param chunksize: number of rows to include in each chunk
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        try:
-            from pandas.io import sql as psql
-        except ImportError:
-            raise AirflowOptionalProviderFeatureException(
-                "pandas library not installed, run: pip install "
-                "'apache-airflow-providers-common-sql[pandas]'."
-            )
-
-        with closing(self.get_conn()) as conn:
-            yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
-
     def _get_polars_df(
         self,
         sql,
@@ -501,6 +489,89 @@ class DbApiHook(BaseHook):
                     execute_options = {}
 
             return pl.read_database(sql, connection=conn, execute_options=execute_options, **kwargs)
+
+    def get_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> Generator[DataFrame | PolarsDataFrame, None, None]:
+        """
+        Execute the sql and return a generator.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with
+        :param chunksize: number of rows to include in each chunk
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+        elif df_type == "polars":
+            return self._get_polars_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+
+    def _get_pandas_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
+        """
+        Execute the sql and return a generator.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with
+        :param chunksize: number of rows to include in each chunk
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[pandas]'."
+            )
+        with closing(self.get_conn()) as conn:
+            yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
+
+    def _get_polars_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[PolarsDataFrame, None, None]:
+        """
+        Execute the sql and return a generator.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param chunksize: number of rows to include in each chunk
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "polars library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[polars]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            yield from pl.read_database(
+                sql,
+                connection=conn,
+                execute_options=parameters,
+                iter_batches=True,
+                batch_size=chunksize,
+                **kwargs,
+            )
 
     def get_records(
         self,
