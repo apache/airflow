@@ -237,7 +237,14 @@ class _DagDependenciesResolver:
                     dependency_id=dep_id,
                 )
         else:
-            yield DagDependency(**dep_data)
+            yield DagDependency(
+                source=dep_data["source"],
+                target=dep_data["target"],
+                # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                label=dep_data.get("label", dep_id),
+                dependency_type=dep_data["dependency_type"],
+                dependency_id=dep_id,
+            )
 
 
 class SerializedDagModel(Base):
