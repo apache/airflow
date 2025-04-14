@@ -1015,7 +1015,7 @@ There are certain limitations and overhead introduced by this operator:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` in
-:ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
+:ref:`this section in the Taskflow API tutorial <taskflow-dynamically-created-virtualenv>`.
 
 
 Using ExternalPythonOperator
@@ -1083,7 +1083,7 @@ The nice thing about this is that you can switch the decorator back at any time 
 developing it "dynamically" with ``PythonVirtualenvOperator``.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.ExternalPythonOperator` in
-:ref:`Taskflow External Python example <taskflow/external_python_example>`
+:ref:`Taskflow External Python example <taskflow-external-python-environment>`
 
 Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
@@ -1147,9 +1147,9 @@ The drawbacks:
   containers etc. in order to author a DAG that uses those operators.
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
-:ref:`Taskflow Docker example <taskflow/docker_example>`
+:ref:`Taskflow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
-:ref:`Taskflow Kubernetes example <taskflow/kubernetes_example>`
+:ref:`Taskflow Kubernetes example <tasfklow-kpo>`
 
 Using multiple Docker Images and Celery Queues
 ----------------------------------------------
