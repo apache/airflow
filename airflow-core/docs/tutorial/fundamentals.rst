@@ -18,8 +18,8 @@
 
 
 
-Airflow Fundamentals
-====================
+Airflow 101: Building Your First Workflow
+=========================================
 Welcome to world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
 you understand how to write your first DAG. Whether you're familiar with Python or just starting out, we'll make the
 journey enjoyable and straightforward.

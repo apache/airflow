@@ -53,9 +53,14 @@ END_PROVIDER_WORKSPACE_MEMBERS = "    # End of automatically generated provider 
 
 CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 
+# Temporary override for providers that are not yet included in constraints or when they need
+# minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
+    "amazon": parse_version("2.1.3"),
     "fab": parse_version("2.0.0"),
-    "openlineage": parse_version("2.1.2"),
+    "openlineage": parse_version("2.1.3"),
+    "git": parse_version("0.0.1"),
+    "common.messaging": parse_version("1.0.0"),
 }
 
 
@@ -86,29 +91,34 @@ all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
 
 def find_min_provider_version(provider_id: str) -> Version | None:
     metadata = all_providers_metadata.get(provider_id)
-    if not metadata:
-        return None
     # We should periodically update the starting date to avoid pip install resolution issues
+    # TODO: when min Python version is 3.11 change back the code to fromisoformat
+    # https://github.com/apache/airflow/pull/49155/files
     cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc
     )
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
-    versions: list[Version] = sorted([parse_version(version) for version in metadata])
-    for version in reversed(versions):
-        provider_info = metadata[str(version)]
-        date_released = datetime.strptime(provider_info["date_released"], "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
-        if date_released < cut_off_date:
-            break
-        last_version_newer_than_cutoff = version
+    min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
+    if not metadata:
+        if not min_version_override:
+            return None
+        last_version_newer_than_cutoff = min_version_override
+    else:
+        versions: list[Version] = sorted([parse_version(version) for version in metadata], reverse=True)
+        for version in versions:
+            provider_info = metadata[str(version)]
+            date_released = datetime.strptime(provider_info["date_released"], "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=timezone.utc
+            )
+            if date_released < cut_off_date:
+                break
+            last_version_newer_than_cutoff = version
     console.print(
         f"[bright_blue]Provider id {provider_id} min version found:[/] "
         f"{last_version_newer_than_cutoff} (date {date_released}"
     )
     if last_version_newer_than_cutoff:
-        min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
         if min_version_override and min_version_override > last_version_newer_than_cutoff:
             console.print(
                 f"[yellow]Overriding provider id {provider_id} min version:[/] {min_version_override} "

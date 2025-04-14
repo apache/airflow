@@ -40,7 +40,6 @@ from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
-from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
@@ -112,23 +111,6 @@ AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
-
-# Dictionary containing State and colors associated to each state to
-# display on the Webserver
-STATE_COLORS = {
-    "deferred": "mediumpurple",
-    "failed": "red",
-    "queued": "gray",
-    "removed": "lightgrey",
-    "restarting": "violet",
-    "running": "lime",
-    "scheduled": "tan",
-    "skipped": "hotpink",
-    "success": "green",
-    "up_for_reschedule": "turquoise",
-    "up_for_retry": "gold",
-    "upstream_failed": "orange",
-}
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
@@ -633,7 +615,6 @@ def initialize():
     prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
-    State.state_color.update(STATE_COLORS)
 
     configure_adapters()
     # The webservers import this file from models.py with the default settings.

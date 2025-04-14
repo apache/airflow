@@ -130,8 +130,7 @@ class BaseXCom:
         Retrieve an XCom value for a task instance.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
@@ -162,8 +161,7 @@ class BaseXCom:
         Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
@@ -220,8 +218,7 @@ class BaseXCom:
         Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
+        from the XCom backend).
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.

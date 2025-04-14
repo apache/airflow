@@ -62,7 +62,7 @@ classifiers = [
 version = "3.0.0"
 
 dependencies = [
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk<1.1.0,>=1.0.0",
     "apache-airflow-core==3.0.0",
 ]
 
@@ -212,7 +212,7 @@ packages = []
     "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging"
+    "apache-airflow-providers-common-messaging>=1.0.0"
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
@@ -235,8 +235,8 @@ packages = []
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
-"edge" = [
-    "apache-airflow-providers-edge"
+"edgeexecutor" = [
+    "apache-airflow-providers-edgeexecutor"
 ]
 "elasticsearch" = [
     "apache-airflow-providers-elasticsearch>=5.5.2"
@@ -254,7 +254,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0"
 ]
 "git" = [
-    "apache-airflow-providers-git"
+    "apache-airflow-providers-git>=0.0.1"
 ]
 "github" = [
     "apache-airflow-providers-github>=2.8.0"
@@ -314,7 +314,7 @@ packages = []
     "apache-airflow-providers-openfaas>=3.7.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.1.2"
+    "apache-airflow-providers-openlineage>=2.1.3"
 ]
 "opensearch" = [
     "apache-airflow-providers-opensearch>=1.5.0"
@@ -443,7 +443,7 @@ packages = []
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
-    "apache-airflow-providers-common-messaging",
+    "apache-airflow-providers-common-messaging>=1.0.0",
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -451,13 +451,13 @@ packages = []
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-edge",
+    "apache-airflow-providers-edgeexecutor",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
     "apache-airflow-providers-fab>=2.0.0",
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
-    "apache-airflow-providers-git",
+    "apache-airflow-providers-git>=0.0.1",
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
@@ -477,7 +477,7 @@ packages = []
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
-    "apache-airflow-providers-openlineage>=2.1.2",
+    "apache-airflow-providers-openlineage>=2.1.3",
     "apache-airflow-providers-opensearch>=1.5.0",
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
@@ -1039,8 +1039,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers/edge/src",
-    "$MYPY_CONFIG_FILE_DIR/providers/edge/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/edgeexecutor/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/edgeexecutor/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/exasol/src",
@@ -1287,7 +1287,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
-apache-airflow-providers-edge = { workspace = true }
+apache-airflow-providers-edgeexecutor = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-fab = { workspace = true }
@@ -1399,7 +1399,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
-    "providers/edge",
+    "providers/edgeexecutor",
     "providers/elasticsearch",
     "providers/exasol",
     "providers/fab",

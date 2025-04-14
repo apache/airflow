@@ -418,7 +418,14 @@ class TestSerializedDagModel:
                     label=asset_name,
                     dependency_type="asset",
                     dependency_id=f"{asset_id}",
-                )
+                ),
+                DagDependency(
+                    source="asset-uri-ref",
+                    target="test_get_dependencies_with_asset_ref_example",
+                    label="test://no-such-asset/",
+                    dependency_type="asset-uri-ref",
+                    dependency_id="test://no-such-asset/",
+                ),
             ]
         }
 

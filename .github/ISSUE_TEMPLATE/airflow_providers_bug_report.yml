@@ -60,7 +60,7 @@ body:
         - dingding
         - discord
         - docker
-        - edge
+        - edgeexecutor
         - elasticsearch
         - exasol
         - fab
