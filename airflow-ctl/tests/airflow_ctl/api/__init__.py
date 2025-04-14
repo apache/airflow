@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import Annotated
-
-from pydantic import Field
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class ExtraLinksResponse(BaseModel):
-    """Extra Links Response."""
-
-    extra_links: dict[str, str | None]
-    total_entries: Annotated[int, Field(title="Total Entries")]

@@ -794,7 +794,10 @@ export type EventLogResponse = {
  * Extra Links Response.
  */
 export type ExtraLinksResponse = {
-  [key: string]: string | null;
+  extra_links: {
+    [key: string]: string | null;
+  };
+  total_entries: number;
 };
 
 /**

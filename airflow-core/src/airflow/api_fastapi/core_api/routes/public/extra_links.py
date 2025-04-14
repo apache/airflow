@@ -83,4 +83,8 @@ def get_extra_links(
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
-    return ExtraLinksResponse.model_validate(all_extra_links)
+
+    return ExtraLinksResponse(
+        extra_links=all_extra_links,
+        total_entries=len(all_extra_links),
+    )
