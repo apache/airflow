@@ -23,7 +23,7 @@ AWS auth manager
   The AWS auth manager is alpha/experimental at the moment and may be subject to change without warning.
 
 Before reading this, you should be familiar with the concept of auth manager.
-See :doc:`apache-airflow:core-concepts/auth-manager`.
+See (Reference removed to make docs build working for Airflow 2.10 branch).
 
 The AWS auth manager is an auth manager powered by AWS. It uses two services:
 

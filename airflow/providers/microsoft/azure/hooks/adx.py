@@ -20,7 +20,7 @@ This module contains Azure Data Explorer hook.
 
 .. spelling:word-list::
 
-    KustoResponseDataSetV
+    KustoResponseDataSet
     kusto
 """
 
