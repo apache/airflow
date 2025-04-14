@@ -44,14 +44,16 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetEventResponse
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
+        AssetEventDagRunReferenceResult,
+        AssetEventResult,
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
+        OKResponse,
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
@@ -257,6 +259,25 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
 
 
+def _delete_variable(key: str) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+    if TYPE_CHECKING:
+        assert isinstance(msg, OKResponse)
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
@@ -377,20 +398,20 @@ class _AssetRefResolutionMixin:
 @attrs.define
 class TriggeringAssetEventsAccessor(
     _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReference"]],
+    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReferenceResult"]],
 ):
     """Lazy mapping of triggering asset events."""
 
-    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReference]]
+    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReferenceResult]]
 
     @classmethod
-    def build(cls, events: Iterable[AssetEventDagRunReference]) -> TriggeringAssetEventsAccessor:
-        collected: dict[BaseAssetUniqueKey, list[AssetEventDagRunReference]] = collections.defaultdict(list)
+    def build(cls, events: Iterable[AssetEventDagRunReferenceResult]) -> TriggeringAssetEventsAccessor:
+        coll: dict[BaseAssetUniqueKey, list[AssetEventDagRunReferenceResult]] = collections.defaultdict(list)
         for event in events:
-            collected[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
+            coll[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
             for alias in event.source_aliases:
-                collected[AssetAliasUniqueKey(name=alias.name)].append(event)
-        return cls(collected)
+                coll[AssetAliasUniqueKey(name=alias.name)].append(event)
+        return cls(coll)
 
     def __str__(self) -> str:
         return f"TriggeringAssetEventAccessor(_events={self._events})"
@@ -404,7 +425,7 @@ class TriggeringAssetEventsAccessor(
     def __len__(self) -> int:
         return len(self._events)
 
-    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReference]:
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReferenceResult]:
         hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
@@ -531,7 +552,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
@@ -573,7 +594,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         if TYPE_CHECKING:
             assert isinstance(msg, AssetEventsResult)
 
-        return msg.asset_events
+        return list(msg.iter_asset_event_results())
 
 
 @cache  # Prevent multiple API access.

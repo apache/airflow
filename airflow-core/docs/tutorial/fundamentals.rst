@@ -18,62 +18,53 @@
 
 
 
-Fundamental Concepts
+Airflow Fundamentals
 ====================
+Welcome to world of Apache Airflow! In this tutorial, we'll guide you through the essential concepts of Airflow, helping
+you understand how to write your first DAG. Whether you're familiar with Python or just starting out, we'll make the
+journey enjoyable and straightforward.
 
-This tutorial walks you through some of the fundamental Airflow concepts,
-objects, and their usage while writing your first DAG.
+What is a DAG?
+--------------
+At its core, a DAG is a collection of tasks organized in a way that reflects their relationships and dependencies. It's
+like a roadmap for your workflow, showing how each task connects to the others. Don't worry if this sounds a bit complex;
+we'll break it down step by step.
 
 Example Pipeline definition
 ---------------------------
-
-Here is an example of a basic pipeline definition. Do not worry if this looks
-complicated, a line by line explanation follows below.
+Let's start with a simple example of a pipeline definition. Although it might seem overwhelming at first, we'll explain
+each line in detail.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
 
-It's a DAG definition file
---------------------------
-
-One thing to wrap your head around (it may not be very intuitive for everyone
-at first) is that this Airflow Python script is really
-just a configuration file specifying the DAG's structure as code.
-The actual tasks defined here will run in a different context from
-the context of this script. Different tasks run on different workers
-at different points in time, which means that this script cannot be used
-to cross communicate between tasks. Note that for this
-purpose we have a more advanced feature called :doc:`/core-concepts/xcoms`.
-
-People sometimes think of the DAG definition file as a place where they
-can do some actual data processing - that is not the case at all!
-The script's purpose is to define a DAG object. It needs to evaluate
-quickly (seconds, not minutes) since the scheduler will execute it
-periodically to reflect the changes if any.
-
+Understanding the DAG Definition File
+-------------------------------------
+Think of the Airflow Python script as a configuration file that lays out the structure of your DAG in code. The actual
+tasks you define here run in a different environment, which means this script isn't meant for data processing. It's main
+job is to define the DAG object, and it needs to evaluate quickly since the DAG File Processor checks it regularly for
+any changes.
 
 Importing Modules
 -----------------
-
-An Airflow pipeline is just a Python script that happens to define an
-Airflow DAG object. Let's start by importing the libraries we will need.
+To get started, we need to import the necessary libraries. This is a typical first step in any Python script.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START import_module]
     :end-before: [END import_module]
 
+|
 
-See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
+For more details on how Python and Airflow handle modules, check out
+:doc:`/administration-and-deployment/modules_management`.
 
-Default Arguments
------------------
-We're about to create a DAG and some tasks, and we have the choice to
-explicitly pass a set of arguments to each task's constructor
-(which would become redundant), or (better!) we can define a dictionary
-of default parameters that we can use when creating tasks.
+Setting Default Arguments
+-------------------------
+When creating a DAG and its tasks, you can either pass arguments directly to each task or define a set of default
+parameters in a dictionary. The latter approach is usually more efficient and cleaner.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -81,52 +72,36 @@ of default parameters that we can use when creating tasks.
     :start-after: [START default_args]
     :end-before: [END default_args]
 
-For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:`airflow.models.baseoperator.BaseOperator` documentation.
+|
 
-Also, note that you could easily define different sets of arguments that
-would serve different purposes. An example of that would be to have
-different settings between a production and development environment.
+If you want to dive deeper into the parameters of the BaseOperator, take a look at the documentation for
+:py:class:`airflow.sdk.BaseOperator` documentation.
 
-
-Instantiate a DAG
------------------
-
-We'll need a DAG object to nest our tasks into. Here we pass a string
-that defines the ``dag_id``, which serves as a unique identifier for your DAG.
-We also pass the default argument dictionary that we just defined and
-define a ``schedule`` of 1 day for the DAG.
+Creating a DAG
+--------------
+Next, we'll need to create a DAG object to house our tasks. We'll provide a unique identifier for the DAG, known as the
+``dag_id``, and specify the default arguments we just defined. We'll also set a schedule for our DAG to run every day.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
 
-Operators
----------
+Understanding Operators
+-----------------------
+An operator represents a unit of work in Airflow. They are the building blocks of your workflows, allowing you to
+define what tasks will be executed. While we can use operators for many tasks, Airflow also offers the :doc:`Taskflow API <taskflow>`
+for a more Pythonic way to define workflows, which we'll touch on later.
 
-An operator defines a unit of work for Airflow to complete. Using operators is the classic approach
-to defining work in Airflow. For some use cases, it's better to use the TaskFlow API to define
-work in a Pythonic context as described in :doc:`taskflow`. For now, using operators helps to
-visualize task dependencies in our DAG code.
+All operators derive from the ``BaseOperator``, which includes the essential arguments needed to run tasks in Airflow.
+Some popular operators include the ``PythonOperator``, ``BashOperator``, and ``KubernetesPodOperator``. In this tutorial, we'll
+focus on the ``BashOperator`` to execute some simple bash commands.
 
-All operators inherit from the BaseOperator, which includes all of the required arguments for
-running work in Airflow. From here, each operator includes unique arguments for
-the type of work it's completing. Some of the most popular operators are the PythonOperator, the BashOperator, and the
-KubernetesPodOperator.
-
-Airflow completes work based on the arguments you pass to your operators. In this tutorial, we
-use the BashOperator to run a few bash scripts.
-
-Tasks
------
-
-To use an operator in a DAG, you have to instantiate it as a task. Tasks
-determine how to execute your operator's work within the context of a DAG.
-
-In the following example, we instantiate the BashOperator as two separate tasks in order to run two
-separate bash scripts. The first argument for each instantiation, ``task_id``,
-acts as a unique identifier for the task.
+Defining Tasks
+--------------
+To use an operator, you must instantiate it as a task. Tasks dictate how the operator will perform its work within the
+DAG's context. In the example below, we instantiate the BashOperator twice to run two different bash scripts. The
+``task_id`` serves as a unique identifier for each task.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -134,38 +109,30 @@ acts as a unique identifier for the task.
     :start-after: [START basic_task]
     :end-before: [END basic_task]
 
-Notice how we pass a mix of operator specific arguments (``bash_command``) and
-an argument common to all operators (``retries``) inherited
-from BaseOperator to the operator's constructor. This is simpler than
-passing every argument for every constructor call. Also, notice that in
-the second task we override the ``retries`` parameter with ``3``.
+|
 
-The precedence rules for a task are as follows:
+Notice how we mix operator-specific arguments (like ``bash_command``) with common arguments (like ``retries``) inherited
+from ``BaseOperator``. This approach simplifies our code. In the second task, we even override the ``retries`` parameter to
+set it to ``3``.
+
+The precedence for task arguments is as follows:
 
 1.  Explicitly passed arguments
-2.  Values that exist in the ``default_args`` dictionary
-3.  The operator's default value, if one exists
+2.  Values from the ``default_args`` dictionary
+3.  The operator's default values, if available
+
+|
 
 .. note::
-    A task must include or inherit the arguments ``task_id`` and ``owner``,
-    otherwise Airflow will raise an exception. A fresh install of Airflow will
-    have a default value of 'airflow' set for ``owner``, so you only really need
-    to worry about ensuring ``task_id`` has a value.
+    Remember, every task must include or inherit the arguments ``task_id`` and ``owner``. Otherwise, Airflow will raise an
+    error. Fortunately, a fresh Airflow installation defaults the ``owner`` to ``airflow``, so you mainly need to ensure
+    ``task_id`` is set.
 
-Templating with Jinja
----------------------
-Airflow leverages the power of
-`Jinja Templating <https://jinja.palletsprojects.com/en/2.11.x/>`_ and provides
-the pipeline author
-with a set of built-in parameters and macros. Airflow also provides
-hooks for the pipeline author to define their own parameters, macros and
-templates.
-
-This tutorial barely scratches the surface of what you can do with
-templating in Airflow, but the goal of this section is to let you know
-this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}`` (today's "date
-stamp").
+Using Jinja for Templating
+--------------------------
+Airflow harnesses the power of `Jinja Templating <https://jinja.palletsprojects.com/en/2.11.x/>`_, giving you access to
+built-in parameters and macros to enhance your workflows. This section will introduce you to the basics of templating in
+Airflow, focusing on the commonly used template variable: ``{{ ds }}``, which represents today's date stamp.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -173,39 +140,22 @@ stamp").
     :start-after: [START jinja_template]
     :end-before: [END jinja_template]
 
-Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
-references parameters like ``{{ ds }}``, and calls a function as in
-``{{ macros.ds_add(ds, 7)}}``.
+|
 
-Files can also be passed to the ``bash_command`` argument, like
-``bash_command='templated_command.sh'``, where the file location is relative to
-the directory containing the pipeline file (``tutorial.py`` in this case). This
-may be desirable for many reasons, like separating your script's logic and
-pipeline code, allowing for proper code highlighting in files composed in
-different languages, and general flexibility in structuring pipelines. It is
-also possible to define your ``template_searchpath`` as pointing to any folder
-locations in the DAG constructor call.
-
-Using that same DAG constructor call, it is possible to define
-``user_defined_macros`` which allow you to specify your own variables.
-For example, passing ``dict(foo='bar')`` to this argument allows you
-to use ``{{ foo }}`` in your templates. Moreover, specifying
-``user_defined_filters`` allows you to register your own filters. For example,
-passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
-you to use ``{{ 'world' | hello }}`` in your templates. For more information
-regarding custom filters have a look at the
+You'll notice that the ``templated_command`` includes logic in ``{% %}`` blocks and references parameters like
+``{{ ds }}``. You can also pass files to the ``bash_command``, such as ``bash_command='templated_command.sh'``, allowing
+for better organization of your code. You can even define ``user_defined_macros`` and ``user_defined_filters`` to create
+your own variables and filters for use in templates. For more on custom filters, refer to the
 `Jinja Documentation <https://jinja.palletsprojects.com/en/latest/api/#custom-filters>`_.
 
-For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :ref:`templates-ref`.
+For more information on the variables and macros that can be referenced in templates, please read through the
+:ref:`templates-ref`.
 
 Adding DAG and Tasks documentation
 ----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only supports
-markdown so far, while task documentation supports plain text, markdown, reStructuredText,
-json, and yaml. The DAG documentation can be written as a doc string at the beginning
-of the DAG file (recommended), or anywhere else in the file. Below you can find some examples
-on how to implement task and DAG docs, as well as screenshots:
+You can add documentation to your DAG or individual tasks. While DAG documentation currently supports markdown, task
+documentation can be in plain text, markdown reStructuredText, JSON, or YAML. It's a good practice to include
+documentation at the start of your DAG file.
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -213,13 +163,18 @@ on how to implement task and DAG docs, as well as screenshots:
     :start-after: [START documentation]
     :end-before: [END documentation]
 
-.. image:: ../img/task_doc.png
-.. image:: ../img/dag_doc.png
+|
+
+.. image:: ../img/ui-dark/task_doc.png
+
+|
+
+.. image:: ../img/ui-dark/dag_doc.png
 
 Setting up Dependencies
 -----------------------
-We have tasks ``t1``, ``t2`` and ``t3`` that depend on each other. Here's a few ways
-you can define dependencies between them:
+In Airflow, tasks can depend on one another. For instance, if you have tasks ``t1``, ``t2``, and ``t3``, you can defined
+their dependencies in several ways:
 
 .. code-block:: python
 
@@ -249,22 +204,20 @@ you can define dependencies between them:
     t1 >> [t2, t3]
     [t2, t3] << t1
 
-Note that when executing your script, Airflow will raise exceptions when
-it finds cycles in your DAG or when a dependency is referenced more
-than once.
+Be mindful that Airflow will raise errors if it detects cycles in your DAG or if a dependency is referenced multiple
+times.
 
-Using time zones
-----------------
+Working with Time Zones
+-----------------------
 
-Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware dates
-using ``pendulum``. Don't try to use standard library
-`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
-have limitations and we deliberately disallow using them in dags.
+Creating a time zone aware DAG straightforward. Just ensure you use time zone aware dates
+with ``pendulum``. Avoid using the standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
 
 Recap
 -----
-Alright, so we have a pretty basic DAG. At this point your code should look
-something like this:
+Congratulations! By now, you should have a basic understanding of how to create a DAG, define tasks and their
+dependencies, and use templating in Airflow. Your code should resemble the following:
 
 .. exampleinclude:: /../src/airflow/example_dags/tutorial.py
     :language: python
@@ -273,30 +226,20 @@ something like this:
 
 .. _testing:
 
-Testing
---------
-
-Running the Script
-''''''''''''''''''
-
-Time to run some tests. First, let's make sure the pipeline
-is parsed successfully.
-
-Let's assume we are saving the code from the previous step in
-``tutorial.py`` in the dags folder referenced in your ``airflow.cfg``.
-The default location for your dags is ``~/airflow/dags``.
+Testing Your Pipeline
+---------------------
+Now it's time to test your pipeline! First, ensure that your script parses successfully. If you saved your code in
+``tutorial.py`` within the dags folder specified in your ``airflow.cfg``, you can run:
 
 .. code-block:: bash
 
     python ~/airflow/dags/tutorial.py
 
-If the script does not raise an exception it means that you have not done
-anything horribly wrong, and that your Airflow environment is somewhat
-sound.
+If the script runs without errors, congratulations! Your DAG is set up correctly.
 
 Command Line Metadata Validation
 '''''''''''''''''''''''''''''''''
-Let's run a few commands to validate this script further.
+Let's validate your script further by running a few commands:
 
 .. code-block:: bash
 
@@ -313,19 +256,19 @@ Let's run a few commands to validate this script further.
     airflow tasks list tutorial --tree
 
 
-Testing
-'''''''
-Let's test by running the actual task instances for a specific date. The date
-specified in this context is called the *logical date* (also called *execution
-date* for historical reasons), which simulates the scheduler running your task
-or DAG for a specific date and time, even though it *physically* will run now
-(or as soon as its dependencies are met).
+Testing Task Instances and DAG Runs
+'''''''''''''''''''''''''''''''''''
+You can test specific task instances for a designated *logical date*. This simulates the scheduler running your task for
+a particular date and time.
 
-We said the scheduler runs your task *for* a specific date and time, not *at*.
-This is because each run of a DAG conceptually represents not a specific date
-and time, but an interval between two times, called a
-:ref:`data interval <data-interval>`. A DAG run's logical date is the start of
-its data interval.
+.. note::
+  Notice that the scheduler runs your task *for* a specific date and time, not necessarily *at* that date or time.
+  The *logical date* is the timestamp that a DAG run is **named after**, and it typically corresponds to the **end**
+  of the time period your workflow is operating on — or the time at which the DAG run was manually triggered.
+
+  Airflow uses this logical date to organize and track each run; it's how you refer to a specific execution in the UI,
+  logs, and code. When triggering a DAG via the UI or API, you can supply your own logical date to run the workflow
+  *as of* a specific point in time.
 
 .. code-block:: bash
 
@@ -337,36 +280,29 @@ its data interval.
     # testing sleep
     airflow tasks test tutorial sleep 2015-06-01
 
-Now remember what we did with templating earlier? See how this template
-gets rendered and executed by running this command:
+You can also see how your templates get rendered by running:
 
 .. code-block:: bash
 
     # testing templated
     airflow tasks test tutorial templated 2015-06-01
 
-This should result in displaying a verbose log of events and ultimately
-running your bash command and printing the result.
+This command will provide detailed logs and execute your bash command.
 
-Note that the ``airflow tasks test`` command runs task instances locally, outputs
-their log to stdout (on screen), does not bother with dependencies, and
-does not communicate state (running, success, failed, ...) to the database.
-It simply allows testing a single task instance.
+Keep in mind that the ``airflow tasks test`` command runs task instances locally, outputs their logs to stdout, and
+doesn't track state in the database. This is a handy way to test individual task instances.
 
-The same applies to ``airflow dags test``, but on a DAG
-level. It performs a single DAG run of the given DAG id. While it does take task
-dependencies into account, no state is registered in the database. It is
-convenient for locally testing a full run of your DAG, given that e.g. if one of
-your tasks expects data at some location, it is available.
+Similarly, ``airflow dags test`` runs a single DAG run without registering any state in the database, which is useful
+for testing your entire DAG locally.
 
 What's Next?
 -------------
-That's it! You have written and tested your very first Airflow
-pipeline. Merging your code into a repository that has a Scheduler
-running against it should result in being triggered and run every day.
+That's a wrap! You've successfully written and tested your first Airflow pipeline. As you continue your journey,
+consider merging your code into a repository with a Scheduler running against it, which will allow your DAG to be
+triggered and executed daily.
 
-Here are a few things you might want to do next:
+Here are a few suggestions for your next steps:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
-    - Skip to the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as dags, Tasks, Operators, and more
+    - Explore the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.

@@ -343,6 +343,12 @@ def configure_logging(
 
     if _warnings_showwarning is None:
         _warnings_showwarning = warnings.showwarning
+
+        if sys.platform == "darwin":
+            # This warning is not "end-user actionable" so we silence it.
+            warnings.filterwarnings(
+                "ignore", r"This process \(pid=\d+\) is multi-threaded, use of fork\(\).*"
+            )
         # Capture warnings and show them via structlog
         warnings.showwarning = _showwarning
 

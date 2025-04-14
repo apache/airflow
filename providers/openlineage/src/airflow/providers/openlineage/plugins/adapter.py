@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import traceback
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
@@ -36,6 +37,7 @@ from openlineage.client.facet_v2 import (
 )
 from openlineage.client.uuid import generate_static_uuid
 
+from airflow.configuration import conf as airflow_conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
@@ -81,6 +83,11 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_or_create_openlineage_client(self) -> OpenLineageClient:
         if not self._client:
+            # If not already set explicitly - propagate airflow logging level to OpenLineage client
+            airflow_core_log_level = airflow_conf.get("logging", "logging_level", fallback="INFO")
+            if not os.getenv("OPENLINEAGE_CLIENT_LOGGING") and airflow_core_log_level != "INFO":
+                os.environ["OPENLINEAGE_CLIENT_LOGGING"] = airflow_core_log_level
+
             config = self.get_openlineage_config()
             if config:
                 self.log.debug(

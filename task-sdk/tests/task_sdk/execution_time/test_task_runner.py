@@ -49,7 +49,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import (
-    AssetEventResponse,
     AssetProfile,
     AssetResponse,
     DagRunState,
@@ -58,10 +57,12 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
 )
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
@@ -72,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -84,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     TriggerDagRun,
     VariableResult,
@@ -821,7 +824,7 @@ def test_run_with_asset_outlets(
 
 def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that contains asset inlets."""
-    asset_event_resp = AssetEventResponse(
+    asset_event_resp = AssetEventResult(
         id=1,
         created_dagruns=[],
         timestamp=timezone.utcnow(),
@@ -1352,7 +1355,16 @@ class TestRuntimeTaskInstance:
                 map_index=runtime_ti.map_index,
             )
 
-    def test_overwrite_rtif_after_execution_sets_rtif(self, create_runtime_ti, mock_supervisor_comms):
+    @pytest.mark.parametrize(
+        ["cmd", "rendered_cmd"],
+        [
+            pytest.param("echo 'hi'", "echo 'hi'", id="no_template_fields"),
+            pytest.param(SET_DURING_EXECUTION, SET_DURING_EXECUTION.serialize(), id="with_default"),
+        ],
+    )
+    def test_overwrite_rtif_after_execution_sets_rtif(
+        self, create_runtime_ti, mock_supervisor_comms, cmd, rendered_cmd
+    ):
         """Test that the RTIF is overwritten after execution for certain operators."""
 
         class CustomOperator(BaseOperator):
@@ -1363,7 +1375,7 @@ class TestRuntimeTaskInstance:
                 self.bash_command = bash_command
                 super().__init__(*args, **kwargs)
 
-        task = CustomOperator(task_id="hello", bash_command="echo 'hi'")
+        task = CustomOperator(task_id="hello", bash_command=cmd)
         runtime_ti = create_runtime_ti(task=task)
 
         finalize(
@@ -1374,7 +1386,7 @@ class TestRuntimeTaskInstance:
         )
 
         mock_supervisor_comms.send_request.assert_called_with(
-            msg=SetRenderedFields(rendered_fields={"bash_command": "echo 'hi'"}),
+            msg=SetRenderedFields(rendered_fields={"bash_command": rendered_cmd}),
             log=mock.ANY,
         )
 
@@ -1470,6 +1482,28 @@ class TestRuntimeTaskInstance:
             ),
         )
         assert state == "running"
+
+    def test_get_task_states(self, mock_supervisor_comms):
+        """Test that get_task_states sends the correct request and returns the states."""
+        mock_supervisor_comms.get_message.return_value = TaskStatesResult(
+            task_states={"run1": {"task1": "running"}}
+        )
+
+        states = RuntimeTaskInstance.get_task_states(
+            dag_id="test_dag",
+            task_ids=["task1"],
+            run_ids=["run1"],
+        )
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY,
+            msg=GetTaskStates(
+                dag_id="test_dag",
+                task_ids=["task1"],
+                run_ids=["run1"],
+            ),
+        )
+        assert states == {"run1": {"task1": "running"}}
 
 
 class TestXComAfterTaskExecution:
