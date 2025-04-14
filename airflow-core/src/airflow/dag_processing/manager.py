@@ -381,8 +381,13 @@ class DagFileProcessorManager(LoggingMixin):
         events = self.selector.select(timeout=timeout)
         for key, _ in events:
             socket_handler = key.data
-            need_more = socket_handler(key.fileobj)
 
+            # BrokenPipeError should be caught and treated as if the handler returned false, similar
+            # to EOF case
+            try:
+                need_more = socket_handler(key.fileobj)
+            except BrokenPipeError:
+                need_more = False
             if not need_more:
                 self.selector.unregister(key.fileobj)
                 key.fileobj.close()  # type: ignore[union-attr]

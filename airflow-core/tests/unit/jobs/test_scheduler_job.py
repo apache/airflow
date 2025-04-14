@@ -156,7 +156,6 @@ def create_dagrun(session):
             state=state,
             start_date=start_date,
             triggered_by=DagRunTriggeredByType.TEST,
-            dag_version=DagVersion.get_latest_version(dag.dag_id),
         )
 
     return _create_dagrun
@@ -383,8 +382,7 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/") as dag:
             EmptyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
-        dagv = DagVersion.get_latest_version(dag.dag_id)
-        dr = dag_maker.create_dagrun(dag_version=dagv)
+        dr = dag_maker.create_dagrun()
         ti1 = dr.task_instances[0]
 
         mock_stats_incr.reset_mock()
@@ -1711,19 +1709,21 @@ class TestSchedulerJob:
         # First pass we'll grab 6 of the 8 tasks (limited by max_tis_per_query)
         res = self.job_runner._critical_section_enqueue_task_instances(session)
         assert res == 6
+        session.flush()
         for ti in tis1[:3] + tis2[:3]:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == TaskInstanceState.QUEUED
         for ti in tis1[3:] + tis2[3:]:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == TaskInstanceState.SCHEDULED
 
         # The remaining TIs are queued
         res = self.job_runner._critical_section_enqueue_task_instances(session)
         assert res == 2
+        session.flush()
 
         for ti in tis1 + tis2:
-            ti.refresh_from_db()
+            ti.refresh_from_db(session)
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
@@ -2555,8 +2555,9 @@ class TestSchedulerJob:
         session = settings.Session()
         dr = dag_maker.create_dagrun()
 
-        ti = dr.get_task_instance("dummy")
+        ti = dr.get_task_instance("dummy", session)
         ti.set_state(state, session)
+        session.flush()
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.job_runner._do_scheduling(session)
@@ -2579,7 +2580,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
-    def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker):
+    def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
         """
@@ -2587,6 +2588,7 @@ class TestSchedulerJob:
             dag_id="test_dagrun_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
+            session=session,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2598,10 +2600,9 @@ class TestSchedulerJob:
 
         self.job_runner.dagbag = dag_maker.dagbag
 
-        session = settings.Session()
         dr = dag_maker.create_dagrun()
 
-        ti = dr.get_task_instance("dummy")
+        ti = dr.get_task_instance("dummy", session)
         ti.set_state(state, session)
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
@@ -2611,8 +2612,8 @@ class TestSchedulerJob:
 
         dag_listener.success = []
         dag_listener.failure = []
+
         session.rollback()
-        session.close()
 
     def test_dagrun_timeout_callbacks_are_stored_in_database(self, dag_maker, session):
         with dag_maker(
@@ -2700,12 +2701,13 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED])
-    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker):
+    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker, session):
         """
         Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
         """
         with dag_maker(
             dag_id="test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined",
+            session=session,
         ):
             BashOperator(task_id="test_task", bash_command="echo hi")
 
@@ -2714,9 +2716,8 @@ class TestSchedulerJob:
 
         self.job_runner._send_dag_callbacks_to_processor = mock.Mock()
 
-        session = settings.Session()
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("test_task")
+        ti = dr.get_task_instance("test_task", session)
         ti.set_state(state, session)
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
@@ -2729,7 +2730,6 @@ class TestSchedulerJob:
         assert call_args[1] is None
 
         session.rollback()
-        session.close()
 
     @pytest.mark.parametrize("state, msg", [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
@@ -3483,10 +3483,10 @@ class TestSchedulerJob:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
-        with create_session() as session:
-            ti.refresh_from_db(lock_for_update=True, session=session)
-            ti.state = State.SCHEDULED
-            session.merge(ti)
+        ti.refresh_from_db(lock_for_update=True, session=session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
 
         # To verify that task does get re-queued.
         executor.do_update = True
@@ -4285,7 +4285,6 @@ class TestSchedulerJob:
             )
 
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
         run1 = dag.create_dagrun(
             run_id="test1",
             run_type=DagRunType.SCHEDULED,
@@ -4295,7 +4294,6 @@ class TestSchedulerJob:
             session=session,
             data_interval=data_interval,
             run_after=DEFAULT_LOGICAL_DATE,
-            dag_version=dag_version,
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -4311,7 +4309,6 @@ class TestSchedulerJob:
             session=session,
             data_interval=data_interval,
             run_after=logical_date_2,
-            dag_version=dag_version,
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -4502,8 +4499,7 @@ class TestSchedulerJob:
             BashOperator(task_id="dummy3", bash_command="true")
 
         session = settings.Session()
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dag_run = dag_maker.create_dagrun(state=State.QUEUED, session=session, dag_version=dag_version)
+        dag_run = dag_maker.create_dagrun(state=State.QUEUED, session=session)
 
         DAG.bulk_write_to_db("testing", None, [dag], session=session)  # Update the date fields
 
@@ -4545,16 +4541,11 @@ class TestSchedulerJob:
             schedule=timedelta(hours=1),
             max_active_runs=1,
             catchup=True,
-        ) as dag:
+        ):
             EmptyOperator(task_id="mytask")
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(29):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         # Explicitly set catchup=True as test specifically expects historical dates to be respected
         with dag_maker(
@@ -4562,16 +4553,11 @@ class TestSchedulerJob:
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(hours=1),
             catchup=True,
-        ) as dag2:
+        ):
             EmptyOperator(task_id="mytask")
-        dag_version = DagVersion.get_latest_version(dag2.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(9):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -4601,30 +4587,20 @@ class TestSchedulerJob:
         ) as dag:
             EmptyOperator(task_id="mytask")
         dag1_dag_id = dag.dag_id
-        dag_version = DagVersion.get_latest_version(dag1_dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(29):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         with dag_maker(
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
             catchup=True,
-        ) as dag:
+        ):
             EmptyOperator(task_id="mytask")
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(9):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -4710,15 +4686,10 @@ class TestSchedulerJob:
         ) as dag:
             EmptyOperator(task_id="mytask")
         dag1_dag_id = dag.dag_id
-        dag_version = DagVersion.get_latest_version(dag1_dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         # Fewer DAG runs since we're only testing recent dates with catchup=False
         for _ in range(2):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         with dag_maker(
             "test_dag2",
@@ -4727,14 +4698,9 @@ class TestSchedulerJob:
             catchup=False,
         ) as dag:
             EmptyOperator(task_id="mytask")
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(2):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -4844,31 +4810,21 @@ class TestSchedulerJob:
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
 
-        dag_version = DagVersion.get_latest_version(dag1_dag_id)
         # now let's create some "normal" dag runs and verify that they can run
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(29):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         with dag_maker(
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
             catchup=True,
-        ) as dag2:
+        ):
             EmptyOperator(task_id="mytask")
 
-        dag_version = DagVersion.get_latest_version(dag2.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(9):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         # initial state -- nothing is running
         assert dag1_non_b_running == 0
@@ -4969,34 +4925,24 @@ class TestSchedulerJob:
         )
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
 
-        dag_version = DagVersion.get_latest_version(dag1_dag_id)
         # Create fewer DAG runs since we're only testing recent dates with catchup=False
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         # With catchup=False, we only create a few runs instead of 29
         for _ in range(4):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         with dag_maker(
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
             catchup=False,
-        ) as dag2:
+        ):
             EmptyOperator(task_id="mytask")
 
-        dag_version = DagVersion.get_latest_version(dag2.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         # With catchup=False, we only create a few runs instead of 9
         for _ in range(2):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         # initial state -- nothing is running
         assert dag1_non_b_running == 0
@@ -5113,31 +5059,21 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
-        dag_version = DagVersion.get_latest_version(dag1_dag_id)
         # now let's create some "normal" dag runs and verify that they can run
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(29):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         with dag_maker(
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
             catchup=True,
-        ) as dag2:
+        ):
             EmptyOperator(task_id="mytask")
 
-        dag_version = DagVersion.get_latest_version(dag2.dag_id)
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         for _ in range(9):
-            dr = dag_maker.create_dagrun_after(
-                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-            )
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         # ok at this point, there are new dag runs created, but no new running runs
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
@@ -5273,14 +5209,12 @@ class TestSchedulerJob:
         with dag_maker("test_dag1", max_active_runs=1):
             EmptyOperator(task_id="mytask")
         date = DEFAULT_DATE
-        dag_version = DagVersion.get_latest_version("test_dag1")
         for i in range(30):
             dr = dag_maker.create_dagrun(
                 run_id=f"dagrun_{i}",
                 run_type=DagRunType.SCHEDULED,
                 state=State.QUEUED,
                 logical_date=date,
-                dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
         scheduler_job = Job(executor=MockExecutor(do_update=False))
@@ -5320,13 +5254,11 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_1", max_active_runs=1, start_date=date) as dag:
             task1 = EmptyOperator(task_id="dummy_task")
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dr1_running = dag_maker.create_dagrun(run_id="dr1_run_1", logical_date=date, dag_version=dag_version)
+        dr1_running = dag_maker.create_dagrun(run_id="dr1_run_1", logical_date=date)
         data_interval = dag.infer_automated_data_interval(logical_date)
         dag_maker.create_dagrun(
             run_id="dr1_run_2",
             state=State.QUEUED,
-            dag_version=dag_version,
             logical_date=dag.next_dagrun_info(
                 last_automated_dagrun=data_interval, restricted=False
             ).data_interval.start,
@@ -5335,13 +5267,11 @@ class TestSchedulerJob:
         date = timezone.datetime(2020, 1, 1)
         with dag_maker("test_dagrun_states_are_correct_2", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for i in range(16):
             dr = dag_maker.create_dagrun(
                 run_id=f"dr2_run_{i + 1}",
                 state=State.RUNNING,
                 logical_date=date,
-                dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr2_run_16")
@@ -5351,7 +5281,6 @@ class TestSchedulerJob:
                 run_id=f"dr2_run_{i + 1}",
                 state=State.QUEUED,
                 logical_date=date,
-                dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
 
@@ -5359,13 +5288,11 @@ class TestSchedulerJob:
         date = timezone.datetime(2021, 1, 1)
         with dag_maker("test_dagrun_states_are_correct_3", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for i in range(16):
             dr = dag_maker.create_dagrun(
                 run_id=f"dr3_run_{i + 1}",
                 state=State.RUNNING,
                 logical_date=date,
-                dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr3_run_16")
@@ -5375,7 +5302,6 @@ class TestSchedulerJob:
                 run_id=f"dr2_run_{i + 1}",
                 state=State.QUEUED,
                 logical_date=date,
-                dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
 
@@ -5645,17 +5571,10 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
         session = settings.Session()
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
-        dr = dag_maker.create_dagrun_after(
-            dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
-        dag_maker.create_dagrun_after(
-            dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
         dag.clear()
 
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 3
@@ -6223,12 +6142,10 @@ class TestSchedulerJob:
             run_type=DagRunType.SCHEDULED,
         )
         scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = scheduled_run.get_task_instances()[0]
+        ti = scheduled_run.get_task_instances(session=session)[0]
         ti.set_state(TaskInstanceState.RUNNING)
-        dm = DagModel.get_dagmodel(dag.dag_id)
+        dm = DagModel.get_dagmodel(dag.dag_id, session)
         dm.is_paused = True
-        session.merge(dm)
-        session.merge(ti)
         session.flush()
 
         assert scheduled_run.state == State.RUNNING
@@ -6252,7 +6169,8 @@ class TestSchedulerJob:
         assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
 
         # Once the TI is in a terminal state though, DagRun goes to success
-        ti.set_state(TaskInstanceState.SUCCESS)
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
         self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.SUCCESS
@@ -6265,12 +6183,10 @@ class TestSchedulerJob:
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = backfill_run.get_task_instances()[0]
-        ti.set_state(TaskInstanceState.SUCCESS)
-        dm = DagModel.get_dagmodel(dag.dag_id)
+        ti = backfill_run.get_task_instances(session=session)[0]
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
         dm.is_paused = True
-        session.merge(dm)
-        session.merge(ti)
         session.flush()
 
         assert backfill_run.state == State.RUNNING
@@ -6278,7 +6194,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner._update_dag_run_state_for_paused_dags()
+        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         session.flush()
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)

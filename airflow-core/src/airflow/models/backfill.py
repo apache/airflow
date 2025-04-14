@@ -43,7 +43,6 @@ from sqlalchemy_jsonfield import JSONField
 
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
-from airflow.models.dag_version import DagVersion
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -327,7 +326,6 @@ def _create_backfill_dag_run(
                     )
                 return
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         try:
             dr = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
@@ -339,7 +337,6 @@ def _create_backfill_dag_run(
                 conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
                 triggered_by=DagRunTriggeredByType.BACKFILL,
-                dag_version=dag_version,
                 state=DagRunState.QUEUED,
                 start_date=timezone.utcnow(),
                 backfill_id=backfill_id,

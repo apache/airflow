@@ -3,7 +3,7 @@
   "waiters": {
     "mwaa_dag_run_complete": {
       "delay": 60,
-      "maxAttempts": 720,
+      "maxAttempts": 20,
       "operation": "InvokeRestApi",
       "acceptors": [
         {

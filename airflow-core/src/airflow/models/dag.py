@@ -256,7 +256,6 @@ def _create_orm_dagrun(
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
-    dag_version: DagVersion | None,
     creating_job_id: int | None,
     backfill_id: int | None,
     triggered_by: DagRunTriggeredByType,
@@ -290,8 +289,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    if not dag_version:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
@@ -1793,7 +1791,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1867,7 +1864,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
@@ -2622,7 +2618,6 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
-        dag_version=DagVersion.get_latest_version(dag.dag_id, session=session),
         start_date=start_date or logical_date,
         session=session,
     )
