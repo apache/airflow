@@ -1255,7 +1255,7 @@ export const useEventLogServiceGetEventLogsSuspense = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useExtraLinksServiceGetExtraLinksSuspense = <
@@ -1290,7 +1290,7 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServiceGetExtraLinksSuspense = <

@@ -3022,7 +3022,7 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
-export const $ExtraLinksResponse = {
+export const $ExtraLinkCollectionResponse = {
   properties: {
     extra_links: {
       additionalProperties: {
@@ -3045,7 +3045,7 @@ export const $ExtraLinksResponse = {
   },
   type: "object",
   required: ["extra_links", "total_entries"],
-  title: "ExtraLinksResponse",
+  title: "ExtraLinkCollectionResponse",
   description: "Extra Links Response.",
 } as const;
 

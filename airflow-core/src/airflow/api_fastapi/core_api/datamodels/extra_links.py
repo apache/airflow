@@ -23,7 +23,7 @@ from pydantic import Field
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class ExtraLinksResponse(BaseModel):
+class ExtraLinkCollectionResponse(BaseModel):
     """Extra Links Response."""
 
     extra_links: dict[str, str | None]

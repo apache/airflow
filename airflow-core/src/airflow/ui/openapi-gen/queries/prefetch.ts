@@ -1041,7 +1041,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseExtraLinksServiceGetExtraLinks = (
@@ -1070,7 +1070,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseTaskInstanceServiceGetExtraLinks = (

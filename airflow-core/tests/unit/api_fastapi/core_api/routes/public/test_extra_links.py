@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinksResponse
+from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XComModel as XCom
@@ -172,7 +172,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(
+            == ExtraLinkCollectionResponse(
                 extra_links={"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"},
                 total_entries=1,
             ).model_dump()
@@ -186,7 +186,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(extra_links={"Google Custom": None}, total_entries=1).model_dump()
+            == ExtraLinkCollectionResponse(extra_links={"Google Custom": None}, total_entries=1).model_dump()
         )
 
     def test_should_respond_200_multiple_links(self, test_client, session):
@@ -223,7 +223,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(
+            == ExtraLinkCollectionResponse(
                 extra_links={
                     "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
                     "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
@@ -240,7 +240,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(
+            == ExtraLinkCollectionResponse(
                 extra_links={"BigQuery Console #1": None, "BigQuery Console #2": None},
                 total_entries=2,
             ).model_dump()
@@ -255,7 +255,7 @@ class TestGetExtraLinks:
         assert response, response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(
+            == ExtraLinkCollectionResponse(
                 extra_links={
                     "Google Custom": None,
                     "Google": "https://www.google.com",
@@ -283,7 +283,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200
         assert (
             response.json()
-            == ExtraLinksResponse(
+            == ExtraLinkCollectionResponse(
                 extra_links={"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"},
                 total_entries=1,
             ).model_dump()

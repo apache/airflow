@@ -456,7 +456,7 @@ class DagVersionResponse(BaseModel):
     id: Annotated[UUID, Field(title="Id")]
     version_number: Annotated[int, Field(title="Version Number")]
     dag_id: Annotated[str, Field(title="Dag Id")]
-    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     bundle_url: Annotated[str | None, Field(title="Bundle Url")] = None
@@ -500,7 +500,7 @@ class EventLogResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class ExtraLinksResponse(BaseModel):
+class ExtraLinkCollectionResponse(BaseModel):
     """
     Extra Links Response.
     """

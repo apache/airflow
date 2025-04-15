@@ -793,7 +793,7 @@ export type EventLogResponse = {
 /**
  * Extra Links Response.
  */
-export type ExtraLinksResponse = {
+export type ExtraLinkCollectionResponse = {
   extra_links: {
     [key: string]: string | null;
   };
@@ -2169,7 +2169,7 @@ export type GetExtraLinksData = {
   taskId: string;
 };
 
-export type GetExtraLinksResponse = ExtraLinksResponse;
+export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
 
 export type GetTaskInstanceData = {
   dagId: string;
@@ -4129,7 +4129,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: ExtraLinksResponse;
+        200: ExtraLinkCollectionResponse;
         /**
          * Unauthorized
          */
