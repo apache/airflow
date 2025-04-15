@@ -138,6 +138,7 @@ def upgrade():
 
     _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_dataset_id_fkey")
     _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_alias_id_fkey")
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_event_id_fkey")
 
     _drop_fkey_if_exists("dataset_alias_dataset_event", "dss_de_alias_id")
     _drop_fkey_if_exists("dataset_alias_dataset_event", "dss_de_event_id")
@@ -514,6 +515,7 @@ def downgrade():
             ondelete="CASCADE",
         )
 
+    _drop_fkey_if_exists("dataset_alias_dataset_event", "dataset_alias_dataset_event_event_id_fkey")
     with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
         batch_op.drop_constraint(op.f("asset_alias_asset_event_alias_id_fkey"), type_="foreignkey")
         _rename_index(
