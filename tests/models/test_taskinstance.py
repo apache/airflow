@@ -799,6 +799,33 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
+    def test_next_retry_datetime_handles_overflow(self, dag_maker):
+        delay = datetime.timedelta(days=365000000)
+        max_delay = datetime.timedelta(minutes=60)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_exp_backoff_and_max_delay",
+                bash_command="exit 1",
+                retries=500,
+                retry_delay=delay,
+                retry_exponential_backoff=True,
+                max_retry_delay=max_delay,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        # prove patch works for retries just below limit of 500
+        ti.try_number = 499
+        date = ti.next_retry_datetime()
+        assert date == ti.end_date + max_delay
+
+        # prove patch works for retries above limit of 500
+        ti.try_number = 5000
+        date = ti.next_retry_datetime()
+        assert date == ti.end_date + max_delay
+
     @pytest.mark.parametrize("seconds", [0, 0.5, 1])
     def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
         delay = datetime.timedelta(seconds=seconds)
