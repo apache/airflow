@@ -537,6 +537,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "max_form_parts"),
         was_deprecated=False,
     ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "default_ui_timezone"),
+        was_deprecated=False,
+    ),
     # policy
     ConfigChange(
         config=ConfigParameter("policy", "airflow_local_settings"),
