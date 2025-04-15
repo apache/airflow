@@ -91,9 +91,9 @@ configure separate secrets backend for workers, you can do that using:
     secrets_backend_kwargs =
 
 
-Set ``backend`` to the fully qualified class name of the backend you want to enable.
+Set ``secrets_backend`` to the fully qualified class name of the backend you want to enable.
 
-You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
+You can provide ``secrets_backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend for the workers.
 
 If you want to check which secret backend is currently set, you can use ``airflow config get-value workers secrets_backend`` command as in
