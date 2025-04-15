@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import base64
 import pickle
-from aiohttp.client_reqrep import ClientResponse
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import requests
+from aiohttp.client_reqrep import ClientResponse
 
 from airflow.exceptions import (
     AirflowException,
@@ -413,10 +413,12 @@ class TestHttpSensorAsync:
             return response
 
         mocked_hook = MagicMock(spec=HttpAsyncHook)
-        mocked_hook.run = AsyncMock(side_effect=[
-            AirflowException("404: Not Found"),
-            mock_response(200, '{"message": "httpbin success"}'),
-        ])
+        mocked_hook.run = AsyncMock(
+            side_effect=[
+                AirflowException("404: Not Found"),
+                mock_response(200, '{"message": "httpbin success"}'),
+            ]
+        )
         mock_async_hook.return_value = mocked_hook
 
         task = HttpSensor(
@@ -433,4 +435,6 @@ class TestHttpSensorAsync:
         assert not results
         assert events
         assert events[0].payload["status"] == "success"
-        assert isinstance(pickle.loads(base64.standard_b64decode(events[0].payload["response"])), requests.Response)
+        assert isinstance(
+            pickle.loads(base64.standard_b64decode(events[0].payload["response"])), requests.Response
+        )
