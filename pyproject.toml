@@ -592,6 +592,7 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -1187,6 +1188,11 @@ module=[
     # and we should remove this exclusion when it is fixed.
     "apache_beam.*"
 ]
+ignore_errors = true
+
+# airflowctl autogenered datamodels
+[[tool.mypy.overrides]]
+module="airflowctl.api.datamodels.*"
 ignore_errors = true
 
 [dependency-groups]

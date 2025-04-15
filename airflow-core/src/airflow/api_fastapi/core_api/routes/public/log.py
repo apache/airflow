@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import textwrap
 
 from fastapi import Depends, HTTPException, Request, Response, status
@@ -129,10 +130,8 @@ def get_log(
 
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if dag:
-        try:
+        with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
-        except TaskNotFound:
-            pass
 
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)

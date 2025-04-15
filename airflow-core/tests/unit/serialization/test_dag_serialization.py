@@ -1213,12 +1213,11 @@ class TestStringifiedDAGs:
             run_id=dr.run_id,
         )
 
-        c = 0
         # Test Deserialized inbuilt link
-        for name, expected in links.items():
+        for i, (name, expected) in enumerate(links.items()):
             # staging the part where a task at runtime pushes xcom for extra links
             XComModel.set(
-                key=simple_task.operator_extra_links[c].xcom_key,
+                key=simple_task.operator_extra_links[i].xcom_key,
                 value=expected,
                 task_id=simple_task.task_id,
                 dag_id=simple_task.dag_id,
@@ -1227,7 +1226,6 @@ class TestStringifiedDAGs:
 
             link = simple_task.get_extra_links(ti, name)
             assert link == expected
-            c += 1
 
         # Test Deserialized link registered via Airflow Plugin
         link = simple_task.get_extra_links(ti, GoogleLink.name)

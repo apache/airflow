@@ -877,7 +877,7 @@ class TestConnection(TestConnectionEndpoint):
     )
     def test_connection_env_is_cleaned_after_run(self, test_client, body):
         test_client.post("/connections/test", json=body)
-        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
+        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ])
 
     @pytest.mark.parametrize(
         "body",
