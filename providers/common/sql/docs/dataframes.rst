@@ -36,7 +36,7 @@ Pandas Integration
     for chunk_df in hook.get_df_by_chunks(sql="SELECT * FROM large_table", chunksize=10000, df_type="pandas"):
         process_chunk(chunk_df)
 
-To use this feature, install the ``pandas`` extra when installing this provider package. For installation instructions, see :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.
+To use this feature, install the ``pandas`` extra when installing this provider package. For installation instructions, see <index>.
 
 Polars Integration
 --------------------------
@@ -56,4 +56,4 @@ Polars Integration
     for chunk_df in hook.get_df_by_chunks(sql="SELECT * FROM large_table", chunksize=10000, df_type="polars"):
         process_chunk(chunk_df)
 
-To use this feature, install the ``polars`` extra when installing this provider package. For installation instructions, see :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.
+To use this feature, install the ``polars`` extra when installing this provider package. For installation instructions, see <index>.
