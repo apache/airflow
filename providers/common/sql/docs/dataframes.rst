@@ -21,7 +21,7 @@ SQL Data Frames Integration
 The :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` provides built-in integration with popular data analysis frameworks, allowing you to directly query databases and retrieve results as either Pandas or Polars dataframes. This integration simplifies data workflows by eliminating the need for manual conversion between SQL query results and data frames.
 
 Pandas Integration
-----------------
+--------------------------
 
 `Pandas <https://pandas.pydata.org/>`_ is a widely used data analysis and manipulation library. The SQL hook allows you to directly retrieve query results as Pandas DataFrames, which is particularly useful for further data transformation, analysis, or visualization within your Airflow tasks.
 
@@ -39,7 +39,7 @@ Pandas Integration
 To use this feature, install the ``pandas`` extra when installing this provider package. For installation instructions, see :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.
 
 Polars Integration
-----------------
+--------------------------
 
 `Polars <https://pola.rs/>`_ is a modern, high-performance DataFrame library implemented in Rust with Python bindings. It's designed for speed and efficiency when working with large datasets. The SQL hook supports retrieving data directly as Polars DataFrames, which can be particularly beneficial for performance-critical data processing tasks.
 
