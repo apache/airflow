@@ -3246,17 +3246,128 @@ def test_handle_v1_serdag():
             },
             "edge_info": {},
             "dag_dependencies": [
+                # dataset as schedule (source)
                 {
-                    "dependency_id": '{"name": "asset-2", "uri": "asset-2"}',
-                    "dependency_type": "asset",
-                    "label": "asset-2",
-                    "source": "simple_dag",
-                    "target": "asset",
+                    "source": "dataset",
+                    "target": "dag1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_1",
+                },
+                # dataset alias (resolved) as schedule (source)
+                {
+                    "source": "dataset",
+                    "target": "dataset-alias:alias_name_1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_2",
+                },
+                {
+                    "source": "dataset:alias_name_1",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_1",
+                },
+                # dataset alias (not resolved) as schedule (source)
+                {
+                    "source": "dataset-alias",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
+                },
+                # dataset as outlets (target)
+                {
+                    "source": "dag10",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_10",
+                },
+                # dataset alias (resolved) as outlets (target)
+                {
+                    "source": "dag20",
+                    "target": "dataset-alias:alias_name_10",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_20",
+                },
+                {
+                    "source": "dataset:dataset_uri_20",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_10",
+                },
+                # dataset alias (not resolved) as outlets (target)
+                {
+                    "source": "dag2",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
                 },
             ],
             "params": [],
         },
     }
+    expected_dag_dependencies = [
+        # asset as schedule (source)
+        {
+            "dependency_id": "dataset_uri_1",
+            "dependency_type": "asset",
+            "label": "dataset_uri_1",
+            "source": "asset",
+            "target": "dag1",
+        },
+        # asset alias (resolved) as schedule (source)
+        {
+            "dependency_id": "dataset_uri_2",
+            "dependency_type": "asset",
+            "label": "dataset_uri_2",
+            "source": "asset",
+            "target": "asset-alias:alias_name_1",
+        },
+        {
+            "dependency_id": "alias_name_1",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_1",
+            "source": "asset:alias_name_1",
+            "target": "dag2",
+        },
+        # asset alias (not resolved) as schedule (source)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "asset-alias",
+            "target": "dag2",
+        },
+        # asset as outlets (target)
+        {
+            "dependency_id": "dataset_uri_10",
+            "dependency_type": "asset",
+            "label": "dataset_uri_10",
+            "source": "dag10",
+            "target": "asset",
+        },
+        # asset alias (resolved) as outlets (target)
+        {
+            "dependency_id": "dataset_uri_20",
+            "dependency_type": "asset",
+            "label": "dataset_uri_20",
+            "source": "dag20",
+            "target": "asset-alias:alias_name_10",
+        },
+        {
+            "dependency_id": "alias_name_10",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_10",
+            "source": "asset:dataset_uri_20",
+            "target": "asset-alias",
+        },
+        # asset alias (not resolved) as outlets (target)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "dag2",
+            "target": "asset-alias",
+        },
+    ]
 
     SerializedDAG.conversion_v1_to_v2(v1)
 
@@ -3264,6 +3375,8 @@ def test_handle_v1_serdag():
     v1["dag"]["tags"] = []
     v1["dag"]["catchup"] = False
     v1["dag"]["disable_bundle_versioning"] = False
+
+    serialized_simple_dag_ground_truth["dag"]["dag_dependencies"] = expected_dag_dependencies
 
     expected = copy.deepcopy(serialized_simple_dag_ground_truth)
     del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]

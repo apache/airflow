@@ -1892,9 +1892,21 @@ class SerializedDAG(DAG, BaseSerialization):
 
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:
-                for fld in ("dependency_type", "target", "source"):
-                    if dep.get(fld) == "dataset":
-                        dep[fld] = "asset"
+                dep_type = dep.get("dependency_type")
+                if dep_type in ("dataset", "dataset-alias"):
+                    dep["dependency_type"] = dep_type.replace("dataset", "asset")
+
+                if not dep.get("label"):
+                    dep["label"] = dep["dependency_id"]
+
+                for fld in ("target", "source"):
+                    val = dep.get(fld)
+                    if val == dep_type and val in ("dataset", "dataset-alias"):
+                        dep[fld] = dep[fld].replace("dataset", "asset")
+                    elif val.startswith("dataset:"):
+                        dep[fld] = dep[fld].replace("dataset:", "asset:")
+                    elif val.startswith("dataset-alias:"):
+                        dep[fld] = dep[fld].replace("dataset-alias:", "asset-alias:")
 
         for task in dag_dict["tasks"]:
             task_var: dict = task["__var"]
