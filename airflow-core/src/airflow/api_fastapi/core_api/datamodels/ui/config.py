@@ -31,7 +31,6 @@ class ConfigResponse(BaseModel):
     navbar_logo_text_color: str
     page_size: int
     auto_refresh_interval: int
-    default_ui_timezone: str
     hide_paused_dags_by_default: bool
     instance_name: str
     instance_name_has_markup: bool

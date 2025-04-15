@@ -69,6 +69,9 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 requires-python = "{{ REQUIRES_PYTHON }}"
+{% if EXTRA_PROJECT_METADATA -%}
+{{ EXTRA_PROJECT_METADATA }}
+{%- endif %}
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated

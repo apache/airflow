@@ -21,6 +21,102 @@
 
 .. towncrier release notes start
 
+Airflow 3.0.0 (2025-04-22)
+--------------------------
+We are proud to announce the General Availability of **Apache Airflow® 3.0**, the most significant release in the
+project's history. Airflow 3.0 builds on the foundation of Airflow 2 and introduces a new service-oriented architecture,
+a modern React-based UI, enhanced security, and a host of long-requested features such as DAG versioning, improved
+backfills, event-driven scheduling, and support for remote execution.
+
+Highlights
+^^^^^^^^^^
+
+Major Architectural Advancements
+""""""""""""""""""""""""""""""""
+
+- **Task Execution API & Task SDK (AIP-72)**: Airflow 3.0 introduces a service-oriented architecture and a new API Server, enabling tasks to run anywhere, in any language, with improved isolation and security.
+- **Edge Executor (AIP-69)**: A new experimental executor that enables edge compute patterns and event-driven orchestration scenarios.
+- **Split CLI (AIP-81)**: The core CLI is now divided between local and remote functionality, with a new provider package (``airflowctl``) for API-based remote interactions.
+
+UI Overhaul
+"""""""""""
+
+- **Modern React UI (AIP-38, AIP-84)**: Airflow's UI has been completely rewritten using React and FastAPI. This new UI supports a better UX across Grid, Graph, and Asset views.
+- **DAG Versioning (AIP-65, AIP-66)**: DAG structure changes are now tracked natively. Users can inspect DAG history directly from the UI.
+
+Expanded Scheduling and Execution
+"""""""""""""""""""""""""""""""""
+
+- **Data Assets & Asset-Driven DAGs (AIP-74, AIP-75)**: Data-aware scheduling has evolved into first-class Asset support, including a new ``@asset`` decorator syntax and asset-based execution.
+- **External Event Scheduling (AIP-82)**: DAGs can now be triggered from external events via a pluggable message bus interface. Initial support for AWS SQS is included.
+- **Scheduler-Managed Backfills (AIP-78)**: Backfills are now managed by the scheduler, with UI support and enhanced diagnostics.
+
+ML & AI Use Cases
+"""""""""""""""""
+
+- **Support for Non-Data-Interval DAGs (AIP-83)**: Enables inference DAGs and hyperparameter tuning runs by removing the uniqueness constraint on execution dates.
+
+Breaking Changes
+^^^^^^^^^^^^^^^^
+
+See the :doc:`Upgrade Guide <installation/upgrading_to_airflow3>` for a full list of changes and migration recommendations. Major breaking changes include:
+
+Metadata Database Access
+""""""""""""""""""""""""
+
+- Direct access to the metadata DB from task code is no longer supported. Use the :doc:`REST API <stable-rest-api-ref>` instead.
+
+Scheduling Changes
+""""""""""""""""""
+
+- New default: ``schedule=None``, ``catchup=False``
+- ``schedule_interval`` and ``timetable`` are removed; use ``schedule`` exclusively.
+- Raw cron strings now use ``CronTriggerTimetable`` instead of ``CronDataIntervalTimetable``.
+
+Context and Parameters
+""""""""""""""""""""""
+
+- Several context variables removed (``conf``, ``execution_date``, ``dag_run.external_trigger``, etc)
+- ``fail_stop`` renamed to ``fail_fast``
+- ``.airflowignore`` now uses glob syntax by default
+
+Deprecated and Removed Features
+"""""""""""""""""""""""""""""""
+
++-----------------------------+----------------------------------------------------------+
+| **Feature**                 | **Replacement**                                          |
++=============================+==========================================================+
+| SubDAGs                     | Task Groups                                              |
++-----------------------------+----------------------------------------------------------+
+| SLAs                        | Deadline Alerts (planned post-3.0)                       |
++-----------------------------+----------------------------------------------------------+
+| ``EmailOperator`` (core)    | SMTP provider's ``EmailOperator``                        |
++-----------------------------+----------------------------------------------------------+
+| ``dummy`` trigger rule      | ``always``                                               |
++-----------------------------+----------------------------------------------------------+
+| ``none_failed_or_skipped`` | ``none_failed_min_one_success``                           |
++-----------------------------+----------------------------------------------------------+
+| XCom pickling               | Use a custom XCom backend                                |
++-----------------------------+----------------------------------------------------------+
+
+Upgrade Process
+^^^^^^^^^^^^^^^
+
+Airflow 3 was designed with migration in mind. Many Airflow 2 DAGs will work without changes. Use these tools:
+
+- ``ruff check --preview --select AIR30 --fix``: Flag and auto-fix DAG-level changes
+- ``airflow config lint``: Identify outdated or removed config options
+
+**Minimum version required to upgrade**: Airflow 2.7
+
+We recommend upgrading to the latest Airflow 2.10.x release before migrating to Airflow 3.0 to benefit from deprecation warnings. Check :doc:`Upgrade Guide <installation/upgrading_to_airflow3>` for more details.
+
+Resources
+^^^^^^^^^
+
+- :doc:`Upgrade Guide <installation/upgrading_to_airflow3>`
+- `Airflow AIPs <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals>`_
+
 Airflow 2.10.5 (2025-02-10)
 ---------------------------
 
