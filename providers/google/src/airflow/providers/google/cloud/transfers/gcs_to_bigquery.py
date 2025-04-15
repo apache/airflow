@@ -58,6 +58,7 @@ ALLOWED_FORMATS = [
     "GOOGLE_SHEETS",
     "DATASTORE_BACKUP",
     "PARQUET",
+    "ORC",
 ]
 
 
@@ -676,6 +677,7 @@ class GCSToBigQueryOperator(BaseOperator):
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
             "PARQUET": ["autodetect", "ignoreUnknownValues"],
             "AVRO": ["useAvroLogicalTypes"],
+            "ORC": ["autodetect"],
         }
 
         valid_configs = src_fmt_to_configs_mapping[self.source_format]

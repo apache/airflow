@@ -812,6 +812,18 @@ ARG_UPDATE_CONFIG_IGNORE_OPTION = Arg(
     help="The option name(s) to ignore to update in the airflow config.",
     type=string_list_type,
 )
+ARG_UPDATE_CONFIG_FIX = Arg(
+    ("--fix",),
+    help="Automatically apply the configuration changes instead of performing a dry run. (Default: dry-run mode)",
+    action="store_true",
+)
+
+ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
+    ("--all-recommendations",),
+    help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    action="store_true",
+)
+
 
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
@@ -1657,8 +1669,9 @@ CONFIG_COMMANDS = (
             ARG_UPDATE_CONFIG_OPTION,
             ARG_UPDATE_CONFIG_IGNORE_SECTION,
             ARG_UPDATE_CONFIG_IGNORE_OPTION,
-            ARG_DRY_RUN,
             ARG_VERBOSE,
+            ARG_UPDATE_CONFIG_FIX,
+            ARG_UPDATE_ALL_RECOMMENDATIONS,
         ),
     ),
 )

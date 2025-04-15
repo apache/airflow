@@ -22,21 +22,11 @@ import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
-import { AliasNode } from "src/components/Graph/AliasNode";
-import { AssetNode } from "src/components/Graph/AssetNode";
-import { DagNode } from "src/components/Graph/DagNode";
-import Edge from "src/components/Graph/Edge";
+import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
-
-const nodeTypes = {
-  asset: AssetNode,
-  "asset-alias": AliasNode,
-  dag: DagNode,
-};
-const edgeTypes = { custom: Edge };
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { assetId } = useParams();

@@ -122,7 +122,7 @@ executor_config_pod = k8s.V1Pod(
 TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
-    "__version": 1,
+    "__version": 2,
     "dag": {
         "default_args": {
             "__type": "dict",
@@ -174,8 +174,6 @@ serialized_simple_dag_ground_truth = {
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
-                    "_is_empty": False,
-                    "_can_skip_downstream": False,
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
                     "template_ext": [".sh", ".bash"],
@@ -215,8 +213,6 @@ serialized_simple_dag_ground_truth = {
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
-                    "_is_empty": False,
-                    "_can_skip_downstream": False,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
@@ -569,6 +565,8 @@ class TestStringifiedDAGs:
             )
             return dag_dict
 
+        expected = copy.deepcopy(expected)
+
         # by roundtripping to json we get a cleaner diff
         # if not doing this, we get false alarms such as "__var" != VAR
         actual = json.loads(json.dumps(sorted_serialized_dag(actual)))
@@ -917,7 +915,7 @@ class TestStringifiedDAGs:
         expected_timetable,
     ):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
                 "dag_id": "simple_dag",
@@ -933,7 +931,7 @@ class TestStringifiedDAGs:
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
                 "dag_id": "simple_dag",
@@ -2199,7 +2197,7 @@ class TestStringifiedDAGs:
     def test_params_upgrade(self):
         """When pre-2.2.0 param (i.e. primitive) is deserialized we convert to Param"""
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2220,7 +2218,7 @@ class TestStringifiedDAGs:
         This test asserts that the params are still deserialized properly.
         """
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2247,7 +2245,7 @@ class TestStringifiedDAGs:
         test only to ensure that params stored in 2.2.0 can still be parsed correctly.
         """
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2264,7 +2262,7 @@ class TestStringifiedDAGs:
 
     def test_params_serialize_default(self):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2447,9 +2445,7 @@ def test_operator_expand_serde():
     serialized = BaseSerialization.serialize(real_op)
 
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.operators.bash",
         "task_type": "BashOperator",
         "start_trigger_args": None,
@@ -2509,9 +2505,7 @@ def test_operator_expand_xcomarg_serde():
 
     serialized = BaseSerialization.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2568,9 +2562,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
 
     serialized = BaseSerialization.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2635,9 +2627,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
 
     serialized = SerializedBaseOperator.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2785,9 +2775,7 @@ def test_taskflow_expand_serde():
 
     serialized = BaseSerialization.serialize(original)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2900,9 +2888,7 @@ def test_taskflow_expand_kwargs_serde(strict):
 
     serialized = BaseSerialization.serialize(original)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -3065,9 +3051,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "template_fields_renderers": {},
         "task_type": "_DummyOperator",
         "_task_module": "unit.serialization.test_dag_serialization",
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -3076,3 +3060,146 @@ def test_mapped_task_with_operator_extra_links_property():
     assert deserialized_dag.task_dict["task"].operator_extra_links == [
         XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
     ]
+
+
+def test_handle_v1_serdag():
+    v1 = {
+        "__version": 1,
+        "dag": {
+            "default_args": {
+                "__type": "dict",
+                "__var": {
+                    "depends_on_past": False,
+                    "retries": 1,
+                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
+                    "sla": {"__type": "timedelta", "__var": 100.0},
+                },
+            },
+            "start_date": 1564617600.0,
+            "_task_group": {
+                "_group_id": None,
+                "prefix_group_id": True,
+                "children": {
+                    "bash_task": ("operator", "bash_task"),
+                    "custom_task": ("operator", "custom_task"),
+                },
+                "tooltip": "",
+                "ui_color": "CornflowerBlue",
+                "ui_fgcolor": "#000",
+                "upstream_group_ids": [],
+                "downstream_group_ids": [],
+                "upstream_task_ids": [],
+                "downstream_task_ids": [],
+            },
+            "is_paused_upon_creation": False,
+            "_dag_id": "simple_dag",
+            "doc_md": "### DAG Tutorial Documentation",
+            "fileloc": None,
+            "_processor_dags_folder": (
+                AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "unit" / "dags"
+            ).as_posix(),
+            "tasks": [
+                {
+                    "__type": "operator",
+                    "__var": {
+                        "task_id": "bash_task",
+                        "retries": 1,
+                        "retry_delay": 300.0,
+                        "max_retry_delay": 600.0,
+                        "sla": 100.0,
+                        "downstream_task_ids": [],
+                        "ui_color": "#f0ede4",
+                        "ui_fgcolor": "#000",
+                        "template_ext": [".sh", ".bash"],
+                        "template_fields": ["bash_command", "env", "cwd"],
+                        "template_fields_renderers": {"bash_command": "bash", "env": "json"},
+                        "bash_command": "echo {{ task.task_id }}",
+                        "_task_type": "BashOperator",
+                        # Slightly difference from v2-10-stable here, we manually changed this path
+                        "_task_module": "airflow.providers.standard.operators.bash",
+                        "pool": "default_pool",
+                        "is_setup": False,
+                        "is_teardown": False,
+                        "on_failure_fail_dagrun": False,
+                        "executor_config": {
+                            "__type": "dict",
+                            "__var": {
+                                "pod_override": {
+                                    "__type": "k8s.V1Pod",
+                                    "__var": PodGenerator.serialize_pod(executor_config_pod),
+                                }
+                            },
+                        },
+                        "doc_md": "### Task Tutorial Documentation",
+                        "_log_config_logger_name": "airflow.task.operators",
+                        "_needs_expansion": False,
+                        "weight_rule": "downstream",
+                        "start_trigger_args": None,
+                        "start_from_trigger": False,
+                    },
+                },
+                {
+                    "__type": "operator",
+                    "__var": {
+                        "task_id": "custom_task",
+                        "retries": 1,
+                        "retry_delay": 300.0,
+                        "max_retry_delay": 600.0,
+                        "sla": 100.0,
+                        "downstream_task_ids": [],
+                        "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
+                        "ui_color": "#fff",
+                        "ui_fgcolor": "#000",
+                        "template_ext": [],
+                        "template_fields": ["bash_command"],
+                        "template_fields_renderers": {},
+                        "_task_type": "CustomOperator",
+                        "_operator_name": "@custom",
+                        # Slightly difference from v2-10-stable here, we manually changed this path
+                        "_task_module": "tests_common.test_utils.mock_operators",
+                        "pool": "default_pool",
+                        "is_setup": False,
+                        "is_teardown": False,
+                        "on_failure_fail_dagrun": False,
+                        "_log_config_logger_name": "airflow.task.operators",
+                        "_needs_expansion": False,
+                        "weight_rule": "downstream",
+                        "start_trigger_args": None,
+                        "start_from_trigger": False,
+                    },
+                },
+            ],
+            "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
+            "timezone": "UTC",
+            "_access_control": {
+                "__type": "dict",
+                "__var": {
+                    "test_role": {
+                        "__type": "dict",
+                        "__var": {
+                            "DAGs": {
+                                "__type": "set",
+                                "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                            }
+                        },
+                    }
+                },
+            },
+            "edge_info": {},
+            "dag_dependencies": [],
+            "params": [],
+        },
+    }
+
+    SerializedDAG.conversion_v1_to_v2(v1)
+
+    # Update a few subtle differences
+    v1["dag"]["tags"] = []
+    v1["dag"]["catchup"] = False
+    v1["dag"]["disable_bundle_versioning"] = False
+
+    expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+    del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
+
+    assert v1 == expected
