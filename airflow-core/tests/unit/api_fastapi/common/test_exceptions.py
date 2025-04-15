@@ -233,4 +233,4 @@ class TestUniqueConstraintErrorHandler:
             self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
 
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        assert exeinfo_response_error.value.detail == expected_exception.detail
+        assert exeinfo_response_error.value.detail == expected_exception.detail  # hi
