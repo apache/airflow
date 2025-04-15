@@ -29,10 +29,19 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy_utils import UUIDType
 
-from airflow.models.taskinstance import uuid7
+from airflow.configuration import conf
+
+# from airflow.models.taskinstance import uuid7
+from airflow.utils.sql_functions import (
+    MYSQL_UUID7_FN,
+    MYSQL_UUID7_FN_DROP,
+    POSTGRES_UUID7_FN,
+    POSTGRES_UUID7_FN_DROP,
+)
 
 # revision identifiers, used by Alembic.
 revision = "7645189f3479"
@@ -44,28 +53,72 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply Add try_id to TI and TIH."""
+    batch_size = conf.getint("database", "migration_batch_size", fallback=1000)
+    conn = op.get_bind()
     dialect_name = op.get_bind().dialect.name
+
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
+    if dialect_name == "postgresql":
+        op.execute(POSTGRES_UUID7_FN)
 
-    stmt = sa.text("SELECT id FROM task_instance WHERE try_id IS NULL")
-    conn = op.get_bind()
-    null_rows = conn.execute(stmt)
-    if null_rows:
-        null_rows = null_rows.fetchall()
-    else:
-        null_rows = []
+        # Migrate existing rows with UUID v7 using a timestamp-based generation
+        while True:
+            result = conn.execute(
+                text(
+                    """
+                    WITH cte AS (
+                        SELECT ctid
+                        FROM task_instance
+                        WHERE try_id IS NULL
+                        LIMIT :batch_size
+                    )
+                    UPDATE task_instance
+                    SET try_id = uuid_generate_v7(NOW())
+                    FROM cte
+                    WHERE task_instance.ctid = cte.ctid
+                    """
+                ).bindparams(batch_size=batch_size)
+            )
+            row_count = result.rowcount
+            if row_count == 0:
+                break
+            print(f"Migrated {row_count} task_instance rows in this batch...")
+        op.execute(POSTGRES_UUID7_FN_DROP)
 
-    stmt = sa.text("""
-        UPDATE task_instance
-        SET try_id = :uuid
-        WHERE id = :row_id AND try_id IS NULL
-    """)
+    elif dialect_name == "mysql":
+        op.execute(MYSQL_UUID7_FN)
 
-    # Update each row with a unique UUID
-    for row in null_rows:
-        uuid_value = uuid7()
-        conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
+        # Migrate existing rows with UUID v7
+        op.execute("""
+            UPDATE task_instance
+            SET try_id = uuid_generate_v7(NOW(3))
+            WHERE id IS NULL
+        """)
+        # Drop this function as it is no longer needed
+        op.execute(MYSQL_UUID7_FN_DROP)
+
+    elif dialect_name == "sqlite":
+        from uuid import uuid7
+
+        stmt = text("SELECT COUNT(*) FROM task_instance WHERE try_id IS NULL")
+        conn = op.get_bind()
+        task_instances = conn.execute(stmt).scalar()
+        uuid_values = [str(uuid7()) for _ in range(task_instances)]
+
+        # Ensure `uuid_values` is a list or iterable with the UUIDs for the update.
+        stmt = text("""
+            UPDATE task_instance
+            SET try_id = :uuid
+            WHERE try_id IS NULL
+        """)
+
+        for uuid_value in uuid_values:
+            conn.execute(stmt.bindparams(uuid=uuid_value))
+
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.drop_constraint("task_instance_pkey", type_="primary")
+
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("try_id", nullable=False, existing_type=UUIDType(binary=False))
         batch_op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), ["try_id"])
@@ -78,6 +131,7 @@ def upgrade():
             )
         )
         batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
+
     # Update try_id column
     stmt = sa.text("SELECT id FROM task_instance_history WHERE try_id IS NULL")
     conn = op.get_bind()
@@ -97,6 +151,7 @@ def upgrade():
     for row in null_rows:
         uuid_value = uuid7()
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
+
     # Update task_instance_id
     if dialect_name == "postgresql":
         op.execute("""
