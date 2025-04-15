@@ -35,7 +35,6 @@ from airflow.sdk import SecretCache
 from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -234,62 +233,45 @@ class Variable(Base, LoggingMixin):
         with ctx as session:
             new_variable = Variable(key=key, val=stored_value, description=description)
 
-            # Perform dialect-specific upsert operation
-            dialect_name = session.get_bind().dialect.name
+            val = new_variable._val
+            is_encrypted = new_variable.is_encrypted
 
-            # Map of dialect names to their corresponding module paths
-            dialect_insert_map = {
-                "postgresql": "sqlalchemy.dialects.postgresql.insert",
-                "mysql": "sqlalchemy.dialects.mysql.insert",
-                "sqlite": "sqlalchemy.dialects.sqlite.insert",
-            }
+            # Import dialect-specific insert function
+            if (dialect_name := session.get_bind().dialect.name) == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert
+            elif dialect_name == "mysql":
+                from sqlalchemy.dialects.mysql import insert
+            else:
+                from sqlalchemy.dialects.sqlite import insert
 
-            # Use SQLAlchemy Core for supported dialects
-            if dialect_name in dialect_insert_map:
-                val = new_variable._val
-                is_encrypted = new_variable.is_encrypted
+            # Create the insert statement (common for all dialects)
+            stmt = insert(Variable).values(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
 
-                # Dynamically import dialect-specific insert function
-                insert = import_string(dialect_insert_map[dialect_name])
-
-                # Create the insert statement (common for all dialects)
-                stmt = insert(Variable).values(
-                    key=key,
+            # Apply dialect-specific upsert
+            if dialect_name == "mysql":
+                # MySQL: ON DUPLICATE KEY UPDATE
+                stmt = stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
-
-                # Apply dialect-specific upsert
-                if dialect_name == "mysql":
-                    # MySQL: ON DUPLICATE KEY UPDATE
-                    stmt = stmt.on_duplicate_key_update(
+            else:
+                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["key"],
+                    set_=dict(
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
-                    )
-                else:
-                    # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["key"],
-                        set_=dict(
-                            val=val,
-                            description=description,
-                            is_encrypted=is_encrypted,
-                        ),
-                    )
+                    ),
+                )
 
-                session.execute(stmt)
-            else:
-                # Default implementation using SQLAlchemy ORM for non-supported dialects
-                existing_var = session.query(Variable).filter(Variable.key == key).first()
-                if existing_var:
-                    existing_var.val = stored_value
-                    existing_var.description = description
-                else:
-                    session.add(new_variable)
-
-            session.flush()
+            session.execute(stmt)
             # invalidate key in cache for faster propagation
             # we cannot save the value set because it's possible that it's shadowed by a custom backend
             # (see call to check_for_write_conflict above)
