@@ -97,7 +97,7 @@ def upgrade():
         op.execute(MYSQL_UUID7_FN_DROP)
 
     elif dialect_name == "sqlite":
-        from uuid import uuid7
+        from uuid6 import uuid7
 
         stmt = text("SELECT COUNT(*) FROM task_instance WHERE try_id IS NULL")
         conn = op.get_bind()
