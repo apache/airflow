@@ -245,7 +245,7 @@ def dag_dependencies_show(args) -> None:
 @providers_configuration_loaded
 def dag_show(args) -> None:
     """Display DAG or saves its graphic representation to the file."""
-    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
@@ -354,7 +354,7 @@ def dag_next_execution(args) -> None:
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
-    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+    dag = get_dag(bundle_names=None, dag_id=args.dag_id, from_db=True)
 
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(
@@ -610,7 +610,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
 
 def _parse_and_get_dag(dag_id: str) -> DAG | None:
     """Given a dag_id, determine the bundle and relative fileloc from the db, then parse and return the DAG."""
-    db_dag = get_dag(subdir=None, dag_id=dag_id, from_db=True)
+    db_dag = get_dag(bundle_names=None, dag_id=dag_id, from_db=True)
     bundle_name = db_dag.get_bundle_name()
     if bundle_name is None:
         raise AirflowException(
