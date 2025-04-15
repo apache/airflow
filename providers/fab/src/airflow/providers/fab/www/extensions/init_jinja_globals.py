@@ -37,14 +37,6 @@ def init_jinja_globals(app, enable_plugins: bool):
     elif server_timezone == "utc":
         server_timezone = "UTC"
 
-    default_ui_timezone = conf.get("webserver", "default_ui_timezone")
-    if default_ui_timezone == "system":
-        default_ui_timezone = pendulum.local_timezone().name  # type: ignore[operator]
-    elif default_ui_timezone == "utc":
-        default_ui_timezone = "UTC"
-    if not default_ui_timezone:
-        default_ui_timezone = server_timezone
-
     expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
 
@@ -59,7 +51,6 @@ def init_jinja_globals(app, enable_plugins: bool):
     def prepare_jinja_globals():
         extra_globals = {
             "server_timezone": server_timezone,
-            "default_ui_timezone": default_ui_timezone,
             "hostname": hostname,
             "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
             "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),

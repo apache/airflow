@@ -24,7 +24,6 @@ export const handlers: Array<HttpHandler> = [
       audit_view_excluded_events: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data",
       audit_view_included_events: "",
       auto_refresh_interval: 3,
-      default_ui_timezone: "UTC",
       default_wrap: false,
       enable_swagger_ui: true,
       hide_paused_dags_by_default: false,

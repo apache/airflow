@@ -33,6 +33,7 @@ Installation of Airflow®
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
+    Upgrading to Airflow 3 <upgrading_to_airflow3>
 
 This page describes installations options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
