@@ -56,7 +56,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``mysqlclient``                          ``>=1.4.0; sys_platform != "darwin"``
-``mysql-connector-python``               ``>=8.0.29,!=9.3.0``
+``mysql-connector-python``               ``>=8.0.29``
 ``aiomysql``                             ``>=0.2.0``
 =======================================  =====================================
 
