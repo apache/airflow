@@ -44,7 +44,7 @@ the option to filter which connection/variable/config is searched in the secret 
 documentation of the secret backend you are using to see if such option is available.
 
 On the other hand, if a workers secrets backend is defined, the order of lookup has higher priority for the workers secrets
-backend and than the secrets backend.
+backend and then the secrets backend.
 
 .. warning::
 
@@ -81,7 +81,7 @@ the example below.
 Worker Specific Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The above section covers a general configuration option for all Airflow nodes. But with Airflow 3, if you want to
+The above section covers a general configuration option for all Airflow components. But with Airflow 3, if you want to
 configure separate secrets backend for workers, you can do that using:
 
 .. code-block:: ini
