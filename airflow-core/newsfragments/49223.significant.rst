@@ -7,9 +7,9 @@ Update in ``airflow config update`` command to show breaking config changes by d
 * Types of change
 
   * [ ] Dag changes
-  * [x] Config changes
+  * [ ] Config changes
   * [ ] API changes
-  * [x] CLI changes
+  * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency changes
