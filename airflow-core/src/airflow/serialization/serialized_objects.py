@@ -1840,7 +1840,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return obj
 
         for old, new in dag_renames:
-            dag_dict[new] = dag_dict.pop(old)
+            if old in dag_dict:
+                dag_dict[new] = dag_dict.pop(old)
 
         if default_args := dag_dict.get("default_args"):
             for k in tasks_remove:
@@ -1903,15 +1904,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
-            for item in task_var.get("outlets", []):
+            for item in itertools.chain(*(task_var.get(key, []) for key in ("inlets", "outlets"))):
+                original_item_type = item["__type"]
                 if isinstance(item, dict) and "__type" in item:
-                    item["__type"] = replace_dataset_in_str(item["__type"])
-            for item in task_var.get("inlets", []):
-                if isinstance(item, dict) and "__type" in item:
-                    item["__type"] = replace_dataset_in_str(item["__type"])
+                    item["__type"] = replace_dataset_in_str(original_item_type)
+
                 var_ = item["__var"]
-                var_["name"] = None
-                var_["group"] = None
+                if original_item_type == "dataset":
+                    var_["name"] = var_["uri"]
+                var_["group"] = "asset"
 
         # Set on the root TG
         dag_dict["task_group"]["group_display_name"] = ""
