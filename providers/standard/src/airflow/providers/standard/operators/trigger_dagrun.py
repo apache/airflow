@@ -65,7 +65,6 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.utils.session import NEW_SESSION, provide_session
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -338,6 +337,7 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
 
         @provide_session
         def _trigger_dag_run_af_2_execute_complete(
