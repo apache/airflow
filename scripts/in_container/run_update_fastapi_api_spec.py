@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 from fastapi.openapi.utils import get_openapi
+from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 from airflow.api_fastapi.auth.managers.simple import __file__ as SIMPLE_AUTH_MANAGER_PATH
@@ -46,9 +47,8 @@ def generate_file(app: FastAPI, file_path: Path, prefix: str = ""):
     # The persisted openapi spec will list all endpoints (public and ui), this
     # is used for code generation.
     for route in app.routes:
-        if getattr(route, "name") == "webapp":
-            continue
-        route.__setattr__("include_in_schema", True)
+        if isinstance(route, APIRoute) and route.path.startswith("/ui/"):
+            route.include_in_schema = True
 
     with file_path.open("w+") as f:
         openapi_schema = get_openapi(
