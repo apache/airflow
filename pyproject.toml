@@ -842,6 +842,9 @@ addopts = [
     "--ignore-glob=**/tests/system/*",
     "--ignore-glob=tests/system/*",
 ]
+markers = [
+    "timeout: mark tests with a timeout (provided by pytest-timeout)",
+]
 
 norecursedirs = [
     ".eggs",
