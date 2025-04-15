@@ -17,7 +17,7 @@
 
 .. _asset_definitions:
 
-Asset definitions
+Asset Definitions
 =================
 
 .. versionadded:: 2.4

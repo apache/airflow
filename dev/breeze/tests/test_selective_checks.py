@@ -1879,7 +1879,7 @@ def test_expected_output_push(
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
-            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml",),
             {
                 "selected-providers-list-as-string": "",
                 "all-python-versions": "['3.9']",

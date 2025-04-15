@@ -312,9 +312,9 @@ class DataSyncHook(AwsBaseHook):
             self.log.info("status=%s", status)
             if status in self.TASK_EXECUTION_SUCCESS_STATES:
                 return True
-            elif status in self.TASK_EXECUTION_FAILURE_STATES:
+            if status in self.TASK_EXECUTION_FAILURE_STATES:
                 return False
-            elif status is None or status in self.TASK_EXECUTION_INTERMEDIATE_STATES:
+            if status is None or status in self.TASK_EXECUTION_INTERMEDIATE_STATES:
                 time.sleep(self.wait_interval_seconds)
             else:
                 raise AirflowException(f"Unknown status: {status}")  # Should never happen

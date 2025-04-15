@@ -308,19 +308,18 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             self._fail_if_execution_failed(result)
             job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
             return Job.to_dict(job)
-        else:
-            self.defer(
-                trigger=CloudRunJobFinishedTrigger(
-                    operation_name=self.operation.operation.name,
-                    job_name=self.job_name,
-                    project_id=self.project_id,
-                    location=self.region,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    polling_period_seconds=self.polling_period_seconds,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            trigger=CloudRunJobFinishedTrigger(
+                operation_name=self.operation.operation.name,
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.region,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                polling_period_seconds=self.polling_period_seconds,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict):
         status = event["status"]

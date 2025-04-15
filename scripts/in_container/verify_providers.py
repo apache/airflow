@@ -352,8 +352,7 @@ def strip_package_from_class(base_package: str, class_name: str) -> str:
     """Strips base package name from the class (if it starts with the package name)."""
     if class_name.startswith(base_package):
         return class_name[len(base_package) + 1 :]
-    else:
-        return class_name
+    return class_name
 
 
 def convert_class_name_to_url(base_url: str, class_name) -> str:

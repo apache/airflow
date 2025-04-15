@@ -254,7 +254,7 @@ class SnowflakeHook(DbApiHook):
                 "The private_key_file and private_key_content extra fields are mutually exclusive. "
                 "Please remove one."
             )
-        elif private_key_file:
+        if private_key_file:
             private_key_file_path = Path(private_key_file)
             if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
                 raise ValueError("The private_key_file path points to an empty or invalid file.")
@@ -497,8 +497,7 @@ class SnowflakeHook(DbApiHook):
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
-        else:
-            return results
+        return results
 
     @contextmanager
     def _get_cursor(self, conn: Any, return_dictionaries: bool):

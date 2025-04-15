@@ -1011,9 +1011,8 @@ class TestOtelIntegration:
                         if "pause" in file_contents:
                             log.info("Control file exists and the task has been paused.")
                             break
-                        else:
-                            time.sleep(1)
-                            continue
+                        time.sleep(1)
+                        continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(3)
@@ -1129,9 +1128,8 @@ class TestOtelIntegration:
                         if "pause" in file_contents:
                             log.info("Control file exists and the task has been paused.")
                             break
-                        else:
-                            time.sleep(1)
-                            continue
+                        time.sleep(1)
+                        continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(3)
@@ -1231,9 +1229,8 @@ class TestOtelIntegration:
                         if "pause" in file_contents:
                             log.info("Control file exists and the task has been paused.")
                             break
-                        else:
-                            time.sleep(1)
-                            continue
+                        time.sleep(1)
+                        continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(3)
@@ -1337,9 +1334,8 @@ class TestOtelIntegration:
                         if "pause" in file_contents:
                             log.info("Control file exists and the task has been paused.")
                             break
-                        else:
-                            time.sleep(1)
-                            continue
+                        time.sleep(1)
+                        continue
                 except FileNotFoundError:
                     print("Control file not found. Waiting...")
                     time.sleep(3)

@@ -416,7 +416,7 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
                     f"{version_suffix} suffix."
                 )
-        if line.strip().startswith('"apache-airflow-providers-') and ">=" in line:
+        if line.strip().startswith('"apache-airflow-') and ">=" in line:
             if not line.endswith(
                 f'.{version_suffix}"',
             ):
@@ -428,6 +428,17 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"{version_suffix} suffix."
                 )
         if line.strip().startswith('"apache-airflow-core') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
+        if line.strip().startswith('"apache-airflow-task-sdk') and "==" in line:
             if not line.endswith(
                 f'.{version_suffix}",',
             ):
@@ -2925,9 +2936,8 @@ def modify_single_file_constraints(
             constraints_file.write_text(constraint_content)
         get_console().print("[success]Updated.[/]")
         return True
-    else:
-        get_console().print("[warning]The file has not been modified.[/]")
-        return False
+    get_console().print("[warning]The file has not been modified.[/]")
+    return False
 
 
 def modify_all_constraint_files(
@@ -2959,10 +2969,9 @@ def confirm_modifications(constraints_repo: Path) -> bool:
     confirm = user_confirm("Do you want to continue?")
     if confirm == Answer.YES:
         return True
-    elif confirm == Answer.NO:
+    if confirm == Answer.NO:
         return False
-    else:
-        sys.exit(1)
+    sys.exit(1)
 
 
 def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:

@@ -49,9 +49,9 @@ class BaseAwsLink(BaseOperatorLink):
     def get_aws_domain(aws_partition) -> str | None:
         if aws_partition == "aws":
             return "aws.amazon.com"
-        elif aws_partition == "aws-cn":
+        if aws_partition == "aws-cn":
             return "amazonaws.cn"
-        elif aws_partition == "aws-us-gov":
+        if aws_partition == "aws-us-gov":
             return "amazonaws-us-gov.com"
 
         return None

@@ -152,8 +152,7 @@ class CommonBuildParams:
         if value is None or "":
             if optional:
                 return
-            else:
-                raise ValueError(f"Value for {name} cannot be empty or None")
+            raise ValueError(f"Value for {name} cannot be empty or None")
         if value is True:
             str_value = "true"
         elif value is False:

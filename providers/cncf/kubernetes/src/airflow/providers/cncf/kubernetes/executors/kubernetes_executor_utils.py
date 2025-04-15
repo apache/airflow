@@ -110,8 +110,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         try:
             if self.namespace == ALL_NAMESPACES:
                 return watcher.stream(kube_client.list_pod_for_all_namespaces, **query_kwargs)
-            else:
-                return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
+            return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
         except ApiException as e:
             if str(e.status) == "410":  # Resource version is too old
                 if self.namespace == ALL_NAMESPACES:
@@ -121,8 +120,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 resource_version = pods.metadata.resource_version
                 query_kwargs["resource_version"] = resource_version
                 return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
-            else:
-                raise
+            raise
 
     def _run(
         self,
@@ -564,5 +562,4 @@ def get_base_pod_from_template(pod_template_file: str | None, kube_config: Any) 
     """
     if pod_template_file:
         return PodGenerator.deserialize_model_file(pod_template_file)
-    else:
-        return PodGenerator.deserialize_model_file(kube_config.pod_template_file)
+    return PodGenerator.deserialize_model_file(kube_config.pod_template_file)

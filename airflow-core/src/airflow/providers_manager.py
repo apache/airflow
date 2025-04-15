@@ -72,8 +72,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
     def ensure_prefix(field):
         if field not in conn_attrs and not field.startswith("extra__"):
             return f"extra__{conn_type}__{field}"
-        else:
-            return field
+        return field
 
     if "placeholders" in field_behaviors:
         placeholders = field_behaviors["placeholders"]

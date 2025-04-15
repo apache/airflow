@@ -145,8 +145,7 @@ class AlloyDBWriteBaseOperator(AlloyDBBaseOperator):
         if self.validate_request:
             # Validation requests are only validated and aren't executed, thus no operation result is expected
             return None
-        else:
-            return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        return self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
 
 
 class AlloyDBCreateClusterOperator(AlloyDBWriteBaseOperator):

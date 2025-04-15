@@ -111,7 +111,7 @@ def _get_transport_information_as_spark_properties() -> dict:
             props = _format_transport(props, http_transport, name)
         return props
 
-    elif transport.kind == "http":
+    if transport.kind == "http":
         return _format_transport({}, _get_transport_information(transport), None)
 
     log.info(

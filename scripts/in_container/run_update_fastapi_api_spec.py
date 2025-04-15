@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -32,12 +33,12 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent.joinpath("openapi", "v1-generated.yaml")
-SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = Path(SIMPLE_AUTH_MANAGER_PATH).parent.joinpath(
-    "openapi", "v1-generated.yaml"
+OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v1-rest-api-generated.yaml"
+SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
+    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v1-simple-auth-manager-generated.yaml"
 )
-FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = Path(FAB_AUTH_MANAGER_API_PATH).parent.joinpath(
-    "openapi", "v1-generated.yaml"
+FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
+    Path(FAB_AUTH_MANAGER_API_PATH).parent / "openapi" / "v1-fab-auth-manager-generated.yaml"
 )
 
 

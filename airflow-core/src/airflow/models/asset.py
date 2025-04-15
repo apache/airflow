@@ -206,13 +206,12 @@ class AssetAliasModel(Base):
     def __hash__(self):
         return hash(self.name)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         from airflow.sdk.definitions.asset import AssetAlias
 
         if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def to_public(self) -> AssetAlias:
         from airflow.sdk.definitions.asset import AssetAlias
@@ -290,7 +289,7 @@ class AssetModel(Base):
     def __init__(self, name: str = "", uri: str = "", **kwargs):
         if not name and not uri:
             raise TypeError("must provide either 'name' or 'uri'")
-        elif not name:
+        if not name:
             name = uri
         elif not uri:
             uri = name
@@ -303,7 +302,7 @@ class AssetModel(Base):
             raise ValueError("Scheme 'airflow' is reserved.")
         super().__init__(name=name, uri=uri, **kwargs)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         from airflow.sdk.definitions.asset import Asset
 
         if isinstance(other, (self.__class__, Asset)):
@@ -412,7 +411,7 @@ class DagScheduleAssetNameReference(Base):
         Index("idx_dag_schedule_asset_name_reference_dag_id", dag_id),
     )
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.name == other.name and self.dag_id == other.dag_id
         return NotImplemented
@@ -458,7 +457,7 @@ class DagScheduleAssetUriReference(Base):
         Index("idx_dag_schedule_asset_uri_reference_dag_id", dag_id),
     )
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri and self.dag_id == other.dag_id
         return NotImplemented
@@ -500,7 +499,7 @@ class DagScheduleAssetAliasReference(Base):
         Index("idx_dag_schedule_asset_alias_reference_dag_id", dag_id),
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.alias_id == other.alias_id and self.dag_id == other.dag_id
         return NotImplemented
@@ -551,7 +550,7 @@ class DagScheduleAssetReference(Base):
         Index("idx_dag_schedule_asset_reference_dag_id", dag_id),
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.asset_id == other.asset_id and self.dag_id == other.dag_id
         return NotImplemented
@@ -593,7 +592,7 @@ class TaskOutletAssetReference(Base):
         Index("idx_task_outlet_asset_reference_dag_id", dag_id),
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return (
                 self.asset_id == other.asset_id
@@ -639,11 +638,10 @@ class AssetDagRunQueue(Base):
         Index("idx_asset_dag_run_queue_target_dag_id", target_dag_id),
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.asset_id == other.asset_id and self.target_dag_id == other.target_dag_id
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.__mapper__.primary_key)

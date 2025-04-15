@@ -573,13 +573,12 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
-                elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                if termination_log_path.exists() and termination_log_path.stat().st_size > 0:
                     error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
                     with open(termination_log_path) as file:
                         error_msg += file.read()
                     raise AirflowException(error_msg) from None
-                else:
-                    raise
+                raise
 
             if 0 in self.skip_on_exit_code:
                 raise AirflowSkipException("Process exited with code 0. Skipping.")
@@ -590,8 +589,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         keyword_params = KeywordParameters.determine(self.python_callable, self.op_args, context)
         if AIRFLOW_V_3_0_PLUS:
             return keyword_params.unpacking()
-        else:
-            return keyword_params.serializing()  # type: ignore[attr-defined]
+        return keyword_params.serializing()  # type: ignore[attr-defined]
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
@@ -1130,8 +1128,7 @@ def get_current_context() -> Mapping[str, Any]:
         from airflow.sdk import get_current_context
 
         return get_current_context()
-    else:
-        return _get_current_context()
+    return _get_current_context()
 
 
 def _get_current_context() -> Mapping[str, Any]:

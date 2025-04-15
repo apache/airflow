@@ -141,11 +141,11 @@ class OperatingSystem(Enum):
         """Get current operating system."""
         if os.name == "nt":
             return OperatingSystem.WINDOWS
-        elif "linux" in sys.platform:
+        if "linux" in sys.platform:
             return OperatingSystem.LINUX
-        elif "darwin" in sys.platform:
+        if "darwin" in sys.platform:
             return OperatingSystem.MACOSX
-        elif "cygwin" in sys.platform:
+        if "cygwin" in sys.platform:
             return OperatingSystem.CYGWIN
         return OperatingSystem.UNKNOWN
 
@@ -203,8 +203,7 @@ class AirflowInfo:
                     data = [line for line in data if grep in line]
                 if len(data) != 1:
                     return "NOT AVAILABLE"
-                else:
-                    return data[0].decode()
+                return data[0].decode()
         except OSError:
             return "NOT AVAILABLE"
 
@@ -216,8 +215,7 @@ class AirflowInfo:
             module = o.__class__.__module__
             if module is None or module == str.__class__.__module__:
                 return o.__class__.__name__  # Avoid reporting __builtin__
-            else:
-                return f"{module}.{o.__class__.__name__}"
+            return f"{module}.{o.__class__.__name__}"
 
         try:
             handler_names = [get_fullname(handler) for handler in logging.getLogger("airflow.task").handlers]

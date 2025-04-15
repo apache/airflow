@@ -176,7 +176,7 @@ def _get_model_data_interval(
         if end is not None:
             raise InconsistentDataInterval(instance, start_field_name, end_field_name)
         return None
-    elif end is None:
+    if end is None:
         raise InconsistentDataInterval(instance, start_field_name, end_field_name)
     return DataInterval(start, end)
 
@@ -256,7 +256,6 @@ def _create_orm_dagrun(
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
-    dag_version: DagVersion | None,
     creating_job_id: int | None,
     backfill_id: int | None,
     triggered_by: DagRunTriggeredByType,
@@ -267,6 +266,7 @@ def _create_orm_dagrun(
         bundle_version = session.scalar(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -284,14 +284,13 @@ def _create_orm_dagrun(
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    if not dag_version:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
@@ -1773,10 +1772,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
@@ -1793,7 +1792,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
@@ -1867,7 +1865,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             triggered_by=triggered_by,
@@ -2508,8 +2505,7 @@ class DagModel(Base):
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        else:
-            last_automated_data_interval = last_automated_dag_run
+        last_automated_data_interval = last_automated_dag_run
         next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
@@ -2622,7 +2618,6 @@ def _get_or_create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
-        dag_version=DagVersion.get_latest_version(dag.dag_id, session=session),
         start_date=start_date or logical_date,
         session=session,
     )

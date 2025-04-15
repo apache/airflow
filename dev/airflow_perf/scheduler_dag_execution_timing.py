@@ -176,7 +176,6 @@ def create_dag_runs(dag, num_runs, session):
             run_after=logical_date,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
-            dag_version=None,
             state=DagRunState.RUNNING,
             start_date=timezone.utcnow(),
             session=session,

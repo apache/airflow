@@ -101,7 +101,7 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                 "The `suspend` parameter can't be False. If you want to use Kueue for running Job"
                 " in a Kubernetes cluster, set the `suspend` parameter to True.",
             )
-        elif self.suspend is None:
+        if self.suspend is None:
             self.log.info(
                 "You have not set parameter `suspend` in class %s. "
                 "For running a Job in Kueue the `suspend` parameter has been set to True.",

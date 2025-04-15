@@ -51,10 +51,9 @@ class DateTimeTrigger(BaseTrigger):
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
-        elif moment.tzinfo is None:
+        if moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
-        else:
-            self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
+        self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
         if not AIRFLOW_V_2_10_PLUS and end_from_trigger:
             raise AirflowException("end_from_trigger is only supported in Airflow 2.10 and later. ")
 

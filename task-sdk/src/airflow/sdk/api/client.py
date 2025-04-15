@@ -312,6 +312,17 @@ class VariableOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
+    def delete(
+        self,
+        key: str,
+    ) -> OKResponse:
+        """Delete a variable with given key via the API server."""
+        self.client.delete(f"variables/{key}")
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return OKResponse(ok=True)
+
 
 class XComOperations:
     __slots__ = ("client",)
@@ -493,8 +504,7 @@ class DagRunOperations:
 
                 log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
-            else:
-                raise
+            raise
 
         return OKResponse(ok=True)
 

@@ -230,7 +230,7 @@ class DockerSwarmOperator(DockerOperator):
             if self.auto_remove == "force":
                 self.cli.remove_service(self.service["ID"])
             raise AirflowException(f"Service did not complete: {self.service!r}")
-        elif self.auto_remove in ["success", "force"]:
+        if self.auto_remove in ["success", "force"]:
             if not self.service:
                 raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
@@ -296,8 +296,7 @@ class DockerSwarmOperator(DockerOperator):
                 file_contents.append(file_content)
             if len(file_contents) == 1:
                 return file_contents[0]
-            else:
-                return file_contents
+            return file_contents
         except APIError:
             return None
 

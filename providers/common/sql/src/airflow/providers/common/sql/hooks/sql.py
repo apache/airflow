@@ -166,7 +166,7 @@ class DbApiHook(BaseHook):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
-        elif len(args) == 1:
+        if len(args) == 1:
             setattr(self, self.conn_name_attr, args[0])
         elif self.conn_name_attr not in kwargs:
             setattr(self, self.conn_name_attr, self.default_conn_name)
@@ -599,8 +599,7 @@ class DbApiHook(BaseHook):
         if handlers.return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
-        else:
-            return results
+        return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
         """

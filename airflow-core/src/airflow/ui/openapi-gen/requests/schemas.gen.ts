@@ -1191,10 +1191,6 @@ export const $ConfigResponse = {
       type: "integer",
       title: "Auto Refresh Interval",
     },
-    default_ui_timezone: {
-      type: "string",
-      title: "Default Ui Timezone",
-    },
     hide_paused_dags_by_default: {
       type: "boolean",
       title: "Hide Paused Dags By Default",
@@ -1235,11 +1231,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Test Connection",
     },
-    state_color_mapping: {
-      additionalProperties: true,
-      type: "object",
-      title: "State Color Mapping",
-    },
     dashboard_alert: {
       items: {
         $ref: "#/components/schemas/UIAlert",
@@ -1257,7 +1248,6 @@ export const $ConfigResponse = {
     "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
-    "default_ui_timezone",
     "hide_paused_dags_by_default",
     "instance_name",
     "instance_name_has_markup",
@@ -1268,7 +1258,6 @@ export const $ConfigResponse = {
     "audit_view_excluded_events",
     "audit_view_included_events",
     "test_connection",
-    "state_color_mapping",
     "dashboard_alert",
   ],
   title: "ConfigResponse",
@@ -3413,7 +3402,14 @@ export const $DagVersionResponse = {
       title: "Dag Id",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     bundle_version: {

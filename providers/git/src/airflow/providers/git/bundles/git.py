@@ -233,6 +233,8 @@ class GitDagBundle(BaseDagBundle):
             "gitlab.com": f"{url}/-/tree/{version}",
             "bitbucket.org": f"{url}/src/{version}",
         }
+        if self.subdir:
+            host_patterns = {k: f"{v}/{self.subdir}" for k, v in host_patterns.items()}
         for allowed_host, template in host_patterns.items():
             if host == allowed_host or host.endswith(f".{allowed_host}"):
                 return template

@@ -26,7 +26,7 @@ import sys
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
@@ -195,55 +195,54 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
             "timestamper": timestamper,
             "console": console,
         }
+    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
+        use_rich=False, show_locals=False, suppress=suppress
+    )
+
+    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+    if hasattr(__builtins__, "BaseExceptionGroup"):
+        exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
+        processors.append(exc_group_processor)
     else:
-        dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
-            use_rich=False, show_locals=False, suppress=suppress
-        )
+        exc_group_processor = None
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
-        if hasattr(__builtins__, "BaseExceptionGroup"):
-            exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
-            processors.append(exc_group_processor)
-        else:
-            exc_group_processor = None
-
-        def json_dumps(msg, default):
-            # Note: this is likely an "expensive" step, but lets massage the dict order for nice
-            # viewing of the raw JSON logs.
-            # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
-            msg = {
-                "timestamp": msg.pop("timestamp"),
-                "level": msg.pop("level"),
-                "event": msg.pop("event"),
-                **msg,
-            }
-            return msgspec.json.encode(msg, enc_hook=default)
-
-        def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            # Stdlib logging doesn't need the re-ordering, it's fine as it is
-            return msgspec.json.encode(event_dict).decode("utf-8")
-
-        json = structlog.processors.JSONRenderer(serializer=json_dumps)
-
-        processors.extend(
-            (
-                dict_tracebacks,
-                structlog.processors.UnicodeDecoder(),
-            ),
-        )
-
-        # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
-        if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-            processors.extend(remote_processors)
-
-        processors.append(json)
-
-        return processors, {
-            "timestamper": timestamper,
-            "exc_group_processor": exc_group_processor,
-            "dict_tracebacks": dict_tracebacks,
-            "json": json_processor,
+    def json_dumps(msg, default):
+        # Note: this is likely an "expensive" step, but lets massage the dict order for nice
+        # viewing of the raw JSON logs.
+        # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
+        msg = {
+            "timestamp": msg.pop("timestamp"),
+            "level": msg.pop("level"),
+            "event": msg.pop("event"),
+            **msg,
         }
+        return msgspec.json.encode(msg, enc_hook=default)
+
+    def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
+        # Stdlib logging doesn't need the re-ordering, it's fine as it is
+        return msgspec.json.encode(event_dict).decode("utf-8")
+
+    json = structlog.processors.JSONRenderer(serializer=json_dumps)
+
+    processors.extend(
+        (
+            dict_tracebacks,
+            structlog.processors.UnicodeDecoder(),
+        ),
+    )
+
+    # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
+    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+        processors.extend(remote_processors)
+
+    processors.append(json)
+
+    return processors, {
+        "timestamper": timestamper,
+        "exc_group_processor": exc_group_processor,
+        "dict_tracebacks": dict_tracebacks,
+        "json": json_processor,
+    }
 
 
 @cache
@@ -320,8 +319,7 @@ def configure_logging(
                 raise ValueError(
                     f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
                 )
-            else:
-                output = output.buffer
+            output = cast("TextIO", output).buffer
         if TYPE_CHECKING:
             # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
             # runtime. mypy doesn't grok that though
@@ -343,6 +341,12 @@ def configure_logging(
 
     if _warnings_showwarning is None:
         _warnings_showwarning = warnings.showwarning
+
+        if sys.platform == "darwin":
+            # This warning is not "end-user actionable" so we silence it.
+            warnings.filterwarnings(
+                "ignore", r"This process \(pid=\d+\) is multi-threaded, use of fork\(\).*"
+            )
         # Capture warnings and show them via structlog
         warnings.showwarning = _showwarning
 
@@ -519,10 +523,15 @@ def relative_path_from_logger(logger) -> Path | None:
 def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     raw_logger = getattr(logger, "_logger")
 
-    relative_path = relative_path_from_logger(raw_logger)
-
     handler = load_remote_log_handler()
-    if not handler or not relative_path:
+    if not handler:
+        return
+
+    try:
+        relative_path = relative_path_from_logger(raw_logger)
+    except Exception:
+        return
+    if not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()

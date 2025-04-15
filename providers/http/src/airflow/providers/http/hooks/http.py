@@ -189,7 +189,7 @@ class HttpHook(BaseHook):
     def _extract_auth(self, connection: Connection) -> Any | None:
         if connection.login:
             return self.auth_type(connection.login, connection.password)
-        elif self._auth_type:
+        if self._auth_type:
             return self.auth_type()
         return None
 

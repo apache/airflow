@@ -532,7 +532,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
-                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+                _env,
+                "AIRFLOW__CORE__EXECUTOR",
+                "airflow.providers.edgeexecutor.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(
@@ -699,12 +701,11 @@ class ShellParams:
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
                 get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))
