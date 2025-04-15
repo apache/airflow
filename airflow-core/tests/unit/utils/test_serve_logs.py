@@ -83,6 +83,7 @@ def sample_log(request, tmp_path):
         raise ValueError(f"Unknown client fixture: {client}")
     base_log_dir.mkdir(exist_ok=True, parents=True)
     f = base_log_dir.joinpath("sample.log")
+    print("Writing sample.log to:", f)
     f.write_text(LOG_DATA)
     return f
 
