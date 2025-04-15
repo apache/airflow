@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import json
@@ -117,10 +118,8 @@ class LazyDictWithCache(MutableMapping):
         return value
 
     def __delitem__(self, key):
-        try:
+        with contextlib.suppress(KeyError):
             self._resolved.remove(key)
-        except KeyError:
-            pass
         self._raw_dict.__delitem__(key)
 
     def __iter__(self):
