@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from unittest import mock
@@ -575,3 +576,26 @@ class TestGitDagBundle:
         with mock.patch("airflow.providers.git.bundles.git.GitDagBundle.lock") as mock_lock:
             bundle.initialize()
             assert mock_lock.call_count == 2  # both initialize and refresh
+
+    @pytest.mark.parametrize(
+        "conn_json, repo_url, expected",
+        [
+            (
+                {"host": "git@github.com:apache/airflow.git"},
+                "git@github.com:apache/hello.git",
+                "git@github.com:apache/hello.git",
+            ),
+            ({"host": "git@github.com:apache/airflow.git"}, None, "git@github.com:apache/airflow.git"),
+            ({}, "git@github.com:apache/hello.git", "git@github.com:apache/hello.git"),
+        ],
+    )
+    def test_repo_url_precedence(self, conn_json, repo_url, expected):
+        conn_str = json.dumps(conn_json)
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": conn_str}):
+            bundle = GitDagBundle(
+                name="test",
+                tracking_ref="main",
+                git_conn_id="my_test_git",
+                repo_url=repo_url,
+            )
+            assert bundle.repo_url == expected
