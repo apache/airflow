@@ -1643,6 +1643,7 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+        ProvidersManager().initialize_providers_configuration()
 
 
 @pytest.fixture(autouse=True)
