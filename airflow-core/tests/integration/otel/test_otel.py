@@ -557,6 +557,7 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
 
 @pytest.mark.integration("redis")
 @pytest.mark.backend("postgres")
+@pytest.mark.timeout("240")  # 4 mins timeout for each test.
 class TestOtelIntegration:
     """
     This test is using a ConsoleSpanExporter so that it can capture
