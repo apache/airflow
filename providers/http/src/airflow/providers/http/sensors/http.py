@@ -169,7 +169,7 @@ class HttpSensor(BaseSensorOperator):
         return True
 
     def execute(self, context: Context) -> Any:
-        if not self.deferrable or self.response_check:
+        if not self.deferrable:
             return super().execute(context=context)
         elif not self.poke(context):
             self.defer(
