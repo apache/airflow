@@ -27,6 +27,6 @@ Because they are primarily idle, Sensors have two different modes of running so 
 
 The ``poke`` and ``reschedule`` modes can be configured directly when you instantiate the sensor; generally, the trade-off between them is latency. Something that is checking every second should be in ``poke`` mode, while something that is checking every minute should be in ``reschedule`` mode.
 
-Much like Operators, Airflow has a large set of pre-built Sensors(in the standard provider) you can use, both in core Airflow(present in standard provider) as well as via our *providers* system.
+Much like Operators, Airflow has a large set of pre-built Sensors(housed in the standard provider) you can use, both in core Airflow(present in standard provider) as well as via our *providers* system.
 
 .. seealso:: :doc:`../authoring-and-scheduling/deferring`
