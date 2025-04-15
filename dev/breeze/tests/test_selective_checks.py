@@ -1301,6 +1301,41 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
     [
         (
             pytest.param(
+                ("providers/git/src/airflow/providers/git/test_file.py",),
+                (),
+                "main",
+                {
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "all-versions": "false",
+                    "mysql-versions": "['8.0']",
+                    "postgres-versions": "['13']",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-tests": "true",
+                    "skip-providers-tests": "false",
+                    "docs-build": "true",
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="Everything should run including all providers when git provider is changed"
+                "(special case for now)",
+            )
+        ),
+        (
+            pytest.param(
                 ("INTHEWILD.md",),
                 ("full tests needed", "all versions"),
                 "main",

@@ -43,6 +43,9 @@ then metastore.  This search ordering is not configurable. Though, in some alter
 the option to filter which connection/variable/config is searched in the secret backend. Please look at the
 documentation of the secret backend you are using to see if such option is available.
 
+On the other hand, if a workers secrets backend is defined, the order of lookup has higher priority for the workers secrets
+backend and then the secrets backend.
+
 .. warning::
 
     When using environment variables or an alternative secrets backend to store secrets or variables, it is possible to create key collisions.
@@ -73,6 +76,32 @@ the example below.
 .. code-block:: bash
 
     $ airflow config get-value secrets backend
+    airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+Worker Specific Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The above section covers a general configuration option for all Airflow components. But with Airflow 3, if you want to
+configure separate secrets backend for workers, you can do that using:
+
+.. code-block:: ini
+
+    [workers]
+    secrets_backend =
+    secrets_backend_kwargs =
+
+
+Set ``secrets_backend`` to the fully qualified class name of the backend you want to enable.
+
+You can provide ``secrets_backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
+your secrets backend for the workers.
+
+If you want to check which secret backend is currently set, you can use ``airflow config get-value workers secrets_backend`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value workers secrets_backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
 Supported core backends
