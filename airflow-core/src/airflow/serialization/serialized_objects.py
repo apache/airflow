@@ -1840,7 +1840,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return obj
 
         for old, new in dag_renames:
-            dag_dict[new] = dag_dict.pop(old)
+            if old in dag_dict:
+                dag_dict[new] = dag_dict.pop(old)
 
         if default_args := dag_dict.get("default_args"):
             for k in tasks_remove:
