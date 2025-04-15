@@ -875,8 +875,8 @@ def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, monkeypatc
     _, kwargs = mock_send.call_args
     assert "proxies" in kwargs
     proxies = kwargs["proxies"]
-    assert "http" in proxies.keys()
-    assert "no" in proxies.keys()
+    assert "http" in proxies
+    assert "no" in proxies
 
 
 @mock.patch("requests.adapters.HTTPAdapter.send")
@@ -894,5 +894,5 @@ def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, monkeypatch):
     _, kwargs = mock_send.call_args
     assert "proxies" in kwargs
     proxies = kwargs["proxies"]
-    assert "http" not in proxies.keys()
-    assert "no" not in proxies.keys()
+    assert "http" not in proxies
+    assert "no" not in proxies
