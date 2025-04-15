@@ -33,6 +33,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+import dns.resolver
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -172,15 +173,29 @@ class HttpHook(BaseHook):
         host = connection.host or self.default_host
         schema = connection.schema or "http"
         # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
-        if "://" in host:
-            self.base_url = host
-        else:
-            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-            if connection.port:
-                self.base_url = f"{self.base_url}:{connection.port}"
-        parsed = urlparse(self.base_url)
-        if not parsed.scheme:
-            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
+        srv=str(connection.extra_dejson.get("srv", "false")).lower()
+        if srv == "true":
+            try:
+                records = dns.resolver.resolve(host, 'SRV')
+                sorted_records = sorted(records, key=lambda r: (r.priority, -r.weight))
+                best_record = sorted_records[0]
+                host = f"{best_record.target}:{best_record.port}"
+                self.log.info("SRV record found for %s", host)
+                self.base_url = f"{schema}://{host}" if host else f"{schema}://"
+    
+            except dns.resolver.NoAnswer:
+                self.log.warning("No SRV record found for %s", host)
+                raise AirflowException(f"No SRV record found for {host}")
+        else:             
+            if "://" in host:
+                self.base_url = host
+            else:
+                self.base_url = f"{schema}://{host}" if host else f"{schema}://"
+                if connection.port:
+                    self.base_url = f"{self.base_url}:{connection.port}"
+            parsed = urlparse(self.base_url)
+            if not parsed.scheme:
+                raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
     def _configure_session_from_auth(self, session: Session, connection: Connection) -> Session:
         session.auth = self._extract_auth(connection)
