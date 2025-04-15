@@ -261,17 +261,16 @@ core:
       default: "False"
     allowed_deserialization_classes:
       description: |
-        What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as a pattern to a glob function.
-        Python built-in classes (like dict) are always allowed.
+        Space-separated list of classes that may be imported during deserialization. Items can be glob
+        expressions. Python built-in classes (like dict) are always allowed.
       version_added: 2.5.0
       type: string
       default: 'airflow.*'
-      example: ~
+      example: 'airflow.* my_mod.my_other_mod.TheseClasses*'
     allowed_deserialization_classes_regexp:
       description: |
-        What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as regexp patterns.
+        Space-separated list of classes that may be imported during deserialization. Items are processed
+        as regex expressions. Python built-in classes (like dict) are always allowed.
         This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
