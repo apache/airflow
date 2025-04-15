@@ -161,9 +161,9 @@ class BaseSQLOperator(BaseOperator):
         :param hook_params: hook parameters
         :return: default hook for this connection
         """
-        hook_params = hook_params = hook_params or {}
+        hook_params = hook_params or {}
         connection = BaseHook.get_connection(conn_id)
-        conn_params = connection.get_extra_dejson()
+        conn_params = connection.extra_dejson
         for conn_param in conn_params:
             if conn_param not in hook_params:
                 hook_params[conn_param] = conn_params[conn_param]
