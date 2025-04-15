@@ -94,6 +94,7 @@ class ProviderPackageDetails(NamedTuple):
     excluded_python_versions: list[str]
     plugins: list[PluginInfo]
     removed: bool
+    extra_project_metadata: str | None = None
 
 
 class PackageSuspendedException(Exception):
@@ -565,6 +566,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
+        extra_project_metadata=provider_info.get("extra-project-metadata", ""),
     )
 
 
@@ -690,6 +692,7 @@ def get_provider_jinja_context(
             get_provider_requirements(provider_id), markdown=False
         ),
         "REQUIRES_PYTHON": requires_python_version,
+        "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
     }
     return context
 
