@@ -261,29 +261,27 @@ class CassandraToGCSOperator(BaseOperator):
         """Convert value to BQ type."""
         if not value or isinstance(value, (str, int, float, bool, dict)):
             return value
-        elif isinstance(value, bytes):
+        if isinstance(value, bytes):
             return b64encode(value).decode("ascii")
-        elif isinstance(value, UUID):
+        if isinstance(value, UUID):
             if self.encode_uuid:
                 return b64encode(value.bytes).decode("ascii")
-            else:
-                return str(value)
-        elif isinstance(value, (datetime, Date)):
             return str(value)
-        elif isinstance(value, Decimal):
+        if isinstance(value, (datetime, Date)):
+            return str(value)
+        if isinstance(value, Decimal):
             return float(value)
-        elif isinstance(value, Time):
+        if isinstance(value, Time):
             return str(value).split(".")[0]
-        elif isinstance(value, (list, SortedSet)):
+        if isinstance(value, (list, SortedSet)):
             return self.convert_array_types(value)
-        elif hasattr(value, "_fields"):
+        if hasattr(value, "_fields"):
             return self.convert_user_type(value)
-        elif isinstance(value, tuple):
+        if isinstance(value, tuple):
             return self.convert_tuple_type(value)
-        elif isinstance(value, OrderedMapSerializedKey):
+        if isinstance(value, OrderedMapSerializedKey):
             return self.convert_map_type(value)
-        else:
-            raise AirflowException(f"Unexpected value: {value}")
+        raise AirflowException(f"Unexpected value: {value}")
 
     def convert_array_types(self, value: list[Any] | SortedSet) -> list[Any]:
         """Map convert_value over array."""
@@ -376,19 +374,17 @@ class CassandraToGCSOperator(BaseOperator):
         """Convert type to equivalent BQ type."""
         if cls.is_simple_type(type_):
             return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
-        elif cls.is_record_type(type_):
+        if cls.is_record_type(type_):
             return "RECORD"
-        elif cls.is_array_type(type_):
+        if cls.is_array_type(type_):
             return cls.get_bq_type(type_.subtypes[0])
-        else:
-            raise AirflowException("Not a supported type_: " + type_.cassname)
+        raise AirflowException("Not a supported type_: " + type_.cassname)
 
     @classmethod
     def get_bq_mode(cls, type_: Any) -> str:
         """Convert type to equivalent BQ mode."""
         if cls.is_array_type(type_) or type_.cassname == "MapType":
             return "REPEATED"
-        elif cls.is_record_type(type_) or cls.is_simple_type(type_):
+        if cls.is_record_type(type_) or cls.is_simple_type(type_):
             return "NULLABLE"
-        else:
-            raise AirflowException("Not a supported type_: " + type_.cassname)
+        raise AirflowException("Not a supported type_: " + type_.cassname)

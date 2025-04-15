@@ -1,0 +1,36 @@
+Update in ``airflow config update`` command to show breaking config changes by default.
+
+  * By default, the ``airflow config update`` shows a dry run (i.e. it does not modify your ``airflow.cfg``) and displays only the breaking configuration changes. This helps users avoid being overwhelmed by non-critical recommendations.
+  * ``airflow config update --fix`` to applies only the breaking changes and updates airflow.cfg accordingly.
+  * ``airflow config update --fix --all-recommendations`` updates both breaking and non-breaking recommended changes in your configuration.
+
+* Breaking Migration rules created
+
+  * ``airflow config update``
+
+    * ``core.executor``: default value change from ``SequentialExecutor`` to ``LocalExecutor``
+    * ``logging.log_filename_template``: remove configuration if value equals either
+          ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log`` or
+          ``dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log``
+    * ``webserver.web_server_host`` → ``api.host``
+    * ``webserver.web_server_port`` → ``api.port``
+    * ``webserver.workers`` → ``api.workers``
+    * ``webserver.web_server_ssl_cert`` → ``api.ssl_cert``
+    * ``webserver.web_server_ssl_key`` → ``api.ssl_key``
+    * ``webserver.access_logfile`` → ``api.access_logfile``
+    * ``scheduler.catchup_by_default``: default value change from ``True`` to ``False``
+    * ``scheduler.dag_dir_list_interval`` → ``dag_processor.refresh_interval``
+    * ``triggerer.default_capacity`` → ``triggerer.capacity``
+    * ``elasticsearch.log_id_template``: remove configuration if value equals ``{dag_id}-{task_id}-{logical_date}-{try_number}``
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

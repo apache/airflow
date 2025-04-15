@@ -30,7 +30,6 @@ mock_config_response = {
     "navbar_logo_text_color": "#51504f",
     "page_size": 100,
     "auto_refresh_interval": 3,
-    "default_ui_timezone": "UTC",
     "hide_paused_dags_by_default": False,
     "instance_name": "Airflow",
     "instance_name_has_markup": False,
@@ -41,20 +40,6 @@ mock_config_response = {
     "audit_view_excluded_events": "",
     "audit_view_included_events": "",
     "test_connection": "Disabled",
-    "state_color_mapping": {
-        "deferred": "mediumpurple",
-        "failed": "red",
-        "queued": "gray",
-        "removed": "lightgrey",
-        "restarting": "violet",
-        "running": "lime",
-        "scheduled": "tan",
-        "skipped": "hotpink",
-        "success": "green",
-        "up_for_reschedule": "turquoise",
-        "up_for_retry": "gold",
-        "upstream_failed": "orange",
-    },
     "dashboard_alert": [],
 }
 
@@ -74,7 +59,6 @@ def mock_config_data():
                 "navbar_logo_text_color": "#51504f",
                 "page_size": "100",
                 "auto_refresh_interval": "3",
-                "default_ui_timezone": "UTC",
                 "hide_paused_dags_by_default": "false",
                 "instance_name": "Airflow",
                 "instance_name_has_markup": "false",
@@ -86,24 +70,7 @@ def mock_config_data():
                 "audit_view_included_events": "",
             }
         }
-        with patch(
-            "airflow.settings.STATE_COLORS",
-            {
-                "deferred": "mediumpurple",
-                "failed": "red",
-                "queued": "gray",
-                "removed": "lightgrey",
-                "restarting": "violet",
-                "running": "lime",
-                "scheduled": "tan",
-                "skipped": "hotpink",
-                "success": "green",
-                "up_for_reschedule": "turquoise",
-                "up_for_retry": "gold",
-                "upstream_failed": "orange",
-            },
-        ):
-            yield mock_conf
+        yield mock_conf
 
 
 class TestGetConfig:

@@ -259,8 +259,7 @@ def convert_test_type_to_pytest_args(
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
             return [f"{helm_folder}/tests/helm_tests/{test_type}"]
-        else:
-            return [helm_folder]
+        return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()
     if test_group in [
@@ -391,6 +390,9 @@ def generate_args_for_pytest(
             args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.SYSTEM:
+        # System tests will be inited when the api server is started
+        args.append("--without-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())

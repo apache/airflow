@@ -93,8 +93,7 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
         if self.oss_log_exists(relative_path):
             logs.append(self.oss_read(relative_path, return_error=True))
             return messages, logs
-        else:
-            return messages, None
+        return messages, None
 
     def oss_log_exists(self, remote_log_location):
         """

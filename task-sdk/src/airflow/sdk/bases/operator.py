@@ -155,6 +155,32 @@ def get_merged_defaults(
     return args, params
 
 
+def parse_retries(retries: Any) -> int | None:
+    if retries is None:
+        return 0
+    if type(retries) == int:  # noqa: E721
+        return retries
+    try:
+        parsed_retries = int(retries)
+    except (TypeError, ValueError):
+        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+    return parsed_retries
+
+
+def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
+    if resources is None:
+        return None
+    from airflow.utils.operator_resources import Resources
+
+    return Resources(**resources)
+
+
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
@@ -192,6 +218,7 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "inlets": [],
     "outlets": [],
     "allow_nested_operators": True,
+    "executor_config": {},
 }
 
 
@@ -308,8 +335,7 @@ else:
         )
 
         # Fill fields not provided by the user with default values.
-        for k, v in _PARTIAL_DEFAULTS.items():
-            partial_kwargs.setdefault(k, v)
+        partial_kwargs.update((k, v) for k, v in _PARTIAL_DEFAULTS.items() if k not in partial_kwargs)
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -329,7 +355,6 @@ else:
         partial_kwargs["max_retry_delay"] = BaseOperator._convert_max_retry_delay(
             partial_kwargs.get("max_retry_delay", None)
         )
-        partial_kwargs.setdefault("executor_config", {})
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
             partial_kwargs[attr] = _collect_callbacks(partial_kwargs.get(attr := f"on_{k}_callback"))
@@ -469,7 +494,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             missing_args = non_optional_args.difference(kwargs)
             if len(missing_args) == 1:
                 raise TypeError(f"missing keyword argument {missing_args.pop()!r}")
-            elif missing_args:
+            if missing_args:
                 display = ", ".join(repr(a) for a in sorted(missing_args))
                 raise TypeError(f"missing keyword arguments {display}")
 
@@ -1282,8 +1307,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Returns the Operator's DAG if set, otherwise raises an error."""
         if dag := self._dag:
             return dag
-        else:
-            raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+        raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
 
     @dag.setter
     def dag(self, dag: DAG | None) -> None:
@@ -1299,7 +1323,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
-        elif self._dag is not None and self._dag is not dag:
+        if self._dag is not None and self._dag is not dag:
             raise ValueError(f"The DAG assigned to {self} can not be changed.")
 
         if self.__from_mapped:
@@ -1312,7 +1336,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def _convert_retries(retries: Any) -> int | None:
         if retries is None:
             return 0
-        elif type(retries) == int:  # noqa: E721
+        if type(retries) == int:  # noqa: E721
             return retries
         try:
             parsed_retries = int(retries)
@@ -1590,8 +1614,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
             if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
                 raise TaskDeferralTimeout(error)
-            else:
-                raise TaskDeferralError(error)
+            raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)

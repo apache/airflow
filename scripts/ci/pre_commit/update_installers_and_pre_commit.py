@@ -91,7 +91,7 @@ PIP_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 
 UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
-    (re.compile(r"(uv>=)([0-9]+)"), Quoting.UNQUOTED),
+    (re.compile(r"(uv>=)([0-9.]+)"), Quoting.UNQUOTED),
     (re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION = )(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(UV_VERSION=)(\"[0-9.]+\")"), Quoting.DOUBLE_QUOTED),
@@ -103,6 +103,10 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
         ),
         Quoting.UNQUOTED,
     ),
+]
+
+SETUPTOOLS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"(AIRFLOW_SETUPTOOLS_VERSION=)([0-9.]+)"), Quoting.UNQUOTED),
 ]
 
 PRE_COMMIT_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
@@ -151,15 +155,16 @@ NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 def get_replacement(value: str, quoting: Quoting) -> str:
     if quoting == Quoting.DOUBLE_QUOTED:
         return f'"{value}"'
-    elif quoting == Quoting.SINGLE_QUOTED:
+    if quoting == Quoting.SINGLE_QUOTED:
         return f"'{value}'"
-    elif quoting == Quoting.REVERSE_SINGLE_QUOTED:
+    if quoting == Quoting.REVERSE_SINGLE_QUOTED:
         return f"`{value}`"
     return value
 
 
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
+UPGRADE_SETUPTOOLS: bool = os.environ.get("UPGRADE_SETUPTOOLS", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
 UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 
@@ -195,6 +200,7 @@ if __name__ == "__main__":
     changed = False
     pip_version = get_latest_pypi_version("pip")
     uv_version = get_latest_pypi_version("uv")
+    setuptools_version = get_latest_pypi_version("setuptools")
     pre_commit_version = get_latest_pypi_version("pre-commit")
     pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
     node_lts_version = get_latest_lts_node_version()
@@ -207,6 +213,12 @@ if __name__ == "__main__":
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
+                )
+        if UPGRADE_SETUPTOOLS:
+            console.print(f"[bright_blue]Latest setuptools version: {setuptools_version}")
+            for line_pattern, quoting in SETUPTOOLS_PATTERNS:
+                new_content = replace_version(
+                    line_pattern, get_replacement(setuptools_version, quoting), new_content, keep_length
                 )
         if UPGRADE_UV:
             console.print(f"[bright_blue]Latest uv version: {uv_version}")

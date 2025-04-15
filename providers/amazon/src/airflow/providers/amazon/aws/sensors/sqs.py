@@ -221,5 +221,4 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
         if message_batch:
             context["ti"].xcom_push(key="messages", value=message_batch)
             return True
-        else:
-            return False
+        return False

@@ -24,7 +24,7 @@ import selectors
 import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
@@ -200,22 +200,30 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
 
     try:
         # Spy on it so we can see what gets send, but also call the original.
-        send_spy = spy_agency.spy_on(TriggerRunnerSupervisor._send, owner=TriggerRunnerSupervisor)
+        message = None
 
-        trigger_runner_supervisor._service_subprocess(0.1)
+        @spy_agency.spy_for(TriggerRunnerSupervisor.send_msg)
+        def send_msg_spy(self, msg, *args, **kwargs):
+            nonlocal message
+            message = msg
+            TriggerRunnerSupervisor.send_msg.call_original(self, msg, *args, **kwargs)
+
         trigger_runner_supervisor.load_triggers()
+        trigger_runner_supervisor._service_subprocess(0.1)
+
         # Make sure it turned up in TriggerRunner's queue
         assert trigger_runner_supervisor.running_triggers == {trigger_orm.id}
 
-        spy_agency.assert_spy_called_with(
-            send_spy,
+        assert message is not None, "spy was not called"
+        assert len(message.to_create) == 1
+        assert message.to_create[0] == (
             workloads.RunTrigger.model_construct(
                 id=trigger_orm.id,
                 ti=ANY,
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
-            ),
+            )
         )
         # OK, now remove it from the DB
         session.delete(trigger_orm)
@@ -287,13 +295,18 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
     @pytest.mark.asyncio
-    async def test_invalid_trigger(self):
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_invalid_trigger(self, supervisor_builder):
         """Test the behaviour when we try to run an invalid Trigger"""
         workload = workloads.RunTrigger.model_construct(
             id=1, ti=None, classpath="fake.classpath", encrypted_kwargs={}
         )
         trigger_runner = TriggerRunner()
         trigger_runner.requests_sock = MagicMock()
+        trigger_runner.response_sock = AsyncMock()
+        trigger_runner.response_sock.readline.return_value = (
+            b'{"type": "TriggerStateSync", "to_create": [], "to_cancel": []}\n'
+        )
 
         trigger_runner.to_create.append(workload)
 
@@ -367,7 +380,7 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     # Instead of running job_runner1._execute, we will run the individual methods
     # to control the timing of the execution.
     supervisor1.load_triggers()
-    assert supervisor1.running_triggers == {trigger_orm.id}
+    assert {t.id for t in supervisor1.creating_triggers} == {trigger_orm.id}
     trigger_orm = session.get(Trigger, trigger_orm.id)
     assert trigger_orm.task_instance is not None, "Pre-condition"
 
@@ -394,59 +407,6 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     assert supervisor2.running_triggers == set()
     # We should have not sent anything to the async runner process
     supervisor2.stdin.write.assert_not_called()
-
-
-def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_agency: SpyAgency):
-    """
-    This verifies the resolution of race condition documented in github issue #18392.
-    Triggers are queued for creation by TriggerJob.load_triggers.
-    There was a race condition where multiple triggers would be created unnecessarily.
-    What happens is the runner completes the trigger and purges from the "running" list.
-    Then job.load_triggers is called and it looks like the trigger is not running but should,
-    so it queues it again.
-
-    The scenario is as follows:
-        1. job.load_triggers (trigger now queued and sent to subprocess)
-        2. runner.create_triggers (trigger now running)
-        3. job.handle_events (trigger still appears running so state not updated in DB)
-        4. runner.cleanup_finished_triggers (trigger completed at this point; trigger from "running" set)
-        5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
-        6. runner.create_triggers (trigger created again)
-
-    This test verifies that under this scenario only one trigger is created.
-    """
-    trigger = TimeDeltaTrigger(delta=datetime.timedelta(microseconds=1))
-    trigger_orm = Trigger.from_object(trigger)
-    session.add(trigger_orm)
-    session.flush()
-
-    dag = DagModel(dag_id="test-dag")
-    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
-    ti.dag_id = dag.dag_id
-    ti.trigger_id = trigger_orm.id
-    session.add(dag)
-    session.add(dag_run)
-    session.add(ti)
-
-    session.commit()
-
-    supervisor = supervisor_builder()
-
-    iteration = 0
-
-    # Hook into something in each iteration of the loop
-    @spy_agency.spy_for(TriggerRunnerSupervisor.is_alive)
-    def is_alive(self):
-        nonlocal iteration
-        iteration += 1
-        if iteration >= 2:
-            self.stop = True
-
-        return True
-
-    supervisor.run()
-    assert supervisor.stdin.write.call_count == 1
 
 
 @pytest.mark.execution_timeout(5)
@@ -574,7 +534,7 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     supervisor.load_triggers()
 
     # Make sure it got picked up
-    assert supervisor.running_triggers == {trigger_orm.id}, "Pre-condition"
+    assert {t.id for t in supervisor.creating_triggers} == {trigger_orm.id}, "Pre-condition"
     # Simulate receiving the state update message
 
     supervisor._handle_request(
@@ -667,7 +627,6 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     "We should fix it later. TODO: AIP-72"
 )
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
     """Checks that the trigger will successfully access Variables, Connections and XComs."""
@@ -730,4 +689,194 @@ async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_m
             "variable": "some_variable_value",
             "xcom": '"some_xcom_value"',
         }
+    }
+
+
+class CustomTriggerDagRun(BaseTrigger):
+    def __init__(self, trigger_dag_id, run_ids, states, logical_dates):
+        self.trigger_dag_id = trigger_dag_id
+        self.run_ids = run_ids
+        self.states = states
+        self.logical_dates = logical_dates
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "trigger_dag_id": self.trigger_dag_id,
+                "run_ids": self.run_ids,
+                "states": self.states,
+                "logical_dates": self.logical_dates,
+            },
+        )
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        dag_run_states_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            dag_id=self.trigger_dag_id,
+            run_ids=self.run_ids,
+            states=self.states,
+            logical_dates=self.logical_dates,
+        )
+        dag_run_state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+            dag_id=self.trigger_dag_id,
+            run_id=self.run_ids[0],
+        )
+        yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
+
+
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
+@pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
+async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
+    """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Use the same dag run with states deferred to fetch the count
+    trigger = CustomTriggerDagRun(
+        trigger_dag_id=dr.dag_id, run_ids=[dr.run_id], states=[dr.state], logical_dates=[dr.logical_date]
+    )
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={
+            "trigger_dag_id": dr.dag_id,
+            "run_ids": [dr.run_id],
+            "states": [dr.state],
+            "logical_dates": [dr.logical_date],
+        },
+    )
+
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {"event": {"count": 1, "dag_run_state": "running"}}
+
+
+class CustomTriggerWorkflowStateTrigger(BaseTrigger):
+    """Custom Trigger to check the triggerer can access the get_ti_count and get_dr_count."""
+
+    def __init__(self, external_dag_id, execution_dates, external_task_ids, allowed_states, run_ids):
+        self.external_dag_id = external_dag_id
+        self.execution_dates = execution_dates
+        self.external_task_ids = external_task_ids
+        self.allowed_states = allowed_states
+        self.run_ids = run_ids
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {
+                "external_dag_id": self.external_dag_id,
+                "execution_dates": self.execution_dates,
+                "external_task_ids": self.external_task_ids,
+                "allowed_states": self.allowed_states,
+                "run_ids": self.run_ids,
+            },
+        )
+
+    async def run(self, **args) -> AsyncIterator[TriggerEvent]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        ti_count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+            dag_id=self.external_dag_id,
+            task_ids=self.external_task_ids,
+            task_group_id=None,
+            run_ids=self.run_ids,
+            logical_dates=self.execution_dates,
+            states=self.allowed_states,
+        )
+        dr_count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+            dag_id=self.external_dag_id,
+            run_ids=self.run_ids,
+            logical_dates=self.execution_dates,
+            states=["running"],
+        )
+        task_states = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.external_dag_id,
+            task_ids=self.external_task_ids,
+            run_ids=self.run_ids,
+            task_group_id=None,
+            logical_dates=self.execution_dates,
+        )
+        yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
+
+
+@pytest.mark.xfail(
+    reason="We know that test is flaky and have no time to fix it before 3.0. "
+    "We should fix it later. TODO: AIP-72"
+)
+@pytest.mark.asyncio
+@pytest.mark.flaky(reruns=2, reruns_delay=10)
+@pytest.mark.execution_timeout(30)
+async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
+    """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
+    # Create the test DAG and task
+    with dag_maker(dag_id="parent_dag", session=session):
+        EmptyOperator(task_id="parent_task")
+    parent_dag_run = dag_maker.create_dagrun()
+    parent_task = parent_dag_run.task_instances[0]
+    parent_task.state = TaskInstanceState.SUCCESS
+
+    with dag_maker(dag_id="trigger_can_fetch_dag_run_count_ti_count_in_deferrable", session=session):
+        EmptyOperator(task_id="dummy1")
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+
+    # Use the same dag run with states deferred to fetch the count
+    trigger = CustomTriggerWorkflowStateTrigger(
+        external_dag_id=parent_task.dag_id,
+        execution_dates=[parent_task.logical_date],
+        external_task_ids=[parent_task.task_id],
+        allowed_states=[State.SUCCESS],
+        run_ids=[parent_task.run_id],
+    )
+    trigger_orm = Trigger(
+        classpath=trigger.serialize()[0],
+        kwargs={
+            "external_dag_id": parent_dag_run.dag_id,
+            "execution_dates": [parent_dag_run.logical_date],
+            "external_task_ids": [parent_task.task_id],
+            "allowed_states": [State.SUCCESS],
+            "run_ids": [parent_dag_run.run_id],
+        },
+    )
+    session.add(trigger_orm)
+    session.commit()
+    task_instance.trigger_id = trigger_orm.id
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    parent_task.refresh_from_db()
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {
+        "event": {"ti_count": 1, "dr_count": 1, "task_states": {"test": {"parent_task": "success"}}}
     }

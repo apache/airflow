@@ -75,8 +75,7 @@ def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | N
         return min(date_list, key=any_time).date()
     if before_target:
         return min(date_list, key=time_before).date()
-    else:
-        return min(date_list, key=time_after).date()
+    return min(date_list, key=time_after).date()
 
 
 def closest_ds_partition(
@@ -109,10 +108,9 @@ def closest_ds_partition(
     part_vals = [next(iter(p.values())) for p in partitions]
     if ds in part_vals:
         return ds
-    else:
-        parts = [datetime.datetime.strptime(pv, "%Y-%m-%d") for pv in part_vals]
-        target_dt = datetime.datetime.strptime(ds, "%Y-%m-%d")
-        closest_ds = _closest_date(target_dt, parts, before_target=before)
-        if closest_ds is not None:
-            return closest_ds.isoformat()
+    parts = [datetime.datetime.strptime(pv, "%Y-%m-%d") for pv in part_vals]
+    target_dt = datetime.datetime.strptime(ds, "%Y-%m-%d")
+    closest_ds = _closest_date(target_dt, parts, before_target=before)
+    if closest_ds is not None:
+        return closest_ds.isoformat()
     return None

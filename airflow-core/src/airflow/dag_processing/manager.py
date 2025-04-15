@@ -199,7 +199,9 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_int_factory("dag_processor", "max_callbacks_per_loop")
     )
 
-    base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
+    base_log_dir: str = attrs.field(
+        factory=_config_get_factory("logging", "dag_processor_child_process_log_directory")
+    )
     _latest_log_symlink_date: datetime = attrs.field(factory=datetime.today, init=False)
 
     bundle_refresh_check_interval: int = attrs.field(
@@ -286,7 +288,7 @@ class DagFileProcessorManager(LoggingMixin):
             DagModel.fileloc,
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
-        ).where(DagModel.is_active, DagModel.bundle_name.in_(bundle_names))
+        ).where(~DagModel.is_stale, DagModel.bundle_name.in_(bundle_names))
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
@@ -304,7 +306,7 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated_dagmodel = session.execute(
                 update(DagModel)
                 .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_active=False)
+                .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
             deactivated = deactivated_dagmodel.rowcount
@@ -381,8 +383,13 @@ class DagFileProcessorManager(LoggingMixin):
         events = self.selector.select(timeout=timeout)
         for key, _ in events:
             socket_handler = key.data
-            need_more = socket_handler(key.fileobj)
 
+            # BrokenPipeError should be caught and treated as if the handler returned false, similar
+            # to EOF case
+            try:
+                need_more = socket_handler(key.fileobj)
+            except BrokenPipeError:
+                need_more = False
             if not need_more:
                 self.selector.unregister(key.fileobj)
                 key.fileobj.close()  # type: ignore[union-attr]

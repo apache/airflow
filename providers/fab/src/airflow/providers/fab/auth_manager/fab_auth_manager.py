@@ -155,7 +155,7 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
-    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.AUDIT_LOG: RESOURCE_AUDIT_LOG,
     MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
     MenuItem.DAGS: RESOURCE_DAG,
     MenuItem.DOCS: RESOURCE_DOCS,
@@ -181,7 +181,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cached_property
     def apiserver_endpoint(self) -> str:
-        return conf.get("api", "base_url")
+        return conf.get("api", "base_url", fallback="/")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -233,7 +233,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
-        with folder.joinpath("openapi", "v1.yaml").open() as f:
+        with folder.joinpath("openapi", "v1-flask-api.yaml").open() as f:
             specification = safe_load(f)
         return FlaskApi(
             specification=specification,
@@ -329,24 +329,23 @@ class FabAuthManager(BaseAuthManager[User]):
         if not access_entity:
             # Scenario 1
             return self._is_authorized_dag(method=method, details=details, user=user)
-        else:
-            # Scenario 2
-            resource_types = self._get_fab_resource_types(access_entity)
-            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+        # Scenario 2
+        resource_types = self._get_fab_resource_types(access_entity)
+        dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
 
-            if (details and details.id) and not self._is_authorized_dag(
-                method=dag_method, details=details, user=user
-            ):
-                return False
+        if (details and details.id) and not self._is_authorized_dag(
+            method=dag_method, details=details, user=user
+        ):
+            return False
 
-            return all(
-                (
-                    self._is_authorized(method=method, resource_type=resource_type, user=user)
-                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                    else self._is_authorized_dag_run(method=method, details=details, user=user)
-                )
-                for resource_type in resource_types
+        return all(
+            (
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(method=method, details=details, user=user)
             )
+            for resource_type in resource_types
+        )
 
     def is_authorized_backfill(
         self,

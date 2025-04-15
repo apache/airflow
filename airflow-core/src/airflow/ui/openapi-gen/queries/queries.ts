@@ -17,7 +17,6 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
-  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -62,12 +61,12 @@ import {
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAuthLinksServiceGetAuthLinks = <
-  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+export const useAuthLinksServiceGetAuthMenus = <
+  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -75,8 +74,8 @@ export const useAuthLinksServiceGetAuthLinks = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenus() as TData,
     ...options,
   });
 /**
@@ -590,7 +589,7 @@ export const useConnectionServiceGetConnections = <
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -606,10 +605,10 @@ export const useDagsServiceRecentDagRuns = <
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -619,10 +618,10 @@ export const useDagsServiceRecentDagRuns = <
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -638,10 +637,10 @@ export const useDagsServiceRecentDagRuns = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -655,10 +654,10 @@ export const useDagsServiceRecentDagRuns = <
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -1042,6 +1041,7 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -1063,6 +1063,7 @@ export const useDagRunServiceGetDagRuns = <
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -1079,6 +1080,7 @@ export const useDagRunServiceGetDagRuns = <
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1101,6 +1103,7 @@ export const useDagRunServiceGetDagRuns = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1121,6 +1124,7 @@ export const useDagRunServiceGetDagRuns = <
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1265,7 +1269,7 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1290,10 +1294,10 @@ export const useDagServiceGetDags = <
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1307,10 +1311,10 @@ export const useDagServiceGetDags = <
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1330,10 +1334,10 @@ export const useDagServiceGetDags = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -1351,10 +1355,10 @@ export const useDagServiceGetDags = <
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -2992,32 +2996,6 @@ export const useLoginServiceLogout = <
     ...options,
   });
 /**
- * Not Found Handler
- * Catch all route to handle invalid endpoints.
- * @param data The data for the request.
- * @param data.restOfPath
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const useDefaultServiceNotFoundHandler = <
-  TData = Common.DefaultServiceNotFoundHandlerDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    restOfPath,
-  }: {
-    restOfPath: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }, queryKey),
-    queryFn: () => DefaultService.notFoundHandler({ restOfPath }) as TData,
-    ...options,
-  });
-/**
  * Create Asset Event
  * Create asset events.
  * @param data The data for the request.
@@ -3872,7 +3850,7 @@ export const useDagRunServicePatchDagRun = <
  * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGCollectionResponse Successful Response
@@ -3889,10 +3867,10 @@ export const useDagServicePatchDags = <
       TError,
       {
         dagIdPattern?: string;
+        excludeStale?: boolean;
         lastDagRunState?: DagRunState;
         limit?: number;
         offset?: number;
-        onlyActive?: boolean;
         owners?: string[];
         paused?: boolean;
         requestBody: DAGPatchBody;
@@ -3910,10 +3888,10 @@ export const useDagServicePatchDags = <
     TError,
     {
       dagIdPattern?: string;
+      excludeStale?: boolean;
       lastDagRunState?: DagRunState;
       limit?: number;
       offset?: number;
-      onlyActive?: boolean;
       owners?: string[];
       paused?: boolean;
       requestBody: DAGPatchBody;
@@ -3925,10 +3903,10 @@ export const useDagServicePatchDags = <
   >({
     mutationFn: ({
       dagIdPattern,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       requestBody,
@@ -3938,10 +3916,10 @@ export const useDagServicePatchDags = <
     }) =>
       DagService.patchDags({
         dagIdPattern,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         requestBody,

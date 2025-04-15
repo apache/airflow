@@ -30,12 +30,13 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.serve_logs import serve_logs
 
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
     """Start serve_logs sub-process."""
+    from airflow.utils.serve_logs import serve_logs
+
     sub_proc = None
     if skip_serve_logs is False:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)

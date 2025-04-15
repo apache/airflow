@@ -49,7 +49,7 @@ def _use_uv() -> bool:
     venv_install_method = conf.get("standard", "venv_install_method", fallback="auto").lower()
     if venv_install_method == "auto":
         return _is_uv_installed()
-    elif venv_install_method == "uv":
+    if venv_install_method == "uv":
         return True
     return False
 

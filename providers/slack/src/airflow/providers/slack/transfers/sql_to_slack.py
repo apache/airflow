@@ -149,9 +149,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             if df_result.empty:
                 if self.action_on_empty_df == "skip":
                     raise AirflowSkipException("SQL output df is empty. Skipping.")
-                elif self.action_on_empty_df == "error":
+                if self.action_on_empty_df == "error":
                     raise ValueError("SQL output df must be non-empty. Failing.")
-                elif self.action_on_empty_df != "send":
+                if self.action_on_empty_df != "send":
                     raise ValueError(f"Invalid `action_on_empty_df` value {self.action_on_empty_df!r}")
             if output_file_format == "CSV":
                 df_result.to_csv(output_file_name, **self.df_kwargs)

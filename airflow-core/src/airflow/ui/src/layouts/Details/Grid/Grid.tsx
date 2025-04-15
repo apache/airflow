@@ -71,11 +71,11 @@ export const Grid = ({ limit }: Props) => {
   );
 
   return (
-    <Flex justifyContent="flex-end" position="relative" pt={50} width="100%">
-      <Box position="absolute" top="150px" width="100%">
+    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
+      <Box flexGrow={1} minWidth={7} mr={3} position="relative" top="100px">
         <TaskNames nodes={flatNodes} />
       </Box>
-      <Box>
+      <Box position="relative">
         <Flex position="relative">
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />

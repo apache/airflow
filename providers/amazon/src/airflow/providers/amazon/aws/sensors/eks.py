@@ -18,19 +18,20 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
     FargateProfileStates,
     NodegroupStates,
 )
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -57,7 +58,7 @@ NODEGROUP_TERMINAL_STATES = frozenset(
 )
 
 
-class EksBaseSensor(BaseSensorOperator):
+class EksBaseSensor(AwsBaseSensor):
     """
     Base class to check various EKS states.
 
@@ -68,13 +69,16 @@ class EksBaseSensor(BaseSensorOperator):
     :param target_state_type: The enum containing the states,
         will be used to convert the target state if it has to be converted from a string
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then the default boto3 configuration would be used (and must be
+        empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -82,25 +86,14 @@ class EksBaseSensor(BaseSensorOperator):
         cluster_name: str,
         target_state: ClusterStates | NodegroupStates | FargateProfileStates,
         target_state_type: type,
-        aws_conn_id: str | None = DEFAULT_CONN_ID,
-        region: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.target_state = (
             target_state
             if isinstance(target_state, target_state_type)
             else target_state_type(str(target_state).upper())
-        )
-
-    @cached_property
-    def hook(self) -> EksHook:
-        return EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
         )
 
     def poke(self, context: Context) -> bool:
@@ -130,16 +123,17 @@ class EksClusterStateSensor(EksBaseSensor):
 
     :param cluster_name: The name of the Cluster to watch. (templated)
     :param target_state: Target state of the Cluster. (templated)
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "target_state", "aws_conn_id", "region")
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -147,8 +141,16 @@ class EksClusterStateSensor(EksBaseSensor):
         self,
         *,
         target_state: ClusterStates = ClusterStates.ACTIVE,
+        region: str | None = None,
         **kwargs,
     ):
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["region_name"] = region
         super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
 
     def get_state(self) -> ClusterStates:
@@ -169,21 +171,18 @@ class EksFargateProfileStateSensor(EksBaseSensor):
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
     :param fargate_profile_name: The name of the Fargate profile to watch. (templated)
     :param target_state: Target state of the Fargate profile. (templated)
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = (
-        "cluster_name",
-        "fargate_profile_name",
-        "target_state",
-        "aws_conn_id",
-        "region",
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name", "fargate_profile_name", "target_state"
     )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
@@ -192,9 +191,17 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         self,
         *,
         fargate_profile_name: str,
+        region: str | None = None,
         target_state: FargateProfileStates = FargateProfileStates.ACTIVE,
         **kwargs,
     ):
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["region_name"] = region
         super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
         self.fargate_profile_name = fargate_profile_name
 
@@ -218,22 +225,17 @@ class EksNodegroupStateSensor(EksBaseSensor):
     :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
     :param nodegroup_name: The name of the Nodegroup to watch. (templated)
     :param target_state: Target state of the Nodegroup. (templated)
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
-    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = (
-        "cluster_name",
-        "nodegroup_name",
-        "target_state",
-        "aws_conn_id",
-        "region",
-    )
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "nodegroup_name", "target_state")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -242,8 +244,16 @@ class EksNodegroupStateSensor(EksBaseSensor):
         *,
         nodegroup_name: str,
         target_state: NodegroupStates = NodegroupStates.ACTIVE,
+        region: str | None = None,
         **kwargs,
     ):
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["region_name"] = region
         super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
         self.nodegroup_name = nodegroup_name
 

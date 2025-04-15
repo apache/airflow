@@ -19,13 +19,7 @@ from __future__ import annotations
 
 from cadwyn import HeadVersion, Version, VersionBundle
 
-from airflow.api_fastapi.execution_api.versions.v2025_03_26 import (
-    AddIncludePriorDatesParam,
-    RemoveTIRuntimeChecksEndpoint,
-)
-
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2025-03-26", RemoveTIRuntimeChecksEndpoint, AddIncludePriorDatesParam),
-    Version("2025-03-19"),
+    Version("2025-04-11"),
 )

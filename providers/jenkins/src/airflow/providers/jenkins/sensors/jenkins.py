@@ -72,9 +72,8 @@ class JenkinsBuildSensor(BaseSensorOperator):
         self.log.info("Build is finished, result is %s", "build_result")
         if build_result in self.target_states:
             return True
-        else:
-            message = (
-                f"Build {build_number} finished with a result {build_result}, "
-                f"which does not meet the target state {self.target_states}."
-            )
-            raise AirflowException(message)
+        message = (
+            f"Build {build_number} finished with a result {build_result}, "
+            f"which does not meet the target state {self.target_states}."
+        )
+        raise AirflowException(message)

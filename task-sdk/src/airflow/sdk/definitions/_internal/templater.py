@@ -27,11 +27,11 @@ import jinja2
 import jinja2.nativetypes
 import jinja2.sandbox
 
+from airflow.sdk import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
-    from airflow.io.path import ObjectStoragePath
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
@@ -154,13 +154,6 @@ class Templater:
             *RecursionError* on circular dependencies)
         :return: Templated content
         """
-        try:
-            # Delay this to runtime, it invokes provider manager otherwise
-            from airflow.io.path import ObjectStoragePath
-        except ImportError:
-            # A placeholder class so isinstance checks work
-            class ObjectStoragePath: ...  # type: ignore[no-redef]
-
         # "content" is a bad name, but we're stuck to it being public API.
         value = content
         del content
@@ -191,13 +184,13 @@ class Templater:
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
             return tuple(self.render_template(element, context, jinja_env, oids) for element in value)
-        elif isinstance(value, tuple):  # Special case for named tuples.
+        if isinstance(value, tuple):  # Special case for named tuples.
             return value.__class__(*(self.render_template(el, context, jinja_env, oids) for el in value))
-        elif isinstance(value, list):
+        if isinstance(value, list):
             return [self.render_template(element, context, jinja_env, oids) for element in value]
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
-        elif isinstance(value, set):
+        if isinstance(value, set):
             return {self.render_template(element, context, jinja_env, oids) for element in value}
 
         # More complex collections.

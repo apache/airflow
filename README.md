@@ -87,10 +87,9 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 ## Principles
 
-- **Dynamic**: Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
-- **Extensible**: Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
-- **Elegant**: Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**: Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+- **Dynamic**: Pipelines are defined in code, enabling dynamic dag generation and parameterization.
+- **Extensible**: The Airflow framework includes a wide range of built-in operators and can be extended to fit your needs.
+- **Flexible**: Airflow leverages the [**Jinja**](https://jinja.palletsprojects.com) templating engine, allowing rich customizations.
 
 <!-- START Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 ## Requirements
@@ -241,13 +240,13 @@ following the ASF Policy.
 
   ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
 
-- **Task Duration**: Total time spent on different tasks over time.
+- **Home**: Summary statistics of your Airflow environment.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
+  ![Home](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/home.png)
 
-- **Gantt**: Duration and overlap of a DAG.
+- **Backfill**: Backfilling a DAG for a specific date range.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
+  ![Backfill](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/backfill.png)
 
 - **Code**: Quick way to view source code of a DAG.
 

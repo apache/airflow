@@ -186,18 +186,17 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             if not self.deferrable:
                 environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
                 return Environment.to_dict(environment)
-            else:
-                self.defer(
-                    trigger=CloudComposerExecutionTrigger(
-                        project_id=self.project_id,
-                        region=self.region,
-                        operation_name=result.operation.name,
-                        gcp_conn_id=self.gcp_conn_id,
-                        impersonation_chain=self.impersonation_chain,
-                        pooling_period_seconds=self.pooling_period_seconds,
-                    ),
-                    method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
-                )
+            self.defer(
+                trigger=CloudComposerExecutionTrigger(
+                    project_id=self.project_id,
+                    region=self.region,
+                    operation_name=result.operation.name,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    pooling_period_seconds=self.pooling_period_seconds,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
         except AlreadyExists:
             environment = hook.get_environment(
                 project_id=self.project_id,
@@ -225,8 +224,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             return Environment.to_dict(env)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
 class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
@@ -555,18 +553,17 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
             return Environment.to_dict(environment)
-        else:
-            self.defer(
-                trigger=CloudComposerExecutionTrigger(
-                    project_id=self.project_id,
-                    region=self.region,
-                    operation_name=result.operation.name,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    pooling_period_seconds=self.pooling_period_seconds,
-                ),
-                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
-            )
+        self.defer(
+            trigger=CloudComposerExecutionTrigger(
+                project_id=self.project_id,
+                region=self.region,
+                operation_name=result.operation.name,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                pooling_period_seconds=self.pooling_period_seconds,
+            ),
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+        )
 
     def execute_complete(self, context: Context, event: dict):
         if event["operation_done"]:
@@ -584,8 +581,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             return Environment.to_dict(env)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
 
 class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):

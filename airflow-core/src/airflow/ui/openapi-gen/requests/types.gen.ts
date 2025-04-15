@@ -163,7 +163,17 @@ export type BaseInfoResponse = {
 export type BaseNodeResponse = {
   id: string;
   label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
 };
 
 export type type =
@@ -172,6 +182,8 @@ export type type =
   | "asset-condition"
   | "asset"
   | "asset-alias"
+  | "asset-name-ref"
+  | "asset-uri-ref"
   | "dag"
   | "sensor"
   | "trigger";
@@ -401,7 +413,6 @@ export type ConfigResponse = {
   navbar_logo_text_color: string;
   page_size: number;
   auto_refresh_interval: number;
-  default_ui_timezone: string;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
   instance_name_has_markup: boolean;
@@ -412,9 +423,6 @@ export type ConfigResponse = {
   audit_view_excluded_events: string;
   audit_view_included_events: string;
   test_connection: string;
-  state_color_mapping: {
-    [key: string]: unknown;
-  };
   dashboard_alert: Array<UIAlert>;
 };
 
@@ -532,7 +540,7 @@ export type DAGDetailsResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -596,7 +604,7 @@ export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -772,7 +780,7 @@ export type DAGWithLatestDagRunsResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
-  is_active: boolean;
+  is_stale: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
@@ -899,7 +907,7 @@ export type DagVersionResponse = {
   id: string;
   version_number: number;
   dag_id: string;
-  bundle_name: string;
+  bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
   readonly bundle_url: string | null;
@@ -969,6 +977,11 @@ export type EventLogResponse = {
  */
 export type ExtraLinksResponse = {
   [key: string]: string | null;
+};
+
+export type ExtraMenuItem = {
+  text: string;
+  href: string;
 };
 
 /**
@@ -1111,19 +1124,27 @@ export type JobResponse = {
 };
 
 /**
- * Menu Item for responses.
+ * Define all menu items defined in the menu.
  */
-export type MenuItem = {
-  text: string;
-  href: string;
-};
+export type MenuItem =
+  | "Assets"
+  | "Audit Log"
+  | "Config"
+  | "Connections"
+  | "Dags"
+  | "Docs"
+  | "Plugins"
+  | "Pools"
+  | "Providers"
+  | "Variables"
+  | "XComs";
 
 /**
  * Menu Item Collection serializer for responses.
  */
 export type MenuItemCollectionResponse = {
-  menu_items: Array<MenuItem>;
-  total_entries: number;
+  authorized_menu_items: Array<MenuItem>;
+  extra_menu_items: Array<ExtraMenuItem>;
 };
 
 /**
@@ -1132,7 +1153,17 @@ export type MenuItemCollectionResponse = {
 export type NodeResponse = {
   id: string;
   label: string;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  type:
+    | "join"
+    | "task"
+    | "asset-condition"
+    | "asset"
+    | "asset-alias"
+    | "asset-name-ref"
+    | "asset-uri-ref"
+    | "dag"
+    | "sensor"
+    | "trigger";
   children?: Array<NodeResponse> | null;
   is_mapped?: boolean | null;
   tooltip?: string | null;
@@ -1693,7 +1724,7 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
-export type GetAuthLinksResponse = MenuItemCollectionResponse;
+export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type NextRunAssetsData = {
   dagId: string;
@@ -1880,10 +1911,10 @@ export type RecentDagRunsData = {
   dagIdPattern?: string | null;
   dagIds?: Array<string> | null;
   dagRunsLimit?: number;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
@@ -2038,6 +2069,7 @@ export type GetDagRunsData = {
   orderBy?: string;
   runAfterGte?: string | null;
   runAfterLte?: string | null;
+  runType?: Array<string>;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2099,10 +2131,10 @@ export type GetDagsData = {
   dagRunStartDateGte?: string | null;
   dagRunStartDateLte?: string | null;
   dagRunState?: Array<string>;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
@@ -2114,10 +2146,10 @@ export type GetDagsResponse = DAGCollectionResponse;
 
 export type PatchDagsData = {
   dagIdPattern?: string | null;
+  excludeStale?: boolean;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
-  onlyActive?: boolean;
   owners?: Array<string>;
   paused?: boolean | null;
   requestBody: DAGPatchBody;
@@ -2624,14 +2656,8 @@ export type LogoutData = {
 
 export type LogoutResponse = unknown;
 
-export type NotFoundHandlerData = {
-  restOfPath: string;
-};
-
-export type NotFoundHandlerResponse = unknown;
-
 export type $OpenApiTs = {
-  "/ui/auth/links": {
+  "/ui/auth/menus": {
     get: {
       res: {
         /**
@@ -5449,21 +5475,6 @@ export type $OpenApiTs = {
          * Temporary Redirect
          */
         307: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/api/v2/{rest_of_path}": {
-    get: {
-      req: NotFoundHandlerData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: unknown;
         /**
          * Validation Error
          */

@@ -37,6 +37,7 @@ from airflow.sdk.definitions.asset import (
     _sanitize_uri,
 )
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.io import ObjectStoragePath
 from airflow.serialization.serialized_objects import SerializedDAG
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
@@ -129,6 +130,12 @@ def test_uri_with_auth() -> None:
 def test_uri_without_scheme():
     asset = Asset(uri="example_asset")
     EmptyOperator(task_id="task1", outlets=[asset])
+
+
+def test_objectstoragepath():
+    o = ObjectStoragePath("file:///123/456")
+    a = Asset(name="o", uri=o)
+    assert a.uri == "file:///123/456"
 
 
 def test_fspath():
@@ -235,7 +242,7 @@ def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
     if isinstance(a1, Asset) and isinstance(a2, Asset):
         return a1.uri == a2.uri
 
-    elif isinstance(a1, (AssetAny, AssetAll)) and isinstance(a2, (AssetAny, AssetAll)):
+    if isinstance(a1, (AssetAny, AssetAll)) and isinstance(a2, (AssetAny, AssetAll)):
         if len(a1.objects) != len(a2.objects):
             return False
 

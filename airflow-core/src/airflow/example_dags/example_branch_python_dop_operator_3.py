@@ -24,9 +24,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import task
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, task
 
 
 @task.branch()
@@ -40,8 +39,7 @@ def should_run(**kwargs) -> str:
     print(f"------------- exec dttm = {kwargs['logical_date']} and minute = {kwargs['logical_date'].minute}")
     if kwargs["logical_date"].minute % 2 == 0:
         return "empty_task_1"
-    else:
-        return "empty_task_2"
+    return "empty_task_2"
 
 
 with DAG(

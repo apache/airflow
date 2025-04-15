@@ -16,7 +16,6 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
-  DefaultService,
   DependenciesService,
   EventLogService,
   ExtraLinksService,
@@ -39,14 +38,14 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Get Auth Links
+ * Get Auth Menus
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseAuthLinksServiceGetAuthLinksData = (queryClient: QueryClient) =>
+export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(),
+    queryFn: () => AuthLinksService.getAuthMenus(),
   });
 /**
  * Next Run Assets
@@ -456,7 +455,7 @@ export const ensureUseConnectionServiceGetConnectionsData = (
  * @param data.dagIds
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
@@ -469,10 +468,10 @@ export const ensureUseDagsServiceRecentDagRunsData = (
     dagIdPattern,
     dagIds,
     dagRunsLimit,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     owners,
     paused,
     tags,
@@ -482,10 +481,10 @@ export const ensureUseDagsServiceRecentDagRunsData = (
     dagIdPattern?: string;
     dagIds?: string[];
     dagRunsLimit?: number;
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -498,10 +497,10 @@ export const ensureUseDagsServiceRecentDagRunsData = (
       dagIdPattern,
       dagIds,
       dagRunsLimit,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       owners,
       paused,
       tags,
@@ -513,10 +512,10 @@ export const ensureUseDagsServiceRecentDagRunsData = (
         dagIdPattern,
         dagIds,
         dagRunsLimit,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         owners,
         paused,
         tags,
@@ -843,6 +842,7 @@ export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (
  * @param data.endDateLte
  * @param data.updatedAtGte
  * @param data.updatedAtLte
+ * @param data.runType
  * @param data.state
  * @param data.orderBy
  * @returns DAGRunCollectionResponse Successful Response
@@ -861,6 +861,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
     orderBy,
     runAfterGte,
     runAfterLte,
+    runType,
     startDateGte,
     startDateLte,
     state,
@@ -877,6 +878,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
     orderBy?: string;
     runAfterGte?: string;
     runAfterLte?: string;
+    runType?: string[];
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -896,6 +898,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
       orderBy,
       runAfterGte,
       runAfterLte,
+      runType,
       startDateGte,
       startDateLte,
       state,
@@ -914,6 +917,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
         orderBy,
         runAfterGte,
         runAfterLte,
+        runType,
         startDateGte,
         startDateLte,
         state,
@@ -1030,7 +1034,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
- * @param data.onlyActive
+ * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
  * @param data.dagRunStartDateGte
@@ -1052,10 +1056,10 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateGte,
     dagRunStartDateLte,
     dagRunState,
+    excludeStale,
     lastDagRunState,
     limit,
     offset,
-    onlyActive,
     orderBy,
     owners,
     paused,
@@ -1069,10 +1073,10 @@ export const ensureUseDagServiceGetDagsData = (
     dagRunStartDateGte?: string;
     dagRunStartDateLte?: string;
     dagRunState?: string[];
+    excludeStale?: boolean;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    onlyActive?: boolean;
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
@@ -1089,10 +1093,10 @@ export const ensureUseDagServiceGetDagsData = (
       dagRunStartDateGte,
       dagRunStartDateLte,
       dagRunState,
+      excludeStale,
       lastDagRunState,
       limit,
       offset,
-      onlyActive,
       orderBy,
       owners,
       paused,
@@ -1108,10 +1112,10 @@ export const ensureUseDagServiceGetDagsData = (
         dagRunStartDateGte,
         dagRunStartDateLte,
         dagRunState,
+        excludeStale,
         lastDagRunState,
         limit,
         offset,
-        onlyActive,
         orderBy,
         owners,
         paused,
@@ -2511,24 +2515,4 @@ export const ensureUseLoginServiceLogoutData = (
   queryClient.ensureQueryData({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
-  });
-/**
- * Not Found Handler
- * Catch all route to handle invalid endpoints.
- * @param data The data for the request.
- * @param data.restOfPath
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const ensureUseDefaultServiceNotFoundHandlerData = (
-  queryClient: QueryClient,
-  {
-    restOfPath,
-  }: {
-    restOfPath: string;
-  },
-) =>
-  queryClient.ensureQueryData({
-    queryKey: Common.UseDefaultServiceNotFoundHandlerKeyFn({ restOfPath }),
-    queryFn: () => DefaultService.notFoundHandler({ restOfPath }),
   });

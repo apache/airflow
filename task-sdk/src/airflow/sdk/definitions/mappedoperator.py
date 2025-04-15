@@ -357,6 +357,8 @@ class MappedOperator(AbstractOperator):
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
         return (frozenset(attrs.fields_dict(MappedOperator)) | {"task_type"}) - {
+            "_is_empty",
+            "_can_skip_downstream",
             "_task_type",
             "dag",
             "deps",

@@ -34,14 +34,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.10.6
+......
+
+Latest change: 2025-04-10
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`00aec39a4c <https://github.com/apache/airflow/commit/00aec39a4c4987496ee365eca212657dec45be5e>`__  2025-04-10   ``Bring back serve_logs to be in the core (#49031)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 3.10.5
 ......
 
-Latest change: 2025-04-04
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =======================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =======================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `a61cb1b949 <https://github.com/apache/airflow/commit/a61cb1b949b20c4660e2ba9d92f85791f61e632b>`__  2025-04-04   ``Fix Celery Executor on Airflow 2.x again. (#48806)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `69f8682514 <https://github.com/apache/airflow/commit/69f8682514ad3889ad24a067cf3ee7cde4ad9161>`__  2025-04-02   ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``

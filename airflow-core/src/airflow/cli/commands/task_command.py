@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
+    from airflow.typing_compat import Self
 
     CreateIfNecessary = Literal[False, "db", "memory"]
 
@@ -107,7 +108,7 @@ def _get_dag_run(
         )
         if dag_run is not None:
             return dag_run, False
-        elif not create_if_necessary:
+        if not create_if_necessary:
             raise DagRunNotFound(
                 f"DagRun for {dag.dag_id} with run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
@@ -131,7 +132,7 @@ def _get_dag_run(
             state=DagRunState.RUNNING,
         )
         return dag_run, True
-    elif create_if_necessary == "db":
+    if create_if_necessary == "db":
         dag_run = dag.create_dagrun(
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
@@ -139,7 +140,6 @@ def _get_dag_run(
             run_after=run_after,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
-            dag_version=None,
             state=DagRunState.RUNNING,
             session=session,
         )
@@ -260,7 +260,7 @@ def task_state(args) -> None:
 
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
-    print(ti.current_state())
+    print(ti.state)
 
 
 @cli_utils.action_cli(check_db=False)
@@ -518,7 +518,7 @@ class LoggerMutationHelper:
     def reset(self) -> None:
         self.apply(self.source_logger)
 
-    def __enter__(self) -> LoggerMutationHelper:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:

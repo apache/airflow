@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class MwaaHook(AwsBaseHook):
     """
-    Interact with AWS Manager Workflows for Apache Airflow.
+    Interact with AWS Managed Workflows for Apache Airflow.
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("mwaa") <MWAA.Client>`
 
@@ -101,13 +101,12 @@ class MwaaHook(AwsBaseHook):
                     "Access Denied due to missing airflow:InvokeRestApi in IAM policy. Trying again by generating local token..."
                 )
                 return self._invoke_rest_api_using_local_session_token(**api_kwargs)
-            else:
-                to_log = e.response
-                # ResponseMetadata is removed because it contains data that is either very unlikely to be
-                # useful in XComs and logs, or redundant given the data already included in the response
-                to_log.pop("ResponseMetadata", None)
-                self.log.error(to_log)
-                raise
+            to_log = e.response
+            # ResponseMetadata is removed because it contains data that is either very unlikely to be
+            # useful in XComs and logs, or redundant given the data already included in the response
+            to_log.pop("ResponseMetadata", None)
+            self.log.error(to_log)
+            raise
 
     def _invoke_rest_api_using_local_session_token(
         self,

@@ -70,7 +70,6 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG
-from airflow.models.dag_version import DagVersion
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -331,7 +330,6 @@ def materialize_asset(
         run_after=run_after,
         run_type=DagRunType.MANUAL,
         triggered_by=DagRunTriggeredByType.REST_API,
-        dag_version=DagVersion.get_latest_version(dag_id, session=session),
         state=DagRunState.QUEUED,
         session=session,
     )

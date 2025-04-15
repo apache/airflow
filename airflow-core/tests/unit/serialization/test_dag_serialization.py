@@ -48,8 +48,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import teardown
-from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -61,12 +59,14 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
+from airflow.sdk import AssetAlias, teardown
+from airflow.sdk.bases.decorator import DecoratedOperator
+from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
@@ -122,7 +122,7 @@ executor_config_pod = k8s.V1Pod(
 TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
-    "__version": 1,
+    "__version": 2,
     "dag": {
         "default_args": {
             "__type": "dict",
@@ -174,8 +174,6 @@ serialized_simple_dag_ground_truth = {
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
-                    "_is_empty": False,
-                    "_can_skip_downstream": False,
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
                     "template_ext": [".sh", ".bash"],
@@ -205,6 +203,32 @@ serialized_simple_dag_ground_truth = {
                     "weight_rule": "downstream",
                     "start_trigger_args": None,
                     "start_from_trigger": False,
+                    "inlets": [
+                        {
+                            "__type": "asset",
+                            "__var": {
+                                "extra": {},
+                                "group": "asset",
+                                "name": "asset-1",
+                                "uri": "asset-1",
+                            },
+                        },
+                        {
+                            "__type": "asset_alias",
+                            "__var": {"group": "asset", "name": "alias-name"},
+                        },
+                    ],
+                    "outlets": [
+                        {
+                            "__type": "asset",
+                            "__var": {
+                                "extra": {},
+                                "group": "asset",
+                                "name": "asset-2",
+                                "uri": "asset-2",
+                            },
+                        },
+                    ],
                 },
             },
             {
@@ -215,8 +239,6 @@ serialized_simple_dag_ground_truth = {
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
-                    "_is_empty": False,
-                    "_can_skip_downstream": False,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
@@ -256,7 +278,15 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "edge_info": {},
-        "dag_dependencies": [],
+        "dag_dependencies": [
+            {
+                "dependency_id": '{"name": "asset-2", "uri": "asset-2"}',
+                "dependency_type": "asset",
+                "label": "asset-2",
+                "source": "simple_dag",
+                "target": "asset",
+            },
+        ],
         "params": [],
         "tags": [],
     },
@@ -305,6 +335,8 @@ def make_simple_dag():
             owner="airflow",
             executor_config={"pod_override": executor_config_pod},
             doc_md="### Task Tutorial Documentation",
+            inlets=[Asset("asset-1"), AssetAlias(name="alias-name")],
+            outlets=Asset("asset-2"),
         )
     return dag
 
@@ -568,6 +600,8 @@ class TestStringifiedDAGs:
                 dag_dict["dag"]["access_control"]["__var"]["test_role"]["__var"]
             )
             return dag_dict
+
+        expected = copy.deepcopy(expected)
 
         # by roundtripping to json we get a cleaner diff
         # if not doing this, we get false alarms such as "__var" != VAR
@@ -917,7 +951,7 @@ class TestStringifiedDAGs:
         expected_timetable,
     ):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
                 "dag_id": "simple_dag",
@@ -933,7 +967,7 @@ class TestStringifiedDAGs:
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
                 "dag_id": "simple_dag",
@@ -1002,8 +1036,7 @@ class TestStringifiedDAGs:
                 dag = DAG(dag_id="simple_dag", schedule=None, params=val)
             # further tests not relevant
             return
-        else:
-            dag = DAG(dag_id="simple_dag", schedule=None, params=val)
+        dag = DAG(dag_id="simple_dag", schedule=None, params=val)
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag_json = SerializedDAG.to_json(dag)
@@ -1093,15 +1126,14 @@ class TestStringifiedDAGs:
                 )
             # further tests not relevant
             return
-        else:
-            BaseOperator(
-                task_id="simple_task",
-                dag=dag,
-                params=val,
-                start_date=datetime(2019, 8, 1),
-            )
-            serialized_dag = SerializedDAG.to_dict(dag)
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        BaseOperator(
+            task_id="simple_task",
+            dag=dag,
+            params=val,
+            start_date=datetime(2019, 8, 1),
+        )
+        serialized_dag = SerializedDAG.to_dict(dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         if val:
             assert "params" in serialized_dag["dag"]["tasks"][0]["__var"]
@@ -2201,7 +2233,7 @@ class TestStringifiedDAGs:
     def test_params_upgrade(self):
         """When pre-2.2.0 param (i.e. primitive) is deserialized we convert to Param"""
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2222,7 +2254,7 @@ class TestStringifiedDAGs:
         This test asserts that the params are still deserialized properly.
         """
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2249,7 +2281,7 @@ class TestStringifiedDAGs:
         test only to ensure that params stored in 2.2.0 can still be parsed correctly.
         """
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2266,7 +2298,7 @@ class TestStringifiedDAGs:
 
     def test_params_serialize_default(self):
         serialized = {
-            "__version": 1,
+            "__version": 2,
             "dag": {
                 "dag_id": "simple_dag",
                 "fileloc": "/path/to/file.py",
@@ -2449,9 +2481,7 @@ def test_operator_expand_serde():
     serialized = BaseSerialization.serialize(real_op)
 
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.operators.bash",
         "task_type": "BashOperator",
         "start_trigger_args": None,
@@ -2511,9 +2541,7 @@ def test_operator_expand_xcomarg_serde():
 
     serialized = BaseSerialization.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2570,9 +2598,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
 
     serialized = BaseSerialization.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2637,9 +2663,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
 
     serialized = SerializedBaseOperator.serialize(mapped)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2769,8 +2793,8 @@ def test_task_execution_timeout_serde(execution_timeout, default_task_execution_
 
 
 def test_taskflow_expand_serde():
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2787,9 +2811,7 @@ def test_taskflow_expand_serde():
 
     serialized = BaseSerialization.serialize(original)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2885,8 +2907,8 @@ def test_taskflow_expand_serde():
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_taskflow_expand_kwargs_serde(strict):
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2902,9 +2924,7 @@ def test_taskflow_expand_kwargs_serde(strict):
 
     serialized = BaseSerialization.serialize(original)
     assert serialized["__var"] == {
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2988,8 +3008,8 @@ def test_taskflow_expand_kwargs_serde(strict):
 
 
 def test_mapped_task_group_serde():
-    from airflow.decorators.task_group import task_group
     from airflow.models.expandinput import SchedulerDictOfListsExpandInput
+    from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -3067,9 +3087,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "template_fields_renderers": {},
         "task_type": "_DummyOperator",
         "_task_module": "unit.serialization.test_dag_serialization",
-        "_is_empty": False,
         "_is_mapped": True,
-        "_can_skip_downstream": False,
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -3078,3 +3096,288 @@ def test_mapped_task_with_operator_extra_links_property():
     assert deserialized_dag.task_dict["task"].operator_extra_links == [
         XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
     ]
+
+
+def test_handle_v1_serdag():
+    v1 = {
+        "__version": 1,
+        "dag": {
+            "default_args": {
+                "__type": "dict",
+                "__var": {
+                    "depends_on_past": False,
+                    "retries": 1,
+                    "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                    "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
+                    "sla": {"__type": "timedelta", "__var": 100.0},
+                },
+            },
+            "start_date": 1564617600.0,
+            "_task_group": {
+                "_group_id": None,
+                "prefix_group_id": True,
+                "children": {
+                    "bash_task": ("operator", "bash_task"),
+                    "custom_task": ("operator", "custom_task"),
+                },
+                "tooltip": "",
+                "ui_color": "CornflowerBlue",
+                "ui_fgcolor": "#000",
+                "upstream_group_ids": [],
+                "downstream_group_ids": [],
+                "upstream_task_ids": [],
+                "downstream_task_ids": [],
+            },
+            "is_paused_upon_creation": False,
+            "_dag_id": "simple_dag",
+            "doc_md": "### DAG Tutorial Documentation",
+            "fileloc": None,
+            "_processor_dags_folder": (
+                AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "unit" / "dags"
+            ).as_posix(),
+            "tasks": [
+                {
+                    "__type": "operator",
+                    "__var": {
+                        "task_id": "bash_task",
+                        "retries": 1,
+                        "retry_delay": 300.0,
+                        "max_retry_delay": 600.0,
+                        "sla": 100.0,
+                        "downstream_task_ids": [],
+                        "ui_color": "#f0ede4",
+                        "ui_fgcolor": "#000",
+                        "template_ext": [".sh", ".bash"],
+                        "template_fields": ["bash_command", "env", "cwd"],
+                        "template_fields_renderers": {"bash_command": "bash", "env": "json"},
+                        "bash_command": "echo {{ task.task_id }}",
+                        "_task_type": "BashOperator",
+                        # Slightly difference from v2-10-stable here, we manually changed this path
+                        "_task_module": "airflow.providers.standard.operators.bash",
+                        "pool": "default_pool",
+                        "is_setup": False,
+                        "is_teardown": False,
+                        "on_failure_fail_dagrun": False,
+                        "executor_config": {
+                            "__type": "dict",
+                            "__var": {
+                                "pod_override": {
+                                    "__type": "k8s.V1Pod",
+                                    "__var": PodGenerator.serialize_pod(executor_config_pod),
+                                }
+                            },
+                        },
+                        "doc_md": "### Task Tutorial Documentation",
+                        "_log_config_logger_name": "airflow.task.operators",
+                        "_needs_expansion": False,
+                        "weight_rule": "downstream",
+                        "start_trigger_args": None,
+                        "start_from_trigger": False,
+                        "inlets": [
+                            {
+                                "__type": "dataset",
+                                "__var": {
+                                    "extra": {},
+                                    "uri": "asset-1",
+                                },
+                            },
+                            {
+                                "__type": "dataset_alias",
+                                "__var": {"name": "alias-name"},
+                            },
+                        ],
+                        "outlets": [
+                            {
+                                "__type": "dataset",
+                                "__var": {
+                                    "extra": {},
+                                    "uri": "asset-2",
+                                },
+                            },
+                        ],
+                    },
+                },
+                {
+                    "__type": "operator",
+                    "__var": {
+                        "task_id": "custom_task",
+                        "retries": 1,
+                        "retry_delay": 300.0,
+                        "max_retry_delay": 600.0,
+                        "sla": 100.0,
+                        "downstream_task_ids": [],
+                        "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
+                        "ui_color": "#fff",
+                        "ui_fgcolor": "#000",
+                        "template_ext": [],
+                        "template_fields": ["bash_command"],
+                        "template_fields_renderers": {},
+                        "_task_type": "CustomOperator",
+                        "_operator_name": "@custom",
+                        # Slightly difference from v2-10-stable here, we manually changed this path
+                        "_task_module": "tests_common.test_utils.mock_operators",
+                        "pool": "default_pool",
+                        "is_setup": False,
+                        "is_teardown": False,
+                        "on_failure_fail_dagrun": False,
+                        "_log_config_logger_name": "airflow.task.operators",
+                        "_needs_expansion": False,
+                        "weight_rule": "downstream",
+                        "start_trigger_args": None,
+                        "start_from_trigger": False,
+                    },
+                },
+            ],
+            "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
+            "timezone": "UTC",
+            "_access_control": {
+                "__type": "dict",
+                "__var": {
+                    "test_role": {
+                        "__type": "dict",
+                        "__var": {
+                            "DAGs": {
+                                "__type": "set",
+                                "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                            }
+                        },
+                    }
+                },
+            },
+            "edge_info": {},
+            "dag_dependencies": [
+                # dataset as schedule (source)
+                {
+                    "source": "dataset",
+                    "target": "dag1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_1",
+                },
+                # dataset alias (resolved) as schedule (source)
+                {
+                    "source": "dataset",
+                    "target": "dataset-alias:alias_name_1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_2",
+                },
+                {
+                    "source": "dataset:alias_name_1",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_1",
+                },
+                # dataset alias (not resolved) as schedule (source)
+                {
+                    "source": "dataset-alias",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
+                },
+                # dataset as outlets (target)
+                {
+                    "source": "dag10",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_10",
+                },
+                # dataset alias (resolved) as outlets (target)
+                {
+                    "source": "dag20",
+                    "target": "dataset-alias:alias_name_10",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_20",
+                },
+                {
+                    "source": "dataset:dataset_uri_20",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_10",
+                },
+                # dataset alias (not resolved) as outlets (target)
+                {
+                    "source": "dag2",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
+                },
+            ],
+            "params": [],
+        },
+    }
+    expected_dag_dependencies = [
+        # asset as schedule (source)
+        {
+            "dependency_id": "dataset_uri_1",
+            "dependency_type": "asset",
+            "label": "dataset_uri_1",
+            "source": "asset",
+            "target": "dag1",
+        },
+        # asset alias (resolved) as schedule (source)
+        {
+            "dependency_id": "dataset_uri_2",
+            "dependency_type": "asset",
+            "label": "dataset_uri_2",
+            "source": "asset",
+            "target": "asset-alias:alias_name_1",
+        },
+        {
+            "dependency_id": "alias_name_1",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_1",
+            "source": "asset:alias_name_1",
+            "target": "dag2",
+        },
+        # asset alias (not resolved) as schedule (source)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "asset-alias",
+            "target": "dag2",
+        },
+        # asset as outlets (target)
+        {
+            "dependency_id": "dataset_uri_10",
+            "dependency_type": "asset",
+            "label": "dataset_uri_10",
+            "source": "dag10",
+            "target": "asset",
+        },
+        # asset alias (resolved) as outlets (target)
+        {
+            "dependency_id": "dataset_uri_20",
+            "dependency_type": "asset",
+            "label": "dataset_uri_20",
+            "source": "dag20",
+            "target": "asset-alias:alias_name_10",
+        },
+        {
+            "dependency_id": "alias_name_10",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_10",
+            "source": "asset:dataset_uri_20",
+            "target": "asset-alias",
+        },
+        # asset alias (not resolved) as outlets (target)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "dag2",
+            "target": "asset-alias",
+        },
+    ]
+
+    SerializedDAG.conversion_v1_to_v2(v1)
+
+    # Update a few subtle differences
+    v1["dag"]["tags"] = []
+    v1["dag"]["catchup"] = False
+    v1["dag"]["disable_bundle_versioning"] = False
+
+    expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+    expected["dag"]["dag_dependencies"] = expected_dag_dependencies
+    del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
+
+    assert v1 == expected

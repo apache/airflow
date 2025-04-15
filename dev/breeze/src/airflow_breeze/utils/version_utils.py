@@ -62,15 +62,13 @@ def get_package_version_suffix(version_suffix_for_pypi: str, version_suffix_for_
     # if there is a PyPi version suffix, return the combined version. Otherwise just return the local version.
     if version_suffix_for_pypi:
         return version_suffix_for_pypi + version_suffix_for_local
-    else:
-        return version_suffix_for_local
+    return version_suffix_for_local
 
 
 def remove_local_version_suffix(version_suffix: str) -> str:
     if "+" in version_suffix:
         return version_suffix.split("+")[0]
-    else:
-        return version_suffix
+    return version_suffix
 
 
 def is_local_package_version(version_suffix: str) -> bool:
@@ -87,5 +85,4 @@ def is_local_package_version(version_suffix: str) -> bool:
     """
     if version_suffix and ("+" in version_suffix):
         return True
-    else:
-        return False
+    return False

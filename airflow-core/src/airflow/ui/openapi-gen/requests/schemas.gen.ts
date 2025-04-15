@@ -572,7 +572,18 @@ export const $BaseNodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
   },
@@ -1180,10 +1191,6 @@ export const $ConfigResponse = {
       type: "integer",
       title: "Auto Refresh Interval",
     },
-    default_ui_timezone: {
-      type: "string",
-      title: "Default Ui Timezone",
-    },
     hide_paused_dags_by_default: {
       type: "boolean",
       title: "Hide Paused Dags By Default",
@@ -1224,11 +1231,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Test Connection",
     },
-    state_color_mapping: {
-      additionalProperties: true,
-      type: "object",
-      title: "State Color Mapping",
-    },
     dashboard_alert: {
       items: {
         $ref: "#/components/schemas/UIAlert",
@@ -1246,7 +1248,6 @@ export const $ConfigResponse = {
     "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
-    "default_ui_timezone",
     "hide_paused_dags_by_default",
     "instance_name",
     "instance_name_has_markup",
@@ -1257,7 +1258,6 @@ export const $ConfigResponse = {
     "audit_view_excluded_events",
     "audit_view_included_events",
     "test_connection",
-    "state_color_mapping",
     "dashboard_alert",
   ],
   title: "ConfigResponse",
@@ -1693,9 +1693,9 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2026,7 +2026,7 @@ export const $DAGDetailsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2094,9 +2094,9 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -2282,7 +2282,7 @@ export const $DAGResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -2914,9 +2914,9 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Is Paused",
     },
-    is_active: {
+    is_stale: {
       type: "boolean",
-      title: "Is Active",
+      title: "Is Stale",
     },
     last_parsed_time: {
       anyOf: [
@@ -3121,7 +3121,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "dag_id",
     "dag_display_name",
     "is_paused",
-    "is_active",
+    "is_stale",
     "last_parsed_time",
     "last_expired",
     "bundle_name",
@@ -3402,7 +3402,14 @@ export const $DagVersionResponse = {
       title: "Dag Id",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     bundle_version: {
@@ -3691,6 +3698,22 @@ export const $ExtraLinksResponse = {
   type: "object",
   title: "ExtraLinksResponse",
   description: "Extra Links Response.",
+} as const;
+
+export const $ExtraMenuItem = {
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+    },
+    href: {
+      type: "string",
+      title: "Href",
+    },
+  },
+  type: "object",
+  required: ["text", "href"],
+  title: "ExtraMenuItem",
 } as const;
 
 export const $FastAPIAppResponse = {
@@ -4266,38 +4289,43 @@ export const $JobResponse = {
 } as const;
 
 export const $MenuItem = {
-  properties: {
-    text: {
-      type: "string",
-      title: "Text",
-    },
-    href: {
-      type: "string",
-      title: "Href",
-    },
-  },
-  type: "object",
-  required: ["text", "href"],
+  type: "string",
+  enum: [
+    "Assets",
+    "Audit Log",
+    "Config",
+    "Connections",
+    "Dags",
+    "Docs",
+    "Plugins",
+    "Pools",
+    "Providers",
+    "Variables",
+    "XComs",
+  ],
   title: "MenuItem",
-  description: "Menu Item for responses.",
+  description: "Define all menu items defined in the menu.",
 } as const;
 
 export const $MenuItemCollectionResponse = {
   properties: {
-    menu_items: {
+    authorized_menu_items: {
       items: {
         $ref: "#/components/schemas/MenuItem",
       },
       type: "array",
-      title: "Menu Items",
+      title: "Authorized Menu Items",
     },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
+    extra_menu_items: {
+      items: {
+        $ref: "#/components/schemas/ExtraMenuItem",
+      },
+      type: "array",
+      title: "Extra Menu Items",
     },
   },
   type: "object",
-  required: ["menu_items", "total_entries"],
+  required: ["authorized_menu_items", "extra_menu_items"],
   title: "MenuItemCollectionResponse",
   description: "Menu Item Collection serializer for responses.",
 } as const;
@@ -4314,7 +4342,18 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      enum: [
+        "join",
+        "task",
+        "asset-condition",
+        "asset",
+        "asset-alias",
+        "asset-name-ref",
+        "asset-uri-ref",
+        "dag",
+        "sensor",
+        "trigger",
+      ],
       title: "Type",
     },
     children: {

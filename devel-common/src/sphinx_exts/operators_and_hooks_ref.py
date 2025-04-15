@@ -226,10 +226,9 @@ def _get_decorator_details(decorator):
     def get_full_name(node):
         if isinstance(node, ast.Attribute):
             return f"{get_full_name(node.value)}.{node.attr}"
-        elif isinstance(node, ast.Name):
+        if isinstance(node, ast.Name):
             return node.id
-        else:
-            return ast.dump(node)
+        return ast.dump(node)
 
     def eval_node(node):
         try:
@@ -242,12 +241,11 @@ def _get_decorator_details(decorator):
         args = [eval_node(arg) for arg in decorator.args]
         kwargs = {kw.arg: eval_node(kw.value) for kw in decorator.keywords if kw.arg != "category"}
         return name, args, kwargs
-    elif isinstance(decorator, ast.Name):
+    if isinstance(decorator, ast.Name):
         return decorator.id, [], {}
-    elif isinstance(decorator, ast.Attribute):
+    if isinstance(decorator, ast.Attribute):
         return decorator.attr, [], {}
-    else:
-        return decorator, [], {}
+    return decorator, [], {}
 
 
 def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[dict[str, Any]]:
