@@ -3376,9 +3376,8 @@ def test_handle_v1_serdag():
     v1["dag"]["catchup"] = False
     v1["dag"]["disable_bundle_versioning"] = False
 
-    serialized_simple_dag_ground_truth["dag"]["dag_dependencies"] = expected_dag_dependencies
-
     expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+    expected["dag"]["dag_dependencies"] = expected_dag_dependencies
     del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
 
     assert v1 == expected
