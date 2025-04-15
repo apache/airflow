@@ -5484,7 +5484,7 @@ def test_taskinstance_with_note_pydantic(create_task_instance, session):
         executor=ti.executor,
         executor_config=None,
         updated_at=timezone.utcnow(),
-        rendered_map_index=ti.rendered_map_index,
+        rendered_map_index="ti with rendered_map_index",
         external_executor_id="x",
         trigger_id=ti.trigger_id,
         trigger_timeout=timezone.utcnow(),
@@ -5511,6 +5511,9 @@ def test_taskinstance_with_note_pydantic(create_task_instance, session):
 
     ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
     assert ti_note.content == "ti with note"
+
+    ti: TaskInstance = session.query(TaskInstance).filter_by(**filter_kwargs).one()
+    assert ti.rendered_map_index == "ti with rendered_map_index"
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):

@@ -828,8 +828,12 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    # These checks are required to make sure that note and rendered_map_index are not
+    # reset during refresh_from_db as DB still contains None values and would reset the fields
     if source.note and isinstance(source, TaskInstancePydantic):
         target.note = source.note
+    if source.rendered_map_index and isinstance(source, TaskInstancePydantic):
+        target.rendered_map_index = source.rendered_map_index
 
     if include_dag_run:
         target.execution_date = source.execution_date
