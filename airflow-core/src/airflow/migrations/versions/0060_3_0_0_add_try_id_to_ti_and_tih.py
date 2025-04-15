@@ -34,8 +34,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy_utils import UUIDType
 
 from airflow.configuration import conf
-
-# from airflow.models.taskinstance import uuid7
 from airflow.utils.sql_functions import (
     MYSQL_UUID7_FN,
     MYSQL_UUID7_FN_DROP,
