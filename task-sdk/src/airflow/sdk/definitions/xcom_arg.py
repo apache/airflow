@@ -20,9 +20,10 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
+from abc import ABCMeta
 from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
 FilterCallables = Sequence[Callable[[Any], bool]]
+T = TypeVar("T", bound=Sequence)
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -391,9 +393,9 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class CallableResultMixin:
-    def __init__(self, value: Iterable | Sequence | dict, callables: MapCallables) -> None:
-        self.value = value
+class CallableResultMixin(Generic[T], Sequence, metaclass=ABCMeta):
+    def __init__(self, value: T, callables: MapCallables) -> None:
+        self.value = list(value.items()) if isinstance(value, dict) else value
         self.callables = callables
 
     def _apply_callables(self, value):
@@ -402,7 +404,7 @@ class CallableResultMixin:
         return value
 
 
-class _MapResult(CallableResultMixin, Sequence):
+class _MapResult(CallableResultMixin[Sequence]):
     def __getitem__(self, index: Any) -> Any:
         value = self._apply_callables(self.value[index])
         return value
@@ -411,7 +413,7 @@ class _MapResult(CallableResultMixin, Sequence):
         return len(self.value)
 
 
-class _LazyMapResult(CallableResultMixin, Sequence):
+class _LazyMapResult(CallableResultMixin[list]):
     def __init__(self, value: Iterable, callables: MapCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
@@ -438,7 +440,8 @@ class _LazyMapResult(CallableResultMixin, Sequence):
                 self._next_mapped()
             except StopIteration:
                 raise IndexError
-        return self.value[index]
+        value = self.value[index]
+        return value
 
     def __len__(self) -> int:
         # Fully consume the iterator to get accurate length
@@ -630,7 +633,7 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
-class _FilterResult(CallableResultMixin, Sequence):
+class _FilterResult(CallableResultMixin[list]):
     def __init__(self, value: Iterable | Sequence | dict, callables: FilterCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
@@ -658,7 +661,8 @@ class _FilterResult(CallableResultMixin, Sequence):
             except StopIteration:
                 raise IndexError
 
-        return self.value[index]
+        value = self.value[index]
+        return value
 
     def __len__(self) -> int:
         # Force full evaluation to determine total length
