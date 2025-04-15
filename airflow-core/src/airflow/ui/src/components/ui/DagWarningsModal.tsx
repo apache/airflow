@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack } from "@chakra-ui/react";
+import { Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
 import { Dialog } from "src/components/ui";
+import { pluralize } from "src/utils";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { WarningAlert } from "../WarningAlert";
@@ -38,15 +39,31 @@ export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, on
       <Dialog.Header>
         <HStack fontSize="xl">
           <LuFileWarning />
-          <Heading>Dag Warnings / Errors</Heading>
+          <Heading>
+            {Boolean(error) ? "1 Error" : ""}
+            {Boolean(error) && warnings?.length !== undefined && warnings.length > 0 ? " and " : ""}
+            {warnings?.length !== undefined && warnings.length > 0
+              ? pluralize("Warning", warnings.length)
+              : ""}
+          </Heading>
         </HStack>
       </Dialog.Header>
 
       <Dialog.CloseTrigger />
 
       <Dialog.Body>
-        {Boolean(error) && <ErrorAlert error={error} />}
-        {warnings?.map((warning) => <WarningAlert key={warning.message} warning={warning} />)}
+        {Boolean(error) && (
+          <VStack>
+            <ErrorAlert error={error} />
+            <Spacer />
+          </VStack>
+        )}
+        {warnings?.map((warning) => (
+          <VStack key={warning.message}>
+            <WarningAlert warning={warning} />
+            <Spacer />
+          </VStack>
+        ))}
       </Dialog.Body>
     </Dialog.Content>
   </Dialog.Root>

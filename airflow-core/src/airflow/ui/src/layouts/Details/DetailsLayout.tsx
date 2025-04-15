@@ -100,7 +100,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                 <>
                   <ActionButton
-                    actionName="Trigger Dag"
+                    actionName="Dag warnings/errors"
                     colorPalette={Boolean(error) ? "red" : "orange"}
                     icon={<LuFileWarning />}
                     margin="2"
