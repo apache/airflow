@@ -29,7 +29,6 @@ from typing import Callable, NamedTuple, Union
 
 import lazy_object_proxy
 
-from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.utils.cli import ColorMode
@@ -157,15 +156,6 @@ ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
     help="The logical date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
-ARG_SUBDIR = Arg(
-    ("-S", "--subdir"),
-    help=(
-        "File location or directory from which to look for the dag. "
-        "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
-        "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "
-    ),
-    default="[AIRFLOW_HOME]/dags" if BUILD_DOCS else settings.DAGS_FOLDER,
-)
 ARG_BUNDLE_NAME = Arg(
     (
         "-B",
