@@ -50,9 +50,9 @@ except ImportError:  # 2.x compatibility.
         ARG_EXECUTION_DATE as ARG_LOGICAL_DATE,
     )
 from airflow.cli.cli_config import (
+    ARG_BUNDLE_NAME,
     ARG_DAG_ID,
     ARG_OUTPUT_PATH,
-    ARG_SUBDIR,
     ARG_VERBOSE,
     ActionCommand,
     Arg,
@@ -128,7 +128,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_BUNDLE_NAME, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 
