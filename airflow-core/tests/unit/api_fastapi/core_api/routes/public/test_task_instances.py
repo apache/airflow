@@ -2361,7 +2361,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
         assert failed_dag_runs == 0
@@ -2529,7 +2529,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
 
@@ -2614,7 +2614,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
 

@@ -286,7 +286,7 @@ class TestSerializedDagModel:
             example_dags = self._write_example_dags()
             ordered_example_dags = dict(sorted(example_dags.items()))
             hashes = set()
-            for dag_id in ordered_example_dags:
+            for dag_id in ordered_example_dags.keys():
                 smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
                 hashes.add(smd.dag_hash)
             return hashes
