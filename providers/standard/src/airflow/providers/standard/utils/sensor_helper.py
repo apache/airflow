@@ -22,69 +22,62 @@ from sqlalchemy import func, select, tuple_
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from sqlalchemy.orm import Session
-
-    from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Executable
 
-if not AIRFLOW_V_3_0_PLUS:
 
-    @provide_session
-    def _get_count(
-        dttm_filter,
-        external_task_ids,
-        external_task_group_id,
-        external_dag_id,
-        states,
-        session: Session = NEW_SESSION,
-    ) -> int:
-        """
-        Get the count of records against dttm filter and states.
+@provide_session
+def _get_count(
+    dttm_filter,
+    external_task_ids,
+    external_task_group_id,
+    external_dag_id,
+    states,
+    session: Session = NEW_SESSION,
+) -> int:
+    """
+    Get the count of records against dttm filter and states.
 
-        :param dttm_filter: date time filter for logical date
-        :param external_task_ids: The list of task_ids
-        :param external_task_group_id: The ID of the external task group
-        :param external_dag_id: The ID of the external DAG.
-        :param states: task or dag states
-        :param session: airflow session object
-        """
-        TI = TaskInstance
-        DR = DagRun
-        if not dttm_filter:
-            return 0
+    :param dttm_filter: date time filter for logical date
+    :param external_task_ids: The list of task_ids
+    :param external_task_group_id: The ID of the external task group
+    :param external_dag_id: The ID of the external DAG.
+    :param states: task or dag states
+    :param session: airflow session object
+    """
+    TI = TaskInstance
+    DR = DagRun
+    if not dttm_filter:
+        return 0
 
-        if external_task_ids:
+    if external_task_ids:
+        count = (
+            session.scalar(
+                _count_stmt(TI, states, dttm_filter, external_dag_id).where(TI.task_id.in_(external_task_ids))
+            )
+        ) / len(external_task_ids)
+    elif external_task_group_id:
+        external_task_group_task_ids = _get_external_task_group_task_ids(
+            dttm_filter, external_task_group_id, external_dag_id, session
+        )
+        if not external_task_group_task_ids:
+            count = 0
+        else:
             count = (
                 session.scalar(
                     _count_stmt(TI, states, dttm_filter, external_dag_id).where(
-                        TI.task_id.in_(external_task_ids)
+                        tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids)
                     )
                 )
-            ) / len(external_task_ids)
-        elif external_task_group_id:
-            external_task_group_task_ids = _get_external_task_group_task_ids(
-                dttm_filter, external_task_group_id, external_dag_id, session
+                / len(external_task_group_task_ids)
+                * len(dttm_filter)
             )
-            if not external_task_group_task_ids:
-                count = 0
-            else:
-                count = (
-                    session.scalar(
-                        _count_stmt(TI, states, dttm_filter, external_dag_id).where(
-                            tuple_(TI.task_id, TI.map_index).in_(external_task_group_task_ids)
-                        )
-                    )
-                    / len(external_task_group_task_ids)
-                    * len(dttm_filter)
-                )
-        else:
-            count = session.scalar(_count_stmt(DR, states, dttm_filter, external_dag_id))
-        return cast("int", count)
+    else:
+        count = session.scalar(_count_stmt(DR, states, dttm_filter, external_dag_id))
+    return cast("int", count)
 
 
 def _count_stmt(model, states, dttm_filter, external_dag_id) -> Executable:
