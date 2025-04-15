@@ -20,7 +20,7 @@ name = "apache-airflow-ctl"
 dynamic = ["version"]
 description = "Apache Airflow command line tool for communicating with an Apache Airflow, using the API."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.9, <3.13"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
@@ -113,7 +113,7 @@ enum-field-as-literal='one' # When a single enum member, make it output a `Liter
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='datetime'
-target-python-version='3.10'
+target-python-version='3.9'
 use-annotated=true
 use-default=true
 use-double-quotes=true
