@@ -62,7 +62,9 @@ class TestNextRunAssets:
                     }
                 ]
             },
-            "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
+            "events": [
+                {"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "name": "asset1", "lastUpdate": None}
+            ],
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
