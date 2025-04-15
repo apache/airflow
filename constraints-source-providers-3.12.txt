@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-15T15:37:50.724858
+# This constraints file was automatically generated on 2025-04-15T20:27:31.592376
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -120,7 +120,7 @@ azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
 bcrypt==4.3.0
-beautifulsoup4==4.13.3
+beautifulsoup4==4.13.4
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -237,7 +237,7 @@ google-cloud-logging==3.11.4
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
-google-cloud-orchestration-airflow==1.17.4
+google-cloud-orchestration-airflow==1.17.5
 google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
@@ -259,7 +259,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
-greenlet==3.1.1
+greenlet==3.2.0
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
