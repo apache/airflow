@@ -391,11 +391,29 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MapResult(Sequence):
+class CallableResultMixin:
     def __init__(self, value: Iterable | Sequence | dict, callables: MapCallables) -> None:
         self.value = value
         self.callables = callables
-        self._cache: list = []
+
+    def _apply_callables(self, value):
+        for func in self.callables:
+            value = func(value)
+        return value
+
+
+class _MapResult(CallableResultMixin, Sequence):
+    def __getitem__(self, index: Any) -> Any:
+        value = self._apply_callables(self.value[index])
+        return value
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+
+class _LazyMapResult(CallableResultMixin, Sequence):
+    def __init__(self, value: Iterable, callables: MapCallables) -> None:
+        super().__init__([], callables)
         self._iterator = iter(value)
         self._exhausted = False
 
@@ -405,7 +423,7 @@ class _MapResult(Sequence):
             try:
                 item = next(self._iterator)
                 result = self._apply_callables(item)
-                self._cache.append(result)
+                self.value.append(result)
                 return result
             except StopIteration:
                 self._exhausted = True
@@ -415,12 +433,12 @@ class _MapResult(Sequence):
         if index < 0:
             raise IndexError
 
-        while len(self._cache) <= index:
+        while len(self.value) <= index:
             try:
                 self._next_mapped()
             except StopIteration:
                 raise IndexError
-        return self._cache[index]
+        return self.value[index]
 
     def __len__(self) -> int:
         # Fully consume the iterator to get accurate length
@@ -429,21 +447,16 @@ class _MapResult(Sequence):
                 self._next_mapped()
             except StopIteration:
                 break
-        return len(self._cache)
+        return len(self.value)
 
     def __iter__(self) -> Iterator:
-        yield from self._cache
+        yield from self.value
 
         while not self._exhausted:
             try:
                 yield self._next_mapped()
             except StopIteration:
                 break
-
-    def _apply_callables(self, value):
-        for func in self.callables:
-            value = func(value)
-        return value
 
 
 class MapXComArg(XComArg):
@@ -482,9 +495,11 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
-            raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        return _MapResult(value, self.callables)
+        if isinstance(value, (Sequence, dict)):
+            return _MapResult(value, self.callables)
+        elif isinstance(value, Iterable):
+            return _LazyMapResult(value, self.callables)
+        raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
 
 
 class _ZipResult(Sequence):
@@ -615,11 +630,9 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
-class _FilterResult(Sequence, Iterable):
-    def __init__(self, value: Sequence | Iterable, callables: FilterCallables) -> None:
-        self.value = value
-        self.callables = callables
-        self._cache: list = []
+class _FilterResult(CallableResultMixin, Sequence):
+    def __init__(self, value: Iterable | Sequence | dict, callables: FilterCallables) -> None:
+        super().__init__([], callables)
         self._iterator = iter(value)
         self._exhausted = False
 
@@ -629,7 +642,7 @@ class _FilterResult(Sequence, Iterable):
             try:
                 item = next(self._iterator)
                 if self._apply_callables(item):
-                    self._cache.append(item)
+                    self.value.append(item)
                     return item
             except StopIteration:
                 self._exhausted = True
@@ -639,13 +652,13 @@ class _FilterResult(Sequence, Iterable):
         if index < 0:
             raise IndexError
 
-        while len(self._cache) <= index:
+        while len(self.value) <= index:
             try:
                 self._next_filtered()
             except StopIteration:
                 raise IndexError
 
-        return self._cache[index]
+        return self.value[index]
 
     def __len__(self) -> int:
         # Force full evaluation to determine total length
@@ -654,22 +667,16 @@ class _FilterResult(Sequence, Iterable):
                 self._next_filtered()
             except StopIteration:
                 break
-        return len(self._cache)
+        return len(self.value)
 
     def __iter__(self) -> Iterator:
-        yield from self._cache
+        yield from self.value
 
         while not self._exhausted:
             try:
                 yield self._next_filtered()
             except StopIteration:
                 break
-
-    def _apply_callables(self, value) -> bool:
-        for func in self.callables:
-            if not func(value):
-                return False
-        return True
 
 
 class FilterXComArg(XComArg):
@@ -720,7 +727,7 @@ class FilterXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
+        if not isinstance(value, (Iterable, Sequence, dict)):
             raise ValueError(f"XCom filter expects sequence or dict, not {type(value).__name__}")
         return _FilterResult(value, self.callables)
 

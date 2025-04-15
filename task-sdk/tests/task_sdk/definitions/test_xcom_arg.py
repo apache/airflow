@@ -62,12 +62,13 @@ def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
 
 def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_comms):
     results = set()
+    values = ["a", "b", "c"]
 
     with DAG("test") as dag:
 
         @dag.task()
         def push():
-            return ["a", "b", "c"]
+            return values
 
         @dag.task()
         def pull(value):
@@ -81,7 +82,7 @@ def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_co
         pull.expand(value=push().map(c_to_none).filter(None))
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
 
     # Run "pull". This should automatically convert "c" to None.
     for map_index in range(3):
