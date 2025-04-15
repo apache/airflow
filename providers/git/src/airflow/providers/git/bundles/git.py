@@ -84,10 +84,11 @@ class GitDagBundle(BaseDagBundle):
         if self.git_conn_id:
             try:
                 self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
-                self.repo_url = self.repo_url or self.hook.repo_url
-                self._log.debug("repo_url updated from hook", repo_url=self.repo_url)
             except AirflowException as e:
                 self._log.warning("Could not create GitHook", conn_id=self.git_conn_id, exc=e)
+            else:
+                self.repo_url = self.hook.repo_url
+                self._log.debug("repo_url updated from hook", repo_url=self.repo_url)
 
     def _initialize(self):
         with self.lock():
