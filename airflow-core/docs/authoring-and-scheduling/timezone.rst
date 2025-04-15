@@ -58,9 +58,7 @@ The users' selected timezone is stored in LocalStorage so is a per-browser setti
 
 .. note::
 
-  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` in the ``[webserver]`` section to either an empty string, or the same value.
-
-  (It currently defaults to UTC to keep behaviour of the UI consistent by default between point-releases.)
+  The UI will use the system timezone by default. Users can change their timezone preferences through the UI's timezone selector.
 
 Concepts
 --------

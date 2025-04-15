@@ -284,6 +284,14 @@ def upgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("dag_hash")
+        batch_op.add_column(sa.Column("created_dag_version_id", UUIDType(binary=False), nullable=True))
+        batch_op.create_foreign_key(
+            "created_dag_version_id_fkey",
+            "dag_version",
+            ["created_dag_version_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade():
@@ -375,6 +383,8 @@ def downgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
+        batch_op.drop_constraint("created_dag_version_id_fkey", type_="foreignkey")
+        batch_op.drop_column("created_dag_version_id")
 
     # Update dag_run dag_hash with dag_hash from serialized_dag where dag_id matches
     if conn.dialect.name == "mysql":

@@ -58,6 +58,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select
 from sqlalchemy.sql.functions import coalesce
+from sqlalchemy_utils import UUIDType
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
@@ -93,7 +94,6 @@ if TYPE_CHECKING:
 
     from opentelemetry.sdk.trace import Span
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy_utils import UUIDType
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
@@ -189,6 +189,15 @@ class DagRun(Base, LoggingMixin):
     # Span context carrier, used for context propagation.
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
     span_status = Column(String(250), server_default=SpanStatus.NOT_STARTED, nullable=False)
+    created_dag_version_id = Column(
+        UUIDType(binary=False),
+        ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
+        nullable=True,
+    )
+    """The id of the dag version column that was in effect at dag run creation time.
+
+    :meta private:
+    """
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -244,6 +253,14 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
+
+    created_dag_version = relationship("DagVersion", uselist=False, passive_deletes=True)
+    """
+    The dag version that was active when the dag run was created, if available.
+
+    :meta private:
+    """
+
     backfill = relationship(Backfill, uselist=False)
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
@@ -329,6 +346,9 @@ class DagRun(Base, LoggingMixin):
     @property
     def dag_versions(self) -> list[DagVersion]:
         """Return the DAG versions associated with the TIs of this DagRun."""
+        # when the dag is in a versioned bundle, we keep the dag version fixed
+        if self.bundle_version:
+            return [self.created_dag_version]
         dag_versions = [
             dv
             for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
