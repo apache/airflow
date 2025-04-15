@@ -170,7 +170,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/tests/unit/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [

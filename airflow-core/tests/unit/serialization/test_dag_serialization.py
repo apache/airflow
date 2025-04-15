@@ -64,7 +64,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
-from airflow.sdk import teardown
+from airflow.sdk import AssetAlias, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
@@ -203,6 +203,32 @@ serialized_simple_dag_ground_truth = {
                     "weight_rule": "downstream",
                     "start_trigger_args": None,
                     "start_from_trigger": False,
+                    "inlets": [
+                        {
+                            "__type": "asset",
+                            "__var": {
+                                "extra": {},
+                                "group": "asset",
+                                "name": "asset-1",
+                                "uri": "asset-1",
+                            },
+                        },
+                        {
+                            "__type": "asset_alias",
+                            "__var": {"group": "asset", "name": "alias-name"},
+                        },
+                    ],
+                    "outlets": [
+                        {
+                            "__type": "asset",
+                            "__var": {
+                                "extra": {},
+                                "group": "asset",
+                                "name": "asset-2",
+                                "uri": "asset-2",
+                            },
+                        },
+                    ],
                 },
             },
             {
@@ -252,7 +278,15 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "edge_info": {},
-        "dag_dependencies": [],
+        "dag_dependencies": [
+            {
+                "dependency_id": '{"name": "asset-2", "uri": "asset-2"}',
+                "dependency_type": "asset",
+                "label": "asset-2",
+                "source": "simple_dag",
+                "target": "asset",
+            },
+        ],
         "params": [],
         "tags": [],
     },
@@ -301,6 +335,8 @@ def make_simple_dag():
             owner="airflow",
             executor_config={"pod_override": executor_config_pod},
             doc_md="### Task Tutorial Documentation",
+            inlets=[Asset("asset-1"), AssetAlias(name="alias-name")],
+            outlets=Asset("asset-2"),
         )
     return dag
 
@@ -3137,6 +3173,28 @@ def test_handle_v1_serdag():
                         "weight_rule": "downstream",
                         "start_trigger_args": None,
                         "start_from_trigger": False,
+                        "inlets": [
+                            {
+                                "__type": "dataset",
+                                "__var": {
+                                    "extra": {},
+                                    "uri": "asset-1",
+                                },
+                            },
+                            {
+                                "__type": "dataset_alias",
+                                "__var": {"name": "alias-name"},
+                            },
+                        ],
+                        "outlets": [
+                            {
+                                "__type": "dataset",
+                                "__var": {
+                                    "extra": {},
+                                    "uri": "asset-2",
+                                },
+                            },
+                        ],
                     },
                 },
                 {
@@ -3187,7 +3245,15 @@ def test_handle_v1_serdag():
                 },
             },
             "edge_info": {},
-            "dag_dependencies": [],
+            "dag_dependencies": [
+                {
+                    "dependency_id": '{"name": "asset-2", "uri": "asset-2"}',
+                    "dependency_type": "asset",
+                    "label": "asset-2",
+                    "source": "simple_dag",
+                    "target": "asset",
+                },
+            ],
             "params": [],
         },
     }

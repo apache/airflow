@@ -212,7 +212,6 @@ class _TemplateWithContext(NamedTuple):
             "appbuilder",
             "base_template",
             "server_timezone",
-            "default_ui_timezone",
             "hostname",
             "navbar_color",
             "navbar_text_color",
