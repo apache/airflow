@@ -72,7 +72,7 @@ def build_task_kwargs() -> dict:
         raise ValueError(
             "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
         )
-    elif "cluster" in task_kwargs and not (has_capacity_provider or has_launch_type):
+    if "cluster" in task_kwargs and not (has_capacity_provider or has_launch_type):
         # Default API behavior if neither is provided is to fall back on the default capacity
         # provider if it exists. Since it is not a required value, check if there is one
         # before using it, and if there is not then use the FARGATE launch_type as

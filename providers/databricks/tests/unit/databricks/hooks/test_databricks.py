@@ -293,11 +293,10 @@ def create_successful_response_mock(content):
 def create_post_side_effect(exception, status_code=500):
     if exception != requests_exceptions.HTTPError:
         return exception()
-    else:
-        response = mock.MagicMock()
-        response.status_code = status_code
-        response.raise_for_status.side_effect = exception(response=response)
-        return response
+    response = mock.MagicMock()
+    response.status_code = status_code
+    response.raise_for_status.side_effect = exception(response=response)
+    return response
 
 
 def setup_mock_requests(mock_requests, exception, status_code=500, error_count=None, response_content=None):

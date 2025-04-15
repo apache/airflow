@@ -603,7 +603,7 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         if key in expected_values:
             value = expected_values[key]
             return XComResult(key="return_value", value=value)
-        elif last_request.map_index is None:
+        if last_request.map_index is None:
             # Get all mapped XComValues for this ti
             value = [v for k, v in expected_values.items() if k[0] == last_request.task_id]
             return XComResult(key="return_value", value=value)

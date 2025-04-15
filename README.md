@@ -240,13 +240,13 @@ following the ASF Policy.
 
   ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
 
-- **Task Duration**: Total time spent on different tasks over time.
+- **Home**: Summary statistics of your Airflow environment.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
+  ![Home](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/home.png)
 
-- **Gantt**: Duration and overlap of a DAG.
+- **Backfill**: Backfilling a DAG for a specific date range.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
+  ![Backfill](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/backfill.png)
 
 - **Code**: Quick way to view source code of a DAG.
 

@@ -111,8 +111,7 @@ class MySqlHook(DbApiHook):
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
-        else:
-            return conn.get_autocommit()  # type: ignore[union-attr]
+        return conn.get_autocommit()  # type: ignore[union-attr]
 
     def _get_conn_config_mysql_client(self, conn: Connection) -> dict:
         conn_config = {

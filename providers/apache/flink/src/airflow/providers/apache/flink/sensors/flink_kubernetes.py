@@ -128,9 +128,8 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         if application_state in self.FAILURE_STATES:
             message = f"Flink application failed with state: {application_state}"
             raise AirflowException(message)
-        elif application_state in self.SUCCESS_STATES:
+        if application_state in self.SUCCESS_STATES:
             self.log.info("Flink application ended successfully")
             return True
-        else:
-            self.log.info("Flink application is still in state: %s", application_state)
-            return False
+        self.log.info("Flink application is still in state: %s", application_state)
+        return False

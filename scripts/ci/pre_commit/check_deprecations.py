@@ -91,8 +91,7 @@ def allowed_group_warnings(group: str) -> tuple[str, tuple[str, ...]]:
     group_warnings = allowed_warnings[group]
     if len(group_warnings) == 1:
         return f"expected {group_warnings[0]} type", group_warnings
-    else:
-        return f"expected one of {', '.join(group_warnings)} types", group_warnings
+    return f"expected one of {', '.join(group_warnings)} types", group_warnings
 
 
 def built_import_from(import_from: ast.ImportFrom) -> list[str]:
@@ -151,7 +150,7 @@ def resolve_name(obj: ast.Attribute | ast.Name) -> str:
         if isinstance(obj, ast.Name):
             name = f"{obj.id}.{name}" if name else obj.id
             break
-        elif isinstance(obj, ast.Attribute):
+        if isinstance(obj, ast.Attribute):
             name = f"{obj.attr}.{name}" if name else obj.attr
             obj = obj.value  # type: ignore[assignment]
         else:
@@ -189,7 +188,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                     f"{expected_types}"
                 )
                 continue
-            elif not hasattr(category_keyword, "value"):
+            if not hasattr(category_keyword, "value"):
                 continue
             category_value_ast = category_keyword.value
 

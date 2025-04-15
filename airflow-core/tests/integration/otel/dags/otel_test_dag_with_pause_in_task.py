@@ -65,10 +65,9 @@ def task1(ti):
             logger.info("Task has been paused.")
             time.sleep(1)
             continue
-        else:
-            logger.info("Resuming task execution.")
-            # Break the loop and finish with the task execution.
-            break
+        logger.info("Resuming task execution.")
+        # Break the loop and finish with the task execution.
+        break
 
     otel_task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
     tracer_provider = otel_task_tracer.get_otel_tracer_provider()

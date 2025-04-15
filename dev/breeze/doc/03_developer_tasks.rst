@@ -425,6 +425,10 @@ command takes care about it. This is needed when you want to run webserver insid
   :width: 100%
   :alt: Breeze compile-ui-assets
 
+Note
+
+This command requires the ``pre-commit`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-pre-commit>`__.
+
 Breeze cleanup
 --------------
 

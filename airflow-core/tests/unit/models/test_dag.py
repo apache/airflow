@@ -57,7 +57,6 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -947,7 +946,6 @@ class TestDag:
 
     def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
-            dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id="run_id_" + id,
@@ -955,7 +953,6 @@ class TestDag:
                 state=State.FAILED,
                 data_interval=(logical_date, logical_date),
                 run_after=logical_date,
-                dag_version=dag_v,
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )

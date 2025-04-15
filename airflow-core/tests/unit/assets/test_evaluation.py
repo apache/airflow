@@ -186,7 +186,7 @@ class TestAssetAlias:
             def _resolve_asset_alias(self, o):
                 if o is asset_alias_1:
                     return []
-                elif o is resolved_asset_alias_2:
+                if o is resolved_asset_alias_2:
                     return [asset]
                 return super()._resolve_asset_alias(o)
 

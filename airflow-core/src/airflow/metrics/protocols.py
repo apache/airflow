@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import datetime
 import time
-from typing import Protocol, Union
+from typing import TYPE_CHECKING, Protocol, Union
+
+if TYPE_CHECKING:
+    from airflow.typing_compat import Self
 
 DeltaType = Union[int, float, datetime.timedelta]
 
@@ -27,11 +30,11 @@ DeltaType = Union[int, float, datetime.timedelta]
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
 
-    def __enter__(self) -> Timer: ...
+    def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type, exc_value, traceback) -> None: ...
 
-    def start(self) -> Timer:
+    def start(self) -> Self:
         """Start the timer."""
         ...
 
@@ -98,13 +101,13 @@ class Timer(TimerProtocol):
     def __init__(self, real_timer: Timer | None = None) -> None:
         self.real_timer = real_timer
 
-    def __enter__(self) -> Timer:
+    def __enter__(self) -> Self:
         return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.stop()
 
-    def start(self) -> Timer:
+    def start(self) -> Self:
         """Start the timer."""
         if self.real_timer:
             self.real_timer.start()

@@ -206,8 +206,7 @@ class SortParam(BaseParam[str]):
 
         if self.value[0] == "-":
             return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
-        else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
+        return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""

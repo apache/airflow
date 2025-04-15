@@ -92,10 +92,10 @@ def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
     if hasattr(tzinfo, "key"):
         # zoneinfo timezone
         return tzinfo.key
-    elif hasattr(tzinfo, "name"):
+    if hasattr(tzinfo, "name"):
         # Pendulum timezone
         return tzinfo.name
-    elif hasattr(tzinfo, "zone"):
+    if hasattr(tzinfo, "zone"):
         # pytz timezone
         return tzinfo.zone  # type: ignore[no-any-return]
 

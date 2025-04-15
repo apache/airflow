@@ -199,7 +199,7 @@ Sensors and the TaskFlow API
 .. versionadded:: 2.5.0
 
 For an example of writing a Sensor using the TaskFlow API, see
-:ref:`Using the TaskFlow API with Sensor operators <taskflow/task_sensor_example>`.
+:ref:`Using the TaskFlow API with Sensor operators <taskflow-using-sensors>`.
 
 History
 -------

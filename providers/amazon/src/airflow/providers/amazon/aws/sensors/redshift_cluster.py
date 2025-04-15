@@ -93,7 +93,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
         status = validated_event["status"]
         if status == "error":
             raise AirflowException(f"{validated_event['status']}: {validated_event['message']}")
-        elif status == "success":
+        if status == "success":
             self.log.info("%s completed successfully.", self.task_id)
             self.log.info("Cluster Identifier %s is in %s state", self.cluster_identifier, self.target_status)
 

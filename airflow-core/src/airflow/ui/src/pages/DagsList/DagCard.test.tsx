@@ -66,7 +66,7 @@ describe("DagCard", () => {
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
 
-  it("DagCard should show +X more text if there are more than 3 tags", () => {
+  it("DagCard should not show +X more text if there is only +1 over the limit", () => {
     const tags = [
       { dag_id: "id", name: "tag1" },
       { dag_id: "id", name: "tag2" },
@@ -81,6 +81,26 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText(", +1 more")).toBeInTheDocument();
+    expect(screen.queryByText("tag4")).toBeInTheDocument();
+    expect(screen.queryByText(", +1 more")).toBeNull();
+  });
+
+  it("DagCard should show +X more text if there are more than 3 tags", () => {
+    const tags = [
+      { dag_id: "id", name: "tag1" },
+      { dag_id: "id", name: "tag2" },
+      { dag_id: "id", name: "tag3" },
+      { dag_id: "id", name: "tag4" },
+      { dag_id: "id", name: "tag5" },
+    ] satisfies Array<DagTagResponse>;
+
+    const expandedMockDag = {
+      ...mockDag,
+      tags,
+    } satisfies DAGWithLatestDagRunsResponse;
+
+    render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
+    expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
+    expect(screen.getByText(", +2 more")).toBeInTheDocument();
   });
 });

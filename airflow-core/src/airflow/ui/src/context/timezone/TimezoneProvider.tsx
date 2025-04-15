@@ -19,19 +19,14 @@
 import { useMemo, type PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useConfig } from "src/queries/useConfig";
-
 import { TimezoneContext, type TimezoneContextType } from "./Context";
 
 const TIMEZONE_KEY = "timezone";
 
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
-  const defaultUITimezone = useConfig("default_ui_timezone");
+  const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(
-    TIMEZONE_KEY,
-    typeof defaultUITimezone === "string" ? defaultUITimezone : "UTC",
-  );
+  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(TIMEZONE_KEY, systemTimezone);
 
   const value = useMemo<TimezoneContextType>(
     () => ({ selectedTimezone, setSelectedTimezone }),

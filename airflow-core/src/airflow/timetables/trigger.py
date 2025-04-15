@@ -251,8 +251,7 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
             buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
         if gap_to_past <= buffer_between_runs:
             return past_run_time
-        else:
-            return next_run_time
+        return next_run_time
 
 
 class MultipleCronTriggerTimetable(Timetable):

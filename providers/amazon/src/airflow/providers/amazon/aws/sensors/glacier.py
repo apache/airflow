@@ -89,11 +89,10 @@ class GlacierJobOperationSensor(AwsBaseSensor[GlacierHook]):
             self.log.info("Job status: %s, code status: %s", response["Action"], response["StatusCode"])
             self.log.info("Job finished successfully")
             return True
-        elif response["StatusCode"] == JobStatus.IN_PROGRESS.value:
+        if response["StatusCode"] == JobStatus.IN_PROGRESS.value:
             self.log.info("Processing...")
             self.log.warning("Code status: %s", response["StatusCode"])
             return False
-        else:
-            raise AirflowException(
-                f"Sensor failed. Job status: {response['Action']}, code status: {response['StatusCode']}"
-            )
+        raise AirflowException(
+            f"Sensor failed. Job status: {response['Action']}, code status: {response['StatusCode']}"
+        )

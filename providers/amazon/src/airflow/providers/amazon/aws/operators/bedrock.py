@@ -927,7 +927,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         invoke_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
         waiter_delay: int = 60,
-        waiter_max_attempts: int = 10,
+        waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
