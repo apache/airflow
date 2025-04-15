@@ -76,8 +76,10 @@ def sample_log(request, tmp_path):
     client = request.getfixturevalue("client")
 
     if client == request.getfixturevalue("client_without_config"):
+        print("i am in the if")
         base_log_dir = tmp_path
     elif client == request.getfixturevalue("client_with_config"):
+        print("i am in the elif")
         base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
     else:
         raise ValueError(f"Unknown client fixture: {client}")
