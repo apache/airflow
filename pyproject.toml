@@ -1189,6 +1189,11 @@ module=[
 ]
 ignore_errors = true
 
+# airflowctl autogenered datamodels
+[[tool.mypy.overrides]]
+module="airflowctl.api.datamodels.*"
+ignore_errors = true
+
 [dependency-groups]
 dev = [
     "apache-airflow[all]",

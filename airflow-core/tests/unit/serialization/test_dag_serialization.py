@@ -1213,12 +1213,11 @@ class TestStringifiedDAGs:
             run_id=dr.run_id,
         )
 
-        c = 0
         # Test Deserialized inbuilt link
-        for name, expected in links.items():
+        for i, (name, expected) in enumerate(links.items()):
             # staging the part where a task at runtime pushes xcom for extra links
             XComModel.set(
-                key=simple_task.operator_extra_links[c].xcom_key,
+                key=simple_task.operator_extra_links[i].xcom_key,
                 value=expected,
                 task_id=simple_task.task_id,
                 dag_id=simple_task.dag_id,
@@ -1227,7 +1226,6 @@ class TestStringifiedDAGs:
 
             link = simple_task.get_extra_links(ti, name)
             assert link == expected
-            c += 1
 
         # Test Deserialized link registered via Airflow Plugin
         link = simple_task.get_extra_links(ti, GoogleLink.name)
@@ -3246,17 +3244,128 @@ def test_handle_v1_serdag():
             },
             "edge_info": {},
             "dag_dependencies": [
+                # dataset as schedule (source)
                 {
-                    "dependency_id": '{"name": "asset-2", "uri": "asset-2"}',
-                    "dependency_type": "asset",
-                    "label": "asset-2",
-                    "source": "simple_dag",
-                    "target": "asset",
+                    "source": "dataset",
+                    "target": "dag1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_1",
+                },
+                # dataset alias (resolved) as schedule (source)
+                {
+                    "source": "dataset",
+                    "target": "dataset-alias:alias_name_1",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_2",
+                },
+                {
+                    "source": "dataset:alias_name_1",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_1",
+                },
+                # dataset alias (not resolved) as schedule (source)
+                {
+                    "source": "dataset-alias",
+                    "target": "dag2",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
+                },
+                # dataset as outlets (target)
+                {
+                    "source": "dag10",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_10",
+                },
+                # dataset alias (resolved) as outlets (target)
+                {
+                    "source": "dag20",
+                    "target": "dataset-alias:alias_name_10",
+                    "dependency_type": "dataset",
+                    "dependency_id": "dataset_uri_20",
+                },
+                {
+                    "source": "dataset:dataset_uri_20",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_10",
+                },
+                # dataset alias (not resolved) as outlets (target)
+                {
+                    "source": "dag2",
+                    "target": "dataset-alias",
+                    "dependency_type": "dataset-alias",
+                    "dependency_id": "alias_name_2",
                 },
             ],
             "params": [],
         },
     }
+    expected_dag_dependencies = [
+        # asset as schedule (source)
+        {
+            "dependency_id": "dataset_uri_1",
+            "dependency_type": "asset",
+            "label": "dataset_uri_1",
+            "source": "asset",
+            "target": "dag1",
+        },
+        # asset alias (resolved) as schedule (source)
+        {
+            "dependency_id": "dataset_uri_2",
+            "dependency_type": "asset",
+            "label": "dataset_uri_2",
+            "source": "asset",
+            "target": "asset-alias:alias_name_1",
+        },
+        {
+            "dependency_id": "alias_name_1",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_1",
+            "source": "asset:alias_name_1",
+            "target": "dag2",
+        },
+        # asset alias (not resolved) as schedule (source)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "asset-alias",
+            "target": "dag2",
+        },
+        # asset as outlets (target)
+        {
+            "dependency_id": "dataset_uri_10",
+            "dependency_type": "asset",
+            "label": "dataset_uri_10",
+            "source": "dag10",
+            "target": "asset",
+        },
+        # asset alias (resolved) as outlets (target)
+        {
+            "dependency_id": "dataset_uri_20",
+            "dependency_type": "asset",
+            "label": "dataset_uri_20",
+            "source": "dag20",
+            "target": "asset-alias:alias_name_10",
+        },
+        {
+            "dependency_id": "alias_name_10",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_10",
+            "source": "asset:dataset_uri_20",
+            "target": "asset-alias",
+        },
+        # asset alias (not resolved) as outlets (target)
+        {
+            "dependency_id": "alias_name_2",
+            "dependency_type": "asset-alias",
+            "label": "alias_name_2",
+            "source": "dag2",
+            "target": "asset-alias",
+        },
+    ]
 
     SerializedDAG.conversion_v1_to_v2(v1)
 
@@ -3266,6 +3375,7 @@ def test_handle_v1_serdag():
     v1["dag"]["disable_bundle_versioning"] = False
 
     expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+    expected["dag"]["dag_dependencies"] = expected_dag_dependencies
     del expected["dag"]["tasks"][1]["__var"]["_operator_extra_links"]
 
     assert v1 == expected

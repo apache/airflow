@@ -16,10 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import RootModel
+from typing import Annotated
+
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class ExtraLinksResponse(RootModel):
+class ExtraLinkCollectionResponse(BaseModel):
     """Extra Links Response."""
 
-    root: dict[str, str | None]
+    extra_links: dict[str, str | None]
+    total_entries: Annotated[int, Field(title="Total Entries")]
