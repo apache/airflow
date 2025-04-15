@@ -76,7 +76,6 @@ class GitDagBundle(BaseDagBundle):
             repo_path=self.repo_path,
             versions_path=self.versions_dir,
             git_conn_id=self.git_conn_id,
-            repo_url=self.repo_url,
         )
 
         self._log.debug("bundle configured")
@@ -88,7 +87,7 @@ class GitDagBundle(BaseDagBundle):
                 self._log.warning("Could not create GitHook", conn_id=self.git_conn_id, exc=e)
             else:
                 self.repo_url = self.hook.repo_url
-                self._log.debug("repo_url updated from hook", repo_url=self.repo_url)
+                self._log.debug("repo_url updated from hook")
 
     def _initialize(self):
         with self.lock():
