@@ -114,9 +114,6 @@ def upgrade():
         for uuid_value in uuid_values:
             conn.execute(stmt.bindparams(uuid=uuid_value))
 
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.drop_constraint("task_instance_pkey", type_="primary")
-
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("try_id", nullable=False, existing_type=UUIDType(binary=False))
         batch_op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), ["try_id"])
