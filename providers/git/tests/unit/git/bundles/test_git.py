@@ -511,6 +511,7 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
             subdir="subdir",
+            git_conn_id="git_default",
         )
         bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
