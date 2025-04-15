@@ -32,6 +32,12 @@ from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
 from airflow.configuration import conf
+from airflow.utils.sql_functions import (
+    MYSQL_UUID7_FN,
+    MYSQL_UUID7_FN_DROP,
+    POSTGRES_UUID7_FN,
+    POSTGRES_UUID7_FN_DROP,
+)
 
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
@@ -40,108 +46,6 @@ branch_labels = "None"
 depends_on = None
 airflow_version = "3.0.0"
 
-######
-# The following functions to create UUID v7 are solely for the purpose of this migration.
-# This is done for production databases that do not support UUID v7 natively (Postgres, MySQL)
-# and used instead of uuids from
-# python libraries like uuid6.uuid7() for performance reasons since the task_instance table
-# can be very large.
-######
-
-# PostgreSQL-specific UUID v7 function
-pg_uuid7_fn = """
-DO $$
-DECLARE
-    pgcrypto_installed BOOLEAN;
-BEGIN
-    -- Check if pgcrypto is already installed
-    pgcrypto_installed := EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto');
-
-    -- Attempt to create pgcrypto if it is not installed
-    IF NOT pgcrypto_installed THEN
-        BEGIN
-            CREATE EXTENSION pgcrypto;
-            pgcrypto_installed := TRUE;
-            RAISE NOTICE 'pgcrypto extension successfully created.';
-        EXCEPTION
-            WHEN insufficient_privilege THEN
-                RAISE NOTICE 'pgcrypto extension could not be installed due to insufficient privileges; using fallback';
-                pgcrypto_installed := FALSE;
-            WHEN OTHERS THEN
-                RAISE NOTICE 'An unexpected error occurred while attempting to install pgcrypto; using fallback';
-                pgcrypto_installed := FALSE;
-        END;
-    END IF;
-END $$;
-
-CREATE OR REPLACE FUNCTION uuid_generate_v7(p_timestamp timestamp with time zone)
-RETURNS uuid
-LANGUAGE plpgsql
-PARALLEL SAFE
-AS $$
-DECLARE
-    unix_time_ms CONSTANT bytea NOT NULL DEFAULT substring(int8send((extract(epoch FROM p_timestamp) * 1000)::bigint) from 3);
-    buffer bytea;
-    pgcrypto_installed BOOLEAN := EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto');
-BEGIN
-    -- Use pgcrypto if available, otherwise use the fallback
-    -- fallback from https://brandur.org/fragments/secure-bytes-without-pgcrypto
-    IF pgcrypto_installed THEN
-        buffer := unix_time_ms || gen_random_bytes(10);
-    ELSE
-        buffer := unix_time_ms || substring(uuid_send(gen_random_uuid()) FROM 1 FOR 5) ||
-                  substring(uuid_send(gen_random_uuid()) FROM 12 FOR 5);
-    END IF;
-
-    -- Set UUID version and variant bits
-    buffer := set_byte(buffer, 6, (b'0111' || get_byte(buffer, 6)::bit(4))::bit(8)::int);
-    buffer := set_byte(buffer, 8, (b'10'   || get_byte(buffer, 8)::bit(6))::bit(8)::int);
-    RETURN encode(buffer, 'hex')::uuid;
-END
-$$;
-"""
-
-pg_uuid7_fn_drop = """
-DROP FUNCTION IF EXISTS uuid_generate_v7(timestamp with time zone);
-"""
-
-# MySQL-specific UUID v7 function
-mysql_uuid7_fn = """
-DROP FUNCTION IF EXISTS uuid_generate_v7;
-CREATE FUNCTION uuid_generate_v7(p_timestamp DATETIME(3))
-RETURNS CHAR(36)
-DETERMINISTIC
-BEGIN
-    DECLARE unix_time_ms BIGINT;
-    DECLARE time_hex CHAR(12);
-    DECLARE rand_hex CHAR(24);
-    DECLARE uuid CHAR(36);
-
-    -- Convert the passed timestamp to milliseconds since epoch
-    SET unix_time_ms = UNIX_TIMESTAMP(p_timestamp) * 1000;
-    SET time_hex = LPAD(HEX(unix_time_ms), 12, '0');
-    SET rand_hex = CONCAT(
-        LPAD(HEX(FLOOR(RAND() * POW(2,32))), 8, '0'),
-        LPAD(HEX(FLOOR(RAND() * POW(2,32))), 8, '0')
-    );
-    SET rand_hex = CONCAT(SUBSTRING(rand_hex, 1, 4), '7', SUBSTRING(rand_hex, 6));
-    SET rand_hex = CONCAT(SUBSTRING(rand_hex, 1, 12), '8', SUBSTRING(rand_hex, 14));
-
-    SET uuid = LOWER(CONCAT(
-        SUBSTRING(time_hex, 1, 8), '-',
-        SUBSTRING(time_hex, 9, 4), '-',
-        SUBSTRING(rand_hex, 1, 4), '-',
-        SUBSTRING(rand_hex, 5, 4), '-',
-        SUBSTRING(rand_hex, 9)
-    ));
-
-    RETURN uuid;
-END;
-"""
-
-mysql_uuid7_fn_drop = """
-DROP FUNCTION IF EXISTS uuid_generate_v7;
-"""
 
 ti_table = "task_instance"
 
@@ -203,7 +107,7 @@ def upgrade():
     op.add_column("task_instance", sa.Column("id", _get_type_id_column(dialect_name), nullable=True))
 
     if dialect_name == "postgresql":
-        op.execute(pg_uuid7_fn)
+        op.execute(POSTGRES_UUID7_FN)
 
         # Migrate existing rows with UUID v7 using a timestamp-based generation
         while True:
@@ -227,13 +131,13 @@ def upgrade():
             if row_count == 0:
                 break
             print(f"Migrated {row_count} task_instance rows in this batch...")
-        op.execute(pg_uuid7_fn_drop)
+        op.execute(POSTGRES_UUID7_FN_DROP)
 
         # Drop existing primary key constraint to task_instance table
         op.execute("ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_pkey CASCADE")
 
     elif dialect_name == "mysql":
-        op.execute(mysql_uuid7_fn)
+        op.execute(MYSQL_UUID7_FN)
 
         # Migrate existing rows with UUID v7
         op.execute("""
@@ -243,7 +147,7 @@ def upgrade():
         """)
 
         # Drop this function as it is no longer needed
-        op.execute(mysql_uuid7_fn_drop)
+        op.execute(MYSQL_UUID7_FN_DROP)
         for fk in ti_fk_constraints:
             op.drop_constraint(fk["fk"], fk["table"], type_="foreignkey")
         with op.batch_alter_table("task_instance") as batch_op:
@@ -286,7 +190,7 @@ def downgrade():
 
     if dialect_name == "postgresql":
         op.execute("ALTER TABLE IF EXISTS task_instance DROP CONSTRAINT task_instance_composite_key CASCADE")
-        op.execute(pg_uuid7_fn_drop)
+        op.execute(POSTGRES_UUID7_FN_DROP)
 
     elif dialect_name == "mysql":
         for fk in ti_fk_constraints:
@@ -294,7 +198,7 @@ def downgrade():
 
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_composite_key", type_="unique")
-        op.execute(mysql_uuid7_fn_drop)
+        op.execute(MYSQL_UUID7_FN_DROP)
 
     elif dialect_name == "sqlite":
         with op.batch_alter_table("task_instance") as batch_op:
