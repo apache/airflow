@@ -156,7 +156,7 @@ by default, but can be configured to show in cleartext. See :ref:`security:mask-
 
 ------------
 
-.. image:: img/variable_hidden.png
+.. image:: img/ui-dark/variable_hidden.png
 
 ------------
 
