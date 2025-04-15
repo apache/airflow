@@ -22,18 +22,18 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { usePoolServiceGetPools } from "openapi/queries";
-import { PoolResponse } from "openapi/requests/types.gen";
+import type { PoolResponse } from "openapi/requests/types.gen";
+import { DataTable } from "src/components/DataTable";
+import type { CardDef } from "src/components/DataTable/types";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { type SearchParamsKeysType, SearchParamsKeys } from "src/constants/searchParams";
-
-import { DataTable } from "src/components/DataTable";
-import { CardDef } from "src/components/DataTable/types";
-import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { Select } from "src/components/ui";
+import type { SearchParamsKeysType } from "src/constants/searchParams";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBar from "./PoolBar";
-import { Select } from "src/components/ui";
 
 const cardDef = (): CardDef<PoolResponse> => ({
   card: ({ row }) => <PoolBar key={row.name} pool={row} />,
@@ -45,8 +45,8 @@ const cardDef = (): CardDef<PoolResponse> => ({
 const poolSortOptions = createListCollection({
   items: [
     { label: "Name (A-Z)", value: "name" },
-    { label: "Name (Z-A)", value: "-name" }
-  ]
+    { label: "Name (Z-A)", value: "-name" },
+  ],
 });
 
 export const Pools = () => {
@@ -60,10 +60,10 @@ export const Pools = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
 
   const { data, error, isLoading } = usePoolServiceGetPools({
-    poolNamePattern: poolNamePattern ?? undefined,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    poolNamePattern: poolNamePattern ?? undefined,
   });
 
   const handleSearchChange = (value: string) => {
@@ -76,13 +76,16 @@ export const Pools = () => {
     setPoolNamePattern(value);
   };
 
-  const handleSortChange = (value: string) => {
-    setTableURLState({
-      ...tableURLState,
-      sorting: [{ id: value.replace("-", ""), desc: value.startsWith("-") }],
-    });
-  };  
+  const handleSortChange = (details: { value: Array<string> }) => {
+    const [firstValue] = details.value;
 
+    if (firstValue !== undefined && firstValue !== "") {
+      setTableURLState({
+        ...tableURLState,
+        sorting: [{ desc: firstValue.startsWith("-"), id: firstValue.replace("-", "") }],
+      });
+    }
+  };
 
   return (
     <>
@@ -102,7 +105,7 @@ export const Pools = () => {
           width={130}
         >
           <Select.Trigger>
-            <Select.ValueText placeHolder="Sort by" />
+            <Select.ValueText placeholder="Sort by" />
           </Select.Trigger>
 
           <Select.Content>
@@ -118,14 +121,15 @@ export const Pools = () => {
       <Box mt={4}>
         <DataTable
           cardDef={cardDef()}
+          columns={[]}
+          data={data ? data.pools : []}
           displayMode="card"
-          onStateChange={setTableURLState}
           initialState={tableURLState}
           isLoading={isLoading}
-          columns={[]}
           modelName="Pools"
+          onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}
-          data={data ? data.pools : []} />
+        />
       </Box>
     </>
   );
