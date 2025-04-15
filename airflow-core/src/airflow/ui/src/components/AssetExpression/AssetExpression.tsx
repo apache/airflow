@@ -38,9 +38,9 @@ export const AssetExpression = ({
 
   return (
     <>
-      {expression.any ? (
+      {"any" in expression ? (
         <OrGateNode>
-          {expression.any.map((item, index) => (
+          {expression.any?.map((item, index) => (
             // eslint-disable-next-line react/no-array-index-key
             <Fragment key={`any-${index}`}>
               {"asset" in item || "alias" in item ? (
@@ -61,9 +61,9 @@ export const AssetExpression = ({
           ))}
         </OrGateNode>
       ) : undefined}
-      {expression.all ? (
+      {"all" in expression ? (
         <AndGateNode>
-          {expression.all.map((item, index) => (
+          {expression.all?.map((item, index) => (
             // eslint-disable-next-line react/no-array-index-key
             <Box display="inline-block" key={`all-${index}`}>
               {"asset" in item || "alias" in item ? (
