@@ -379,10 +379,9 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
     def _validate_inputs(self) -> None:
         if not self.name:
             raise AttributeError("Empty parameter: name")
-        else:
-            pattern = FUNCTION_NAME_COMPILED_PATTERN
-            if not pattern.match(self.name):
-                raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
+        pattern = FUNCTION_NAME_COMPILED_PATTERN
+        if not pattern.match(self.name):
+            raise AttributeError(f"Parameter name must match pattern: {FUNCTION_NAME_PATTERN}")
 
     def execute(self, context: Context):
         hook = CloudFunctionsHook(
@@ -404,9 +403,8 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
             if status == 404:
                 self.log.info("The function does not exist in this project")
                 return None
-            else:
-                self.log.error("An error occurred. Exiting.")
-                raise e
+            self.log.error("An error occurred. Exiting.")
+            raise e
 
 
 class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):

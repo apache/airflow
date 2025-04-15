@@ -28,31 +28,30 @@ from airflow.sdk.definitions.decorators.setup_teardown import context_wrapper
 def make_task(name, type_, setup_=False, teardown_=False):
     if type_ == "classic" and setup_:
         return BashOperator(task_id=name, bash_command="echo 1").as_setup()
-    elif type_ == "classic" and teardown_:
+    if type_ == "classic" and teardown_:
         return BashOperator(task_id=name, bash_command="echo 1").as_teardown()
-    elif type_ == "classic":
+    if type_ == "classic":
         return BashOperator(task_id=name, bash_command="echo 1")
-    elif setup_:
+    if setup_:
 
         @setup
         def setuptask():
             pass
 
         return setuptask.override(task_id=name)()
-    elif teardown_:
+    if teardown_:
 
         @teardown
         def teardowntask():
             pass
 
         return teardowntask.override(task_id=name)()
-    else:
 
-        @task
-        def my_task():
-            pass
+    @task
+    def my_task():
+        pass
 
-        return my_task.override(task_id=name)()
+    return my_task.override(task_id=name)()
 
 
 class TestSetupTearDownTask:

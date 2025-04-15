@@ -101,8 +101,7 @@ def _check_flag_and_exit_if_server_response_error(func):
         try:
             if self.exit_in_error:
                 return _exit_if_server_response_error(response=func(self, *args, **kwargs))
-            else:
-                return func(self, *args, **kwargs)
+            return func(self, *args, **kwargs)
         except httpx.ConnectError as e:
             raise e
 

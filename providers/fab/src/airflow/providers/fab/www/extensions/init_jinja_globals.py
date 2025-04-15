@@ -23,7 +23,6 @@ import pendulum
 import airflow
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
-from airflow.settings import STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 
@@ -67,7 +66,6 @@ def init_jinja_globals(app, enable_plugins: bool):
             "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
             "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
             "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
-            "state_color_mapping": STATE_COLORS,
             "airflow_version": airflow_version,
             "git_version": git_version,
             "show_plugin_message": enable_plugins,

@@ -138,7 +138,7 @@ class EcsExecutorTask:
         """
         if self.last_status == "RUNNING":
             return State.RUNNING
-        elif self.desired_status == "RUNNING":
+        if self.desired_status == "RUNNING":
             return State.QUEUED
         is_finished = self.desired_status == "STOPPED"
         has_exit_codes = all(["exit_code" in x for x in self.containers])

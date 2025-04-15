@@ -424,9 +424,6 @@ export type ConfigResponse = {
   audit_view_excluded_events: string;
   audit_view_included_events: string;
   test_connection: string;
-  state_color_mapping: {
-    [key: string]: unknown;
-  };
   dashboard_alert: Array<UIAlert>;
 };
 
@@ -911,7 +908,7 @@ export type DagVersionResponse = {
   id: string;
   version_number: number;
   dag_id: string;
-  bundle_name: string;
+  bundle_name: string | null;
   bundle_version: string | null;
   created_at: string;
   readonly bundle_url: string | null;

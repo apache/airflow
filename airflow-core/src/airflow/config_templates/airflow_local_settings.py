@@ -53,8 +53,6 @@ DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESS
 
 BASE_LOG_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("logging", "BASE_LOG_FOLDER"))
 
-PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value("scheduler", "CHILD_PROCESS_LOG_DIRECTORY")
-
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -246,15 +244,19 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("hdfs://"):
-        HDFS_REMOTE_HANDLERS: dict[str, dict[str, str | None]] = {
-            "task": {
-                "class": "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsTaskHandler",
-                "formatter": "airflow",
-                "base_log_folder": BASE_LOG_FOLDER,
-                "hdfs_log_folder": remote_base_log_folder,
-            },
-        }
-        DEFAULT_LOGGING_CONFIG["handlers"].update(HDFS_REMOTE_HANDLERS)
+        from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
+
+        REMOTE_TASK_LOG = HdfsRemoteLogIO(
+            **(
+                {
+                    "base_log_folder": BASE_LOG_FOLDER,
+                    "remote_base": remote_base_log_folder,
+                    "delete_local_copy": delete_local_copy,
+                }
+                | remote_task_handler_kwargs
+            )
+        )
+        remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
         ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")

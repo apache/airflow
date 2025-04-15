@@ -213,8 +213,7 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version} python {python_version}",
         )
-    else:
-        provider_folder_path.mkdir(exist_ok=True)
+    provider_folder_path.mkdir(exist_ok=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}

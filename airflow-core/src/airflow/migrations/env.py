@@ -36,8 +36,7 @@ def include_object(_, name, type_, *args):
     # Only create migrations for objects that are in the target metadata
     if type_ == "table" and name not in target_metadata.tables:
         return False
-    else:
-        return True
+    return True
 
 
 # Make sure everything is imported so that alembic can find it all

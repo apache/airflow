@@ -73,8 +73,7 @@ def example_bash_decorator():
     def sleep_in(day: str) -> str:
         if day in (WeekDay.SATURDAY, WeekDay.SUNDAY):
             return f"sleep {60 * 60}"
-        else:
-            raise AirflowSkipException("No sleeping in today!")
+        raise AirflowSkipException("No sleeping in today!")
 
     sleep_in(day="{{ dag_run.logical_date.strftime('%A').lower() }}")
     # [END howto_decorator_bash_conditional]
@@ -91,7 +90,7 @@ def example_bash_decorator():
     def _get_files_in_cwd() -> list[str]:
         from pathlib import Path
 
-        dir_contents = Path.cwd().glob("airflow/example_dags/*.py")
+        dir_contents = Path.cwd().glob("airflow-core/src/airflow/example_dags/*.py")
         files = [str(elem) for elem in dir_contents if elem.is_file()]
 
         return files

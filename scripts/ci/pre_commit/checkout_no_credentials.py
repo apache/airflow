@@ -72,14 +72,12 @@ def check_file(the_file: Path) -> int:
                     )
                     error_num += 1
                     continue
-                else:
-                    if persist_credentials:
-                        console.print(
-                            "\n[red]The `with` clause have persist-credentials=True in step:[/]"
-                            f"\n\n{pretty_step}"
-                        )
-                        error_num += 1
-                        continue
+                if persist_credentials:
+                    console.print(
+                        f"\n[red]The `with` clause have persist-credentials=True in step:[/]\n\n{pretty_step}"
+                    )
+                    error_num += 1
+                    continue
     return error_num
 
 

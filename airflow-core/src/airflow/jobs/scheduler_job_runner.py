@@ -356,6 +356,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI.dag_model)
                 .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
+                .where(DM.bundle_name.is_not(None))
                 .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
@@ -558,8 +559,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
-                    else:
-                        executor_slots_available[executor_obj.name] -= 1
+                    executor_slots_available[executor_obj.name] -= 1
                 else:
                     # This is a defensive guard for if we happen to have a task who's executor cannot be
                     # found. The check in the dag parser should make this not realistically possible but the
@@ -1462,8 +1462,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-
             data_interval = dag.get_next_data_interval(dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -1486,7 +1484,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         run_after=dag_model.next_dagrun_create_after,
                         run_type=DagRunType.SCHEDULED,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
-                        dag_version=latest_dag_version,
                         state=DagRunState.QUEUED,
                         creating_job_id=self.job.id,
                         session=session,
@@ -1535,8 +1532,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-
             triggered_date = triggered_dates[dag.dag_id]
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
@@ -1569,7 +1564,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 run_after=triggered_date,
                 run_type=DagRunType.ASSET_TRIGGERED,
                 triggered_by=DagRunTriggeredByType.ASSET,
-                dag_version=latest_dag_version,
                 state=DagRunState.QUEUED,
                 creating_job_id=self.job.id,
                 session=session,

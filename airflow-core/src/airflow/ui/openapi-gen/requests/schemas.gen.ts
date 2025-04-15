@@ -1235,11 +1235,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Test Connection",
     },
-    state_color_mapping: {
-      additionalProperties: true,
-      type: "object",
-      title: "State Color Mapping",
-    },
     dashboard_alert: {
       items: {
         $ref: "#/components/schemas/UIAlert",
@@ -1268,7 +1263,6 @@ export const $ConfigResponse = {
     "audit_view_excluded_events",
     "audit_view_included_events",
     "test_connection",
-    "state_color_mapping",
     "dashboard_alert",
   ],
   title: "ConfigResponse",
@@ -3413,7 +3407,14 @@ export const $DagVersionResponse = {
       title: "Dag Id",
     },
     bundle_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Bundle Name",
     },
     bundle_version: {

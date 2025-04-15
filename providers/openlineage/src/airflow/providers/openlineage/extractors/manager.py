@@ -298,12 +298,11 @@ class ExtractorManager(LoggingMixin):
 
         if isinstance(obj, Dataset):
             return obj
-        elif isinstance(obj, Table):
+        if isinstance(obj, Table):
             return ExtractorManager.convert_to_ol_dataset_from_table(obj)
-        elif isinstance(obj, File):
+        if isinstance(obj, File):
             return ExtractorManager.convert_to_ol_dataset_from_object_storage_uri(obj.url)
-        else:
-            return None
+        return None
 
     def validate_task_metadata(self, task_metadata) -> OperatorLineage | None:
         try:

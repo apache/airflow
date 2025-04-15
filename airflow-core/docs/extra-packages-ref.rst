@@ -90,10 +90,6 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                             |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| edge                | ``pip install 'apache-airflow[edge]'``              | Connect Edge Workers via HTTP to the scheduler                             |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |
@@ -305,7 +301,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                      |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| edge                | ``pip install 'apache-airflow[edge]'``              | Connect Edge Workers via HTTP to the scheduler                  | EdgeExecutor                                 |
+| edgeexecutor        | ``pip install 'apache-airflow[edgeexecutor]'``      | Connect Edge Workers via HTTP to the scheduler                  | EdgeExecutor                                 |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                             |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+

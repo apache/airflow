@@ -22,6 +22,7 @@ from operator import methodcaller
 from typing import Callable
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from typing_extensions import Any
 
@@ -46,6 +47,8 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import task_group_to_dict
+
+log = structlog.get_logger(logger_name=__name__)
 
 
 @cache
@@ -185,6 +188,9 @@ def fill_task_instance_summaries(
     task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
 
     for (task_id, run_id), tis in grouped_task_instances.items():
+        if not tis:
+            continue
+
         sdm = _get_serdag(tis[0], session)
         serdag_cache[sdm.id] = serdag_cache.get(sdm.id) or sdm.dag
         dag = serdag_cache[sdm.id]
@@ -275,6 +281,13 @@ def _get_serdag(ti, session):
         )
     if not dag_version:
         raise RuntimeError("No dag_version object could be found.")
+    if not dag_version.serialized_dag:
+        log.error(
+            "No serialized dag found",
+            dag_id=dag_version.dag_id,
+            version_id=dag_version.id,
+            version_number=dag_version.version_number,
+        )
     return dag_version.serialized_dag
 
 
@@ -283,7 +296,10 @@ def get_combined_structure(task_instances, session):
     merged_nodes = []
     # we dedup with serdag, as serdag.dag varies somehow?
     serdags = {_get_serdag(ti, session) for ti in task_instances}
-    dags = [serdag.dag for serdag in serdags]
+    dags = []
+    for serdag in serdags:
+        if serdag:
+            dags.append(serdag.dag)
     for dag in dags:
         nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
         _merge_node_dicts(merged_nodes, nodes)

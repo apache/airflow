@@ -167,6 +167,7 @@ def test_get_airflow_dag_run_facet():
         "timetable": {},
         "start_date": "2024-06-01T00:00:00+00:00",
         "tags": "['test']",
+        "owner_links": {},
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
@@ -772,6 +773,7 @@ class TestDagInfoAirflow2:
             start_date=datetime.datetime(2024, 6, 1),
             tags=["test"],
             description="test desc",
+            owner_links={"some_owner": "https://airflow.apache.org"},
         ) as dag:
             task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", owner="first")  # noqa: F841
             task_1 = BashOperator(task_id="task_1", bash_command="exit 1;", owner="second")  # noqa: F841
@@ -787,6 +789,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "['test']",
             "timetable": {},
+            "owner_links": {"some_owner": "https://airflow.apache.org"},
         }
 
     def test_dag_info_schedule_cron(self):
@@ -806,6 +809,7 @@ class TestDagInfoAirflow2:
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
             "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
+            "owner_links": {},
         }
 
     def test_dag_info_schedule_events_timetable(self):
@@ -831,6 +835,7 @@ class TestDagInfoAirflow2:
             "schedule_interval": "My Team's Baseball Games",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "event_dates": [
                     "2025-03-03 08:27:00-06:00",
@@ -857,6 +862,7 @@ class TestDagInfoAirflow2:
             "schedule_interval": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "dataset_condition": {
                     "__type": "dataset_all",
@@ -881,6 +887,7 @@ class TestDagInfoAirflow2:
             "schedule_interval": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "dataset_condition": {
                     "__type": "dataset_all",
@@ -908,6 +915,7 @@ class TestDagInfoAirflow2:
             "schedule_interval": "Dataset",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "dataset_condition": {
                     "__type": "dataset_all",
@@ -953,6 +961,7 @@ class TestDagInfoAirflow2:
             "schedule_interval": "Dataset or */4 3 * * *",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "dataset_condition": {
                     "__type": "dataset_all",
@@ -998,6 +1007,7 @@ class TestDagInfoAirflow210:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {"dataset_condition": {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}}},
             "schedule_interval": "Dataset",
         }
@@ -1012,6 +1022,7 @@ class TestDagInfoAirflow3:
             start_date=datetime.datetime(2024, 6, 1),
             tags={"test"},
             description="test desc",
+            owner_links={"some_owner": "https://airflow.apache.org"},
         ) as dag:
             task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", owner="first")  # noqa: F841
             task_1 = BashOperator(task_id="task_1", bash_command="exit 1;", owner="second")  # noqa: F841
@@ -1027,6 +1038,7 @@ class TestDagInfoAirflow3:
             "tags": "['test']",
             "timetable": {},
             "timetable_summary": "@once",
+            "owner_links": {"some_owner": "https://airflow.apache.org"},
         }
 
     def test_dag_info_schedule_cron(self):
@@ -1044,6 +1056,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
             "timetable_summary": "*/4 3 * * *",
         }
@@ -1070,6 +1083,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "event_dates": [
                     "2025-03-03T08:27:00-06:00",
@@ -1096,6 +1110,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "asset_condition": {
                     "__type": "asset",
@@ -1123,6 +1138,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "asset_condition": {
                     "__type": "asset_all",
@@ -1155,6 +1171,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "asset_condition": {
                     "__type": "asset_all",
@@ -1188,6 +1205,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "asset_condition": {
                     "__type": "asset_all",
@@ -1256,6 +1274,7 @@ class TestDagInfoAirflow3:
             "owner": "",
             "start_date": "2024-06-01T00:00:00+00:00",
             "tags": "[]",
+            "owner_links": {},
             "timetable": {
                 "asset_condition": {
                     "__type": "asset_all",

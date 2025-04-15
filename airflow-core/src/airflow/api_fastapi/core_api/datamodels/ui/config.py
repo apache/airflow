@@ -42,5 +42,4 @@ class ConfigResponse(BaseModel):
     audit_view_excluded_events: str
     audit_view_included_events: str
     test_connection: str
-    state_color_mapping: dict
     dashboard_alert: list[UIAlert]

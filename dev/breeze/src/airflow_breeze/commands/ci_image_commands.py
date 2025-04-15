@@ -212,12 +212,11 @@ def get_exitcode(status: int) -> int:
     # but until then we need to do this ugly conversion
     if os.WIFSIGNALED(status):
         return -os.WTERMSIG(status)
-    elif os.WIFEXITED(status):
+    if os.WIFEXITED(status):
         return os.WEXITSTATUS(status)
-    elif os.WIFSTOPPED(status):
+    if os.WIFSTOPPED(status):
         return -os.WSTOPSIG(status)
-    else:
-        return 1
+    return 1
 
 
 option_upgrade_to_newer_dependencies = click.option(
@@ -770,26 +769,24 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
         if answer == answer.YES:
             if is_repo_rebased(build_ci_params.github_repository, build_ci_params.airflow_branch):
                 return True
-            else:
-                get_console().print(
-                    "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
-                    "a good network connection. We think you should attempt to rebase first.[/]\n"
-                )
-                answer = user_confirm(
-                    "But if you really, really want - you can attempt it. Are you really sure?",
-                    timeout=STANDARD_TIMEOUT,
-                    default_answer=Answer.NO,
-                )
-                if answer == Answer.YES:
-                    return True
-                else:
-                    get_console().print(
-                        f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
-                        "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst\n"
-                    )
-                    get_console().print("[error]Exiting the process[/]\n")
-                    sys.exit(1)
+            get_console().print(
+                "\n[warning]This might take a lot of time (more than 10 minutes) even if you have "
+                "a good network connection. We think you should attempt to rebase first.[/]\n"
+            )
+            answer = user_confirm(
+                "But if you really, really want - you can attempt it. Are you really sure?",
+                timeout=STANDARD_TIMEOUT,
+                default_answer=Answer.NO,
+            )
+            if answer == Answer.YES:
+                return True
+            get_console().print(
+                f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
+                "before continuing.[/]\nCheck this link to find out how "
+                "https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst\n"
+            )
+            get_console().print("[error]Exiting the process[/]\n")
+            sys.exit(1)
         elif answer == Answer.NO:
             instruct_build_image(build_ci_params.python)
             return False

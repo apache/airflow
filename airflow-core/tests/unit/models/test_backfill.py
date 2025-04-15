@@ -326,9 +326,8 @@ def create_next_run(
             .limit(1)
         )
         return next_run
-    else:
-        dr = dag_maker.create_dagrun(logical_date=next_date, run_id="second_run")
-        return dr
+    dr = dag_maker.create_dagrun(logical_date=next_date, run_id="second_run")
+    return dr
 
 
 @pytest.mark.parametrize("is_backfill", [True, False])

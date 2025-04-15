@@ -171,7 +171,7 @@ class HttpSensor(BaseSensorOperator):
     def execute(self, context: Context) -> Any:
         if not self.deferrable:
             return super().execute(context=context)
-        elif not self.poke(context):
+        if not self.poke(context):
             self.defer(
                 timeout=timedelta(seconds=self.timeout),
                 trigger=HttpSensorTrigger(

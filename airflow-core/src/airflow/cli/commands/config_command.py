@@ -166,6 +166,14 @@ CONFIGS_CHANGES = [
         "raising a hard error on validation failure.",
     ),
     ConfigChange(
+        config=ConfigParameter("core", "dag_default_view"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dag_orientation"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "dataset_manager_class"),
         renamed_to=ConfigParameter("core", "asset_manager_class"),
     ),
@@ -613,6 +621,10 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "zombie_detection_interval"),
         renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_detection_interval"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "child_process_log_directory"),
+        renamed_to=ConfigParameter("logging", "dag_processor_child_process_log_directory"),
     ),
     # celery
     ConfigChange(

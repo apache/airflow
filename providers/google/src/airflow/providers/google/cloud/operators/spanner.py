@@ -188,13 +188,12 @@ class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
         )
         if hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             return hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
-        else:
-            self.log.info(
-                "Instance '%s' does not exist in project '%s'. Aborting delete.",
-                self.instance_id,
-                self.project_id,
-            )
-            return True
+        self.log.info(
+            "Instance '%s' does not exist in project '%s'. Aborting delete.",
+            self.instance_id,
+            self.project_id,
+        )
+        return True
 
 
 class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
@@ -401,13 +400,12 @@ class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
                 database_id=self.database_id,
                 ddl_statements=self.ddl_statements,
             )
-        else:
-            self.log.info(
-                "The database '%s' in project '%s' and instance '%s' already exists. Nothing to do. Exiting.",
-                self.database_id,
-                self.project_id,
-                self.instance_id,
-            )
+        self.log.info(
+            "The database '%s' in project '%s' and instance '%s' already exists. Nothing to do. Exiting.",
+            self.database_id,
+            self.project_id,
+            self.instance_id,
+        )
         return True
 
 
@@ -496,21 +494,20 @@ class SpannerUpdateDatabaseInstanceOperator(GoogleCloudBaseOperator):
                 f"and instance '{self.instance_id}' is missing. "
                 f"Create the database first before you can update it."
             )
-        else:
-            SpannerDatabaseLink.persist(
-                context=context,
-                task_instance=self,
-                instance_id=self.instance_id,
-                database_id=self.database_id,
-                project_id=self.project_id or hook.project_id,
-            )
-            return hook.update_database(
-                project_id=self.project_id,
-                instance_id=self.instance_id,
-                database_id=self.database_id,
-                ddl_statements=self.ddl_statements,
-                operation_id=self.operation_id,
-            )
+        SpannerDatabaseLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
+            project_id=self.project_id or hook.project_id,
+        )
+        return hook.update_database(
+            project_id=self.project_id,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
+            ddl_statements=self.ddl_statements,
+            operation_id=self.operation_id,
+        )
 
 
 class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
@@ -589,7 +586,6 @@ class SpannerDeleteDatabaseInstanceOperator(GoogleCloudBaseOperator):
                 self.instance_id,
             )
             return True
-        else:
-            return hook.delete_database(
-                project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
-            )
+        return hook.delete_database(
+            project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
+        )

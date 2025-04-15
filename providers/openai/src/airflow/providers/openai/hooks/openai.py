@@ -469,9 +469,9 @@ class OpenAIHook(BaseHook):
                 return
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
-            elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
+            if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
                 raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
-            elif batch.status == BatchStatus.EXPIRED:
+            if batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
                     f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
                 )

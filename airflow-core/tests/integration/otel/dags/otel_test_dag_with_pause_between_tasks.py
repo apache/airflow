@@ -129,10 +129,9 @@ def paused_task():
             logger.info("Task has been paused.")
             time.sleep(1)
             continue
-        else:
-            logger.info("Resuming task execution.")
-            # Break the loop and finish with the task execution.
-            break
+        logger.info("Resuming task execution.")
+        # Break the loop and finish with the task execution.
+        break
 
     # Cleanup the control file.
     if os.path.exists(control_file):

@@ -146,15 +146,13 @@ def init_api_error_handlers(app: Flask) -> None:
             # i.e. "no route for it" defined, need to be handled
             # here on the application level
             return common_error_handler(ex)
-        else:
-            return views.not_found(ex)
+        return views.not_found(ex)
 
     @app.errorhandler(405)
     def _handle_method_not_allowed(ex):
         if any([request.path.startswith(p) for p in base_paths]):
             return common_error_handler(ex)
-        else:
-            return views.method_not_allowed(ex)
+        return views.method_not_allowed(ex)
 
     app.register_error_handler(ProblemException, common_error_handler)
 

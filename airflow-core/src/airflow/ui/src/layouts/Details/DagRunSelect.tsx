@@ -66,7 +66,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
     <Select.Root
       collection={runOptions}
       data-testid="dag-run-select"
-      disabled={isLoading}
+      disabled={isLoading || !data?.dag_runs}
       onValueChange={selectDagRun}
       ref={ref}
       size="sm"

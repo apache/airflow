@@ -40,5 +40,4 @@ def inject_session_into_op_kwargs(
     signature = inspect.signature(python_callable)
     if "session" in signature.parameters:
         return {**op_kwargs, "session": session}
-    else:
-        return op_kwargs
+    return op_kwargs

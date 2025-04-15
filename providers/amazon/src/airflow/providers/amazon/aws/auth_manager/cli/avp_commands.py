@@ -107,26 +107,23 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
             f"There is already a policy store with description '{args.policy_store_description}' in Amazon Verified Permissions: '{existing_policy_stores[0]['policyStoreId']}'."
         )
         return existing_policy_stores[0]["policyStoreId"], False
-    else:
-        print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
-        if args.dry_run:
-            print(
-                f"Dry run, not creating the policy store with description '{args.policy_store_description}'."
-            )
-            return None, True
+    print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
+    if args.dry_run:
+        print(f"Dry run, not creating the policy store with description '{args.policy_store_description}'.")
+        return None, True
 
-        response = client.create_policy_store(
-            validationSettings={
-                "mode": "STRICT",
-            },
-            description=args.policy_store_description,
-        )
-        if args.verbose:
-            log.debug("Response from create_policy_store: %s", response)
+    response = client.create_policy_store(
+        validationSettings={
+            "mode": "STRICT",
+        },
+        description=args.policy_store_description,
+    )
+    if args.verbose:
+        log.debug("Response from create_policy_store: %s", response)
 
-        print(f"Policy store created: '{response['policyStoreId']}'")
+    print(f"Policy store created: '{response['policyStoreId']}'")
 
-        return response["policyStoreId"], True
+    return response["policyStoreId"], True
 
 
 def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
