@@ -294,7 +294,7 @@ class TestLocalPath:
         d = ObjectStoragePath.deserialize(s, 1)
         assert o == d
 
-        store = attach("filex", conn_id="mock")
+        store = attach("file", conn_id="mock")
         o = ObjectStoragePath(path, store=store)
         s = o.serialize()
         assert s["kwargs"]["store"] == store

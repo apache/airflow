@@ -1504,7 +1504,6 @@ def run_tasks(
                 run_after=logical_date,
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.TEST,
-                dag_version=None,
                 state=DagRunState.RUNNING,
                 start_date=logical_date,
                 session=session,

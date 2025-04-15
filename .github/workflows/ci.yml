@@ -785,6 +785,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+    # This will fire when all the jobs from "needs" are either successful or skipped
+    if: always() && !failure() && !cancelled()
     needs:
       - build-info
       - generate-constraints

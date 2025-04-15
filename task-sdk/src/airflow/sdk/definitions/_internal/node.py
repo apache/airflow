@@ -180,7 +180,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
         if len(dags) > 1:
             raise RuntimeError(f"Tried to set relationships between tasks in more than one DAG: {dags}")
-        elif len(dags) == 1:
+        if len(dags) == 1:
             dag = dags.pop()
         else:
             raise ValueError(
@@ -241,15 +241,13 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """Get set of the direct relative ids to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
-        else:
-            return self.downstream_task_ids
+        return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable[Operator]:
         """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
-        else:
-            return self.downstream_list
+        return self.downstream_list
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize a task group's content; used by TaskGroupSerialization."""

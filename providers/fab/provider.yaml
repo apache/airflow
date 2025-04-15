@@ -32,6 +32,7 @@ source-date-epoch: 1741121873
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.0.1
   - 2.0.0
   - 1.5.2
   - 1.5.1
@@ -120,3 +121,5 @@ config:
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+extra-project-metadata: license-files = ["NOTICE", "*/LICENSE*"]

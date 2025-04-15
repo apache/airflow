@@ -184,13 +184,13 @@ class Templater:
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
             return tuple(self.render_template(element, context, jinja_env, oids) for element in value)
-        elif isinstance(value, tuple):  # Special case for named tuples.
+        if isinstance(value, tuple):  # Special case for named tuples.
             return value.__class__(*(self.render_template(el, context, jinja_env, oids) for el in value))
-        elif isinstance(value, list):
+        if isinstance(value, list):
             return [self.render_template(element, context, jinja_env, oids) for element in value]
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
-        elif isinstance(value, set):
+        if isinstance(value, set):
             return {self.render_template(element, context, jinja_env, oids) for element in value}
 
         # More complex collections.

@@ -245,8 +245,7 @@ class _VaultClient(LoggingMixin):
 
         if _client.is_authenticated():
             return _client
-        else:
-            raise VaultError("Vault Authentication Error!")
+        raise VaultError("Vault Authentication Error!")
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -385,8 +384,7 @@ class _VaultClient(LoggingMixin):
             if len(split_secret_path) < 2:
                 raise InvalidPath
             return split_secret_path[0], split_secret_path[1]
-        else:
-            return self.mount_point, secret_path
+        return self.mount_point, secret_path
 
     def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
         """

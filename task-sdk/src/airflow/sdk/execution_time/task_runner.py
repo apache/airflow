@@ -864,7 +864,7 @@ def run(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.exception("Task failed with exception")
+        log.error("Task exited", exit_code=e.code)
         msg, state = _handle_current_task_failed(ti)
         error = e
     except BaseException as e:
@@ -954,7 +954,7 @@ def _handle_trigger_dag_run(
             method_name="execute_complete",
         )
         return _defer_task(defer, ti, log)
-    elif drte.wait_for_completion:
+    if drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1144,9 +1144,7 @@ def finalize(
         if ti.task.template_fields:
             SUPERVISOR_COMMS.send_request(
                 log=log,
-                msg=SetRenderedFields(
-                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
-                ),
+                msg=SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)),
             )
 
     log.debug("Running finalizers", ti=ti)

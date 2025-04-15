@@ -77,7 +77,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -146,7 +146,7 @@ class TrinoHook(DbApiHook):
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -159,7 +159,7 @@ class TrinoHook(DbApiHook):
                 else:
                     msg += "none of them provided."
                 raise ValueError(msg)
-            elif jwt_file:
+            if jwt_file:
                 token = Path(extra["jwt__file"]).read_text()
             else:
                 token = extra["jwt__token"]

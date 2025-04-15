@@ -35,9 +35,11 @@ from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetVariable,
+    OKResponse,
     PutVariable,
     VariableResult,
 )
@@ -54,12 +56,12 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 ToManager = Annotated[
-    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable],
+    Union["DagFileParsingResult", GetConnection, GetVariable, PutVariable, DeleteVariable],
     Field(discriminator="type"),
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse, OKResponse],
     Field(discriminator="type"),
 ]
 
@@ -145,7 +147,7 @@ def _execute_callbacks(
                 "Haven't coded Task callback yet - https://github.com/apache/airflow/issues/44354!"
             )
             # _execute_task_callbacks(dagbag, request)
-        elif isinstance(request, DagCallbackRequest):
+        if isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
 
 
@@ -275,7 +277,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
             return
-        elif isinstance(msg, GetConnection):
+        if isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
@@ -293,6 +295,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 resp = var
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return

@@ -31,6 +31,8 @@ from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 
+from airflow.configuration import conf
+
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
 down_revision = "05234396c6fc"
@@ -163,8 +165,7 @@ def _get_type_id_column(dialect_name: str) -> sa.types.TypeEngine:
     if dialect_name == "postgresql":
         return postgresql.UUID(as_uuid=False)
     # For other databases, use String(36) to match UUID format
-    else:
-        return sa.String(36)
+    return sa.String(36)
 
 
 def create_foreign_keys():
@@ -195,6 +196,7 @@ def create_foreign_keys():
 
 def upgrade():
     """Add UUID primary key to task instance table."""
+    batch_size = conf.getint("database", "migration_batch_size", fallback=1000)
     conn = op.get_bind()
     dialect_name = conn.dialect.name
 
@@ -203,12 +205,28 @@ def upgrade():
     if dialect_name == "postgresql":
         op.execute(pg_uuid7_fn)
 
-        # TODO: Add batching to handle updates in smaller chunks for large tables to avoid locking
         # Migrate existing rows with UUID v7 using a timestamp-based generation
-        op.execute(
-            "UPDATE task_instance SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))"
-        )
-
+        while True:
+            result = conn.execute(
+                text(
+                    """
+                    WITH cte AS (
+                        SELECT ctid
+                        FROM task_instance
+                        WHERE id IS NULL
+                        LIMIT :batch_size
+                    )
+                    UPDATE task_instance
+                    SET id = uuid_generate_v7(coalesce(queued_dttm, start_date, clock_timestamp()))
+                    FROM cte
+                    WHERE task_instance.ctid = cte.ctid
+                    """
+                ).bindparams(batch_size=batch_size)
+            )
+            row_count = result.rowcount
+            if row_count == 0:
+                break
+            print(f"Migrated {row_count} task_instance rows in this batch...")
         op.execute(pg_uuid7_fn_drop)
 
         # Drop existing primary key constraint to task_instance table

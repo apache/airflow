@@ -105,8 +105,7 @@ class SqlSensor(BaseSensorOperator):
             if self.fail_on_empty:
                 message = "No rows returned, raising as per fail_on_empty flag"
                 raise AirflowException(message)
-            else:
-                return False
+            return False
 
         condition = self.selector(records[0])
         if self.failure is not None:
@@ -121,7 +120,6 @@ class SqlSensor(BaseSensorOperator):
         if self.success is not None:
             if callable(self.success):
                 return self.success(condition)
-            else:
-                message = f"self.success is present, but not callable -> {self.success}"
-                raise AirflowException(message)
+            message = f"self.success is present, but not callable -> {self.success}"
+            raise AirflowException(message)
         return bool(condition)

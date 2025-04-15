@@ -67,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     ErrorResponse,
     GetAssetByName,
@@ -137,6 +138,36 @@ STATES_SENT_DIRECTLY = [
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
 BUFFER_SIZE = 4096
+
+SIGSEGV_MESSAGE = """
+******************************************* Received SIGSEGV *******************************************
+SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
+an attempt by a program/library to write or read outside its allocated memory.
+
+In Python environment usually this signal refers to libraries which use low level C API.
+Make sure that you use right libraries/Docker Images
+for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
+
+Suggested way to debug
+======================
+  - Set environment variable 'PYTHONFAULTHANDLER' to 'true'.
+  - Start airflow services.
+  - Restart failed airflow task.
+  - Check 'scheduler' and 'worker' services logs for additional traceback
+    which might contain information about module/library where actual error happen.
+
+Known Issues
+============
+
+Note: Only Linux-based distros supported as "Production" execution environment for Airflow.
+
+macOS
+-----
+ 1. Due to limitations in Apple's libraries not every process might 'fork' safe.
+    One of the general error is unable to query the macOS system configuration for network proxies.
+    If your are not using a proxy you could disable it by set environment variable 'no_proxy' to '*'.
+    See: https://github.com/python/cpython/issues/58037 and https://bugs.python.org/issue30385#msg293958
+********************************************************************************************************"""
 
 
 def mkpipe(
@@ -429,11 +460,9 @@ class WatchedSubprocess:
                 # Run the child entrypoint
                 _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
             except BaseException as e:
-                try:
+                with suppress(BaseException):
                     # We can't use log here, as if we except out of _fork_main something _weird_ went on.
                     print("Exception in _fork_main, exiting with code 124", e, file=sys.stderr)
-                except BaseException as e:
-                    pass
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
@@ -596,9 +625,11 @@ class WatchedSubprocess:
                     # Service subprocess events during the escalation delay. This will return as soon as it's
                     # read from any of the sockets, so we need to re-run it if the process is still alive
                     if (
-                        exit_code := self._service_subprocess(max_wait_time=end - now, raise_on_timeout=False)
+                        exit_code := self._service_subprocess(
+                            max_wait_time=end - now, raise_on_timeout=False, expect_signal=sig
+                        )
                     ) is not None:
-                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal=sig.name)
+                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal_sent=sig.name)
                         return
 
                     now = time.monotonic()
@@ -631,7 +662,9 @@ class WatchedSubprocess:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"
 
-    def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
+    def _service_subprocess(
+        self, max_wait_time: float, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ):
         """
         Service subprocess events by processing socket activity and checking for process exit.
 
@@ -642,6 +675,7 @@ class WatchedSubprocess:
 
         :param max_wait_time: Maximum time to block while waiting for events, in seconds.
         :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
+        :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
         events = self.selector.select(timeout=max_wait_time)
@@ -668,18 +702,42 @@ class WatchedSubprocess:
                 key.fileobj.close()  # type: ignore[union-attr]
 
         # Check if the subprocess has exited
-        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
+        return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
 
-    def _check_subprocess_exit(self, raise_on_timeout: bool = False) -> int | None:
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
         """Check if the subprocess has exited."""
-        if self._exit_code is None:
-            try:
-                self._exit_code = self._process.wait(timeout=0)
-                log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
-                self._close_unused_sockets(self.stdin)
-            except psutil.TimeoutExpired:
-                if raise_on_timeout:
-                    raise
+        if self._exit_code is not None:
+            return self._exit_code
+
+        try:
+            self._exit_code = self._process.wait(timeout=0)
+        except psutil.TimeoutExpired:
+            if raise_on_timeout:
+                raise
+        else:
+            self._close_unused_sockets(self.stdin)
+            # Put a message in the viewable task logs
+
+            if expect_signal is not None and self._exit_code == -expect_signal:
+                # Bypass logging, the caller expected us to exit with this
+                return self._exit_code
+
+            # psutil turns signal exit codes into an enum for us. Handy. (Otherwise it's a plain integer) if exit_code and (name := getattr(exit_code, "name")):
+            if self._exit_code == -signal.SIGSEGV:
+                self.process_log.critical(SIGSEGV_MESSAGE)
+            elif name := getattr(self._exit_code, "name", None):
+                message = "Process terminated by signal"
+                level = logging.ERROR
+                if self._exit_code == -signal.SIGKILL:
+                    message += ". For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#TaskRunner-killed"
+                    level = logging.CRITICAL
+                self.process_log.log(level, message, signal=int(self._exit_code), signal_name=name)
+            elif self._exit_code:
+                # Run of the mill exit code (1, 42, etc).
+                # Most task errors should be caught in the task runner and _that_ exits with 0.
+                self.process_log.warning("Process exited abnormally", exit_code=self._exit_code)
         return self._exit_code
 
 
@@ -914,7 +972,7 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
-        elif self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
+        if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
         return TerminalTIState.FAILED
 
@@ -1062,6 +1120,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 run_ids=msg.run_ids,
                 states=msg.states,
             )
+        elif isinstance(msg, DeleteVariable):
+            resp = self.client.variables.delete(msg.key)
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -1174,7 +1234,17 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.configuration import ensure_secrets_loaded
     from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    backends = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+
+    log = structlog.get_logger(logger_name="supervisor")
+
+    log.info(
+        "Secrets backends loaded for worker",
+        count=len(backends),
+        backend_classes=[type(b).__name__ for b in backends],
+    )
+
+    return backends
 
 
 def supervise(

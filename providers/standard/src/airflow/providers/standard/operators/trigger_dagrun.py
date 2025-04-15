@@ -96,11 +96,10 @@ class TriggerDagRunLink(BaseOperatorLink):
             from airflow.utils.helpers import build_airflow_dagrun_url
 
             return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
-        else:
-            from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
-            query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
-            return build_airflow_url_with_query(query)
+        query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
+        return build_airflow_url_with_query(query)
 
 
 class TriggerDagRunOperator(BaseOperator):

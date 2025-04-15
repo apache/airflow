@@ -165,8 +165,7 @@ class WorkflowTrigger(BaseTrigger):
             )
         if self.external_task_ids:
             return count / len(self.external_task_ids)
-        else:
-            return count
+        return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:
