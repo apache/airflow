@@ -46,7 +46,11 @@ def upgrade():
     """Apply Add try_id to TI and TIH."""
     dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(
+            sa.Column(
+                "try_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=True
+            )
+        )
 
     stmt = sa.text("SELECT id FROM task_instance WHERE try_id IS NULL")
     conn = op.get_bind()
@@ -67,7 +71,11 @@ def upgrade():
         uuid_value = uuid7()
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column("try_id", nullable=False, existing_type=UUIDType(binary=False))
+        batch_op.alter_column(
+            "try_id",
+            nullable=False,
+            existing_type=sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
+        )
         batch_op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), ["try_id"])
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
@@ -77,7 +85,11 @@ def upgrade():
                 sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
             )
         )
-        batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
+        batch_op.add_column(
+            sa.Column(
+                "try_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=True
+            )
+        )
     # Update try_id column
     stmt = sa.text("SELECT id FROM task_instance_history WHERE try_id IS NULL")
     conn = op.get_bind()
