@@ -274,7 +274,7 @@ def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DA
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
         dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
-    else:
+    elif bundle_names:
         manager = DagBundlesManager()
         for bundle_name in bundle_names:
             bundle = manager.get_bundle(bundle_name)
