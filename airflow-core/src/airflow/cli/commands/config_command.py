@@ -164,6 +164,11 @@ CONFIGS_CHANGES = [
         breaking=True,
     ),
     ConfigChange(
+        config=ConfigParameter("core", "hostname"),
+        was_removed=True,
+        remove_if_equals=":",
+    ),
+    ConfigChange(
         config=ConfigParameter("core", "check_slas"),
         suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),

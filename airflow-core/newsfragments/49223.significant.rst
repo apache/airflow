@@ -1,0 +1,35 @@
+Update in ``airflow config update`` command to show breaking config changes by default.
+
+  * By default, the ``airflow config update`` shows a dry run (i.e. it does not modify your ``airflow.cfg``) and displays only the breaking configuration changes. This helps users avoid being overwhelmed by non-critical recommendations.
+  * ``airflow config update --fix`` to applies only the breaking changes and updates airflow.cfg accordingly.
+  * ``airflow config update --fix --all-recommendations`` updates both breaking and non-breaking recommended changes in your configuration.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Breaking Migration rules needed
+
+  * ``airflow config update``
+
+    * [x] ``core.executor``: default value change from ``SequentialExecutor`` to ``LocalExecutor``
+    * [x] ``logging.log_filename_template``: remove configuration if value equals either
+          ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log`` or
+          ``dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log``
+    * [x] ``webserver.web_server_host`` → ``api.host``
+    * [x] ``webserver.web_server_port`` → ``api.port``
+    * [x] ``webserver.workers`` → ``api.workers``
+    * [x] ``webserver.web_server_ssl_cert`` → ``api.ssl_cert``
+    * [x] ``webserver.web_server_ssl_key`` → ``api.ssl_key``
+    * [x] ``webserver.access_logfile`` → ``api.access_logfile``
+    * [x] ``scheduler.catchup_by_default``: default value change from ``True`` to ``False``
+    * [x] ``scheduler.dag_dir_list_interval`` → ``dag_processor.refresh_interval``
+    * [x] ``triggerer.default_capacity`` → ``triggerer.capacity``
+    * [x] ``elasticsearch.log_id_template``: remove configuration if value equals ``{dag_id}-{task_id}-{logical_date}-{try_number}``
