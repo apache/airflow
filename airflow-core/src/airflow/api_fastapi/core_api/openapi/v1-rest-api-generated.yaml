@@ -5,7 +5,7 @@ info:
     are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
     to the UI and are subject to breaking change depending on the need of the frontend.
     Users should not rely on those but use the public ones instead.
-  version: 0.1.0
+  version: '2'
 paths:
   /ui/auth/menus:
     get:
@@ -7312,30 +7312,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/{rest_of_path}:
-    get:
-      summary: Not Found Handler
-      description: Catch all route to handle invalid endpoints.
-      operationId: not_found_handler
-      parameters:
-      - name: rest_of_path
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Rest Of Path
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -8193,9 +8169,6 @@ components:
         auto_refresh_interval:
           type: integer
           title: Auto Refresh Interval
-        default_ui_timezone:
-          type: string
-          title: Default Ui Timezone
         hide_paused_dags_by_default:
           type: boolean
           title: Hide Paused Dags By Default
@@ -8240,7 +8213,6 @@ components:
       - navbar_logo_text_color
       - page_size
       - auto_refresh_interval
-      - default_ui_timezone
       - hide_paused_dags_by_default
       - instance_name
       - instance_name_has_markup

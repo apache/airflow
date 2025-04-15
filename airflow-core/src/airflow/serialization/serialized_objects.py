@@ -1840,7 +1840,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return obj
 
         for old, new in dag_renames:
-            dag_dict[new] = dag_dict.pop(old)
+            if old in dag_dict:
+                dag_dict[new] = dag_dict.pop(old)
 
         if default_args := dag_dict.get("default_args"):
             for k in tasks_remove:
@@ -1891,9 +1892,21 @@ class SerializedDAG(DAG, BaseSerialization):
 
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:
-                for fld in ("dependency_type", "target", "source"):
-                    if dep.get(fld) == "dataset":
-                        dep[fld] = "asset"
+                dep_type = dep.get("dependency_type")
+                if dep_type in ("dataset", "dataset-alias"):
+                    dep["dependency_type"] = dep_type.replace("dataset", "asset")
+
+                if not dep.get("label"):
+                    dep["label"] = dep["dependency_id"]
+
+                for fld in ("target", "source"):
+                    val = dep.get(fld)
+                    if val == dep_type and val in ("dataset", "dataset-alias"):
+                        dep[fld] = dep[fld].replace("dataset", "asset")
+                    elif val.startswith("dataset:"):
+                        dep[fld] = dep[fld].replace("dataset:", "asset:")
+                    elif val.startswith("dataset-alias:"):
+                        dep[fld] = dep[fld].replace("dataset-alias:", "asset-alias:")
 
         for task in dag_dict["tasks"]:
             task_var: dict = task["__var"]
@@ -1903,15 +1916,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 task_var.pop(k, None)
             for old, new in task_renames:
                 task_var[new] = task_var.pop(old)
-            for item in task_var.get("outlets", []):
+            for item in itertools.chain(*(task_var.get(key, []) for key in ("inlets", "outlets"))):
+                original_item_type = item["__type"]
                 if isinstance(item, dict) and "__type" in item:
-                    item["__type"] = replace_dataset_in_str(item["__type"])
-            for item in task_var.get("inlets", []):
-                if isinstance(item, dict) and "__type" in item:
-                    item["__type"] = replace_dataset_in_str(item["__type"])
+                    item["__type"] = replace_dataset_in_str(original_item_type)
+
                 var_ = item["__var"]
-                var_["name"] = None
-                var_["group"] = None
+                if original_item_type == "dataset":
+                    var_["name"] = var_["uri"]
+                var_["group"] = "asset"
 
         # Set on the root TG
         dag_dict["task_group"]["group_display_name"] = ""

@@ -77,6 +77,7 @@ def create_app(apps: str = "all") -> FastAPI:
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
+        version="2",
     )
 
     dag_bag = get_dag_bag()

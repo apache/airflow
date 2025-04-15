@@ -26,9 +26,9 @@ If you have these configuration options in your ``airflow.cfg`` file, you need t
 
 * Migration rules needed
 
-  * ``airflow config lint``
+  * ``airflow config update``
 
-    * [ ] Remove ``[core] hostname`` configuration option from config if value is ``:``
-    * [ ] Remove ``[email] email_backend`` configuration option from config if value is ``airflow.contrib.utils.sendgrid.send_email``
-    * [ ] Remove ``[logging] log_filename_template`` configuration option from config if value is ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log``
-    * [ ] Remove ``[elasticsearch] log_id_template`` configuration option from config if value is ``{dag_id}-{task_id}-{logical_date}-{try_number}``
+    * [x] Remove ``[core] hostname`` configuration option from config if value is ``:``
+    * [x] Remove ``[email] email_backend`` configuration option from config if value is ``airflow.contrib.utils.sendgrid.send_email``
+    * [x] Remove ``[logging] log_filename_template`` configuration option from config if value is ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log``
+    * [x] Remove ``[elasticsearch] log_id_template`` configuration option from config if value is ``{dag_id}-{task_id}-{logical_date}-{try_number}``

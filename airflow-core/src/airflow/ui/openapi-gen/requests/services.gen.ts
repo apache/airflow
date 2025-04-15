@@ -215,8 +215,6 @@ import type {
   LoginResponse,
   LogoutData,
   LogoutResponse,
-  NotFoundHandlerData,
-  NotFoundHandlerResponse,
 } from "./types.gen";
 
 export class AuthLinksService {
@@ -3582,29 +3580,6 @@ export class LoginService {
       },
       errors: {
         307: "Temporary Redirect",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class DefaultService {
-  /**
-   * Not Found Handler
-   * Catch all route to handle invalid endpoints.
-   * @param data The data for the request.
-   * @param data.restOfPath
-   * @returns unknown Successful Response
-   * @throws ApiError
-   */
-  public static notFoundHandler(data: NotFoundHandlerData): CancelablePromise<NotFoundHandlerResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v2/{rest_of_path}",
-      path: {
-        rest_of_path: data.restOfPath,
-      },
-      errors: {
         422: "Validation Error",
       },
     });
