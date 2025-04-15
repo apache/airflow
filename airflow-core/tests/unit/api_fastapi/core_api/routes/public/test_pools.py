@@ -132,6 +132,7 @@ class TestGetPools(TestPoolsEndpoint):
             # Sort
             ({"order_by": "-id"}, 3, [POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
             ({"order_by": "id"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
+            ({"order_by": "name"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
             # Search
             (
                 {"pool_name_pattern": "~"},
