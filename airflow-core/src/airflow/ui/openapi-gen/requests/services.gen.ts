@@ -1821,7 +1821,7 @@ export class ExtraLinksService {
    * @param data.dagRunId
    * @param data.taskId
    * @param data.mapIndex
-   * @returns ExtraLinksResponse Successful Response
+   * @returns ExtraLinkCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getExtraLinks(data: GetExtraLinksData): CancelablePromise<GetExtraLinksResponse> {
@@ -1855,7 +1855,7 @@ export class TaskInstanceService {
    * @param data.dagRunId
    * @param data.taskId
    * @param data.mapIndex
-   * @returns ExtraLinksResponse Successful Response
+   * @returns ExtraLinkCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getExtraLinks(data: GetExtraLinksData): CancelablePromise<GetExtraLinksResponse> {

@@ -1221,7 +1221,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
         :param ti: The TaskInstance for the URL being searched for.
-        :param link_name: The name of the link we're looking for the URL for. Should be
+        :param name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)

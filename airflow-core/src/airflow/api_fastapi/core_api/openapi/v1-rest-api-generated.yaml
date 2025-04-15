@@ -3353,7 +3353,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExtraLinksResponse'
+                $ref: '#/components/schemas/ExtraLinkCollectionResponse'
         '401':
           content:
             application/json:
@@ -8762,13 +8762,23 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
-    ExtraLinksResponse:
-      additionalProperties:
-        anyOf:
-        - type: string
-        - type: 'null'
+    ExtraLinkCollectionResponse:
+      properties:
+        extra_links:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: 'null'
+          type: object
+          title: Extra Links
+        total_entries:
+          type: integer
+          title: Total Entries
       type: object
-      title: ExtraLinksResponse
+      required:
+      - extra_links
+      - total_entries
+      title: ExtraLinkCollectionResponse
       description: Extra Links Response.
     FastAPIAppResponse:
       properties:

@@ -1278,7 +1278,7 @@ export const useEventLogServiceGetEventLogs = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useExtraLinksServiceGetExtraLinks = <
@@ -1313,7 +1313,7 @@ export const useExtraLinksServiceGetExtraLinks = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServiceGetExtraLinks = <

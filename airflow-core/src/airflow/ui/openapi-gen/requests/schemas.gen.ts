@@ -3022,19 +3022,30 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
-export const $ExtraLinksResponse = {
-  additionalProperties: {
-    anyOf: [
-      {
-        type: "string",
+export const $ExtraLinkCollectionResponse = {
+  properties: {
+    extra_links: {
+      additionalProperties: {
+        anyOf: [
+          {
+            type: "string",
+          },
+          {
+            type: "null",
+          },
+        ],
       },
-      {
-        type: "null",
-      },
-    ],
+      type: "object",
+      title: "Extra Links",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
   },
   type: "object",
-  title: "ExtraLinksResponse",
+  required: ["extra_links", "total_entries"],
+  title: "ExtraLinkCollectionResponse",
   description: "Extra Links Response.",
 } as const;
 
