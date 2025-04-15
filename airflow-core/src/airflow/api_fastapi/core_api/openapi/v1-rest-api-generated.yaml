@@ -117,7 +117,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -383,7 +383,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -503,7 +503,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: order_by
         in: query
@@ -589,7 +589,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -684,7 +684,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -802,7 +802,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -1412,7 +1412,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -1927,7 +1927,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -2461,7 +2461,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -3108,7 +3108,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -3166,7 +3166,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -3343,7 +3343,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -3741,7 +3741,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4007,7 +4007,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4109,7 +4109,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4204,7 +4204,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4418,7 +4418,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4574,7 +4574,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -4836,7 +4836,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -5285,7 +5285,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -5947,7 +5947,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -6717,7 +6717,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -7020,7 +7020,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query
@@ -7149,7 +7149,7 @@ paths:
         schema:
           type: integer
           minimum: 0
-          default: 100
+          default: 50
           title: Limit
       - name: offset
         in: query

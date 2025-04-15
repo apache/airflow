@@ -716,7 +716,7 @@ class TestGetMappedTaskInstances:
 
         assert response.status_code == 200
         assert response.json()["total_entries"] == 110
-        assert len(response.json()["task_instances"]) == 100
+        assert len(response.json()["task_instances"]) == 50
 
     def test_offset_limit(self, test_client, one_task_with_many_mapped_tis):
         response = test_client.get(
