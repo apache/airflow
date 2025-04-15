@@ -2188,6 +2188,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         task_instances_without_heartbeats = session.scalars(
             select(TI)
+            .options(selectinload(TI.dag_model))
+            .options(selectinload(TI.dag_run))
+            .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
