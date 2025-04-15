@@ -1,7 +1,7 @@
 
 #
-# This constraints file was automatically generated on 2025-04-15T07:48:56.199370
-# via `uv sync --resolution highest for the "main" branch of Airflow.
+# This constraints file was automatically generated on 2025-04-15T15:37:50.724858
+# via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
 #
@@ -59,14 +59,14 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.15.2
-alibabacloud-adb20211201==2.2.1
+alibabacloud-adb20211201==3.0.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.0
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.13
+alibabacloud_tea_openapi==0.3.14
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
@@ -148,7 +148,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.14.2
+cohere==5.15.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -180,7 +180,7 @@ docutils==0.21.2
 duckdb==1.2.2
 durationpy==0.9
 elastic-transport==8.17.1
-elasticsearch==8.17.2
+elasticsearch==8.18.0
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -440,7 +440,7 @@ pre_commit==4.2.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
-prompt_toolkit==3.0.50
+prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
 protobuf==4.25.6
@@ -518,7 +518,7 @@ requests==2.32.3
 requests_ntlm==1.3.0
 responses==0.25.7
 restructuredtext_lint==1.4.0
-retryhttp==1.3.1
+retryhttp==1.3.2
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.0
@@ -541,7 +541,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.26.0
+sentry-sdk==2.26.1
 setproctitle==1.3.5
 setuptools==78.1.0
 shapely==2.1.0
