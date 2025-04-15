@@ -60,7 +60,7 @@ def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
     assert results == {"aa", "bb", "cc"}
 
 
-def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_comms):
+def test_xcom_map_transform_to_none_and_filter_on_list(run_ti: RunTI, mock_supervisor_comms):
     results = set()
     values = ["a", "b", "c"]
 
@@ -74,10 +74,10 @@ def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_co
         def pull(value):
             results.add(value)
 
-        def c_to_none(v):
-            if v == "c":
+        def c_to_none(value):
+            if value == "c":
                 return None
-            return v
+            return value
 
         pull.expand(value=push().map(c_to_none).filter(None))
 
@@ -89,6 +89,37 @@ def test_xcom_map_transform_to_none_and_filter(run_ti: RunTI, mock_supervisor_co
         assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
 
     assert results == {"a", "b"}
+
+
+def test_xcom_map_transform_to_none_and_filter_on_dict(run_ti: RunTI, mock_supervisor_comms):
+    results = set()
+    values = {"a": "alpha", "b": "beta", "c": "charly"}
+
+    with DAG("test") as dag:
+
+        @dag.task()
+        def push():
+            return values
+
+        @dag.task()
+        def pull(value):
+            results.add(value)
+
+        def c_to_none(value):
+            if "c" in value:
+                return None
+            return value
+
+        pull.expand(value=push().map(c_to_none).filter(None))
+
+    # Mock xcom result from push task
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
+
+    # Run "pull". This should automatically convert "c" to None.
+    for map_index in range(3):
+        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+
+    assert dict(results) == {"a": "alpha", "b": "beta"}
 
 
 def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, captured_logs):
