@@ -39,6 +39,11 @@ function install_from_sources() {
     local installation_command_flags
     local fallback_no_constraints_installation
     fallback_no_constraints_installation="false"
+    local extra_sync_flags
+    extra_sync_flags=""
+    if [[ ${VIRTUAL_ENV=} != "" ]]; then
+        extra_sync_flags="--active"
+    fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
             set +x
@@ -52,7 +57,7 @@ function install_from_sources() {
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
         set -x
-        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb
+        uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -110,7 +115,7 @@ function install_from_sources() {
             echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
             set -x
-            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb
+            uv sync --all-packages --group dev --group docs --group docs-gen --group leveldb ${extra_sync_flags}
             set +x
         fi
     fi
