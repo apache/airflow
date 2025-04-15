@@ -569,7 +569,9 @@ class DbApiHook(BaseHook):
                 if isinstance(parameters, Mapping):
                     execute_options = dict(parameters)
 
-            yield from pl.read_database(sql, connection=conn, execute_options=execute_options, batch_size=chunksize, **kwargs)
+            yield from pl.read_database(
+                sql, connection=conn, execute_options=execute_options, batch_size=chunksize, **kwargs
+            )
 
     def get_records(
         self,
