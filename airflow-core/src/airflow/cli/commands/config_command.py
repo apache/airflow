@@ -546,6 +546,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("policy", "airflow_local_settings"),
         renamed_to=ConfigParameter("policy", "task_policy"),
     ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_logo_text_color"),
+        was_deprecated=False,
+    ),
     # scheduler
     ConfigChange(
         config=ConfigParameter("scheduler", "dependency_detector"),

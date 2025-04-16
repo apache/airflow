@@ -1810,13 +1810,6 @@ webserver:
       type: string
       example: ~
       default: "#51504f"
-    navbar_logo_text_color:
-      description: |
-        Define the color of the logo text
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#51504f"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.

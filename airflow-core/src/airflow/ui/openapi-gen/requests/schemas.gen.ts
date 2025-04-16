@@ -5750,10 +5750,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Navbar Text Hover Color",
     },
-    navbar_logo_text_color: {
-      type: "string",
-      title: "Navbar Logo Text Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5816,7 +5812,6 @@ export const $ConfigResponse = {
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",

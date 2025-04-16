@@ -1445,7 +1445,6 @@ export type ConfigResponse = {
   navbar_text_color: string;
   navbar_hover_color: string;
   navbar_text_hover_color: string;
-  navbar_logo_text_color: string;
   page_size: number;
   auto_refresh_interval: number;
   hide_paused_dags_by_default: boolean;
