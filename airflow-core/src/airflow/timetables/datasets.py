@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,5 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# fmt: off
-"""Timetables."""
+from __future__ import annotations
+
+import warnings
+
+from airflow.timetables.assets import AssetOrTimeSchedule
+
+
+class DatasetOrTimeSchedule(AssetOrTimeSchedule):
+    """Deprecated alias for `AssetOrTimeSchedule`."""
+
+    def __init__(self, *, timetable, datasets) -> None:
+        warnings.warn(
+            "DatasetOrTimeSchedule is deprecated and will be removed in Airflow 3.2. Use `airflow.timetables.AssetOrTimeSchedule` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(timetable=timetable, assets=datasets)
