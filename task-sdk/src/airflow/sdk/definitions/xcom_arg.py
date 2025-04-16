@@ -500,7 +500,7 @@ class MapXComArg(XComArg):
         value = self.arg.resolve(context)
         if isinstance(value, (Sequence, dict)):
             return _MapResult(value, self.callables)
-        elif isinstance(value, Iterable):
+        if isinstance(value, Iterable):
             return _LazyMapResult(value, self.callables)
         raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
 
