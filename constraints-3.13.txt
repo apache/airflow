@@ -153,7 +153,6 @@ apache-airflow-providers-neo4j==3.8.0
 apache-airflow-providers-odbc==4.9.0
 apache-airflow-providers-openai==1.5.0
 apache-airflow-providers-openfaas==3.7.0
-apache-airflow-providers-openlineage==2.0.0
 apache-airflow-providers-opensearch==1.6.0
 apache-airflow-providers-opsgenie==5.8.0
 apache-airflow-providers-oracle==4.0.0
