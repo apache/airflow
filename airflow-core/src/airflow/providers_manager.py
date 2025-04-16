@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import json
@@ -72,8 +73,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
     def ensure_prefix(field):
         if field not in conn_attrs and not field.startswith("extra__"):
             return f"extra__{conn_type}__{field}"
-        else:
-            return field
+        return field
 
     if "placeholders" in field_behaviors:
         placeholders = field_behaviors["placeholders"]
@@ -118,10 +118,8 @@ class LazyDictWithCache(MutableMapping):
         return value
 
     def __delitem__(self, key):
-        try:
+        with contextlib.suppress(KeyError):
             self._resolved.remove(key)
-        except KeyError:
-            pass
         self._raw_dict.__delitem__(key)
 
     def __iter__(self):

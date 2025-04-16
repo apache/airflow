@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
@@ -141,9 +141,8 @@ class PostgresHook(DbApiHook):
         }
         if _cursor in cursor_types:
             return cursor_types[_cursor]
-        else:
-            valid_cursors = ", ".join(cursor_types.keys())
-            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+        valid_cursors = ", ".join(cursor_types.keys())
+        raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
@@ -217,16 +216,20 @@ class PostgresHook(DbApiHook):
         """
         Serialize a cell.
 
-        PostgreSQL adapts all arguments to the ``execute()`` method internally,
-        hence we return the cell without any conversion.
+        In order to pass a Python object to the database as query argument you can use the
+         Json (class psycopg2.extras.Json) adapter.
 
-        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for
+        Reading from the database, json and jsonb values will be automatically converted to Python objects.
+
+        See https://www.psycopg.org/docs/extras.html#json-adaptation for
         more information.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
         """
+        if isinstance(cell, (dict, list)):
+            cell = Json(cell)
         return cell
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:

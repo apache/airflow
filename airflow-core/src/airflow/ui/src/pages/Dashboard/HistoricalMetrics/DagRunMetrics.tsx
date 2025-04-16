@@ -19,6 +19,7 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { DAGRunStates } from "openapi-gen/requests/types.gen";
 import { FiBarChart } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import { StateBadge } from "src/components/StateBadge";
 
@@ -26,7 +27,7 @@ import { MetricSection } from "./MetricSection";
 
 type DagRunMetricsProps = {
   readonly dagRunStates: DAGRunStates;
-  readonly endDate: string;
+  readonly endDate?: string;
   readonly startDate: string;
   readonly total: number;
 };
@@ -36,10 +37,14 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success"
 export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
     <HStack mb={4}>
-      <StateBadge colorPalette="blue" fontSize="md" variant="solid">
-        <FiBarChart />
-        {total}
-      </StateBadge>
+      <RouterLink
+        to={`/dag_runs?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
+      >
+        <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+          <FiBarChart />
+          {total}
+        </StateBadge>
+      </RouterLink>
       <Heading size="md">Dag Runs</Heading>
     </HStack>
     {DAGRUN_STATES.map((state) => (

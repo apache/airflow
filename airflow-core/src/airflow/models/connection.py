@@ -321,8 +321,7 @@ class Connection(Base, LoggingMixin):
                     f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-        else:
-            return self._password
+        return self._password
 
     def set_password(self, value: str | None):
         """Encrypt password and set in object attribute."""
@@ -481,8 +480,7 @@ class Connection(Base, LoggingMixin):
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                     log.debug("Unable to retrieve connection from MetastoreBackend using Task SDK")
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
-                else:
-                    raise
+                raise
 
         # check cache first
         # enabled only if SecretCache.init() has been called first

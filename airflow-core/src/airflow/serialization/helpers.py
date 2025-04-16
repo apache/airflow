@@ -45,9 +45,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         """Recursively convert tuples to lists."""
         if isinstance(obj, tuple):
             return [translate_tuples_to_lists(item) for item in obj]
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [translate_tuples_to_lists(item) for item in obj]
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
         return obj
 
@@ -65,17 +65,16 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 f"{rendered[: max_length - 79]!r}... "
             )
         return serialized
-    else:
-        if not template_field and not isinstance(template_field, tuple):
-            # Avoid unnecessary serialization steps for empty fields unless they are tuples
-            # and need to be converted to lists
-            return template_field
-        template_field = translate_tuples_to_lists(template_field)
-        serialized = str(template_field)
-        if len(serialized) > max_length:
-            rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+    if not template_field and not isinstance(template_field, tuple):
+        # Avoid unnecessary serialization steps for empty fields unless they are tuples
+        # and need to be converted to lists
         return template_field
+    template_field = translate_tuples_to_lists(template_field)
+    serialized = str(template_field)
+    if len(serialized) > max_length:
+        rendered = redact(serialized, name)
+        return (
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            f"{rendered[: max_length - 79]!r}... "
+        )
+    return template_field

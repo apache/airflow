@@ -45,13 +45,11 @@ def make_task(name, type_="classic"):
     if type_ == "classic":
         return BashOperator(task_id=name, bash_command="echo 1")
 
-    else:
+    @task_decorator
+    def my_task():
+        pass
 
-        @task_decorator
-        def my_task():
-            pass
-
-        return my_task.override(task_id=name)()
+    return my_task.override(task_id=name)()
 
 
 EXPECTED_JSON_LEGACY = {

@@ -61,21 +61,20 @@ def get_id_collation_args():
     collation = conf.get("database", "sql_engine_collation_for_ids", fallback=None)
     if collation:
         return {"collation": collation}
-    else:
-        # Automatically use utf8mb3_bin collation for mysql
-        # This is backwards-compatible. All our IDS are ASCII anyway so even if
-        # we migrate from previously installed database with different collation and we end up mixture of
-        # COLLATIONS, it's not a problem whatsoever (and we keep it small enough so that our indexes
-        # for MYSQL will not exceed the maximum index size.
-        #
-        # See https://github.com/apache/airflow/pull/17603#issuecomment-901121618.
-        #
-        # We cannot use session/dialect as at this point we are trying to determine the right connection
-        # parameters, so we use the connection
-        conn = conf.get("database", "sql_alchemy_conn", fallback="")
-        if conn.startswith(("mysql", "mariadb")):
-            return {"collation": "utf8mb3_bin"}
-        return {}
+    # Automatically use utf8mb3_bin collation for mysql
+    # This is backwards-compatible. All our IDS are ASCII anyway so even if
+    # we migrate from previously installed database with different collation and we end up mixture of
+    # COLLATIONS, it's not a problem whatsoever (and we keep it small enough so that our indexes
+    # for MYSQL will not exceed the maximum index size.
+    #
+    # See https://github.com/apache/airflow/pull/17603#issuecomment-901121618.
+    #
+    # We cannot use session/dialect as at this point we are trying to determine the right connection
+    # parameters, so we use the connection
+    conn = conf.get("database", "sql_alchemy_conn", fallback="")
+    if conn.startswith(("mysql", "mariadb")):
+        return {"collation": "utf8mb3_bin"}
+    return {}
 
 
 COLLATION_ARGS: dict[str, Any] = get_id_collation_args()

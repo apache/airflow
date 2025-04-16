@@ -59,12 +59,11 @@ class SageMakerNotebookSensor(BaseSensorOperator):
             log_info_message = f"Exiting Execution {self.execution_id} State: {status}"
             self.log.info(log_info_message)
             return True
-        elif status in self.in_progress_states:
+        if status in self.in_progress_states:
             return False
-        else:
-            error_message = f"Exiting Execution {self.execution_id} State: {status}"
-            self.log.info(error_message)
-            raise AirflowException(error_message)
+        error_message = f"Exiting Execution {self.execution_id} State: {status}"
+        self.log.info(error_message)
+        raise AirflowException(error_message)
 
     def execute(self, context: Context):
         # This will invoke poke method in the base sensor

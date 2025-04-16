@@ -69,7 +69,7 @@ class HookMetaService:
             default: str | None = None,
             widget=None,
         ):
-            type: str | list[str] = self.param_type
+            type: str | list[str] = [self.param_type, "null"]
             enum = {}
             format = {"format": self.param_format} if self.param_format else {}
             if validators:

@@ -100,19 +100,18 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
             return Job.to_dict(completed_job)
 
-        else:
-            self.defer(
-                trigger=CloudBatchJobFinishedTrigger(
-                    job_name=job.name,
-                    project_id=self.project_id,
-                    gcp_conn_id=self.gcp_conn_id,
-                    impersonation_chain=self.impersonation_chain,
-                    location=self.region,
-                    polling_period_seconds=self.polling_period_seconds,
-                    timeout=self.timeout_seconds,
-                ),
-                method_name="execute_complete",
-            )
+        self.defer(
+            trigger=CloudBatchJobFinishedTrigger(
+                job_name=job.name,
+                project_id=self.project_id,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                location=self.region,
+                polling_period_seconds=self.polling_period_seconds,
+                timeout=self.timeout_seconds,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict):
         job_status = event["status"]
@@ -120,8 +119,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
             hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
             job = hook.get_job(job_name=event["job_name"])
             return Job.to_dict(job)
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
 class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):

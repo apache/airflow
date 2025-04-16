@@ -18,20 +18,41 @@
 
 
 
-Building a Running Pipeline
-===========================
+Building a Simple Data Pipeline
+===============================
 
-Lets look at another example: we need to get some data from a file which is hosted online and insert it into our local database. We also need to look at removing duplicate rows while inserting.
+Welcome to the third tutorial in our series! At this point, you've already written your first DAG and used some basic
+operators. Now it's time to build a small but meaningful data pipeline -- one that retrieves data from an external
+source, loads it into a database, and cleans it up along the way.
 
-*Be advised:* The operator used in this tutorial is `deprecated <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/_api/airflow/providers/postgres/operators/postgres/index.html>`_.
-Its recommended successor, `SQLExecuteQueryOperator <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/stable/_api/airflow/providers/common/sql/operators/sql/index.html#airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator>`_ works similarly.
-You might find `this guide <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ helpful.
+This tutorial introduces the ``SQLExecuteQueryOperator``, a flexible and modern way to execute SQL in Airflow. We'll use
+it to interact with a local Postgres database, which we'll configure in the Airflow UI.
+
+By the end of this tutorial, you'll have a working pipeline that:
+
+- Downloads a CSV file
+- Loads the data into a staging table
+- Cleans the data and upserts it into a target table
+
+Along the way, you'll gain hands-on experience with Airflow's UI, connection system, SQL execution, and DAG authoring
+patterns.
+
+Want to go deeper as you go? Here are two helpful references:
+
+- The `SQLExecuteQueryOperator <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/stable/_api/airflow/providers/common/sql/operators/sql/index.html#airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator>`_ documentation
+- The `Postgres provider <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/index.html>`_ documentation
+
+Let's get started!
 
 Initial setup
 -------------
 
-We need to have Docker installed as we will be using the :doc:`/howto/docker-compose/index` procedure for this example.
-The steps below should be sufficient, but see the quick-start documentation for full instructions.
+.. caution::
+  You'll need Docker installed to run this tutorial. We'll be using Docker Compose to launch Airflow locally. If you
+  need help setting it up, check out the :doc:`Docker Compose quickstart guide </howto/docker-compose/index>`.
+
+To run our pipeline, we need a working Airflow environment. Docker Compose makes this easy and safe -- no system-wide
+installs required. Just open your terminal and run the following:
 
 .. code-block:: bash
 
@@ -48,36 +69,58 @@ The steps below should be sufficient, but see the quick-start documentation for 
   # Start up all services
   docker compose up
 
-After all services have started up, the web UI will be available at: ``http://localhost:8080``. The default account has the username ``airflow`` and the password ``airflow``.
+Once Airflow is up and running, visit the UI at ``http://localhost:8080``.
 
-We will also need to create a `connection <https://airflow.apache.org/docs/apache-airflow/stable/concepts/connections.html>`_ to the postgres db. To create one via the web UI, from the "Admin" menu, select "Connections", then click the Plus sign to "Add a new record" to the list of connections.
+Log in with:
 
-Fill in the fields as shown below. Note the Connection Id value, which we'll pass as a parameter for the ``postgres_conn_id`` kwarg.
+- **Username:** ``airflow``
+- **Password:** ``airflow``
 
-- Connection Id: tutorial_pg_conn
-- Connection Type: postgres
-- Host: postgres
-- Schema: airflow
-- Login: airflow
-- Password: airflow
-- Port: 5432
+You'll land in the Airflow dashboard, where you can trigger DAGs, explore logs, and manage your environment.
 
-Test your connection and if the test is successful, save your connection.
+Create a Postgres Connection
+----------------------------
 
-Table Creation Tasks
---------------------
+Before our pipeline can write to Postgres, we need to tell Airflow how to connect to it. In the UI, open the **Admin >
+Connections** page and click the + button to add a new
+`connection <https://airflow.apache.org/docs/apache-airflow/stable/concepts/connections.html>`_.
 
-We can use the `PostgresOperator <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ to define tasks that create tables in our postgres db.
+Fill in the following details:
 
-We'll create one table to facilitate data cleaning steps (``employees_temp``) and another table to store our cleaned data (``employees``).
+- Connection ID: ``tutorial_pg_conn``
+- Connection Type: ``postgres``
+- Host: ``postgres``
+- Database: ``airflow`` (this is the default database in our container)
+- Login: ``airflow``
+- Password: ``airflow``
+- Port: ``5432``
+
+.. image:: ../img/ui-dark/tutorial_pipeline_add_connection.png
+  :alt: Add Connection form in Airflow's web UI with Postgres details filled in.
+
+|
+
+Save the connection. This tells Airflow how to reach the Postgres database running in your Docker environment.
+
+Next, we'll start building the pipeline that uses this connection.
+
+Create tables for staging and final data
+----------------------------------------
+
+Let's begin with table creation. We'll create two tables:
+
+- ``employees_temp``: a staging table used for raw data
+- ``employees``: the cleaned and deduplicated destination
+
+We'll use the ``SQLExecuteQueryOperator`` to run the SQL statements needed to create these tables.
 
 .. code-block:: python
 
-  from airflow.providers.postgres.operators.postgres import PostgresOperator
+  from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
-  create_employees_table = PostgresOperator(
+  create_employees_table = SQLExecuteQueryOperator(
       task_id="create_employees_table",
-      postgres_conn_id="tutorial_pg_conn",
+      conn_id="tutorial_pg_conn",
       sql="""
           CREATE TABLE IF NOT EXISTS employees (
               "Serial Number" NUMERIC PRIMARY KEY,
@@ -88,9 +131,9 @@ We'll create one table to facilitate data cleaning steps (``employees_temp``) an
           );""",
   )
 
-  create_employees_temp_table = PostgresOperator(
+  create_employees_temp_table = SQLExecuteQueryOperator(
       task_id="create_employees_temp_table",
-      postgres_conn_id="tutorial_pg_conn",
+      conn_id="tutorial_pg_conn",
       sql="""
           DROP TABLE IF EXISTS employees_temp;
           CREATE TABLE employees_temp (
@@ -102,25 +145,13 @@ We'll create one table to facilitate data cleaning steps (``employees_temp``) an
           );""",
   )
 
-Optional: Using SQL From Files
-------------------------------
+You can optionally place these SQL statements in ``.sql`` files inside your ``dags/`` folder and pass the file path to
+the ``sql=`` argument. This can be a great way to keep your DAG code clean.
 
-If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to:
+Load data into the staging table
+--------------------------------
 
-.. code-block:: python
-
-  create_employees_table = PostgresOperator(
-      task_id="create_employees_table",
-      postgres_conn_id="tutorial_pg_conn",
-      sql="sql/employees_schema.sql",
-  )
-
-and repeat for the ``employees_temp`` table.
-
-Data Retrieval Task
--------------------
-
-Here we retrieve data, save it to a file on our Airflow instance, and load the data from that file into an intermediate table where we can execute data cleaning steps.
+Next, we'll download a CSV file, save it locally, and load it into ``employees_temp`` using the ``PostgresHook``.
 
 .. code-block:: python
 
@@ -153,10 +184,14 @@ Here we retrieve data, save it to a file on our Airflow instance, and load the d
           )
       conn.commit()
 
-Data Merge Task
----------------
+This task gives you a taste of combining Airflow with native Python and SQL hooks -- a common pattern in real-world
+pipelines.
 
-Here we select completely unique records from the retrieved data, then we check to see if any employee ``Serial Numbers`` are already in the database (if they are, we update those records with the new data).
+Merge and clean the data
+------------------------
+
+Now let's deduplicate the data and merge it into our final table. We'll write a task that runs a SQL `INSERT ... ON
+CONFLICT DO UPDATE`.
 
 .. code-block:: python
 
@@ -191,26 +226,10 @@ Here we select completely unique records from the retrieved data, then we check 
 
 
 
-Completing our DAG
-------------------
+Defining the DAG
+----------------
 
-We've developed our tasks, now we need to wrap them in a DAG, which enables us to define when and how tasks should run, and state any dependencies that tasks have on other tasks. The DAG below is configured to:
-
-* run every day at midnight starting on Jan 1, 2021,
-* only run once in the event that days are missed, and
-* timeout after 60 minutes
-
-And from the last line in the definition of the ``process_employees`` DAG, we see:
-
-.. code-block:: python
-
-      [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
-
-* the ``merge_data()`` task depends on the ``get_data()`` task,
-* the ``get_data()`` depends on both the ``create_employees_table`` and ``create_employees_temp_table`` tasks, and
-* the ``create_employees_table`` and ``create_employees_temp_table`` tasks can run independently.
-
-Putting all of the pieces together, we have our completed DAG.
+Now that we've defined all our tasks, it's time to put them together into a DAG.
 
 .. code-block:: python
 
@@ -221,7 +240,7 @@ Putting all of the pieces together, we have our completed DAG.
   import requests
   from airflow.sdk import dag, task
   from airflow.providers.postgres.hooks.postgres import PostgresHook
-  from airflow.providers.postgres.operators.postgres import PostgresOperator
+  from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
   @dag(
@@ -232,9 +251,9 @@ Putting all of the pieces together, we have our completed DAG.
       dagrun_timeout=datetime.timedelta(minutes=60),
   )
   def ProcessEmployees():
-      create_employees_table = PostgresOperator(
+      create_employees_table = SQLExecuteQueryOperator(
           task_id="create_employees_table",
-          postgres_conn_id="tutorial_pg_conn",
+          conn_id="tutorial_pg_conn",
           sql="""
               CREATE TABLE IF NOT EXISTS employees (
                   "Serial Number" NUMERIC PRIMARY KEY,
@@ -245,9 +264,9 @@ Putting all of the pieces together, we have our completed DAG.
               );""",
       )
 
-      create_employees_temp_table = PostgresOperator(
+      create_employees_temp_table = SQLExecuteQueryOperator(
           task_id="create_employees_temp_table",
-          postgres_conn_id="tutorial_pg_conn",
+          conn_id="tutorial_pg_conn",
           sql="""
               DROP TABLE IF EXISTS employees_temp;
               CREATE TABLE employees_temp (
@@ -312,25 +331,40 @@ Putting all of the pieces together, we have our completed DAG.
 
   dag = ProcessEmployees()
 
-Save this code to a python file in the ``/dags`` folder (e.g. ``dags/process_employees.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``process_employees`` DAG will be included in the list of available dags on the web UI.
+Save this DAG as ``dags/process_employees.py``. After a short delay, it will show up in the UI.
 
-.. image:: ../img/tutorial-pipeline-1.png
+Trigger and explore your DAG
+----------------------------
 
-You can trigger the ``process_employees`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
+Open the Airflow UI and find the ``process_employees`` DAG in the list. Toggle it "on" using the slider, then trigger a
+run using the play button.
 
-.. image:: ../img/tutorial-pipeline-2.png
+You can watch each task as it runs in the **Grid** view, and explore logs for each step.
 
-In the ``process_employees`` DAG's **Grid** view, we see all that all tasks ran successfully in all executed runs. Success!
+.. image:: ../img/ui-dark/tutorial_pipeline_dag_list.png
+  :alt: DAG List view showing the ``process_employees`` DAG
+
+|
+
+.. image:: ../img/ui-dark/tutorial_pipeline_dag_overview_processed.png
+  :alt: DAG Overview page for ``process_employees`` DAG showing the DAG run
+
+|
+
+Once it succeeds, you'll have a fully working pipeline that integrates data from the outside world, loads it into
+Postgres, and keeps it clean.
 
 What's Next?
 -------------
-You now have a pipeline running inside Airflow using Docker Compose. Here are a few things you might want to do next:
+
+Nice work! You've now built a real pipeline using Airflow's core patterns and tools. Here are a few ideas for where to
+go next:
+
+- Try swapping in a different SQL provider, like MySQL or SQLite.
+- Split your DAG into TaskGroups or refactor into a more usable pattern.
+- Add an alerting step or send a notification when data is processed.
 
 .. seealso::
-    - Take an in-depth tour of the UI - click all the things! see what they do!
-    - Keep reading the docs
-      - Review the :doc:`how-to guides</howto/index>`, which include a guide for writing your own operator
-      - Review the :ref:`Command Line Interface Reference<cli>`
-      - Review the :ref:`List of operators <pythonapi:operators>`
-      - Review the :ref:`Macros reference<macros>`
-    - Write your first pipeline
+    - Browse more how-to guides in the :doc:`Airflow documentation </howto/index>`
+    - Explore the `SQL provider reference <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/stable/>`_
+    - Learn how to :doc:`write your own custom operator </howto/custom-operator>`

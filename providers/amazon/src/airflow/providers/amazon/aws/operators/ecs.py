@@ -567,8 +567,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         if self.do_xcom_push and self.task_log_fetcher:
             return self.task_log_fetcher.get_last_log_message()
-        else:
-            return None
+        return None
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         validated_event = validate_execute_complete_event(event)
@@ -729,11 +728,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
                             f"This task is not in success state - last {self.number_logs_exception} "
                             f"logs from Cloudwatch:\n{last_logs}"
                         )
-                    else:
-                        raise AirflowException(f"This task is not in success state {task}")
-                elif container.get("lastStatus") == "PENDING":
+                    raise AirflowException(f"This task is not in success state {task}")
+                if container.get("lastStatus") == "PENDING":
                     raise AirflowException(f"This task is still pending {task}")
-                elif "error" in container.get("reason", "").lower():
+                if "error" in container.get("reason", "").lower():
                     raise AirflowException(
                         f"This containers encounter an error during launching: "
                         f"{container.get('reason', '').lower()}"

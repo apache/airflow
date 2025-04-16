@@ -39,9 +39,9 @@ class _TaskDecoratorRemover(cst.CSTTransformer):
         decorator_expr = decorator_node.decorator
         if isinstance(decorator_expr, cst.Name):
             return decorator_expr.value in self.decorators_to_remove
-        elif isinstance(decorator_expr, cst.Attribute) and isinstance(decorator_expr.value, cst.Name):
+        if isinstance(decorator_expr, cst.Attribute) and isinstance(decorator_expr.value, cst.Name):
             return f"{decorator_expr.value.value}.{decorator_expr.attr.value}" in self.decorators_to_remove
-        elif isinstance(decorator_expr, cst.Call):
+        if isinstance(decorator_expr, cst.Call):
             return self._is_task_decorator(cst.Decorator(decorator=decorator_expr.func))
         return False
 

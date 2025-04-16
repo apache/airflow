@@ -24,6 +24,7 @@ import { DagIcon } from "src/assets/DagIcon";
 import ParseDag from "src/components/DagActions/ParseDag";
 import RunBackfillButton from "src/components/DagActions/RunBackfillButton";
 import DagRunInfo from "src/components/DagRunInfo";
+import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
@@ -80,11 +81,8 @@ export const Header = ({
       value: <DagTags tags={dag?.tags ?? []} />,
     },
     {
-      label: "Latest DAG Version",
-      value:
-        dag?.latest_dag_version?.version_number === undefined
-          ? ""
-          : `v${dag.latest_dag_version.version_number}`,
+      label: "Latest Dag Version",
+      value: <DagVersion version={dag?.latest_dag_version} />,
     },
   ];
 

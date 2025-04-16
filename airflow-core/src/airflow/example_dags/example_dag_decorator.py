@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 class GetRequestOperator(BaseOperator):
     """Custom operator to send GET request to provided url"""
 
+    template_fields = ("url",)
+
     def __init__(self, *, url: str, **kwargs):
         super().__init__(**kwargs)
         self.url = url

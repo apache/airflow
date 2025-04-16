@@ -229,7 +229,7 @@ class BashOperator(BaseOperator):
 
         if result.exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
-        elif result.exit_code != 0:
+        if result.exit_code != 0:
             raise AirflowException(
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )

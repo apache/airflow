@@ -28,6 +28,38 @@ Changelog
 ---------
 
 
+10.4.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'subdir' arg from CLI commands (#49317)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``remove superfluous else block (#49199)``
+* ``Remove unused db method in k8s provider (#49186)``
+
+
+
+10.4.2
+......
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 10.4.1
 ......
 

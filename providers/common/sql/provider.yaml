@@ -22,9 +22,10 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1743835974
+source-date-epoch: 1744788973
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.26.0
   - 1.25.0
   - 1.24.1
   - 1.24.0

@@ -224,8 +224,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             standardized_secret_dict = self._standardize_secret_keys(secret_dict)
             standardized_secret = json.dumps(standardized_secret_dict)
             return standardized_secret
-        else:
-            return secret
+        return secret
 
     def get_variable(self, key: str) -> str | None:
         """

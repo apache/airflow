@@ -60,8 +60,7 @@ def stringify(line: str | bytes):
     decode_method = getattr(line, "decode", None)
     if decode_method:
         return decode_method(encoding="utf-8", errors="surrogateescape")
-    else:
-        return line
+    return line
 
 
 def fetch_logs(log_stream, log: Logger):
@@ -424,19 +423,18 @@ class DockerOperator(BaseOperator):
                 raise DockerContainerFailedSkipException(
                     f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
                 )
-            elif result["StatusCode"] != 0:
+            if result["StatusCode"] != 0:
                 raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
-            elif self.do_xcom_push:
+            if self.do_xcom_push:
                 if not log_lines:
                     return None
                 try:
                     if self.xcom_all:
                         return log_lines
-                    else:
-                        return log_lines[-1]
+                    return log_lines[-1]
                 except StopIteration:
                     # handle the case when there is not a single line to iterate on
                     return None

@@ -34,14 +34,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.7.5
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 4.7.4
 .....
 
-Latest change: 2025-04-03
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `254a4efc6b <https://github.com/apache/airflow/commit/254a4efc6bf60f1eba2670c5fd9bce4ec0079585>`__  2025-04-03   ``fix: logs SQL before execution in 'ExasolHook' (#48688)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``

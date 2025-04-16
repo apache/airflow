@@ -27,7 +27,7 @@ const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
-  readonly endDate: string;
+  readonly endDate?: string;
   readonly kind: string;
   readonly runs: number;
   readonly startDate: string;
@@ -42,11 +42,17 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
 
+  const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
+
+  if (endDate !== undefined) {
+    searchParams.append("end_date", endDate);
+  }
+
   return (
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <RouterLink to={`/${kind}?state=${state}&start_date=${startDate}&end_date=${endDate}`}>
+          <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             <StateBadge fontSize="md" state={state}>
               {runs}
             </StateBadge>

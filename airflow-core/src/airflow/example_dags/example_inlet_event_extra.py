@@ -55,5 +55,5 @@ with DAG(
     BashOperator(
         task_id="read_asset_event_from_classic",
         inlets=[asset],
-        bash_command="echo '{{ inlet_events['s3://output/1.txt'][-1].extra | tojson }}'",
+        bash_command="echo '{{ inlet_events.for_asset(uri='s3://output/1.txt')[-1].extra | tojson }}'",
     )

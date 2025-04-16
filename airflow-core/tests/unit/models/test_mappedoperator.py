@@ -479,8 +479,7 @@ class TestMappedSetupTeardown:
             kwargs.update(python_callable=failure_callable())
         if partial:
             return PythonOperator.partial(**kwargs)
-        else:
-            return PythonOperator(**kwargs)
+        return PythonOperator(**kwargs)
 
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_one_to_many_work_failed(self, type_, dag_maker):
@@ -745,7 +744,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -788,7 +787,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -960,7 +959,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
 
@@ -987,7 +986,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
 
@@ -1038,7 +1037,7 @@ class TestMappedSetupTeardown:
                 def my_work(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"work: {val}")
 
@@ -1062,7 +1061,7 @@ class TestMappedSetupTeardown:
                     val = vals[0]
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"work: {val}")
 
@@ -1106,7 +1105,7 @@ class TestMappedSetupTeardown:
                 def my_setup(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val
@@ -1128,7 +1127,7 @@ class TestMappedSetupTeardown:
                 def my_setup_callable(val):
                     if val == "data2.json":
                         raise ValueError("fail!")
-                    elif val == "data3.json":
+                    if val == "data3.json":
                         raise AirflowSkipException("skip!")
                     print(f"setup: {val}")
                     return val

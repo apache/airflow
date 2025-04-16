@@ -30,8 +30,8 @@ To use them, just import and call ``get`` on the Variable model::
     # Auto-deserializes a JSON value
     bar = Variable.get("bar", deserialize_json=True)
 
-    # Returns the value of default_var (None) if the variable is not set
-    baz = Variable.get("baz", default_var=None)
+    # Returns the value of default (None) if the variable is not set
+    baz = Variable.get("baz", default=None)
 
 You can also use them from :ref:`templates <concepts:jinja-templating>`::
 

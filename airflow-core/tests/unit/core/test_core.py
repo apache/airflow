@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from datetime import timedelta
 from time import sleep
 
@@ -70,11 +71,9 @@ class TestCore:
 
     def test_timeout(self, dag_maker):
         def sleep_and_catch_other_exceptions():
-            try:
-                sleep(5)
+            with contextlib.suppress(Exception):
                 # Catching Exception should NOT catch AirflowTaskTimeout
-            except Exception:
-                pass
+                sleep(5)
 
         with dag_maker(serialized=True):
             op = PythonOperator(

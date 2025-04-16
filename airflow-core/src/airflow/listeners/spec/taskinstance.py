@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import TaskInstanceState
 
@@ -34,14 +35,16 @@ def on_task_instance_running(previous_state: TaskInstanceState | None, task_inst
 
 
 @hookspec
-def on_task_instance_success(previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance):
+def on_task_instance_success(
+    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+):
     """Execute when task state changes to SUCCESS. previous_state can be None."""
 
 
 @hookspec
 def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
-    task_instance: RuntimeTaskInstance,
+    task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
 ):
     """Execute when task state changes to FAIL. previous_state can be None."""

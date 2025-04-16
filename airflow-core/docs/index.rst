@@ -70,7 +70,7 @@ Here you see:
 Airflow parses the script, schedules the tasks, and executes them in the defined order. The status of the ``"demo"`` dag
 is displayed in the web interface:
 
-.. image:: /img/demo_graph_and_code_view.png
+.. image:: /img/ui-dark/demo_graph_and_code_view.png
   :alt: Demo DAG in the Graph View, showing the status of one DAG run along with DAG code.
 
 |
@@ -79,7 +79,7 @@ This examples uses a simple Bash command and Python function, but Airflow tasks 
 tasks to run a Spark job, move files between storage buckets, or send a notification email. Here's what that same dag looks
 like over time, with multiple runs:
 
-.. image:: /img/demo_grid_view_with_task_logs.png
+.. image:: /img/ui-dark/demo_grid_view_with_task_logs.png
   :alt: Demo DAG in the Grid View, showing the status of all DAG runs, as well as logs for a task instance
 
 |
@@ -87,7 +87,7 @@ like over time, with multiple runs:
 Each column in the grid represents a single dag run. While the graph and grid views are most commonly used, Airflow provides
 several other views to help you monitor and troubleshoot workflows — such as the ``DAG Overview`` view:
 
-.. image:: /img/demo_dag_overview_with_failed_tasks.png
+.. image:: /img/ui-dark/demo_dag_overview_with_failed_tasks.png
   :alt: Overview of a complex DAG in the Grid View, showing the status of all DAG runs, as well as quick links to recently failed task logs
 
 |

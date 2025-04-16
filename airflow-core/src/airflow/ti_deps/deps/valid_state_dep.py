@@ -41,9 +41,11 @@ class ValidStateDep(BaseTIDep):
             raise AirflowException("ValidStatesDep received an empty set of valid states.")
         self._valid_states = valid_states
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Check if two task instance dependencies are equal by comparing their types and valid states."""
-        return isinstance(self, type(other)) and self._valid_states == other._valid_states
+        if not isinstance(other, ValidStateDep):
+            return NotImplemented
+        return self._valid_states == other._valid_states
 
     def __hash__(self):
         """Compute the hash value based on the type of the task instance dependency and its valid states."""

@@ -399,15 +399,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_python_pipeline(
-                    variables=self.snake_case_pipeline_options,
-                    py_file=self.py_file,
-                    py_options=self.py_options,
-                    py_interpreter=self.py_interpreter,
-                    py_requirements=self.py_requirements,
-                    py_system_site_packages=self.py_system_site_packages,
-                )
+            self.beam_hook.start_python_pipeline(
+                variables=self.snake_case_pipeline_options,
+                py_file=self.py_file,
+                py_options=self.py_options,
+                py_interpreter=self.py_interpreter,
+                py_requirements=self.py_requirements,
+                py_system_site_packages=self.py_system_site_packages,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -560,12 +559,11 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_java_pipeline(
-                    variables=self.pipeline_options,
-                    jar=self.jar,
-                    job_class=self.job_class,
-                )
+            self.beam_hook.start_java_pipeline(
+                variables=self.pipeline_options,
+                jar=self.jar,
+                job_class=self.job_class,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -768,12 +766,11 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
-            else:
-                go_artifact.start_pipeline(
-                    beam_hook=self.beam_hook,
-                    variables=snake_case_pipeline_options,
-                    process_line_callback=process_line_callback,
-                )
+            go_artifact.start_pipeline(
+                beam_hook=self.beam_hook,
+                variables=snake_case_pipeline_options,
+                process_line_callback=process_line_callback,
+            )
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Callable
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
@@ -43,9 +44,7 @@ class PipeCallbackSink(BaseCallbackSink):
 
         :param callback: Callback request to be executed.
         """
-        try:
-            self._get_sink_pipe().send(callback)
-        except ConnectionError:
+        with contextlib.suppress(ConnectionError):
             # If this died cos of an error then we will noticed and restarted
             # when harvest_serialized_dags calls _heartbeat_manager.
-            pass
+            self._get_sink_pipe().send(callback)

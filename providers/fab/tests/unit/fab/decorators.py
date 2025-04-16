@@ -59,5 +59,4 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
 
     if _func is None:
         return decorator_dont_initialize_flask_app_submodules
-    else:
-        return decorator_dont_initialize_flask_app_submodules(_func)
+    return decorator_dont_initialize_flask_app_submodules(_func)

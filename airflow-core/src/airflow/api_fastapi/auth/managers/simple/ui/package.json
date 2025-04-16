@@ -10,7 +10,7 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i \"../openapi/v1-simple-auth-manager-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
@@ -49,7 +49,7 @@
     "prettier": "^3.5.3",
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.27.0",
-    "vite": "^6.2.5",
+    "vite": "^6.2.6",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.0.9"
   }

@@ -48,7 +48,7 @@ def check_cycle(dag: DAG) -> None:
             if visited[adjacent_task] == CYCLE_IN_PROGRESS:
                 msg = f"Cycle detected in DAG: {dag.dag_id}. Faulty task: {task_id}"
                 raise AirflowDagCycleException(msg)
-            elif visited[adjacent_task] == CYCLE_NEW:
+            if visited[adjacent_task] == CYCLE_NEW:
                 return adjacent_task
         return None
 

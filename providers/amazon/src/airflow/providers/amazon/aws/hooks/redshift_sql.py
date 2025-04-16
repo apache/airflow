@@ -245,15 +245,14 @@ class RedshiftSQLHook(DbApiHook):
         parts = hostname.split(".")
         if hostname.endswith("amazonaws.com") and len(parts) == 6:
             return f"{parts[0]}.{parts[2]}"
-        else:
-            self.log.debug(
-                """Could not parse identifier from hostname '%s'.
+        self.log.debug(
+            """Could not parse identifier from hostname '%s'.
             You are probably using IP to connect to Redshift cluster.
             Expected format: 'cluster_identifier.id.region_name.redshift.amazonaws.com'
             Falling back to whole hostname.""",
-                hostname,
-            )
-            return hostname
+            hostname,
+        )
+        return hostname
 
     def get_openlineage_database_dialect(self, connection: Connection) -> str:
         """Return redshift dialect."""

@@ -52,8 +52,7 @@ class ExecutorName(LoggingMixin):
             and self.team_id == other.team_id
         ):
             return True
-        else:
-            return False
+        return False
 
     def __hash__(self) -> int:
         """Implement hash."""

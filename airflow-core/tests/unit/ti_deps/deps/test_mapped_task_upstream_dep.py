@@ -376,7 +376,7 @@ def test_upstream_mapped_expanded(
         def m1(x):
             if x == 0 and upstream_instance_state == FAILED:
                 raise AirflowFailException()
-            elif x == 0 and upstream_instance_state == SKIPPED:
+            if x == 0 and upstream_instance_state == SKIPPED:
                 raise AirflowSkipException()
             return x
 

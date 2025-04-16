@@ -57,7 +57,7 @@ You can also run other kinds of tests when you are developing airflow packages:
 
 ------
 
-You can learn how to `build documentation <../docs/README.rst>`__ as you will likely need to update
+You can learn how to `build documentation <../docs/README.md>`__ as you will likely need to update
 documentation as part of your PR.
 
 You can also learn about `working with git <10_working_with_git.rst>`__ as you will need to understand how

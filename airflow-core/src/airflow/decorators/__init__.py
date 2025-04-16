@@ -32,6 +32,7 @@ __deprecated_classes = {
         "DecoratedMappedOperator": "airflow.sdk.bases.decorator.DecoratedMappedOperator",
         "DecoratedOperator": "airflow.sdk.bases.decorator.DecoratedOperator",
         "TaskDecorator": "airflow.sdk.bases.decorator.TaskDecorator",
+        "get_unique_task_id": "airflow.sdk.bases.decorator.get_unique_task_id",
         "task_decorator_factory": "airflow.sdk.bases.decorator.task_decorator_factory",
     },
 }

@@ -52,8 +52,7 @@ class DocsPublisher:
         if self.is_versioned:
             version = "stable"
             return f"{GENERATED_PATH}/_build/docs/{self.package_name}/{version}"
-        else:
-            return f"{GENERATED_PATH}/_build/docs/{self.package_name}"
+        return f"{GENERATED_PATH}/_build/docs/{self.package_name}"
 
     @property
     def _current_version(self):
@@ -76,8 +75,7 @@ class DocsPublisher:
     def _publish_dir(self) -> str:
         if self.is_versioned:
             return f"docs-archive/{self.package_name}/{self._current_version}"
-        else:
-            return f"docs-archive/{self.package_name}"
+        return f"docs-archive/{self.package_name}"
 
     def publish(self, override_versioned: bool, airflow_site_dir: str):
         """Copy documentation packages files to airflow-site repository."""

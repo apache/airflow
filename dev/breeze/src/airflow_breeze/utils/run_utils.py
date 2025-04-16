@@ -386,8 +386,7 @@ def commit_sha():
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if command_result.stdout:
         return command_result.stdout.strip()
-    else:
-        return "COMMIT_SHA_NOT_FOUND"
+    return "COMMIT_SHA_NOT_FOUND"
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -414,31 +413,30 @@ def _run_compile_internally(
             text=True,
             env=env,
         )
-    else:
-        compile_lock.parent.mkdir(parents=True, exist_ok=True)
-        compile_lock.unlink(missing_ok=True)
-        try:
-            with SoftFileLock(compile_lock, timeout=5):
-                with open(asset_out, "w") as output_file:
-                    result = run_command(
-                        command_to_execute,
-                        check=False,
-                        no_output_dump_on_exception=True,
-                        text=True,
-                        env=env,
-                        stderr=subprocess.STDOUT,
-                        stdout=output_file,
-                    )
-                if result.returncode == 0:
-                    asset_out.unlink(missing_ok=True)
-                return result
-        except Timeout:
-            get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
-            get_console().print("[warning]If you are sure there is no other compilation,[/]")
-            get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
-            get_console().print(compile_lock)
-            get_console().print()
-            sys.exit(1)
+    compile_lock.parent.mkdir(parents=True, exist_ok=True)
+    compile_lock.unlink(missing_ok=True)
+    try:
+        with SoftFileLock(compile_lock, timeout=5):
+            with open(asset_out, "w") as output_file:
+                result = run_command(
+                    command_to_execute,
+                    check=False,
+                    no_output_dump_on_exception=True,
+                    text=True,
+                    env=env,
+                    stderr=subprocess.STDOUT,
+                    stdout=output_file,
+                )
+            if result.returncode == 0:
+                asset_out.unlink(missing_ok=True)
+            return result
+    except Timeout:
+        get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
+        get_console().print("[warning]If you are sure there is no other compilation,[/]")
+        get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
+        get_console().print(compile_lock)
+        get_console().print()
+        sys.exit(1)
 
 
 def kill_process_group(gid: int):
@@ -447,10 +445,8 @@ def kill_process_group(gid: int):
 
     :param gid: process group id
     """
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(gid, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def clean_ui_assets():

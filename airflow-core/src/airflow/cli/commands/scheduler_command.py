@@ -29,7 +29,6 @@ from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
@@ -60,18 +59,7 @@ def scheduler(args: Namespace):
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Start serve_logs sub-process."""
-    if AIRFLOW_V_3_0_PLUS:
-        try:
-            from airflow.providers.fab.www.serve_logs import serve_logs
-        except ImportError:
-            raise ImportError(
-                "Celery requires FAB provider to be installed in order to run this command. "
-                "Please install the FAB provider by running: "
-                "pip install apache-airflow-providers-celery[fab]"
-            )
-    else:
-        from airflow.utils.serve_logs import serve_logs  # type: ignore[no-redef]
+    from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
     executor_class, _ = ExecutorLoader.import_default_executor_cls()

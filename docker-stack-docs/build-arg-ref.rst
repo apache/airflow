@@ -93,10 +93,12 @@ List of default extras in the production Dockerfile:
 * celery
 * cncf-kubernetes
 * common-io
+* common-messaging
 * docker
 * elasticsearch
 * fab
 * ftp
+* git
 * google
 * google-auth
 * graphviz

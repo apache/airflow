@@ -193,8 +193,7 @@ class WasbHook(BaseHook):
         if sas_token:
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
-            else:
-                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
+            return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password

@@ -283,8 +283,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return None
         if return_single_query_results(sql, return_last, split_statements):
             return results[-1]
-        else:
-            return results
+        return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple[Any, ...] | list[tuple[Any, ...]]:
         """Transform the databricks Row objects into namedtuple."""
@@ -297,12 +296,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             rows_fields = tuple(rows[0].__fields__)
             rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
             return cast("list[tuple[Any, ...]]", [rows_object(*row) for row in rows])
-        elif isinstance(result, Row):
+        if isinstance(result, Row):
             row_fields = tuple(result.__fields__)
             row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore
             return cast("tuple[Any, ...]", row_object(*result))
-        else:
-            raise TypeError(f"Expected Sequence[Row] or Row, but got {type(result)}")
+        raise TypeError(f"Expected Sequence[Row] or Row, but got {type(result)}")
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

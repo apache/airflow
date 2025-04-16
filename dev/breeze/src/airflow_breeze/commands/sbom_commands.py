@@ -226,9 +226,8 @@ def update_sbom_information(
             if not force:
                 get_console().print(f"[warning]The {dir} already exists. Skipping")
                 return True
-            else:
-                get_console().print(f"[warning]The {dir} already exists. Forcing update")
-                return False
+            get_console().print(f"[warning]The {dir} already exists. Forcing update")
+            return False
         return False
 
     apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
@@ -793,8 +792,7 @@ def export_dependency_information(
 def sort_deps_key(dependency: dict[str, Any]) -> str:
     if dependency.get("Vcs"):
         return "0:" + dependency["Name"]
-    else:
-        return "1:" + dependency["Name"]
+    return "1:" + dependency["Name"]
 
 
 def convert_all_sbom_to_value_dictionaries(

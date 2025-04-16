@@ -16,65 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import { AsyncSelect } from "chakra-react-select";
-import { useCallback } from "react";
+import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
+import { useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { UseDagVersionServiceGetDagVersionsKeyFn } from "openapi/queries";
-import { DagVersionService } from "openapi/requests/services.gen";
-import type { DAGVersionCollectionResponse, DagVersionResponse } from "openapi/requests/types.gen";
+import { useDagVersionServiceGetDagVersions } from "openapi/queries";
+import type { DagVersionResponse } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import type { Option } from "src/utils/option";
 
-const DagVersionSelect = ({
-  disabled = false,
-  showLabel = true,
-}: {
-  readonly disabled?: boolean;
-  readonly showLabel?: boolean;
-}) => {
-  const queryClient = useQueryClient();
+import Time from "./Time";
+
+type VersionSelected = {
+  value: number;
+  version: DagVersionResponse;
+};
+
+export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: boolean }) => {
+  const { dagId = "" } = useParams();
+
+  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: "-version_number" });
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const selectedVersion = useSelectedVersion();
+  const selectedVersionNumber = useSelectedVersion();
 
-  const { dagId = "" } = useParams();
+  const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
 
-  const loadVersions = (
-    _: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
-    queryClient.fetchQuery({
-      queryFn: () =>
-        DagVersionService.getDagVersions({
-          dagId,
-        }).then((data: DAGVersionCollectionResponse) => {
-          const options = [...data.dag_versions].reverse().map((version: DagVersionResponse) => {
-            const versionNumber = version.version_number.toString();
-
-            return {
-              label: `v${versionNumber}`,
-              value: versionNumber,
-            };
-          });
-
-          callback(options);
-
-          return options;
-        }),
-      queryKey: UseDagVersionServiceGetDagVersionsKeyFn({ dagId }),
-      staleTime: 0,
-    });
+  const versionOptions = useMemo(
+    () =>
+      createListCollection({
+        items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
+      }),
+    [data],
+  );
 
   const handleStateChange = useCallback(
-    (version: SingleValue<Option>) => {
-      if (version) {
-        searchParams.set(SearchParamsKeys.VERSION_NUMBER, version.value);
+    ({ items }: SelectValueChangeDetails<VersionSelected>) => {
+      if (items[0]) {
+        searchParams.set(SearchParamsKeys.VERSION_NUMBER, items[0].value.toString());
         setSearchParams(searchParams);
       }
     },
@@ -82,24 +62,41 @@ const DagVersionSelect = ({
   );
 
   return (
-    <Field.Root disabled={disabled} width="fit-content">
-      {showLabel ? <Field.Label fontSize="xs">Dag Version</Field.Label> : undefined}
-      <AsyncSelect
-        defaultOptions
-        filterOption={undefined}
-        isSearchable={false}
-        loadOptions={loadVersions}
-        onChange={handleStateChange}
-        placeholder="Dag Version"
-        size="sm"
-        value={
-          selectedVersion === undefined
-            ? undefined
-            : { label: `v${selectedVersion}`, value: selectedVersion.toString() }
-        }
-      />
-    </Field.Root>
+    <Select.Root
+      collection={versionOptions}
+      data-testid="dag-run-select"
+      disabled={isLoading || !data?.dag_versions}
+      onValueChange={handleStateChange}
+      size="sm"
+      value={selectedVersionNumber === undefined ? [] : [selectedVersionNumber.toString()]}
+      width="250px"
+    >
+      {showLabel ? <Select.Label fontSize="xs">Dag Version</Select.Label> : undefined}
+      <Select.Control>
+        <Select.Trigger>
+          <Select.ValueText placeholder="All Versions">
+            {selectedVersion === undefined ? undefined : (
+              <Flex justifyContent="space-between" width="175px">
+                <Text>v{selectedVersion.version_number}</Text>
+                <Time datetime={selectedVersion.created_at} />
+              </Flex>
+            )}
+          </Select.ValueText>
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Select.Positioner>
+        <Select.Content>
+          {versionOptions.items.map((option) => (
+            <Select.Item item={option} key={option.version.version_number}>
+              <Text>v{option.version.version_number}</Text>
+              <Time datetime={option.version.created_at} />
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Positioner>
+    </Select.Root>
   );
 };
-
-export default DagVersionSelect;

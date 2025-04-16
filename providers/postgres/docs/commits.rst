@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.3
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`2a7dea10f2 <https://github.com/apache/airflow/commit/2a7dea10f2b954a0b4106a9b9cc04fecd2d484b7>`__  2025-04-14   ``Fix PostgresHook Json serialization (#49120)``
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 6.1.2
 .....
 
-Latest change: 2025-04-02
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ==============================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==============================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `9114529d37 <https://github.com/apache/airflow/commit/9114529d37a47d559b3a91409673e4fc2d62a055>`__  2025-03-31   ``Changed min version for common sql to 1.23.0 in apache-airflow-providers-postgres (#48416)``
 `c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``

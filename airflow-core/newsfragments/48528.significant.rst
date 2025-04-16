@@ -19,4 +19,4 @@ Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
 
   * ``airflow config lint``
 
-    * [ ] Convert all ``SequentialExecutor`` to ``LocalExecutor`` in ``[core] executor``
+    * [x] Convert all ``SequentialExecutor`` to ``LocalExecutor`` in ``[core] executor``

@@ -16,21 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex } from "@chakra-ui/react";
+import { Box, HStack, Flex, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
+import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
+import ActionButton from "src/components/ui/ActionButton";
+import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -55,6 +57,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
 
   const { fitView, getZoom } = useReactFlow();
+
+  const { data: warningData } = useDagWarningServiceListDagWarnings({
+    dagId,
+  });
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -90,7 +97,28 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
-              <ErrorAlert error={error} />
+              {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                <>
+                  <ActionButton
+                    actionName="Dag warnings/errors"
+                    colorPalette={Boolean(error) ? "red" : "orange"}
+                    icon={<LuFileWarning />}
+                    margin="2"
+                    marginBottom="-1"
+                    onClick={onOpen}
+                    rounded="full"
+                    text={String(warningData?.total_entries ?? 0 + Number(error))}
+                    variant="solid"
+                  />
+
+                  <DAGWarningsModal
+                    error={error}
+                    onClose={onClose}
+                    open={open}
+                    warnings={warningData?.dag_warnings}
+                  />
+                </>
+              ) : undefined}
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
               <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>

@@ -1402,16 +1402,15 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                 request_id=self.request_id,
                 project_id=self.project_id,
             )
-        else:
-            # Idempotence achieved
-            ComputeInstanceGroupManagerDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
-                project_id=self.project_id or hook.project_id,
-            )
-            return True
+        # Idempotence achieved
+        ComputeInstanceGroupManagerDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
+            project_id=self.project_id or hook.project_id,
+        )
+        return True
 
 
 class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator):

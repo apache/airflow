@@ -33,6 +33,5 @@ export const DagTags = ({ hideIcon = false, tags }: Props) => (
     icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
     items={tags.map(({ name }) => name)}
     maxItems={MAX_TAGS}
-    wrap
   />
 );

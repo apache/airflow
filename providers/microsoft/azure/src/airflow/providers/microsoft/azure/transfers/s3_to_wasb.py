@@ -261,7 +261,6 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         """Return a file key using its components."""
         if full_path:
             return full_path
-        elif prefix and file_name:
+        if prefix and file_name:
             return f"{prefix}/{file_name}"
-        else:
-            raise InvalidKeyComponents
+        raise InvalidKeyComponents

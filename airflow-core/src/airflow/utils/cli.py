@@ -258,7 +258,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
+def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DAG:
     """
     Return DAG of a given dag_id.
 
@@ -266,25 +266,32 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
+
+    bundle_names = bundle_names or []
+    dag: DAG | None = None
 
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
         dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
-    else:
-        first_path = process_subdir(subdir)
-        dagbag = DagBag(first_path)
-        dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
-        # Create a SchedulerDAG since some of the CLI commands rely on DB access
-        dag = DAG.from_sdk_dag(dag)
+    elif bundle_names:
+        manager = DagBundlesManager()
+        for bundle_name in bundle_names:
+            bundle = manager.get_bundle(bundle_name)
+            dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+            dag = dagbag.dags.get(dag_id)
+            if dag:
+                break
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
-        fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
-        logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
-        dagbag = DagBag(dag_folder=fallback_path)
-        dag = dagbag.get_dag(dag_id)
+        manager = DagBundlesManager()
+        all_bundles = list(manager.get_all_dag_bundles())
+        for bundle in all_bundles:
+            dag_bag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+            dag = dag_bag.dags.get(dag_id)
+            if dag:
+                break
         if not dag:
             raise AirflowException(
                 f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
@@ -292,14 +299,34 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     return dag
 
 
-def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
+def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
+    bundle_names = bundle_names or []
+
     if not use_regex:
-        return [get_dag(subdir=subdir, dag_id=dag_id, from_db=from_db)]
-    dagbag = DagBag(process_subdir(subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
+        return [get_dag(bundle_names=bundle_names, dag_id=dag_id, from_db=from_db)]
+
+    def _find_dag(bundle):
+        dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path)
+        matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
+        return matched_dags
+
+    manager = DagBundlesManager()
+    matched_dags = []
+    for bundle_name in bundle_names:
+        bundle = manager.get_bundle(bundle_name)
+        matched_dags = _find_dag(bundle)
+        if matched_dags:
+            break
+    if not matched_dags:
+        # Search in all bundles
+        all_bundles = list(manager.get_all_dag_bundles())
+        for bundle in all_bundles:
+            matched_dags = _find_dag(bundle)
+            if matched_dags:
+                break
     if not matched_dags:
         raise AirflowException(
             f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "

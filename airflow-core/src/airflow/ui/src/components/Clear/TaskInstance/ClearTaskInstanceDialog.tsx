@@ -68,6 +68,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
     dagId,
     options: {
       enabled: open,
+      refetchOnMount: "always",
     },
     requestBody: {
       dag_run_id: dagRunId,
@@ -76,7 +77,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
       include_past: past,
       include_upstream: upstream,
       only_failed: onlyFailed,
-      task_ids: [taskId],
+      task_ids: [[taskId, mapIndex]],
     },
   });
 

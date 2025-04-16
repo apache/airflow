@@ -316,3 +316,22 @@ class TestLoggingSettings:
         task_log = airflow.logging_config.REMOTE_TASK_LOG
         assert isinstance(task_log, S3RemoteLogIO)
         assert getattr(task_log, "delete_local_copy") is True
+
+    def test_loading_remote_logging_with_hdfs_handler(self):
+        """Test if logging can be configured successfully for HDFS"""
+        pytest.importorskip("airflow.providers.apache.hdfs", reason="'apache.hdfs' provider not installed")
+        import airflow.logging_config
+        from airflow.config_templates import airflow_local_settings
+        from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
+
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): "True",
+                ("logging", "remote_log_conn_id"): "some_hdfs",
+                ("logging", "remote_base_log_folder"): "hdfs://some-folder",
+            }
+        ):
+            importlib.reload(airflow_local_settings)
+            airflow.logging_config.configure_logging()
+
+        assert isinstance(airflow.logging_config.REMOTE_TASK_LOG, HdfsRemoteLogIO)

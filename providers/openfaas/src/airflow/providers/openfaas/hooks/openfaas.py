@@ -64,8 +64,7 @@ class OpenFaasHook(BaseHook):
                 self.log.error("Response status %d", response.status_code)
                 self.log.error("Failed to deploy")
                 raise AirflowException("failed to deploy")
-            else:
-                self.log.info("Function deployed %s", self.function_name)
+            self.log.info("Function deployed %s", self.function_name)
 
     def invoke_async_function(self, body: dict[str, Any]) -> None:
         """Invoke function asynchronously."""
@@ -100,8 +99,7 @@ class OpenFaasHook(BaseHook):
             self.log.error("Response status %d", response.status_code)
             self.log.error("Failed to update response %s", response.content.decode("utf-8"))
             raise AirflowException("failed to update " + self.function_name)
-        else:
-            self.log.info("Function was updated")
+        self.log.info("Function was updated")
 
     def does_function_exist(self) -> bool:
         """Whether OpenFaaS function exists or not."""
@@ -110,6 +108,5 @@ class OpenFaasHook(BaseHook):
         response = requests.get(url)
         if response.ok:
             return True
-        else:
-            self.log.error("Failed to find function %s", self.function_name)
-            return False
+        self.log.error("Failed to find function %s", self.function_name)
+        return False

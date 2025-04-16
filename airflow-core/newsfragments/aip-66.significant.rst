@@ -10,6 +10,14 @@ The following DAG parsing configuration options were moved into the ``dag_proces
 * ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
 * ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
 
+The following DAG parsing configuration options were moved into the ``logging`` section:
+
+* ``[scheduler] child_process_log_directory`` → ``[logging] dag_processor_child_process_log_directory``
+
+The default value of ``[logging] dag_processor_child_process_log_directory`` was changed from
+``AIRFLOW_HOME/logs/scheduler`` to ``AIRFLOW_HOME/logs/dag-processor``, which moves the parsing logs for dag files into
+that new location.
+
 The "subdir" concept has been superseded by the "bundle" concept. Users are able to
 define separate bundles for different DAG folders, and can refer to them by the bundle name
 instead of their location on disk.
@@ -64,3 +72,4 @@ Triggers can come from anywhere else on ``sys.path`` instead.
     * [x] ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
     * [x] ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
     * [x] ``[scheduler] dag_dir_list_interval`` → ``[dag_processor] refresh_interval``
+    * [x] ``[scheduler] dag_dir_list_interval`` → ``[logging] dag_processor_child_process_log_directory``

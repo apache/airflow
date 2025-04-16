@@ -58,6 +58,7 @@ ALLOWED_FORMATS = [
     "GOOGLE_SHEETS",
     "DATASTORE_BACKUP",
     "PARQUET",
+    "ORC",
 ]
 
 
@@ -262,8 +263,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 f"{source_format} is not a valid source format. "
                 f"Please use one of the following types: {ALLOWED_FORMATS}."
             )
-        else:
-            self.source_format = source_format.upper()
+        self.source_format = source_format.upper()
         self.compression = compression
         self.create_disposition = create_disposition
         self.skip_leading_rows = skip_leading_rows
@@ -406,14 +406,13 @@ class GCSToBigQueryOperator(BaseOperator):
                         f"want to force rerun it consider setting `force_rerun=True`."
                         f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                     )
-                else:
-                    # Job already reached state DONE
-                    if job.state == "DONE":
-                        raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+                # Job already reached state DONE
+                if job.state == "DONE":
+                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
 
-                    # We are reattaching to a job
-                    self.log.info("Reattaching to existing Job in state %s", job.state)
-                    self._handle_job_error(job)
+                # We are reattaching to a job
+                self.log.info("Reattaching to existing Job in state %s", job.state)
+                self._handle_job_error(job)
 
             job_types = {
                 LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -506,8 +505,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         f"Could not determine MAX value in column {self.max_id_key} "
                         f"since the default value of 'string_field_n' was set by BQ"
                     )
-                else:
-                    raise AirflowException(e.message)
+                raise AirflowException(e.message)
             if rows:
                 for row in rows:
                     max_id = row[0] if row[0] else 0
@@ -644,11 +642,10 @@ class GCSToBigQueryOperator(BaseOperator):
                     "allowed if write_disposition is "
                     "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
                 )
-            else:
-                # To provide backward compatibility
-                self.schema_update_options = list(self.schema_update_options or [])
-                self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
-                self.configuration["load"]["schemaUpdateOptions"] = self.schema_update_options
+            # To provide backward compatibility
+            self.schema_update_options = list(self.schema_update_options or [])
+            self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)
+            self.configuration["load"]["schemaUpdateOptions"] = self.schema_update_options
 
         if self.max_bad_records:
             self.configuration["load"]["maxBadRecords"] = self.max_bad_records
@@ -680,6 +677,7 @@ class GCSToBigQueryOperator(BaseOperator):
             "NEWLINE_DELIMITED_JSON": ["autodetect", "ignoreUnknownValues"],
             "PARQUET": ["autodetect", "ignoreUnknownValues"],
             "AVRO": ["useAvroLogicalTypes"],
+            "ORC": ["autodetect"],
         }
 
         valid_configs = src_fmt_to_configs_mapping[self.source_format]

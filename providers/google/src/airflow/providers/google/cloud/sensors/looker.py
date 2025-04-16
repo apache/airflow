@@ -65,13 +65,13 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
             msg = status_dict["message"]
             message = f'PDT materialization job failed. Job id: {self.materialization_id}. Message:\n"{msg}"'
             raise AirflowException(message)
-        elif status == JobStatus.CANCELLED.value:
+        if status == JobStatus.CANCELLED.value:
             message = f"PDT materialization job was cancelled. Job id: {self.materialization_id}."
             raise AirflowException(message)
-        elif status == JobStatus.UNKNOWN.value:
+        if status == JobStatus.UNKNOWN.value:
             message = f"PDT materialization job has unknown status. Job id: {self.materialization_id}."
             raise AirflowException(message)
-        elif status == JobStatus.DONE.value:
+        if status == JobStatus.DONE.value:
             self.log.debug(
                 "PDT materialization job completed successfully. Job id: %s.", self.materialization_id
             )

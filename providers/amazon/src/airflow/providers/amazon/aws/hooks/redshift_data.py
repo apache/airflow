@@ -181,7 +181,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             if num_rows is not None:
                 self.log.info("Processed %s rows", num_rows)
             return True
-        elif status in FAILURE_STATES:
+        if status in FAILURE_STATES:
             exception_cls = (
                 RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
             )

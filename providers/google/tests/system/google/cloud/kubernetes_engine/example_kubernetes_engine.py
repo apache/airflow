@@ -95,7 +95,7 @@ with DAG(
 
     # [START howto_operator_gke_xcom_result]
     pod_task_xcom_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom')[0] }}\"",
+        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom') }}\"",
         task_id="pod_task_xcom_result",
     )
     # [END howto_operator_gke_xcom_result]

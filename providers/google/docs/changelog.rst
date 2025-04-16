@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ORC support to GCSToBigQueryOperator and test for external tables (#49188)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix default value wait_for_operation_result in OperationHelper (#49121)``
+* ``Fix get_confluent_token callback for Managed Kafka service (#48926)``
+* ``Fix: BigQuery connection UI defaults 'Use Legacy SQL' to true on edit (#49038)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+* ``Deprecate start_sql_job in DataflowHook (#48663)``
+* ``type: annotate miss type in 'provider' (#49130)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+   * ``Fix xcom for system tests (#49337)``
+
+15.0.1
+......
+
+Misc
+~~~~
+
+* ``Deprecate Life Scrience service (#48862)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing license comment in google docs (#48985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix false friends in implicit string concatenation (#48871)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Small fixies for system tests in google-provider (#48861)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 15.0.0
 ......
 

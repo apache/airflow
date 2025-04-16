@@ -58,7 +58,7 @@ PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
 def _assert_copied_files_exist(ti):
-    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")[0]
+    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")
 
     assert PREFIX + OBJECT_1 in objects
     assert f"{PREFIX}subdir/{OBJECT_1}" in objects

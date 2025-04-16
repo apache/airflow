@@ -275,8 +275,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     build_id=event["id_"],
                 )
             return event["instance"]
-        else:
-            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
 class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):

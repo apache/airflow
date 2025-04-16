@@ -25,6 +25,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -62,10 +63,10 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    try_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
     task_instance_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         nullable=False,
+        primary_key=True,
     )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
@@ -150,6 +151,7 @@ class TaskInstanceHistory(Base):
             "try_number",
             name="task_instance_history_dtrt_uq",
         ),
+        Index("idx_tih_dag_run", dag_id, run_id),
     )
 
     @staticmethod

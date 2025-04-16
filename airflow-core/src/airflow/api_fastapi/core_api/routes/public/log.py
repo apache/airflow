@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import textwrap
 
 from fastapi import Depends, HTTPException, Request, Response, status
@@ -129,10 +130,8 @@ def get_log(
 
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if dag:
-        try:
+        with contextlib.suppress(TaskNotFound):
             ti.task = dag.get_task(ti.task_id)
-        except TaskNotFound:
-            pass
 
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
@@ -140,16 +139,15 @@ def get_log(
         if not metadata.get("end_of_log", False):
             encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
         return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=logs)
-    else:
-        # text/plain, or something else we don't understand. Return raw log content
+    # text/plain, or something else we don't understand. Return raw log content
 
-        # We need to exhaust the iterator before we can generate the continuation token.
-        # We could improve this by making it a streaming/async response, and by then setting the header using
-        # HTTP Trailers
-        logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
-        headers = None
-        if not metadata.get("end_of_log", False):
-            headers = {
-                "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
-            }
-        return Response(media_type="application/x-ndjson", content=logs, headers=headers)
+    # We need to exhaust the iterator before we can generate the continuation token.
+    # We could improve this by making it a streaming/async response, and by then setting the header using
+    # HTTP Trailers
+    logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
+    headers = None
+    if not metadata.get("end_of_log", False):
+        headers = {
+            "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+        }
+    return Response(media_type="application/x-ndjson", content=logs, headers=headers)

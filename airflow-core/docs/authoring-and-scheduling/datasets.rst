@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Data-aware scheduling
-=====================
+Asset-Aware Scheduling
+======================
 
 .. versionadded:: 2.4
 

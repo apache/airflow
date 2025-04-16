@@ -249,10 +249,9 @@ class TestProviderManager:
                 # When there is error importing provider that is excluded the provider name is in the message
                 if any(excluded_provider in record.message for excluded_provider in excluded_providers):
                     continue
-                else:
-                    print(record.message, file=sys.stderr)
-                    print(record.exc_info, file=sys.stderr)
-                    real_warning_count += 1
+                print(record.message, file=sys.stderr)
+                print(record.exc_info, file=sys.stderr)
+                real_warning_count += 1
             if real_warning_count:
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []

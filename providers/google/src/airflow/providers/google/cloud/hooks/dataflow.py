@@ -51,6 +51,7 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -261,15 +262,14 @@ class _DataflowJobsController(LoggingMixin):
         """
         if not self._multiple_jobs and self._job_id:
             return [self.fetch_job_by_id(self._job_id)]
-        elif self._jobs:
+        if self._jobs:
             return [self.fetch_job_by_id(job["id"]) for job in self._jobs]
-        elif self._job_name:
+        if self._job_name:
             jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
             if len(jobs) == 1:
                 self._job_id = jobs[0]["id"]
             return jobs
-        else:
-            raise ValueError("Missing both dataflow job ID and name.")
+        raise ValueError("Missing both dataflow job ID and name.")
 
     def fetch_job_by_id(self, job_id: str) -> dict[str, str]:
         """
@@ -434,12 +434,12 @@ class _DataflowJobsController(LoggingMixin):
                 f"'{current_expected_state}' is invalid."
                 f" The value should be any of the following: {terminal_states}"
             )
-        elif is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
+        if is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
             raise AirflowException(
                 "Google Cloud Dataflow job's expected terminal state cannot be "
                 "JOB_STATE_DONE while it is a streaming job"
             )
-        elif not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
+        if not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
             raise AirflowException(
                 "Google Cloud Dataflow job's expected terminal state cannot be "
                 "JOB_STATE_DRAINED while it is a batch job"
@@ -1063,6 +1063,11 @@ class DataflowHook(GoogleBaseHook):
         )
         jobs_controller.cancel()
 
+    @deprecated(
+        planned_removal_date="July 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.dataflow.DataflowHook.launch_beam_yaml_job",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def start_sql_job(
         self,

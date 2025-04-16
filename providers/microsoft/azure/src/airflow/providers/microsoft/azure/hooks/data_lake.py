@@ -239,8 +239,7 @@ class AzureDataLakeHook(BaseHook):
         """
         if "*" in path:
             return self.get_conn().glob(path)
-        else:
-            return self.get_conn().walk(path)
+        return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """

@@ -11,7 +11,7 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../api_fastapi/core_api/openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-merge-cli && openapi-rq -i openapi.merged.json -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
@@ -81,6 +81,7 @@
     "globals": "^15.15.0",
     "happy-dom": "^17.4.4",
     "msw": "^2.7.3",
+    "openapi-merge-cli": "^1.3.2",
     "prettier": "^3.5.3",
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.27.0",

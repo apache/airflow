@@ -97,7 +97,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"The connections with these connection_ids: {matched_connection_ids} already exist.",
                 )
-            elif action.action_on_existence == BulkActionOnExistence.SKIP:
+            if action.action_on_existence == BulkActionOnExistence.SKIP:
                 create_connection_ids = not_found_connection_ids
             else:
                 create_connection_ids = to_create_connection_ids
@@ -130,7 +130,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 update_connection_ids = matched_connection_ids
             else:
                 update_connection_ids = to_update_connection_ids
@@ -170,7 +170,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 delete_connection_ids = matched_connection_ids
             else:
                 delete_connection_ids = to_delete_connection_ids

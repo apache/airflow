@@ -110,6 +110,8 @@ def _fetch_logs_from_service(url, log_relative_path):
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
         secret_key=get_signing_key("webserver", "secret_key"),
+        # Since we are using a secret key, we need to be explicit about the algorithm here too
+        algorithm="HS512",
         private_key=None,
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
@@ -339,8 +341,7 @@ class FileTaskHandler(logging.Handler):
                 logical_date=date,
                 try_number=try_number,
             )
-        else:
-            raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
 
     def _get_executor_get_task_log(
         self, ti: TaskInstance

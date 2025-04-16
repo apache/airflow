@@ -108,10 +108,9 @@ class ExecutorLoader:
                             "Incorrectly formatted executor configuration. Second portion of an executor "
                             f"configuration must be a module path but received: {module_path}"
                         )
-                    else:
-                        executor_names_per_team.append(
-                            ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
-                        )
+                    executor_names_per_team.append(
+                        ExecutorName(alias=split_name[0], module_path=split_name[1], team_id=team_id)
+                    )
                 else:
                     raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
 
@@ -227,12 +226,11 @@ class ExecutorLoader:
 
         if executor_name := _alias_to_executors.get(executor_name_str):
             return executor_name
-        elif executor_name := _module_to_executors.get(executor_name_str):
+        if executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
-        elif executor_name := _classname_to_executors.get(executor_name_str):
+        if executor_name := _classname_to_executors.get(executor_name_str):
             return executor_name
-        else:
-            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
+        raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:

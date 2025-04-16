@@ -147,7 +147,7 @@ class TestAssetModelOperation:
             # Update `is_active` and `is_paused` properties from DAG
             dags = session.query(DagModel).all()
             for dag in dags:
-                dag.is_active = is_active
+                dag.is_stale = not is_active
                 dag.is_paused = is_paused
 
             orm_assets = asset_op.sync_assets(session=session)

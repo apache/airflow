@@ -29,15 +29,11 @@ from __future__ import annotations
 import sys
 import time
 import uuid
-from typing import cast
 
 import airflow_client.client
 import pytest
 
-from airflow.api_fastapi.app import create_app, get_auth_manager
-from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
-from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
-from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from tests_common.test_utils.api_client_helpers import generate_access_token
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -66,12 +62,7 @@ from airflow_client.client.model.dag_run import DAGRun
 # Used to initialize FAB and the auth manager, necessary for creating the token.
 
 
-create_app()
-auth_manager = cast("get_auth_manager()", SimpleAuthManager)
-users = auth_manager.get_users()
-passwords = auth_manager.get_passwords(users)
-username, password = next(iter(passwords.items()))
-access_token = SimpleAuthManagerLogin.create_token(LoginBody(username=username, password=password))
+access_token = generate_access_token("admin", "admin", "localhost:8080")
 configuration = airflow_client.client.Configuration(
     host="http://localhost:8080/api/v2",
 )

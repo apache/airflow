@@ -236,7 +236,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "last_log_time": self.last_log_time,
                     }
                 )
-            elif container_state == ContainerState.FAILED:
+            if container_state == ContainerState.FAILED:
                 return TriggerEvent(
                     {
                         "status": "failed",
@@ -289,8 +289,7 @@ class KubernetesPodTrigger(BaseTrigger):
             if state_obj is not None:
                 if state != ContainerState.TERMINATED:
                     return state
-                else:
-                    return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
+                return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
 
     @staticmethod

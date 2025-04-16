@@ -73,6 +73,12 @@ def restore_env():
         yield
 
 
+@pytest.fixture(scope="module", autouse=True)
+def restore_providers_manager_configuration():
+    yield
+    ProvidersManager().initialize_providers_configuration()
+
+
 def parameterized_config(template) -> str:
     """
     Generates configuration from provided template & variables defined in current scope.

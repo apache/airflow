@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
@@ -83,7 +83,7 @@ class CronMixin:
             interval_description = ""
         self.description: str = interval_description
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Both expression and timezone should match.
 
@@ -108,6 +108,8 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
+        if TYPE_CHECKING:
+            assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = scheduled - naive
@@ -118,6 +120,8 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
+        if TYPE_CHECKING:
+            assert isinstance(scheduled, datetime.datetime)
         if not _covers_every_hour(cron):
             return convert_to_utc(make_aware(scheduled, self._timezone))
         delta = naive - scheduled

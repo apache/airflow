@@ -402,8 +402,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         "(make sure that the name is unique)."
                     )
                     return 1
-                else:
-                    self.log.exception("Exception while getting container groups")
+                self.log.exception("Exception while getting container groups")
             except Exception:
                 self.log.exception("Exception while getting container groups")
 

@@ -366,14 +366,12 @@ class AirflowOtelIdGenerator(IdGenerator):
             id = self.span_id
             self.span_id = None
             return id
-        else:
-            new_id = random.getrandbits(64)
-            return new_id
+        new_id = random.getrandbits(64)
+        return new_id
 
     def generate_trace_id(self) -> int:
         if self.trace_id is not None:
             id = self.trace_id
             return id
-        else:
-            new_id = random.getrandbits(128)
-            return new_id
+        new_id = random.getrandbits(128)
+        return new_id

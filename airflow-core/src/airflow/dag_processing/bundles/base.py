@@ -40,14 +40,15 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.typing_compat import Self
+
 log = logging.getLogger(__name__)
 
 
 def get_bundle_storage_root_path():
     if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
         return Path(configured_location)
-    else:
-        return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+    return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 STALE_BUNDLE_TRACKING_FOLDER = get_bundle_storage_root_path() / "_tracking"
@@ -406,7 +407,7 @@ class BundleVersionLock:
             self.lock_file.close()
             self.lock_file = None
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # wrapping in try except here is just extra cautious since this is in task execution path
         try:
             self.acquire()

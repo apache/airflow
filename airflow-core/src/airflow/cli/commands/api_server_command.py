@@ -129,9 +129,9 @@ def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | No
             raise AirflowConfigException(error_template_2.format(ssl_key))
 
         return (ssl_cert, ssl_key)
-    elif ssl_cert:
+    if ssl_cert:
         raise AirflowConfigException(error_template_1.format("SSL certificate", "SSL key"))
-    elif ssl_key:
+    if ssl_key:
         raise AirflowConfigException(error_template_1.format("SSL key", "SSL certificate"))
 
     return (None, None)

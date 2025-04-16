@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from airflow.metrics.protocols import Timer
 
 if TYPE_CHECKING:
-    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.protocols import DeltaType
 
 
 class StatsLogger(Protocol):
@@ -75,7 +75,7 @@ class StatsLogger(Protocol):
         """Stats timing."""
 
     @classmethod
-    def timer(cls, *args, **kwargs) -> TimerProtocol:
+    def timer(cls, *args, **kwargs) -> Timer:
         """Timer metric that can be cancelled."""
         raise NotImplementedError()
 
@@ -108,6 +108,6 @@ class NoStatsLogger:
         """Stats timing."""
 
     @classmethod
-    def timer(cls, *args, **kwargs) -> TimerProtocol:
+    def timer(cls, *args, **kwargs) -> Timer:
         """Timer metric that can be cancelled."""
         return Timer()

@@ -148,5 +148,4 @@ class PapermillOperator(BaseOperator):
         """Get valid hook."""
         if self.kernel_conn_id:
             return KernelHook(kernel_conn_id=self.kernel_conn_id)
-        else:
-            return None
+        return None

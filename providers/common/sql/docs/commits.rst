@@ -34,14 +34,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.26.0
+......
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ==============================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==============================================================================================
+`b075a1d18d <https://github.com/apache/airflow/commit/b075a1d18d408f1a1938bdf1c3874dcf1088d87a>`__  2025-04-16   ``feat: integrate 'polars' in 'get_df', 'get_df_by_chunks' (#48875)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`f7c16b8ed2 <https://github.com/apache/airflow/commit/f7c16b8ed27b75f7daa98fc8e5aef4457ec58503>`__  2025-04-08   ``feat(secrets_masker): add minimum secret length and skip masking for common terms (#48791)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==============================================================================================
+
 1.25.0
 ......
 
-Latest change: 2025-04-02
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ===============================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===============================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `65b90d855e <https://github.com/apache/airflow/commit/65b90d855ea22d10f6c159e27a677638839e1b6d>`__  2025-04-02   ``Add requires_result_fetch Configuration to SQLExecuteQueryOperator (#46997)``
 `47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``

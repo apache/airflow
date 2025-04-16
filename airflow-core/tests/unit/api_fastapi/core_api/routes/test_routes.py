@@ -24,7 +24,6 @@ NO_AUTH_PATHS = {
     "/api/v2/auth/logout",
     "/api/v2/version",
     "/api/v2/monitor/health",
-    "/api/v2/{rest_of_path:path}",
 }
 
 
@@ -57,4 +56,8 @@ def test_invalid_routes_return_404(test_client):
     """Invalid routes should return a 404."""
     response = test_client.get("/api/v2/nonexistent")
     assert response.status_code == 404
-    assert response.json() == {"error": "invalid route"}
+    assert response.json() == {"error": "API route not found"}
+
+    response = test_client.get("/api/nonexistent")
+    assert response.status_code == 404
+    assert response.json() == {"error": "API route not found"}

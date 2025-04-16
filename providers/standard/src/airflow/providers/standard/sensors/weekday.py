@@ -119,5 +119,4 @@ class DayOfWeekSensor(BaseSensorOperator):
             )
 
             return determined_weekday_num in self._week_day_num
-        else:
-            return timezone.utcnow().isoweekday() in self._week_day_num
+        return timezone.utcnow().isoweekday() in self._week_day_num

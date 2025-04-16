@@ -254,10 +254,8 @@ class MSGraphAsyncOperator(BaseOperator):
             if append_result_as_list_if_absent:
                 if isinstance(result, list):
                     return result
-                else:
-                    return [result]
-            else:
-                return result
+                return [result]
+            return result
         return results
 
     def pull_xcom(self, context: Context | dict[str, Any]) -> list:

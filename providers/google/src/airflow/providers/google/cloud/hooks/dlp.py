@@ -268,7 +268,7 @@ class CloudDLPHook(GoogleBaseHook):
 
             if job.state == DlpJob.JobState.DONE:
                 return job
-            elif job.state in [
+            if job.state in [
                 DlpJob.JobState.PENDING,
                 DlpJob.JobState.RUNNING,
                 DlpJob.JobState.JOB_STATE_UNSPECIFIED,

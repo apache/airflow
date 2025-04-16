@@ -108,7 +108,7 @@ class TestDagRunOperator:
 
             assert exc_info.value.trigger_dag_id == TRIGGERED_DAG_ID
             assert exc_info.value.conf == {"foo": "bar"}
-            assert exc_info.value.logical_date is None
+            assert exc_info.value.logical_date is not None
             assert exc_info.value.reset_dag_run is False
             assert exc_info.value.skip_when_already_exists is False
             assert exc_info.value.wait_for_completion is False
@@ -119,7 +119,7 @@ class TestDagRunOperator:
                 run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
-            assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
+            assert exc_info.value.dag_run_id == expected_run_id
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_one")
@@ -139,7 +139,7 @@ class TestDagRunOperator:
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
-        base_url = conf.get_mandatory_value("api", "base_url").lower()
+        base_url = conf.get("api", "base_url", fallback="/").lower()
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 

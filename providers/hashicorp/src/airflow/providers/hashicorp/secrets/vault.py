@@ -171,8 +171,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             if len(split_secret_path) < 2:
                 return None, None
             return split_secret_path[0], split_secret_path[1]
-        else:
-            return "", secret_path
+        return "", secret_path
 
     def get_response(self, conn_id: str) -> dict | None:
         """

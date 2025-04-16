@@ -191,7 +191,7 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
             return cls(decode_relativedelta(delta))
         return cls(datetime.timedelta(seconds=delta))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Return if the offsets match.
 

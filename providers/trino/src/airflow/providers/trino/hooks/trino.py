@@ -22,6 +22,7 @@ import os
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.parse import quote_plus, urlencode
 
 import trino
 from trino.exceptions import DatabaseError
@@ -77,7 +78,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -146,7 +147,7 @@ class TrinoHook(DbApiHook):
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
             raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -159,7 +160,7 @@ class TrinoHook(DbApiHook):
                 else:
                     msg += "none of them provided."
                 raise ValueError(msg)
-            elif jwt_file:
+            if jwt_file:
                 token = Path(extra["jwt__file"]).read_text()
             else:
                 token = extra["jwt__token"]
@@ -322,3 +323,38 @@ class TrinoHook(DbApiHook):
     def get_openlineage_default_schema(self):
         """Return Trino default schema."""
         return trino.constants.DEFAULT_SCHEMA
+
+    def get_uri(self) -> str:
+        """Return the Trino URI for the connection."""
+        conn = self.connection
+        uri = "trino://"
+
+        auth_part = ""
+        if conn.login:
+            auth_part = quote_plus(conn.login)
+            if conn.password:
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = f"{auth_part}@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part = f"{host_part}:{conn.port}"
+
+        schema_part = ""
+        if conn.schema:
+            schema_part = f"/{quote_plus(conn.schema)}"
+            extra_schema = conn.extra_dejson.get("schema")
+            if extra_schema:
+                schema_part = f"{schema_part}/{quote_plus(extra_schema)}"
+
+        uri = f"{uri}{auth_part}{host_part}{schema_part}"
+
+        extra = conn.extra_dejson.copy()
+        if "schema" in extra:
+            extra.pop("schema")
+
+        query_params = {k: str(v) for k, v in extra.items() if v is not None}
+        if query_params:
+            uri = f"{uri}?{urlencode(query_params)}"
+
+        return uri

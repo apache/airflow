@@ -253,10 +253,12 @@ class TestConfigLint:
 
             output = temp_stdout.getvalue()
 
-        normalized_output = re.sub(r"\s+", " ", output.strip())
-        normalized_message = re.sub(r"\s+", " ", removed_config.message.strip())
+        normalized_output = re.sub(r"\s+", " ", output.strip()) if output else ""
+        normalized_message = (
+            re.sub(r"\s+", " ", removed_config.message.strip()) if removed_config.message else ""
+        )
 
-        assert normalized_message in normalized_output
+        assert normalized_message.lower() in normalized_output.lower()
 
     @pytest.mark.parametrize(
         "default_changed_config",
@@ -496,74 +498,77 @@ class TestConfigLint:
 
 
 class TestCliConfigUpdate:
-    @classmethod
-    def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
+    def test_update_config_all_options_dry_run(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        initial_config = "[core]\nexecutor = SequentialExecutor\n"
+        cfg_file.write_text(initial_config)
 
-    @pytest.fixture(autouse=True)
-    def setup_fake_airflow_cfg(self, tmp_path, monkeypatch):
-        fake_config = tmp_path / "airflow.cfg"
-        fake_config.write_text(
-            """
-            [test_admin]
-            rename_key = legacy_value
-            remove_key = to_be_removed
-            [test_core]
-            dags_folder = /some/path/to/dags
-            default_key = OldDefault"""
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        def fake_write_custom_config(file, **kwargs):
+            file.write("updated_config_dry_run")
+
+        monkeypatch.setattr(conf, "write_custom_config", fake_write_custom_config)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            [
+                "config",
+                "update",
+                "--all-recommendations",
+            ]
         )
-        monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config))
-        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config))
-        conf.read(str(fake_config))
-        return fake_config
 
-    def test_update_renamed_option(self, monkeypatch, setup_fake_airflow_cfg):
-        fake_config = setup_fake_airflow_cfg
-        renamed_change = ConfigChange(
-            config=ConfigParameter("test_admin", "rename_key"),
-            renamed_to=ConfigParameter("test_core", "renamed_key"),
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+
+        assert "Dry-run mode enabled" in output
+        assert "The following are the changes in airflow config:" in output
+
+        current_cfg = cfg_file.read_text()
+        assert initial_config in current_cfg, "Dry-run should not modify the config file."
+
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
+    def test_update_config_all_options_fix(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        initial_config = "[core]\nexecutor = SequentialExecutor\n"
+        cfg_file.write_text(initial_config)
+
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+
+        def fake_write_custom_config(file, **kwargs):
+            file.write("updated_config")
+
+        monkeypatch.setattr(conf, "write_custom_config", fake_write_custom_config)
+
+        def fake_copy2(src, dst):
+            with open(dst, "w") as f:
+                f.write("backup_config")
+
+        monkeypatch.setattr(shutil, "copy2", fake_copy2)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            [
+                "config",
+                "update",
+                "--fix",
+                "--all-recommendations",
+            ]
         )
-        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [renamed_change])
-        assert conf.has_option("test_admin", "rename_key")
-        args = self.parser.parse_args(["config", "update"])
-        config_command.update_config(args)
-        content = fake_config.read_text()
-        admin_section = content.split("[test_admin]")[-1]
-        assert "rename_key" not in admin_section
-        core_section = content.split("[test_core]")[-1]
-        assert "renamed_key" in core_section
-        assert "# Renamed from test_admin.rename_key" in content
 
-    def test_update_removed_option(self, monkeypatch, setup_fake_airflow_cfg):
-        fake_config = setup_fake_airflow_cfg
-        removed_change = ConfigChange(
-            config=ConfigParameter("test_admin", "remove_key"),
-            suggestion="Option removed in Airflow 3.0.",
-        )
-        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
-        assert conf.has_option("test_admin", "remove_key")
-        args = self.parser.parse_args(["config", "update"])
         config_command.update_config(args)
-        content = fake_config.read_text()
-        assert "remove_key" not in content
 
-    def test_update_no_changes(self, monkeypatch, capsys):
-        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [])
-        args = self.parser.parse_args(["config", "update"])
-        config_command.update_config(args)
-        captured = capsys.readouterr().out
-        assert "No updates needed" in captured
+        output = capsys.readouterr().out
+        assert "Backup saved as" in output
+        assert "The following are the changes in airflow config:" in output
 
-    def test_update_backup_creation(self, monkeypatch):
-        removed_change = ConfigChange(
-            config=ConfigParameter("test_admin", "remove_key"),
-            suggestion="Option removed.",
-        )
-        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
-        assert conf.has_option("test_admin", "remove_key")
-        args = self.parser.parse_args(["config", "update"])
-        mock_copy = mock.MagicMock()
-        monkeypatch.setattr(shutil, "copy2", mock_copy)
-        config_command.update_config(args)
-        backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
-        mock_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
+        updated_cfg = cfg_file.read_text()
+        assert "updated_config" in updated_cfg, "Fix mode should update the configuration file."
+
+        backup_path = str(cfg_file) + ".bak"
+        assert os.path.exists(backup_path), "Backup file should be created."
+        backup_content = open(backup_path).read()
+        assert "backup_config" in backup_content, "Backup file should contain the original content."

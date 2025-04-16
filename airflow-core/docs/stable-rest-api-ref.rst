@@ -20,4 +20,4 @@ Airflow public API reference
 ============================
 
 It's a stub file. It will be converted automatically during the build process
-to the valid documentation by the Sphinx plugin. See: /docs/conf.py
+to the valid documentation by the Sphinx plugin. See: airflow-core/docs/conf.py

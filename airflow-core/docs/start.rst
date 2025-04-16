@@ -133,7 +133,7 @@ the all-in-one ``standalone`` command, you can instead run:
         --role Admin \
         --email spiderman@superhero.org
 
-    airflow webserver --port 8080
+    airflow api-server --port 8080
 
     airflow scheduler
 

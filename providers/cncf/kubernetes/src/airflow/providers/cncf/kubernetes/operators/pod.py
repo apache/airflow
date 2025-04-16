@@ -1301,7 +1301,7 @@ class _optionally_suppress(AbstractContextManager):
         matching_error = error and issubclass(exctype, self._exceptions)
         if (error and not matching_error) or (matching_error and self.reraise):
             return False
-        elif matching_error:
+        if matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)

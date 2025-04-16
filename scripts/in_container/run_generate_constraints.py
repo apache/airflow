@@ -154,7 +154,17 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
     )
     count_lines = 0
     for line in sorted(result.stdout.split("\n")):
-        if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
+        if line.startswith(
+            (
+                "apache_airflow",
+                "apache-airflow==",
+                "apache-airflow-core==",
+                "apache_airflow_task_sdk=",
+                "/opt/airflow",
+                "#",
+                "-e",
+            )
+        ):
             continue
         if "@" in line:
             continue
@@ -343,6 +353,10 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     find_airflow_core_distributions = AIRFLOW_DIST_PATH.glob("apache_airflow_core-*.whl")
     if find_airflow_core_distributions:
         airflow_core_install = next(find_airflow_core_distributions).as_posix() + "[all]"
+    airflow_task_sdk_install = "./airflow-task-sdk"
+    find_airflow_task_sdk_distribution = AIRFLOW_DIST_PATH.glob("apache_airflow_task_sdk-*.whl")
+    if find_airflow_task_sdk_distribution:
+        airflow_task_sdk_install = next(find_airflow_task_sdk_distribution).as_posix()
     run_command(
         cmd=[
             "uv",
@@ -351,7 +365,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "--no-sources",
             airflow_install,
             airflow_core_install,
-            "./task-sdk",
+            airflow_task_sdk_install,
             "./airflow-ctl",
             "--reinstall",  # We need to pull the provider distributions from PyPI - not use the local ones
             *packages_to_install,

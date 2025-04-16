@@ -33,7 +33,7 @@ from airflow.metrics.validators import (
 if TYPE_CHECKING:
     from datadog import DogStatsd
 
-    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.protocols import DeltaType
     from airflow.metrics.validators import (
         ListValidator,
     )
@@ -144,7 +144,7 @@ class SafeDogStatsdLogger:
         stat: str | None = None,
         tags: dict[str, str] | None = None,
         **kwargs,
-    ) -> TimerProtocol:
+    ) -> Timer:
         """Timer metric that can be cancelled."""
         if self.metrics_tags and isinstance(tags, dict):
             tags_list = [

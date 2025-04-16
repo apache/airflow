@@ -48,31 +48,31 @@ The following configuration options are now unused and have been removed:
 
   * ``airflow config lint``
 
-    * [ ] Remove configuration option ``[webserver] web_server_master_timeout``
-    * [ ] Remove configuration option ``[webserver] worker_refresh_batch_size``
-    * [ ] Remove configuration option ``[webserver] worker_refresh_interval``
-    * [ ] Remove configuration option ``[webserver] reload_on_plugin_change``
-    * [ ] Remove configuration option ``[webserver] worker_class``
-    * [ ] Remove configuration option ``[webserver] expose_stacktrace``
-    * [ ] Remove configuration option ``[webserver] log_fetch_delay_sec``
-    * [ ] Remove configuration option ``[webserver] log_auto_tailing_offset``
-    * [ ] Remove configuration option ``[webserver] log_animation_speed``
-    * [ ] Remove configuration option ``[webserver] default_dag_run_display_number``
-    * [ ] Remove configuration option ``[webserver] enable_proxy_fix``
-    * [ ] Remove configuration option ``[webserver] proxy_fix_x_for``
-    * [ ] Remove configuration option ``[webserver] proxy_fix_x_proto``
-    * [ ] Remove configuration option ``[webserver] proxy_fix_x_host``
-    * [ ] Remove configuration option ``[webserver] proxy_fix_x_port``
-    * [ ] Remove configuration option ``[webserver] proxy_fix_x_prefix``
-    * [ ] Remove configuration option ``[webserver] cookie_secure``
-    * [ ] Remove configuration option ``[webserver] analytics_tool``
-    * [ ] Remove configuration option ``[webserver] analytics_id``
-    * [ ] Remove configuration option ``[webserver] analytics_url``
-    * [ ] Remove configuration option ``[webserver] show_recent_stats_for_completed_runs``
-    * [ ] Remove configuration option ``[webserver] run_internal_api``
-    * [ ] Remove configuration option ``[webserver] caching_hash_method``
-    * [ ] Remove configuration option ``[webserver] show_trigger_form_if_no_params``
-    * [ ] Remove configuration option ``[webserver] num_recent_configurations_for_trigger``
-    * [ ] Remove configuration option ``[webserver] allowed_payload_size``
-    * [ ] Remove configuration option ``[webserver] max_form_memory_size``
-    * [ ] Remove configuration option ``[webserver] max_form_parts``
+    * [x] Remove configuration option ``[webserver] web_server_master_timeout``
+    * [x] Remove configuration option ``[webserver] worker_refresh_batch_size``
+    * [x] Remove configuration option ``[webserver] worker_refresh_interval``
+    * [x] Remove configuration option ``[webserver] reload_on_plugin_change``
+    * [x] Remove configuration option ``[webserver] worker_class``
+    * [x] Remove configuration option ``[webserver] expose_stacktrace``
+    * [x] Remove configuration option ``[webserver] log_fetch_delay_sec``
+    * [x] Remove configuration option ``[webserver] log_auto_tailing_offset``
+    * [x] Remove configuration option ``[webserver] log_animation_speed``
+    * [x] Remove configuration option ``[webserver] default_dag_run_display_number``
+    * [x] Remove configuration option ``[webserver] enable_proxy_fix``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_for``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_proto``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_host``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_port``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_prefix``
+    * [x] Remove configuration option ``[webserver] cookie_secure``
+    * [x] Remove configuration option ``[webserver] analytics_tool``
+    * [x] Remove configuration option ``[webserver] analytics_id``
+    * [x] Remove configuration option ``[webserver] analytics_url``
+    * [x] Remove configuration option ``[webserver] show_recent_stats_for_completed_runs``
+    * [x] Remove configuration option ``[webserver] run_internal_api``
+    * [x] Remove configuration option ``[webserver] caching_hash_method``
+    * [x] Remove configuration option ``[webserver] show_trigger_form_if_no_params``
+    * [x] Remove configuration option ``[webserver] num_recent_configurations_for_trigger``
+    * [x] Remove configuration option ``[webserver] allowed_payload_size``
+    * [x] Remove configuration option ``[webserver] max_form_memory_size``
+    * [x] Remove configuration option ``[webserver] max_form_parts``

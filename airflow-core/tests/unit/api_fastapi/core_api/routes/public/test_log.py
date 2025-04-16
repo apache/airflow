@@ -25,6 +25,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 from itsdangerous.url_safe import URLSafeSerializer
+from uuid6 import uuid7
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
@@ -72,6 +73,18 @@ class TestTaskInstancesLog:
 
         self.app.state.dag_bag.bag_dag(dag)
 
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+            session.merge(ti)
+        dag.clear()
+        for ti in dr.task_instances:
+            ti.try_number = 2
+            ti.id = str(uuid7())
+            ti.hostname = "localhost"
+            session.merge(ti)
+            session.flush()
+
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
             f"{self.DAG_ID}_copy", start_date=timezone.parse(self.default_time), session=session
@@ -85,26 +98,20 @@ class TestTaskInstancesLog:
         )
         self.app.state.dag_bag.bag_dag(dummy_dag)
 
-        for ti in dr.task_instances:
-            ti.try_number = 1
-            ti.hostname = "localhost"
-            session.merge(ti)
         for ti in dr2.task_instances:
             ti.try_number = 1
             ti.hostname = "localhost"
             session.merge(ti)
-        session.flush()
-        dag.clear()
         dummy_dag.clear()
-        for ti in dr.task_instances:
-            ti.try_number = 2
-            ti.hostname = "localhost"
-            session.merge(ti)
         for ti in dr2.task_instances:
             ti.try_number = 2
+            ti.id = str(uuid7())
             ti.hostname = "localhost"
             session.merge(ti)
+            session.flush()
         session.flush()
+
+        ...
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -165,6 +172,7 @@ class TestTaskInstancesLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
+        assert response.status_code == 200, response.json()
         resp_contnt = response.json()["content"]
         assert expected_filename in resp_contnt[0]["sources"]
         assert log_content in resp_contnt[2]["event"]

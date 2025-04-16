@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection Types <connections/impala>
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -57,6 +58,14 @@
     :caption: Commits
 
     Detailed list of commits <commits>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/apache/impala/index>
+
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

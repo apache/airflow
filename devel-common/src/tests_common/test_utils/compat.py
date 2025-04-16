@@ -112,10 +112,9 @@ def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
         from airflow.serialization.serialized_objects import BaseSerialization
 
         return BaseSerialization.deserialize(serialized_operator)
-    else:
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-        return SerializedBaseOperator.deserialize_operator(serialized_operator)
+    return SerializedBaseOperator.deserialize_operator(serialized_operator)
 
 
 def connection_to_dict(

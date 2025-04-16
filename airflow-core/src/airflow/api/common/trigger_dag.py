@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.dag_version import DagVersion
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -104,7 +103,6 @@ def _trigger_dag(
     run_conf = None
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dag_run = dag.create_dagrun(
         run_id=run_id,
         logical_date=coerced_logical_date,
@@ -113,7 +111,6 @@ def _trigger_dag(
         conf=run_conf,
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,
-        dag_version=dag_version,
         state=DagRunState.QUEUED,
         session=session,
     )

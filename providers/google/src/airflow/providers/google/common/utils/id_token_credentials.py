@@ -111,7 +111,7 @@ def _load_credentials_from_file(
 
         return current_credentials
 
-    elif credential_type == _SERVICE_ACCOUNT_TYPE:
+    if credential_type == _SERVICE_ACCOUNT_TYPE:
         try:
             return service_account.IDTokenCredentials.from_service_account_info(
                 info, target_audience=target_audience

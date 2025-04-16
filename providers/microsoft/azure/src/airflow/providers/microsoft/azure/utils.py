@@ -77,8 +77,7 @@ def _get_default_azure_credential(
             workload_identity_tenant_id=workload_identity_tenant_id,
             additionally_allowed_tenants=[workload_identity_tenant_id],
         )
-    else:
-        return credential_cls()
+    return credential_cls()
 
 
 get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(

@@ -49,7 +49,7 @@ with DAG(
     # [END howto_operator_translate_text]
     # [START howto_operator_translate_access]
     translation_access = BashOperator(
-        task_id="access", bash_command="echo '{{ task_instance.xcom_pull(\"translate\")[0] }}'"
+        task_id="access", bash_command="echo '{{ task_instance.xcom_pull(\"translate\") }}'"
     )
     # [END howto_operator_translate_access]
     product_set_create >> translation_access

@@ -146,11 +146,10 @@ def _download_tool_if_needed(
                         f"{K8S_BIN_BASE_PATH}"
                     )
                     return
-                else:
-                    get_console().print(
-                        f"[info]Currently installed `{tool}` tool version: {current_version}. "
-                        f"Downloading {expected_version}."
-                    )
+                get_console().print(
+                    f"[info]Currently installed `{tool}` tool version: {current_version}. "
+                    f"Downloading {expected_version}."
+                )
         else:
             get_console().print(
                 f"[warning]The version check of `{tool}` tool returned "
@@ -407,11 +406,10 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
                     f"http://localhost:{port_number}/api/v2/monitor/health and it is healthy."
                 )
                 return True
-            else:
-                get_console(output=output).print(
-                    f"[warning]Error when connecting to localhost:{port_number} "
-                    f"{response.status_code}: {response.reason}"
-                )
+            get_console(output=output).print(
+                f"[warning]Error when connecting to localhost:{port_number} "
+                f"{response.status_code}: {response.reason}"
+            )
         current_time = datetime.now(timezone.utc)
         if current_time - start_time > timedelta(seconds=wait_seconds):
             if wait_seconds > 0:

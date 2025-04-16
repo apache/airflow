@@ -480,6 +480,7 @@ class TestBranchOperator(BasePythonTest):
                 branch_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
+                branch_2_ti.task = self.branch_2
                 assert branch_2_ti.state == TaskInstanceState.SKIPPED
                 branch_2_ti.set_state(None)
                 branch_2_ti.run()
@@ -761,6 +762,7 @@ class TestShortCircuitOperator(BasePythonTest):
                 sc_ti.set_state(TaskInstanceState.SUCCESS, session=session)
                 dr.task_instance_scheduling_decisions(session=session)
                 op1_ti = dr.get_task_instance(task_id="op1", session=session)
+                op1_ti.task = self.op1
                 assert op1_ti.state == TaskInstanceState.SKIPPED
                 op1_ti.set_state(None)
                 op1_ti.run()
@@ -864,8 +866,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -1526,8 +1527,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         with pytest.raises(
             AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
@@ -1709,6 +1709,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
                 # FIXME
                 if self.opcls != BranchExternalPythonOperator:
+                    branch_2_ti.task = self.branch_2
                     assert branch_2_ti.state == TaskInstanceState.SKIPPED
                     branch_2_ti.set_state(None, session=session)
                     branch_2_ti.run()

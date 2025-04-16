@@ -112,18 +112,24 @@ class DagVersion(Base):
         return dag_version
 
     @classmethod
-    def _latest_version_select(cls, dag_id: str) -> Select:
+    def _latest_version_select(cls, dag_id: str, bundle_version: str | None = None) -> Select:
         """
         Get the select object to get the latest version of the DAG.
 
         :param dag_id: The DAG ID.
         :return: The select object.
         """
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        query = select(cls).where(cls.dag_id == dag_id)
+        if bundle_version:
+            query = query.where(cls.bundle_version == bundle_version)
+        query = query.order_by(cls.created_at.desc()).limit(1)
+        return query
 
     @classmethod
     @provide_session
-    def get_latest_version(cls, dag_id: str, *, session: Session = NEW_SESSION) -> DagVersion | None:
+    def get_latest_version(
+        cls, dag_id: str, *, bundle_version: str | None = None, session: Session = NEW_SESSION
+    ) -> DagVersion | None:
         """
         Get the latest version of the DAG.
 
@@ -131,7 +137,7 @@ class DagVersion(Base):
         :param session: The database session.
         :return: The latest version of the DAG or None if not found.
         """
-        return session.scalar(cls._latest_version_select(dag_id))
+        return session.scalar(cls._latest_version_select(dag_id, bundle_version=bundle_version))
 
     @classmethod
     @provide_session

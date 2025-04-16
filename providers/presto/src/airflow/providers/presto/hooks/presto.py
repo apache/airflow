@@ -75,7 +75,7 @@ def _boolify(value):
     if isinstance(value, str):
         if value.lower() == "false":
             return False
-        elif value.lower() == "true":
+        if value.lower() == "true":
             return True
     return value
 
@@ -107,7 +107,7 @@ class PrestoHook(DbApiHook):
         auth = None
         if db.password and extra.get("auth") == "kerberos":
             raise AirflowException("Kerberos authorization doesn't support password.")
-        elif db.password:
+        if db.password:
             auth = prestodb.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "kerberos":
             auth = prestodb.auth.KerberosAuthentication(

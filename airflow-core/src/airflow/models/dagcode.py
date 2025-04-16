@@ -133,8 +133,7 @@ class DagCode(Base):
         )
         if not dag_code:
             raise DagCodeNotFound()
-        else:
-            code = dag_code.source_code
+        code = dag_code.source_code
         return code
 
     @staticmethod

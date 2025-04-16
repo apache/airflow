@@ -34,14 +34,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.3
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  =================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =================================================================================================
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`d61fe47bf6 <https://github.com/apache/airflow/commit/d61fe47bf63387a4157fa99093471583623a1483>`__  2025-04-14   ``Improve example docs around SQLExecuteQueryOperator in Druid/Hive/Impala/Kylin/Pinot (#48856)``
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+==================================================================================================  ===========  =================================================================================================
+
 3.8.2
 .....
 
-Latest change: 2025-03-25
+Latest change: 2025-03-26
 
 ==================================================================================================  ===========  ===========================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===========================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
 `6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
 `b80a0ffd6a <https://github.com/apache/airflow/commit/b80a0ffd6adb4172377d1539ee235c68c791e8cb>`__  2025-03-25   ``Disallowing kylinpy 2.7.0 as it contains invalid pypi metadata (#48226)``
 `243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``

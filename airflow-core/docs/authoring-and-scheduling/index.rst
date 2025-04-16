@@ -21,6 +21,8 @@ Authoring and Scheduling
 Here you can find detailed documentation about advanced authoring and scheduling airflow dags.
 It's recommended that you first review the pages in :doc:`core concepts </core-concepts/index>`
 
+.. _authoring-section:
+
 **Authoring**
 
 .. toctree::
@@ -32,6 +34,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
     dynamic-task-mapping
     assets
 
+.. _scheduling-section:
 
 **Scheduling**
 
@@ -40,6 +43,6 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
     cron
     timezone
-    Data-ware scheduling with assets <datasets>
+    Asset-Aware Scheduling <datasets>
     timetable
-    Event-driven scheduling <event-scheduling>
+    Event-Driven Scheduling <event-scheduling>

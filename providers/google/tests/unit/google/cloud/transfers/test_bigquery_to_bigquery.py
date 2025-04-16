@@ -55,13 +55,13 @@ def split_tablename_side_effect(*args, **kwargs):
             TEST_DATASET,
             TEST_TABLE_ID,
         )
-    elif kwargs["table_input"] == SOURCE_PROJECT_DATASET_TABLE2:
+    if kwargs["table_input"] == SOURCE_PROJECT_DATASET_TABLE2:
         return (
             TEST_GCP_PROJECT_ID,
             TEST_DATASET,
             TEST_TABLE_ID + "-2",
         )
-    elif kwargs["table_input"] == DESTINATION_PROJECT_DATASET_TABLE:
+    if kwargs["table_input"] == DESTINATION_PROJECT_DATASET_TABLE:
         return (
             TEST_GCP_PROJECT_ID,
             TEST_DATASET + "_new",
