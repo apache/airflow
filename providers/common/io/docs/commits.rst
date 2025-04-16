@@ -34,14 +34,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.4
+.....
+
+Latest change: 2025-04-15
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`efdca94110 <https://github.com/apache/airflow/commit/efdca941103542835a944223cc52216c99b5db16>`__  2025-04-14   ``Use BaseXCom serialize_value when objectstorage_threshold is less than given input (#49173)``
+==================================================================================================  ===========  ===================================================================================================
+
 1.5.3
 .....
 
-Latest change: 2025-04-09
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `e84c177f74 <https://github.com/apache/airflow/commit/e84c177f747f728ae52eeaa2c665ef6a4627c5af>`__  2025-04-09   ``Move ObjectStoragePath and attach to Task SDK (#48906)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 `139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``

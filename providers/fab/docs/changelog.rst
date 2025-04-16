@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix fab auth manager login (#49292)``
+
+Misc
+~~~~
+* ``Bump eslint-config-prettier (#49077)``
+* ``remove superfluous else block (#49199)``
+* ``Change default page_size from 100 to 50 (#49243)``
+* ``Make sure all openapi schemes have distinct names (#49290)``
+* ``Remove 'STATE_COLORS' from Airflow Local Setting (#49228)``
+* ``AIP-38: remove 'default_ui_timezone' (#49176)``
+* ``Remove FAB entry from 'NOTICE' (#49063)``
+* ``refactor: remove 'navbar_logo_text_color' (#49161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+   * ``Add possibility to have extra project metadata in providers (#49306)``
+   * ``Quickly bumpv FAB version to 2.0.1 (#49308)``
+   * ``Update FAB changelog (#49069)``
+
 2.0.0
 .....
 

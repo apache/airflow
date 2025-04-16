@@ -79,7 +79,7 @@ apache-airflow-providers-apache-hive package
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 9.0.5
+Release: 9.0.6
 
 Provider package
 ----------------
@@ -143,5 +143,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 9.0.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 9.0.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.5-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.0.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.0.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.sha512>`__)
