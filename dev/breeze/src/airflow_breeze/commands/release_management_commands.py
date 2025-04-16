@@ -127,6 +127,7 @@ from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     expand_all_provider_distributions,
     find_matching_long_package_names,
+    floor_version_suffix,
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
@@ -421,8 +422,9 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
             if not line.endswith(
                 f'.{version_suffix}"',
             ):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{version_suffix}",'
+                floored_version_suffix = floor_version_suffix(version_suffix)
+                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{floored_version_suffix}",'
             else:
                 get_console().print(
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
