@@ -2469,14 +2469,23 @@ def generate_issue_content_providers(
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
+                pr_or_issue = None
                 try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                    pr_or_issue = repo.get_pull(pr_number)
+                    if pr_or_issue.user.login == "dependabot[bot]":
+                        get_console().print(
+                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                        )
+                        continue
+                    pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pr_or_issue = repo.get_issue(pr_number)  # type: ignore[assignment]
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                pull_requests[pr_number] = pr_or_issue  # type: ignore[assignment]
+
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
