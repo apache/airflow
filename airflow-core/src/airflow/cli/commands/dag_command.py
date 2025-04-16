@@ -404,6 +404,9 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
+    # Reserialize DAGs by parsing the DagBag files
+    dag_reserialize(args, session)
+
     dagbag = DagBag(read_dags_from_db=True)
     dagbag.collect_dags_from_db()
 
@@ -478,6 +481,9 @@ def dag_details(args, session: Session = NEW_SESSION):
 def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
     data = []
+
+    # Reserialize DAGs by parsing the DagBag files
+    dag_reserialize(args, session)
 
     # Get import errors from the DB
     query = select(ParseImportError)
