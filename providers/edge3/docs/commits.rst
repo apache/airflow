@@ -33,15 +33,15 @@ This is detailed commit list of changes for versions provider package: ``edge3``
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
-
 1.0.0
 .....
 
-Latest change: 2025-04-05
+Latest change: 2025-04-16
 
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`99666f9789 <https://github.com/apache/airflow/commit/99666f97893dff28297555778620a9c114779667>`__  2025-04-16   ``Rename 'edge' provider fom 'edgeexecutor' to 'edge3' provider (#49358)``
 `ed93c3f697 <https://github.com/apache/airflow/commit/ed93c3f6970eb207c727b2f4a1da295fa4c74cc3>`__  2025-04-05   ``fix: use pydantic model for edge worker registration response (#48821)``
 `1c81120869 <https://github.com/apache/airflow/commit/1c81120869459dfe40708d750dcf740cc9411cdd>`__  2025-04-05   ``Update Edge Provider docs prior 1.0.0 release (#48814)``
 `e391a58c29 <https://github.com/apache/airflow/commit/e391a58c297e7bdd6dd071a563e0d887c2b5b54c>`__  2025-04-05   ``Cleanup redundant hostname lookup and migrate to core hostname function. (#48813)``

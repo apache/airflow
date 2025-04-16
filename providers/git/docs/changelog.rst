@@ -23,6 +23,7 @@ Bug Fixes
 
 * ``Don't log repo_url in git dag bundle (#48909)``
 * ``Make git connection optional for git dag bundle (#49270)``
+* ``Use 'git_default' if the user defines nothing (#49359)``
 
 Misc
 ~~~~
@@ -31,6 +32,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
 
 0.0.1
 .....
