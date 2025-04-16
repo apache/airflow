@@ -108,6 +108,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+      only-pyproject-toml-files-changed:
+        description: "Whether only pyproject.toml files changed in the PR"
+        required: true
+        type: string
     secrets:
       DOCS_AWS_ACCESS_KEY_ID:
         required: true
@@ -201,6 +205,7 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+          ONLY_PYPROJECT_TOML_FILES_CHANGED: ${{ inputs.only-pyproject-toml-files-changed }}
 
   mypy:
     timeout-minutes: 45

@@ -21,5 +21,4 @@
 .. note::
   Provider is still WIP. It can be used with production but we may introduce breaking changes without following semver until version 1.0.0
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+* ``Initial version of git provider (#47636)``

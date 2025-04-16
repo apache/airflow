@@ -34,14 +34,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.1
+.....
+
+Latest change: 2025-04-08
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 6.2.0
 .....
 
-Latest change: 2025-04-02
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ==============================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==============================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `dce4ab474b <https://github.com/apache/airflow/commit/dce4ab474bf60882d75115433a42c6aa0a1858eb>`__  2025-04-01   ``feat: Send separate OpenLineage event for each Snowflake query_id (#47736)``
 `47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``

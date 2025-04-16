@@ -24,13 +24,13 @@ from pathlib import Path
 import jinja2
 
 # isort:off (needed to workaround isort bug)
+from sphinx_exts.docs_build.code_utils import AIRFLOW_CONTENT_ROOT_PATH
 from sphinx_exts.provider_yaml_utils import load_package_data
 
 # isort:on (needed to workaround isort bug)
 
-CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
-DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
-BUILD_DIR = os.path.abspath(os.path.join(DOCS_DIR, "_build"))
+CURRENT_DIR = Path(os.path.dirname(__file__)).resolve()
+GENERATED_BUILD_DOCS_PATH = AIRFLOW_CONTENT_ROOT_PATH / "generated" / "_build" / "docs"
 ALL_PROVIDER_YAMLS_WITH_SUSPENDED = load_package_data(include_suspended=True)
 
 
@@ -47,7 +47,7 @@ def _render_template(template_name, **kwargs):
 def _render_content():
     providers = []
     provider_yamls = {p["package-name"]: p for p in ALL_PROVIDER_YAMLS_WITH_SUSPENDED}
-    for path in sorted(Path(BUILD_DIR).glob("docs/apache-airflow-providers-*/")):
+    for path in sorted(GENERATED_BUILD_DOCS_PATH.glob("apache-airflow-providers-*/")):
         package_name = path.name
         try:
             providers.append(provider_yamls[package_name])

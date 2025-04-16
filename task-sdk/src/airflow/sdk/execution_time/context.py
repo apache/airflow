@@ -44,14 +44,16 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from airflow.sdk import Variable
-    from airflow.sdk.api.datamodels._generated import AssetEventDagRunReference, AssetEventResponse
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.execution_time.comms import (
+        AssetEventDagRunReferenceResult,
+        AssetEventResult,
         AssetEventsResult,
         AssetResult,
         ConnectionResult,
+        OKResponse,
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
@@ -211,6 +213,71 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     return variable.value
 
 
+def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    import json
+
+    from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # check for write conflicts on the worker
+    for secrets_backend in ensure_secrets_backend_loaded():
+        try:
+            var_val = secrets_backend.get_variable(key=key)
+            if var_val is not None:
+                _backend_name = type(secrets_backend).__name__
+                log.warning(
+                    "The variable %s is defined in the %s secrets backend, which takes "
+                    "precedence over reading from the database. The value in the database will be "
+                    "updated, but to read it you have to delete the conflicting variable "
+                    "from %s",
+                    key,
+                    _backend_name,
+                    _backend_name,
+                )
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    try:
+        if serialize_json:
+            value = json.dumps(value, indent=2)
+    except Exception as e:
+        log.exception(e)
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
+
+
+def _delete_variable(key: str) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.comms import DeleteVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # It is best to have lock everywhere or nowhere on the SUPERVISOR_COMMS, lock was
+    # primarily added for triggers but it doesn't make sense to have it in some places
+    # and not in the rest. A lot of this will be simplified by https://github.com/apache/airflow/issues/46426
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=DeleteVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+    if TYPE_CHECKING:
+        assert isinstance(msg, OKResponse)
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
@@ -331,20 +398,20 @@ class _AssetRefResolutionMixin:
 @attrs.define
 class TriggeringAssetEventsAccessor(
     _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReference"]],
+    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReferenceResult"]],
 ):
     """Lazy mapping of triggering asset events."""
 
-    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReference]]
+    _events: Mapping[BaseAssetUniqueKey, Sequence[AssetEventDagRunReferenceResult]]
 
     @classmethod
-    def build(cls, events: Iterable[AssetEventDagRunReference]) -> TriggeringAssetEventsAccessor:
-        collected: dict[BaseAssetUniqueKey, list[AssetEventDagRunReference]] = collections.defaultdict(list)
+    def build(cls, events: Iterable[AssetEventDagRunReferenceResult]) -> TriggeringAssetEventsAccessor:
+        coll: dict[BaseAssetUniqueKey, list[AssetEventDagRunReferenceResult]] = collections.defaultdict(list)
         for event in events:
-            collected[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
+            coll[AssetUniqueKey(name=event.asset.name, uri=event.asset.uri)].append(event)
             for alias in event.source_aliases:
-                collected[AssetAliasUniqueKey(name=alias.name)].append(event)
-        return cls(collected)
+                coll[AssetAliasUniqueKey(name=alias.name)].append(event)
+        return cls(coll)
 
     def __str__(self) -> str:
         return f"TriggeringAssetEventAccessor(_events={self._events})"
@@ -358,7 +425,7 @@ class TriggeringAssetEventsAccessor(
     def __len__(self) -> int:
         return len(self._events)
 
-    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReference]:
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> Sequence[AssetEventDagRunReferenceResult]:
         hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
@@ -403,9 +470,9 @@ class _AssetEventAccessorsMixin(Generic[T]):
     def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
         if name and uri:
             return self[Asset(name=name, uri=uri)]
-        elif name:
+        if name:
             return self[Asset.ref(name=name)]
-        elif uri:
+        if uri:
             return self[Asset.ref(uri=uri)]
 
         raise ValueError("name and uri cannot both be None")
@@ -485,7 +552,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResponse]:
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
@@ -527,7 +594,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         if TYPE_CHECKING:
             assert isinstance(msg, AssetEventsResult)
 
-        return msg.asset_events
+        return list(msg.iter_asset_event_results())
 
 
 @cache  # Prevent multiple API access.

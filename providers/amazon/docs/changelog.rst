@@ -26,6 +26,39 @@
 Changelog
 ---------
 
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+* ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+* ``S3Hook: remove error return on inactivity period check (#48782)``
+
+Misc
+~~~~
+
+* ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+* ``Fix typo in docstring for MwaaHook (#48980)``
+* ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+* ``Change provider-specific dependencies to refer to providers (#48843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor AWS system tests to not use @task.branch (#48973)``
+   * ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Fix default base value (#49013)``
+
 9.5.0
 .....
 

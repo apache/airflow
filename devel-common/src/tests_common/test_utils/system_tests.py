@@ -53,11 +53,10 @@ def get_test_run(dag, **test_kwargs):
     def add_callback(current: list[Callable] | Callable | None, new: Callable) -> list[Callable] | Callable:
         if not current:
             return new
-        elif isinstance(current, list):
+        if isinstance(current, list):
             current.append(new)
             return current
-        else:
-            return [current, new]
+        return [current, new]
 
     @pytest.mark.system
     def test_run():

@@ -41,14 +41,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+15.0.1
+......
+
+Latest change: 2025-04-09
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`4b87d52184 <https://github.com/apache/airflow/commit/4b87d52184746c7d0c779b6b3ec496c067a7e36b>`__  2025-04-09   ``Add missing license comment in google docs (#48985)``
+`fa5a6c7e1a <https://github.com/apache/airflow/commit/fa5a6c7e1a9e8d064f4bc92267bd969ae6f1417f>`__  2025-04-08   ``Fix false friends in implicit string concatenation (#48871)``
+`d3073c243c <https://github.com/apache/airflow/commit/d3073c243cf8f8df3a4de66e5bf2238743d9f2d4>`__  2025-04-08   ``Deprecate Life Scrience service (#48862)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`9470998c91 <https://github.com/apache/airflow/commit/9470998c919d6fb575299f0927638351a96b81a9>`__  2025-04-08   ``Small fixies for system tests in google-provider (#48861)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 15.0.0
 ......
 
-Latest change: 2025-04-04
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =================================================================================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
 `9057c130e1 <https://github.com/apache/airflow/commit/9057c130e19692567d5e0e2926b947323b5e29cd>`__  2025-04-04   ``fix: remove extra slash character from file URI formation in 'MetastoreHivePartitionSensor.poke' method. (#48731)``
 `c1088b6720 <https://github.com/apache/airflow/commit/c1088b672025aae5706034c601c1d54811448e54>`__  2025-04-02   ``Rework remote task log handling for the structlog era. (#48491)``

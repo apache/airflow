@@ -102,7 +102,7 @@ def resource_name(root_dag_id: str, resource: str) -> str:
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
     for a subdag. A normal dag should pass the ``DagModel.dag_id``.
     """
-    if root_dag_id in RESOURCE_DETAILS_MAP.keys():
+    if root_dag_id in RESOURCE_DETAILS_MAP:
         return root_dag_id
     if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return root_dag_id

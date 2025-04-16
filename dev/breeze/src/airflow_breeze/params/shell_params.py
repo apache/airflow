@@ -386,13 +386,13 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            if self.test_group == GroupOfTests.CORE:
+            if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
-            elif self.test_group == GroupOfTests.PROVIDERS:
+            elif self.test_group == GroupOfTests.INTEGRATION_PROVIDERS:
                 integrations = TESTABLE_PROVIDERS_INTEGRATIONS
             else:
                 get_console().print(
-                    "[error]You can only use `core` or `providers` test "
+                    "[error]You can only use `integration-core` or `integration-providers` test "
                     "group with `all-testable` integration."
                 )
                 sys.exit(1)
@@ -519,7 +519,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
-        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
@@ -533,7 +532,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         if self.executor == EDGE_EXECUTOR:
             _set_var(
-                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+                _env,
+                "AIRFLOW__CORE__EXECUTOR",
+                "airflow.providers.edgeexecutor.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(
@@ -700,12 +701,11 @@ class ShellParams:
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
                     return
-                else:
-                    if get_verbose():
-                        get_console().print(
-                            f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
-                        )
+                if get_verbose():
+                    get_console().print(
+                        f"[info]The keys has changed vs last run. Regenerating[/]: "
+                        f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
+                    )
             if get_verbose():
                 get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
             GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))

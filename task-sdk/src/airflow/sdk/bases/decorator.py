@@ -101,7 +101,7 @@ class ExpandableFactory(Protocol):
                 )
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
-        elif kwargs_left:
+        if kwargs_left:
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
@@ -382,7 +382,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if len(context_keys_being_mapped) == 1:
             (name,) = context_keys_being_mapped
             raise ValueError(f"cannot call {func}() on task context variable {name!r}")
-        elif context_keys_being_mapped:
+        if context_keys_being_mapped:
             names = ", ".join(repr(n) for n in context_keys_being_mapped)
             raise ValueError(f"cannot call {func}() on task context variables {names}")
 
@@ -674,7 +674,7 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
         return cast("TaskDecorator", decorator)
-    elif python_callable is not None:
+    if python_callable is not None:
         raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):

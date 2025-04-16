@@ -58,8 +58,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         )
     if cursor.description is not None:
         return cursor.fetchall()
-    else:
-        return None
+    return None
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
@@ -71,5 +70,4 @@ def fetch_one_handler(cursor) -> list[tuple] | None:
         )
     if cursor.description is not None:
         return cursor.fetchone()
-    else:
-        return None
+    return None

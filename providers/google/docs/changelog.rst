@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+15.0.1
+......
+
+Misc
+~~~~
+
+* ``Deprecate Life Scrience service (#48862)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing license comment in google docs (#48985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix false friends in implicit string concatenation (#48871)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Small fixies for system tests in google-provider (#48861)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 15.0.0
 ......
 

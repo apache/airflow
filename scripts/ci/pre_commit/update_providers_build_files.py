@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -67,17 +68,28 @@ if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")
     sys.exit(1)
 
+cmd = [
+    "breeze",
+    "release-management",
+    "prepare-provider-documentation",
+    "--reapply-templates-only",
+    "--skip-git-fetch",
+    "--only-min-version-update",
+]
+
+if os.environ.get("ONLY_PYPROJECT_TOML_CHANGED", "") == "true":
+    # in order to make dependabot happy we skip generating changelog/readme when only
+    # pyproject.toml files changed
+    cmd.extend(
+        [
+            "--skip-changelog",
+            "--skip-readme",
+        ]
+    )
+
+cmd.extend(providers)
 res = subprocess.run(
-    [
-        "breeze",
-        "release-management",
-        "prepare-provider-documentation",
-        "--reapply-templates-only",
-        "--skip-git-fetch",
-        "--skip-changelog",
-        "--only-min-version-update",
-        *list(providers),
-    ],
+    cmd,
     check=False,
 )
 if res.returncode != 0:

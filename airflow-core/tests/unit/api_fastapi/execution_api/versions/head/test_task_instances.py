@@ -596,8 +596,8 @@ class TestTIUpdateState:
             mock.patch(
                 "airflow.api_fastapi.common.db.common.Session.execute",
                 side_effect=[
-                    mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
-                    mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # First call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0, "dag")),  # Second call returns "queued"
                     SQLAlchemyError("Database error"),  # Last call raises an error
                 ],
             ),
@@ -707,7 +707,7 @@ class TestTIUpdateState:
         assert trs[0].task_instance.dag_id == "dag"
         assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
         assert trs[0].task_instance.run_id == "test"
-        assert trs[0].try_number == 0
+        assert trs[0].ti_id == tis[0].id
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
@@ -763,20 +763,21 @@ class TestTIUpdateState:
         assert response.status_code == 204
         assert response.text == ""
 
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
+        ti = session.scalar(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        )
+        # ti = session.get(TaskInstance, ti.id)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
         tih = (
             session.query(TaskInstanceHistory)
-            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id)
+            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id)
             .one()
         )
-        assert tih.try_id
-        assert tih.try_id != ti.try_id
+        assert tih.task_instance_id
+        assert tih.task_instance_id != ti.id
 
     def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
@@ -1204,8 +1205,7 @@ class TestGetRescheduleStartDate:
             session=session,
         )
         tr = TaskReschedule(
-            task_instance_id=ti.id,
-            try_number=1,
+            ti_id=ti.id,
             start_date=timezone.datetime(2024, 1, 1),
             end_date=timezone.datetime(2024, 1, 1, 1),
             reschedule_date=timezone.datetime(2024, 1, 1, 2),
@@ -1221,37 +1221,6 @@ class TestGetRescheduleStartDate:
         ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
         assert response.json() is None
-
-    def test_get_start_date_with_try_number(self, client, session, create_task_instance):
-        # Create multiple reschedules
-        dates = [
-            timezone.datetime(2024, 1, 1),
-            timezone.datetime(2024, 1, 2),
-            timezone.datetime(2024, 1, 3),
-        ]
-
-        ti = create_task_instance(
-            task_id="test_get_start_date_with_try_number",
-            state=State.RUNNING,
-            start_date=timezone.datetime(2024, 1, 1),
-            session=session,
-        )
-
-        for i, date in enumerate(dates, 1):
-            tr = TaskReschedule(
-                task_instance_id=ti.id,
-                try_number=i,
-                start_date=date,
-                end_date=date.replace(hour=1),
-                reschedule_date=date.replace(hour=2),
-            )
-            session.add(tr)
-        session.commit()
-
-        # Test getting start date for try_number 2
-        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date?try_number=2")
-        assert response.status_code == 200
-        assert response.json() == "2024-01-02T00:00:00Z"
 
 
 class TestGetCount:
@@ -1416,3 +1385,201 @@ class TestGetCount:
         )
         assert response.status_code == 200
         assert response.json() == 2
+
+
+class TestGetTaskStates:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_get_task_states_basic(self, client, session, create_task_instance):
+        create_task_instance(task_id="test_task", state=State.SUCCESS)
+        session.commit()
+
+        response = client.get("/execution/task-instances/states", params={"dag_id": "dag"})
+        assert response.status_code == 200
+        assert response.json() == {"task_states": {"test": {"test_task": "success"}}}
+
+    def test_get_task_states_group_id_basic(self, client, dag_maker, session):
+        with dag_maker(dag_id="test_dag", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+
+        dag_maker.create_dagrun(session=session)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": "test_dag", "task_group_id": "group1"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": None,
+                },
+            },
+        }
+
+    def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):
+        with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+
+        # Set different states for the task instances
+        for ti, state in zip(tis, [State.SUCCESS, State.FAILED]):
+            ti.state = state
+            session.merge(ti)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
+                "task_group_id": "group1",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": "success",
+                    "task2": "failed",
+                },
+            },
+        }
+
+    def test_get_task_group_states_with_multiple_task(self, client, session, dag_maker):
+        with dag_maker("test_get_task_group_states_with_multiple_task_tasks", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+                EmptyOperator(task_id="task3")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+
+        # Set different states for the task instances
+        for ti, state in zip(tis, [State.SUCCESS, State.FAILED, State.SKIPPED]):
+            ti.state = state
+            session.merge(ti)
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
+                "task_group_id": "group1",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": "success",
+                    "group1.task2": "failed",
+                    "group1.task3": "skipped",
+                },
+            },
+        }
+
+    def test_get_task_group_states_with_logical_dates(self, client, session, dag_maker, serialized=True):
+        with dag_maker("test_get_task_group_states_with_logical_dates", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+
+        date1 = timezone.datetime(2025, 1, 1)
+        date2 = timezone.datetime(2025, 1, 2)
+
+        dag_maker.create_dagrun(run_id="test_run_id1", logical_date=date1)
+        dag_maker.create_dagrun(run_id="test_run_id2", logical_date=date2)
+
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_group_states_with_logical_dates",
+                "logical_dates": [date1.isoformat(), date2.isoformat()],
+                "task_group_id": "group1",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test_run_id1": {
+                    "group1.task1": None,
+                },
+                "test_run_id2": {
+                    "group1.task1": None,
+                },
+            },
+        }
+
+    def test_get_task_group_states_with_run_ids(self, client, session, dag_maker):
+        with dag_maker("test_get_task_group_states_with_run_ids", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+
+        dag_maker.create_dagrun(run_id="run1", logical_date=timezone.datetime(2025, 1, 1))
+        dag_maker.create_dagrun(run_id="run2", logical_date=timezone.datetime(2025, 1, 2))
+
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_group_states_with_run_ids",
+                "run_ids": ["run1", "run2"],
+                "task_group_id": "group1",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "run1": {
+                    "group1.task1": None,
+                },
+                "run2": {
+                    "group1.task1": None,
+                },
+            },
+        }
+
+    def test_get_task_states_task_group_not_found(self, client, session, dag_maker):
+        with dag_maker(dag_id="test_get_task_states_task_group_not_found", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(session=session)
+
+        response = client.get(
+            "/execution/task-instances/states",
+            params={
+                "dag_id": "test_get_task_states_task_group_not_found",
+                "task_group_id": "non_existent_group",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task group non_existent_group not found in DAG test_get_task_states_task_group_not_found",
+        }
+
+    def test_get_task_states_dag_not_found(self, client, session):
+        response = client.get(
+            "/execution/task-instances/states",
+            params={"dag_id": "non_existent_dag", "task_group_id": "group1"},
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "DAG non_existent_dag not found",
+        }

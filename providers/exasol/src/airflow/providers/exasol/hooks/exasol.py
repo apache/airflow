@@ -257,8 +257,7 @@ class ExasolHook(DbApiHook):
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_columns]
             return _last_result
-        else:
-            return results
+        return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """

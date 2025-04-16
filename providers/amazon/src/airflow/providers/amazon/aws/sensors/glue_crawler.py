@@ -73,7 +73,5 @@ class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True
-            else:
-                raise AirflowException(f"Status: {crawler_status}")
-        else:
-            return False
+            raise AirflowException(f"Status: {crawler_status}")
+        return False

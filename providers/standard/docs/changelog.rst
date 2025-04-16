@@ -35,6 +35,33 @@
 Changelog
 ---------
 
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make default as time.now() for TriggerDagRunOperator (#48969)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
+* ``Get 'LatestOnlyOperator' working with Task SDK (#48945)``
+* ``Fix dagstate trigger to work with TaskSDK (#48747)``
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix default base value (#49013)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 0.3.0
 .....
 

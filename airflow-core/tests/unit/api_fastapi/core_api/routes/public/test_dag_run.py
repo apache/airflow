@@ -1431,6 +1431,21 @@ class TestTriggerDagRun:
         assert response.status_code == 422
         assert response.json() == expected_detail
 
+    def test_post_dag_runs_with_empty_payload(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", data={}, headers={"Content-Type": "application/json"}
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"] == [
+            {
+                "input": None,
+                "loc": ["body"],
+                "msg": "Field required",
+                "type": "missing",
+            },
+        ]
+
     @mock.patch("airflow.models.DAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()

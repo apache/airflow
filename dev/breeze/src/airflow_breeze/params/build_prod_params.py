@@ -60,8 +60,7 @@ class BuildProdParams(CommonBuildParams):
     def airflow_version(self) -> str:
         if self.install_airflow_version:
             return self.install_airflow_version
-        else:
-            return self._get_version_with_suffix()
+        return self._get_version_with_suffix()
 
     @property
     def airflow_semver_version(self) -> str:

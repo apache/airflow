@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.3
+.....
+
+Latest change: 2025-04-09
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`e84c177f74 <https://github.com/apache/airflow/commit/e84c177f747f728ae52eeaa2c665ef6a4627c5af>`__  2025-04-09   ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+`ad2e80d299 <https://github.com/apache/airflow/commit/ad2e80d2997dc46ca175a39a0a8b8c216361323f>`__  2025-04-08   ``tests: verify openlineage airflow models serialization (#47915)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 2.1.2
 .....
 
-Latest change: 2025-04-05
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ===========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===========================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `e84a745bd9 <https://github.com/apache/airflow/commit/e84a745bd99e2a0d40de68b1c220c43ccf787ed9>`__  2025-04-05   ``Fix OL tests due to decorators move to std provider (#48808)``
 `25cf4145a4 <https://github.com/apache/airflow/commit/25cf4145a485e25e7667d2e2fc6432973388b2e0>`__  2025-04-04   ``fix: remove use of get_inlet_defs and get_outlet_defs from OpenLineage (#48792)``
 `1b98450c0b <https://github.com/apache/airflow/commit/1b98450c0b1aaa171387f0b006f37de7b6bd3d75>`__  2025-04-03   ``Implement triggering_asset_events in task sdk (#48650)``

@@ -34,14 +34,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.0
+.....
+
+Latest change: 2025-04-08
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`7612f4ba68 <https://github.com/apache/airflow/commit/7612f4ba68b7a6d767107f35accb9910776590ad>`__  2025-04-08   ``Implement concurrent directory transfer in SFTPOperator (#47533)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 5.1.2
 .....
 
-Latest change: 2025-04-02
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =======================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =======================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `ac3090d776 <https://github.com/apache/airflow/commit/ac3090d7768eafcefc680f6ad7de7daada4382e8>`__  2025-03-31   ``Checking modification timestamps only when newer_than parameter is present (#48063)``
 `347c98cd8c <https://github.com/apache/airflow/commit/347c98cd8c285b7b8ca3a8a626be89d16a572bbf>`__  2025-03-28   ``Move 'BaseSensorOperator' to TaskSDK definitions (#48244)``

@@ -155,9 +155,9 @@ NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 def get_replacement(value: str, quoting: Quoting) -> str:
     if quoting == Quoting.DOUBLE_QUOTED:
         return f'"{value}"'
-    elif quoting == Quoting.SINGLE_QUOTED:
+    if quoting == Quoting.SINGLE_QUOTED:
         return f"'{value}'"
-    elif quoting == Quoting.REVERSE_SINGLE_QUOTED:
+    if quoting == Quoting.REVERSE_SINGLE_QUOTED:
         return f"`{value}`"
     return value
 

@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
-    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.protocols import DeltaType
 
 log = logging.getLogger(__name__)
 
@@ -282,7 +282,7 @@ class SafeOtelLogger:
         *args,
         tags: Attributes = None,
         **kwargs,
-    ) -> TimerProtocol:
+    ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
         return _OtelTimer(self, stat, tags)
 
@@ -348,7 +348,7 @@ class MetricsMap:
         :param attributes: Counter attributes which were used to generate a unique key to store the counter.
         """
         key = _generate_key_name(name, attributes)
-        if key in self.map.keys():
+        if key in self.map:
             del self.map[key]
 
     def set_gauge_value(self, name: str, value: int | float, delta: bool, tags: Attributes):

@@ -364,9 +364,11 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     )
     from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
 
-    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath("v1.yaml")
+    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath(
+        "v1-flask-api.yaml"
+    )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-generated.yaml"
+        "v1-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {

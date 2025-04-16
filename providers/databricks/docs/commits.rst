@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.3.1
+.....
+
+Latest change: 2025-04-08
+
+==================================================================================================  ===========  =====================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =====================================================================================
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`659150689e <https://github.com/apache/airflow/commit/659150689e631c610ea18485b9986e3ff27f0b36>`__  2025-04-07   ``Fix Databricks provider tests (#48877)``
+`7933b44a1b <https://github.com/apache/airflow/commit/7933b44a1b52711826ab9cc6a47e1a70a689baa1>`__  2025-04-07   ``Fix static checks in mock_databricks_hook (#48869)``
+`b752f7e9c0 <https://github.com/apache/airflow/commit/b752f7e9c0f5ab1bb19d8d0d7de4806afa48a7b7>`__  2025-04-07   ``fix for databricks repair buttons not overriding the template parameters (#46704)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  =====================================================================================
+
 7.3.0
 .....
 
-Latest change: 2025-04-03
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =============================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =============================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `7fb5abad64 <https://github.com/apache/airflow/commit/7fb5abad64332596dce55ad9b9cba35ac13fbc4a>`__  2025-04-03   ``Add DatabricksSQLStatementsOperator (#48507)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `47002feacd <https://github.com/apache/airflow/commit/47002feacd8aaf794b47c2dd241aa25068354a2a>`__  2025-03-30   ``Upgrade ruff to latest version (#48553)``

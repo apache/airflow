@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+7.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix overriding_parameters missing in repair_task (#48877)``
+* ``fix for databricks repair buttons not overriding the template parameters (#46704)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix static checks in mock_databricks_hook (#48869)``
+   * ``Improve documentation building iteration (#48760)``
+
 7.3.0
 .....
 

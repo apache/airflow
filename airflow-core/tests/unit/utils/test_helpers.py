@@ -131,7 +131,7 @@ class TestHelpers:
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
     def test_build_airflow_dagrun_url(self):
-        expected_url = "http://localhost:8080/dags/somedag/runs/abc123"
+        expected_url = "/dags/somedag/runs/abc123"
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
 
     @pytest.mark.parametrize(

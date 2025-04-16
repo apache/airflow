@@ -37,11 +37,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2025-04-03
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================================================
+`b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
+`00aec39a4c <https://github.com/apache/airflow/commit/00aec39a4c4987496ee365eca212657dec45be5e>`__  2025-04-10   ``Bring back serve_logs to be in the core (#49031)``
+`b9ee31cd81 <https://github.com/apache/airflow/commit/b9ee31cd81dcd22a50509633da7713be7dad6fc5>`__  2025-04-09   ``Force use of symetric JWT algorithm for internal logs server (#49029)``
+`f40fb4af4e <https://github.com/apache/airflow/commit/f40fb4af4e64601af836e2e47b4a87fc68c95fe4>`__  2025-04-09   ``Move FAB related configs to FAB provider (#49017)``
+`55c29a089a <https://github.com/apache/airflow/commit/55c29a089aa423af7b0da4479131ed75561f0ad2>`__  2025-04-09   ``Add back methods needed by Flask in 'AirflowAppBuilder' (#48968)``
+`b46275b7ee <https://github.com/apache/airflow/commit/b46275b7eeb7dc26b2166329de16b19da9ab033e>`__  2025-04-09   ``Bump webpack (#49016)``
+`546675500e <https://github.com/apache/airflow/commit/546675500e0953fdd3d832ab6263b2e18dfc1037>`__  2025-04-09   ``Add ability to configure PERMANENT_SESSION_LIFETIME in fab for session logout. (#48827)``
+`a052453d8e <https://github.com/apache/airflow/commit/a052453d8e20d7a548f8624485a7841418901e8b>`__  2025-04-09   ``Move wtforms/Werkzeug dependencies to FAB provider (#48970)``
+`1c47053aaf <https://github.com/apache/airflow/commit/1c47053aafd78fb134b5c27ff7042a57802c153a>`__  2025-04-08   ``Bump webpack (#48959)``
+`c68f31d3db <https://github.com/apache/airflow/commit/c68f31d3db6b957b4aeede7a257cc0ba59f12ce1>`__  2025-04-08   ``Remove dev0 suffix from Airlfow version (#48934)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`3039600b8e <https://github.com/apache/airflow/commit/3039600b8e3f9c19dd9be0f355c0667a82175a4d>`__  2025-04-08   ``Apply configuration defined in 'webserver_config.py' to Flask config (#48898)``
+`0a4eadd183 <https://github.com/apache/airflow/commit/0a4eadd1835c16502d4f2b58cff63b3f470ee563>`__  2025-04-07   ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#48893)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`e187961bde <https://github.com/apache/airflow/commit/e187961bde09198942e09494c551c5e9ee76d275>`__  2025-04-07   ``Add single endpoint to retrieve menu information (#48762)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `a32193503c <https://github.com/apache/airflow/commit/a32193503c6ad0a673eca7576b4725d93041f3ac>`__  2025-04-03   ``Handle user deletion while being logged in in FAB auth manager (#48754)``
 `24548e2a36 <https://github.com/apache/airflow/commit/24548e2a3682d710e10594e0b8b7714c4373cd95>`__  2025-04-03   ``Prepare documentation for FAB 2.0.0rc2 release (#48745)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``

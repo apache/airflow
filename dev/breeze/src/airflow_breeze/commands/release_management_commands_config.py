@@ -258,6 +258,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--reapply-templates-only",
                 "--skip-git-fetch",
                 "--skip-changelog",
+                "--skip-readme",
             ],
         }
     ],

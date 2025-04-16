@@ -25,7 +25,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_configuration
 from airflow.configuration import conf
-from airflow.settings import DASHBOARD_UIALERTS, STATE_COLORS
+from airflow.settings import DASHBOARD_UIALERTS
 
 config_router = AirflowRouter(tags=["Config"])
 
@@ -33,7 +33,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_color",
     "page_size",
     "auto_refresh_interval",
-    "default_ui_timezone",
     "hide_paused_dags_by_default",
     "warn_deployment_exposure",
     "default_wrap",
@@ -63,7 +62,6 @@ def get_configs() -> ConfigResponse:
         "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
         "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
-        "state_color_mapping": STATE_COLORS,
         "dashboard_alert": DASHBOARD_UIALERTS,
     }
 
