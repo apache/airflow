@@ -35,9 +35,6 @@ if typing.TYPE_CHECKING:
 
     from airflow.utils.state import DagRunState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.session import NEW_SESSION, provide_session
-
 
 class WorkflowTrigger(BaseTrigger):
     """
@@ -269,6 +266,7 @@ class DagStateTrigger(BaseTrigger):
             await asyncio.sleep(self.poll_interval)
 
     if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
 
         @sync_to_async
         @provide_session
