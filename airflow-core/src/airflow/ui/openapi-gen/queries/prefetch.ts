@@ -2274,6 +2274,7 @@ export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2288,6 +2289,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -2301,6 +2303,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -2317,6 +2320,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       lastDagRunState,
       limit,
       offset,
+      orderBy,
       owners,
       paused,
       tags,
@@ -2332,6 +2336,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

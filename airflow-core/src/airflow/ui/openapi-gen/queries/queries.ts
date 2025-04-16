@@ -2721,6 +2721,7 @@ export const useAuthLinksServiceGetAuthMenus = <
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2738,6 +2739,7 @@ export const useDagsServiceRecentDagRuns = <
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -2751,6 +2753,7 @@ export const useDagsServiceRecentDagRuns = <
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -2770,6 +2773,7 @@ export const useDagsServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,
@@ -2787,6 +2791,7 @@ export const useDagsServiceRecentDagRuns = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,

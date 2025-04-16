@@ -2608,6 +2608,7 @@ export type RecentDagRunsData = {
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
+  orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;

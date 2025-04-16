@@ -42,7 +42,6 @@ export const useDags = (
 
   const refetchInterval = useAutoRefresh({});
 
-  const { orderBy, ...runsParams } = searchParams;
   const {
     data: runsData,
     error: runsError,
@@ -50,8 +49,8 @@ export const useDags = (
     isLoading: isRunsLoading,
   } = useDagsServiceRecentDagRuns(
     {
-      ...runsParams,
-      dagRunsLimit: 14,
+      ...searchParams,
+      dagRunsLimit: 1,
     },
     undefined,
     {
