@@ -220,8 +220,8 @@ class TestDagFileProcessorManager:
         # even though it is first in '_file_path_queue'
         # a new processor is created with 'file_2' and not 'file_1'.
 
-        assert file_1 in manager._processors
-        assert file_2 in manager._processors
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
         assert deque([file_3]) == manager._file_queue
 
     def test_handle_removed_files_when_processor_file_path_not_in_new_file_paths(self):

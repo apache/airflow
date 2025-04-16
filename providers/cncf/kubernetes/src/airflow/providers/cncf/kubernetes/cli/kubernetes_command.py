@@ -43,7 +43,10 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 def generate_pod_yaml(args):
     """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     logical_date = args.logical_date if AIRFLOW_V_3_0_PLUS else args.execution_date
-    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    if AIRFLOW_V_3_0_PLUS:
+        dag = get_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
+    else:
+        dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
     if AIRFLOW_V_3_0_PLUS:
         dr = DagRun(dag.dag_id, logical_date=logical_date)

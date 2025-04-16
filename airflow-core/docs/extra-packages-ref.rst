@@ -301,7 +301,7 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                      |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
-| edgeexecutor        | ``pip install 'apache-airflow[edgeexecutor]'``      | Connect Edge Workers via HTTP to the scheduler                  | EdgeExecutor                                 |
+| edge3               | ``pip install 'apache-airflow[edge3]'``             | Connect Edge Workers via HTTP to the scheduler                  | EdgeExecutor                                 |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                             |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
