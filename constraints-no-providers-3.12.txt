@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-16T12:07:09.479846
+# This constraints file was automatically generated on 2025-04-16T13:19:22.283412
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -307,7 +307,7 @@ jupyter_core==5.7.2
 jupyterlab_pygments==0.3.0
 keyring==25.6.0
 kgb==7.2
-kombu==5.5.2
+kombu==5.5.3
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
