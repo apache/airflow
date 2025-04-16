@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
 FilterCallables = Sequence[Callable[[Any], bool]]
-T = TypeVar("T", bound=Sequence)
+T = TypeVar("T", bound=Union[Sequence[Any], Mapping[Any, Any]])
 
 
 class XComArg(ResolveMixin, DependencyMixin):
