@@ -398,10 +398,10 @@ class CallableResultMixin(Sequence, metaclass=ABCMeta):
         self.callables = callables
 
     @classmethod
-    def _convert(cls, value: Sequence | dict) -> list | set:
-        if isinstance(value, dict):
+    def _convert(cls, value: Sequence | dict) -> list:
+        if isinstance(value, (dict, set)):
             return list(value)
-        if isinstance(value, (list, set)):
+        if isinstance(value, list):
             return value
         raise ValueError(
             f"XCom filter expects sequence or dict, not {type(value).__name__}"
