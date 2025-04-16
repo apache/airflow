@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-16T02:23:25.978528
+# This constraints file was automatically generated on 2025-04-16T13:53:05.461069
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -333,7 +333,7 @@ kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
 kgb==7.2
-kombu==5.5.2
+kombu==5.5.3
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
@@ -438,6 +438,7 @@ platformdirs==4.3.7
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
+polars==1.27.1
 portalocker==2.10.1
 pprintpp==0.4.0
 pre_commit==4.2.0
@@ -531,7 +532,7 @@ rich-click==1.8.8
 rich-toolkit==0.14.1
 rich==13.9.4
 rpds-py==0.24.0
-rsa==4.9
+rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2
@@ -640,7 +641,7 @@ types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing-inspect==0.9.0
 typing-inspection==0.4.0
-typing_extensions==4.12.2
+typing_extensions==4.13.2
 tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3

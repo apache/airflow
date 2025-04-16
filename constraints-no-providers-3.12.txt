@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-16T02:29:25.105954
+# This constraints file was automatically generated on 2025-04-16T13:58:54.532859
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -307,7 +307,7 @@ jupyter_core==5.7.2
 jupyterlab_pygments==0.3.0
 keyring==25.6.0
 kgb==7.2
-kombu==5.5.2
+kombu==5.5.3
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
@@ -483,7 +483,7 @@ rich-click==1.8.8
 rich-toolkit==0.14.1
 rich==13.9.4
 rpds-py==0.24.0
-rsa==4.9
+rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2
