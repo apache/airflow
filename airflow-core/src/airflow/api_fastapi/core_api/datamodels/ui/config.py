@@ -28,7 +28,6 @@ class ConfigResponse(BaseModel):
     navbar_text_color: str
     navbar_hover_color: str
     navbar_text_hover_color: str
-    navbar_logo_text_color: str
     page_size: int
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool
