@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-import contextlib
 import inspect
 import itertools
 from abc import ABCMeta
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
+from collections.abc import Iterable, Iterator, Mapping, Set, Sequence, Sized
+from contextlib import suppress
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union, overload
 
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 # safety (those callables are arbitrary user code).
 MapCallables = Sequence[Callable[[Any], Any]]
 FilterCallables = Sequence[Callable[[Any], bool]]
-T = TypeVar("T", bound=Union[Sequence[Any], Mapping[Any, Any]])
 
 
 class XComArg(ResolveMixin, DependencyMixin):
@@ -386,22 +385,29 @@ def _get_callable_name(f: Callable | str) -> str:
         return f.__name__
     # Parse the source to find whatever is behind "def". For safety, we don't
     # want to evaluate the code in any meaningful way!
-    with contextlib.suppress(Exception):
+    with suppress(Exception):
         kw, name, _ = f.lstrip().split(None, 2)
         if kw == "def":
             return name
     return "<function>"
 
 
-class CallableResultMixin(Generic[T], Sequence, metaclass=ABCMeta):
-    def __init__(self, value: T, callables: MapCallables) -> None:
+class CallableResultMixin(Sequence, metaclass=ABCMeta):
+    def __init__(self, value: list | set | dict, callables: MapCallables) -> None:
         self.value = self._convert(value)
         self.callables = callables
 
     @classmethod
-    def _convert(cls, value: T) -> Sequence:
-        if isinstance(value, Mapping):
+    def _convert(cls, value: list | set | dict) -> Sequence:
+        if isinstance(value, dict):
             return list(value)
+        return value
+
+    def append(self, value: list | set) -> Any:
+        if isinstance(self.value, list):
+            self.value.append(value)
+        elif isinstance(self.value, set):
+            self.value.add(value)
         return value
 
     def _apply_callables(self, value):
@@ -410,7 +416,7 @@ class CallableResultMixin(Generic[T], Sequence, metaclass=ABCMeta):
         return value
 
 
-class _MapResult(CallableResultMixin[Sequence]):
+class _MapResult(CallableResultMixin):
     def __getitem__(self, index: Any) -> Any:
         value = self._apply_callables(self.value[index])
         return value
@@ -419,23 +425,15 @@ class _MapResult(CallableResultMixin[Sequence]):
         return len(self.value)
 
 
-class _LazyMapResult(CallableResultMixin[list]):
+class _LazyMapResult(CallableResultMixin):
     def __init__(self, value: Iterable, callables: MapCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
-        self._exhausted = False
 
     def _next_mapped(self) -> Any:
-        """Return the next transformed item from the iterator."""
-        while not self._exhausted:
-            try:
-                item = next(self._iterator)
-                result = self._apply_callables(item)
-                self.value.append(result)
-                return result
-            except StopIteration:
-                self._exhausted = True
-        raise StopIteration
+        item = next(self._iterator)
+        result = self.append(self._apply_callables(item))
+        return result
 
     def __getitem__(self, index: Any) -> Any:
         if index < 0:
@@ -446,26 +444,20 @@ class _LazyMapResult(CallableResultMixin[list]):
                 self._next_mapped()
             except StopIteration:
                 raise IndexError
-        value = self.value[index]
-        return value
+        return self.value[index]
 
     def __len__(self) -> int:
-        # Fully consume the iterator to get accurate length
-        while not self._exhausted:
-            try:
+        with suppress(StopIteration):
+            while True:
                 self._next_mapped()
-            except StopIteration:
-                break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
 
-        while not self._exhausted:
-            try:
+        with suppress(StopIteration):
+            while True:
                 yield self._next_mapped()
-            except StopIteration:
-                break
 
 
 class MapXComArg(XComArg):
@@ -639,54 +631,39 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
-class _FilterResult(CallableResultMixin[list]):
-    def __init__(self, value: Iterable | Sequence | dict, callables: FilterCallables) -> None:
+class _FilterResult(CallableResultMixin):
+    def __init__(self, value: Iterable | list | set | dict, callables: FilterCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
-        self._exhausted = False
 
     def _next_filtered(self) -> Any:
         """Return the next item from the iterator that passes all filters."""
-        while not self._exhausted:
-            try:
-                item = next(self._iterator)
-                if self._apply_callables(item):
-                    self.value.append(item)
-                    return item
-            except StopIteration:
-                self._exhausted = True
-        raise StopIteration
+        while True:
+            item = next(self._iterator)
+            if self._apply_callables(item):
+                return self.append(item)
 
-    def __getitem__(self, index: Any) -> Any:
+    def __getitem__(self, index: int) -> Any:
         if index < 0:
             raise IndexError
 
         while len(self.value) <= index:
-            try:
-                self._next_filtered()
-            except StopIteration:
-                raise IndexError
-
-        value = self.value[index]
-        return value
+            self._next_filtered()
+        return self.value[index]
 
     def __len__(self) -> int:
-        # Force full evaluation to determine total length
-        while not self._exhausted:
-            try:
+        # Fully consume the iterator to get total length
+        with suppress(StopIteration):
+            while True:
                 self._next_filtered()
-            except StopIteration:
-                break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
 
-        while not self._exhausted:
-            try:
+        with suppress(StopIteration):
+            while True:
                 yield self._next_filtered()
-            except StopIteration:
-                break
 
 
 class FilterXComArg(XComArg):
