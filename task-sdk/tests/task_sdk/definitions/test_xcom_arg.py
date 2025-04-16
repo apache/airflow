@@ -113,7 +113,7 @@ def test_xcom_map_transform_to_none_and_filter_on_dict(run_ti: RunTI, mock_super
         pull.expand(value=push().map(c_to_none).filter(None))
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)  # type: ignore
 
     # Run "pull". This should automatically convert "c" to None.
     for map_index in range(3):
