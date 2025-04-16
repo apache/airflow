@@ -41,7 +41,6 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
@@ -336,33 +335,36 @@ class TriggerDagRunOperator(BaseOperator):
                 f" {failed_run_id_conditions}"
             )
 
-    @provide_session
-    def _trigger_dag_run_af_2_execute_complete(
-        self, event: tuple[str, dict[str, Any]], session: Session = NEW_SESSION
-    ):
-        # This logical_date is parsed from the return trigger event
-        provided_logical_date = event[1]["execution_dates"][0]
-        try:
-            # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
-            dag_run = session.execute(
-                select(DagRun).where(
-                    DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
+
+        @provide_session
+        def _trigger_dag_run_af_2_execute_complete(
+            self, event: tuple[str, dict[str, Any]], session: Session = NEW_SESSION
+        ):
+            # This logical_date is parsed from the return trigger event
+            provided_logical_date = event[1]["execution_dates"][0]
+            try:
+                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
+                dag_run = session.execute(
+                    select(DagRun).where(
+                        DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
+                    )
+                ).scalar_one()
+            except NoResultFound:
+                raise AirflowException(
+                    f"No DAG run found for DAG {self.trigger_dag_id} and logical date {self.logical_date}"
                 )
-            ).scalar_one()
-        except NoResultFound:
+
+            state = dag_run.state
+
+            if state in self.failed_states:
+                raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
+            if state in self.allowed_states:
+                self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+                return
+
             raise AirflowException(
-                f"No DAG run found for DAG {self.trigger_dag_id} and logical date {self.logical_date}"
+                f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
+                f" or {self.allowed_states}"
             )
-
-        state = dag_run.state
-
-        if state in self.failed_states:
-            raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
-        if state in self.allowed_states:
-            self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
-            return
-
-        raise AirflowException(
-            f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
-            f" or {self.allowed_states}"
-        )

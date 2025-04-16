@@ -32,13 +32,13 @@ from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
 else:
     from airflow.sensors.base import BaseSensorOperator
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -394,21 +394,23 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Skipping."
             )
 
-    @provide_session
-    def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
-        if self.check_existence and not self._has_checked_existence:
-            self._check_for_existence(session=session)
+    if not AIRFLOW_V_3_0_PLUS:
 
-        if self.failed_states:
-            count_failed = self.get_count(dttm_filter, session, self.failed_states)
-            self._handle_failed_states(count_failed)
+        @provide_session
+        def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+            if self.check_existence and not self._has_checked_existence:
+                self._check_for_existence(session=session)
 
-        if self.skipped_states:
-            count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
-            self._handle_skipped_states(count_skipped)
+            if self.failed_states:
+                count_failed = self.get_count(dttm_filter, session, self.failed_states)
+                self._handle_failed_states(count_failed)
 
-        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
-        return count_allowed == len(dttm_filter)
+            if self.skipped_states:
+                count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
+                self._handle_skipped_states(count_skipped)
+
+            count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
+            return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
         """Run on the worker and defer using the triggers if deferrable is set to True."""
