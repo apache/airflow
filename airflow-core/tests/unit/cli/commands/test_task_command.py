@@ -101,7 +101,6 @@ class TestCliTasks:
             logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             run_after=DEFAULT_DATE,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -353,7 +352,6 @@ class TestCliTasks:
             data_interval=data_interval,
             run_after=default_date2,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.CLI,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
@@ -438,7 +436,6 @@ class TestLogsfromTaskRunCommand:
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
         self.tis = self.dr.get_task_instances()

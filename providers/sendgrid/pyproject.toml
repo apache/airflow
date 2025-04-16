@@ -59,7 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "sendgrid>=6.0.0",
-    "werkzeug>=2.2,<4",
+    "werkzeug>=2.2,<4", # remove when https://github.com/sendgrid/sendgrid-python/pull/1098 is resolved
 ]
 
 [dependency-groups]

@@ -31,7 +31,6 @@ class ConfigResponse(BaseModel):
     navbar_logo_text_color: str
     page_size: int
     auto_refresh_interval: int
-    default_ui_timezone: str
     hide_paused_dags_by_default: bool
     instance_name: str
     instance_name_has_markup: bool
@@ -42,5 +41,4 @@ class ConfigResponse(BaseModel):
     audit_view_excluded_events: str
     audit_view_included_events: str
     test_connection: str
-    state_color_mapping: dict
     dashboard_alert: list[UIAlert]

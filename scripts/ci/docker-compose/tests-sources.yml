@@ -33,7 +33,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/celery/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
-      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/edgeexecutor/src
       - ../../../empty:/opt/airflow/providers/standard/src
       # but keep tests and provider tests tests
       - ../../../core-airflow/tests/:/opt/airflow/core-airflow/tests:cached
@@ -74,7 +74,7 @@ services:
       - ../../../providers/dingding/tests:/opt/airflow/providers/dingding/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
-      - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/edgeexecutor/tests:/opt/airflow/providers/edgeexecutor/tests
       - ../../../providers/elasticsearch/tests:/opt/airflow/providers/elasticsearch/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/fab/tests:/opt/airflow/providers/fab/tests

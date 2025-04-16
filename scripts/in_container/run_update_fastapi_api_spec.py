@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 from fastapi.openapi.utils import get_openapi
+from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 from airflow.api_fastapi.auth.managers.simple import __file__ as SIMPLE_AUTH_MANAGER_PATH
@@ -32,22 +34,24 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent.joinpath("openapi", "v1-generated.yaml")
-SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = Path(SIMPLE_AUTH_MANAGER_PATH).parent.joinpath(
-    "openapi", "v1-generated.yaml"
+OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v1-rest-api-generated.yaml"
+# We need a "combined" spec file to generate the UI code with, but we don't want to include this in the repo
+# nor in the rendered docs, so we make this a separate file which is gitignored
+OPENAPI_UI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "_private_ui.yaml"
+SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
+    Path(SIMPLE_AUTH_MANAGER_PATH).parent / "openapi" / "v1-simple-auth-manager-generated.yaml"
 )
-FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = Path(FAB_AUTH_MANAGER_API_PATH).parent.joinpath(
-    "openapi", "v1-generated.yaml"
+FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
+    Path(FAB_AUTH_MANAGER_API_PATH).parent / "openapi" / "v1-fab-auth-manager-generated.yaml"
 )
 
 
-def generate_file(app: FastAPI, file_path: Path, prefix: str = ""):
-    # The persisted openapi spec will list all endpoints (public and ui), this
-    # is used for code generation.
-    for route in app.routes:
-        if getattr(route, "name") == "webapp":
-            continue
-        route.__setattr__("include_in_schema", True)
+def generate_file(app: FastAPI, file_path: Path, prefix: str = "", only_ui: bool = False):
+    if only_ui:
+        for route in app.routes:
+            if not isinstance(route, APIRoute):
+                continue
+            route.include_in_schema = route.path.startswith("/ui/")
 
     with file_path.open("w+") as f:
         openapi_schema = get_openapi(
@@ -71,6 +75,7 @@ def generate_file(app: FastAPI, file_path: Path, prefix: str = ""):
 
 # Generate main application openapi spec
 generate_file(app=create_app(), file_path=OPENAPI_SPEC_FILE)
+generate_file(app=create_app(), file_path=OPENAPI_UI_SPEC_FILE, only_ui=True)
 
 # Generate simple auth manager openapi spec
 simple_auth_manager_app = SimpleAuthManager().get_fastapi_app()

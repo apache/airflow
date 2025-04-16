@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -24,6 +26,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -104,7 +107,10 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     accessorKey: "dag_versions",
     cell: ({ row: { original } }) => (
       <LimitedItemsList
-        items={original.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+        items={original.dag_versions.map((version) => (
+          <DagVersion key={version.id} version={version} />
+        ))}
+        maxItems={4}
       />
     ),
     enableSorting: false,

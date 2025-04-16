@@ -30,7 +30,7 @@ def data_file():
     if not DATA_FILE_DIRECTORY.exists():
         msg = f"Data Directory {DATA_FILE_DIRECTORY.as_posix()!r} does not exist."
         raise FileNotFoundError(msg)
-    elif not DATA_FILE_DIRECTORY.is_dir():
+    if not DATA_FILE_DIRECTORY.is_dir():
         msg = f"Data Directory {DATA_FILE_DIRECTORY.as_posix()!r} expected to be a directory."
         raise NotADirectoryError(msg)
 

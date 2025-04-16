@@ -40,10 +40,9 @@ airflow_version = "3.0.0"
 
 
 def _get_uuid_type(dialect_name: str) -> sa.types.TypeEngine:
-    if dialect_name == "sqlite":
+    if dialect_name != "postgres":
         return sa.String(36)
-    else:
-        return UUIDType(binary=False)
+    return UUIDType(binary=False)
 
 
 def upgrade():

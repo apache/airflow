@@ -866,8 +866,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -1528,8 +1527,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         with pytest.raises(
             AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"

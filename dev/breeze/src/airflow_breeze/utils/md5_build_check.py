@@ -158,13 +158,12 @@ def md5sum_check_if_build_is_needed(
             get_console().print(f" * [info]{file}[/]")
         get_console().print("\n[warning]Likely CI image needs rebuild[/]\n")
         return True
-    else:
-        if build_ci_params.skip_image_upgrade_check:
-            return False
-        get_console().print(
-            "[info]Docker image build is not needed for CI build as no important files are changed! "
-            "You can add --force-build to force it[/]"
-        )
+    if build_ci_params.skip_image_upgrade_check:
+        return False
+    get_console().print(
+        "[info]Docker image build is not needed for CI build as no important files are changed! "
+        "You can add --force-build to force it[/]"
+    )
     return False
 
 

@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     RescheduleTask,
     RetryTask,
@@ -73,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     ToSupervisor,
     ToTask,
@@ -434,6 +436,35 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, TICount)
 
         return response.count
+
+    @staticmethod
+    def get_task_states(
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Return the task states matching the given criteria."""
+        log = structlog.get_logger(logger_name="task")
+
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTaskStates(
+                    dag_id=dag_id,
+                    task_ids=task_ids,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(response, TaskStatesResult)
+
+        return response.task_states
 
     @staticmethod
     def get_dr_count(
@@ -833,7 +864,7 @@ def run(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.exception("Task failed with exception")
+        log.error("Task exited", exit_code=e.code)
         msg, state = _handle_current_task_failed(ti)
         error = e
     except BaseException as e:
@@ -923,7 +954,7 @@ def _handle_trigger_dag_run(
             method_name="execute_complete",
         )
         return _defer_task(defer, ti, log)
-    elif drte.wait_for_completion:
+    if drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1113,9 +1144,7 @@ def finalize(
         if ti.task.template_fields:
             SUPERVISOR_COMMS.send_request(
                 log=log,
-                msg=SetRenderedFields(
-                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
-                ),
+                msg=SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)),
             )
 
     log.debug("Running finalizers", ti=ti)

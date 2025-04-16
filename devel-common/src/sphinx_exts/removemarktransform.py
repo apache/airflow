@@ -58,7 +58,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
         language = node.get("language")
         if language in ("py", "py3", "python", "python3", "default"):
             return True
-        elif language == "guess":
+        if language == "guess":
             try:
                 lexer = guess_lexer(node.rawsource)
                 return isinstance(lexer, (PythonLexer, Python3Lexer))
