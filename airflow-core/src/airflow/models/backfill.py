@@ -469,8 +469,6 @@ def _create_backfill(
         session.add(br)
         session.commit()
 
-        backfill_sort_ordinal = 0
-
         dagrun_info_list = _get_info_list(
             from_date=from_date,
             to_date=to_date,
@@ -483,8 +481,7 @@ def _create_backfill(
         if not dag_model:
             raise RuntimeError(f"Dag {dag_id} not found")
 
-        for info in dagrun_info_list:
-            backfill_sort_ordinal += 1
+        for backfill_sort_ordinal, info in enumerate(dagrun_info_list, start=1):
             _create_backfill_dag_run(
                 dag=dag,
                 info=info,

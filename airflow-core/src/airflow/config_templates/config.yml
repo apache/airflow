@@ -1393,7 +1393,7 @@ api:
       type: integer
       example: ~
       version_added: 2.0.0
-      default: "100"
+      default: "50"
     access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP
@@ -1782,7 +1782,7 @@ webserver:
       version_added: ~
       type: string
       example: ~
-      default: "100"
+      default: "50"
     navbar_color:
       description: |
         Define the color of navigation bar

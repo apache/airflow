@@ -52,7 +52,7 @@ def check_cycle(dag: DAG) -> None:
                 return adjacent_task
         return None
 
-    for dag_task_id in dag.task_dict.keys():
+    for dag_task_id in dag.task_dict:
         if visited[dag_task_id] == CYCLE_DONE:
             continue
         path_stack.append(dag_task_id)
