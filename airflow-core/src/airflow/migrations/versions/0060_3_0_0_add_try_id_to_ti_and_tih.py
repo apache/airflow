@@ -42,40 +42,8 @@ airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Apply Add try_id to TI and TIH."""
+    """Apply Add try_id to TaskInstanceHistory."""
     dialect_name = op.get_bind().dialect.name
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "try_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=True
-            )
-        )
-
-    stmt = sa.text("SELECT id FROM task_instance WHERE try_id IS NULL")
-    conn = op.get_bind()
-    null_rows = conn.execute(stmt)
-    if null_rows:
-        null_rows = null_rows.fetchall()
-    else:
-        null_rows = []
-
-    stmt = sa.text("""
-        UPDATE task_instance
-        SET try_id = :uuid
-        WHERE id = :row_id AND try_id IS NULL
-    """)
-
-    # Update each row with a unique UUID
-    for row in null_rows:
-        uuid_value = uuid7()
-        conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column(
-            "try_id",
-            nullable=False,
-            existing_type=sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
-        )
-        batch_op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), ["try_id"])
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.add_column(
@@ -192,7 +160,3 @@ def downgrade():
         batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
-
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("task_instance_try_id_uq"), type_="unique")
-        batch_op.drop_column("try_id")
