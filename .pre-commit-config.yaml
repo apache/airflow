@@ -125,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v1.*\.yaml$|^.*/pnpm-lock\.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*reproducible_build\.yaml$|^.*/v1.*\.yaml$|^.*/openapi/_private_ui.*\.yaml$|^.*/pnpm-lock\.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -1322,7 +1322,7 @@ repos:
         files: |
           (?x)
           ^airflow-core/src/airflow/ui/|
-          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1.*\.yaml$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
         entry: ./scripts/ci/pre_commit/compile_lint_ui.py

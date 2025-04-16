@@ -445,10 +445,8 @@ def kill_process_group(gid: int):
 
     :param gid: process group id
     """
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(gid, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def clean_ui_assets():
