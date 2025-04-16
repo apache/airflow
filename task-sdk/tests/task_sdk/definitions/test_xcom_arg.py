@@ -36,6 +36,8 @@ RunTI = Callable[[DAG, str, int], TerminalTIState]
 
 def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
     results = set()
+    values = ["a", "b", "c"]
+
     with DAG("test") as dag:
 
         @dag.task
@@ -52,7 +54,7 @@ def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
     assert set(dag.task_dict) == {"push", "pull"}
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
 
     for map_index in range(3):
         assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
@@ -124,12 +126,13 @@ def test_xcom_map_transform_to_none_and_filter_on_dict(run_ti: RunTI, mock_super
 
 def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, captured_logs):
     results = set()
+    values = ["a", "b", "c"]
 
     with DAG("test") as dag:
 
         @dag.task()
         def push():
-            return ["a", "b", "c"]
+            return values
 
         @dag.task()
         def pull(value):
@@ -143,7 +146,7 @@ def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms,
         pull.expand_kwargs(push().map(c_to_none))
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
 
     # The first two "pull" tis should succeed.
     for map_index in range(2):
@@ -177,11 +180,13 @@ def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms,
 
 
 def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs):
+    values = ["a", "b", "c"]
+
     with DAG("test") as dag:
 
         @dag.task()
         def push():
-            return ["a", "b", "c"]
+            return values
 
         @dag.task()
         def pull(value):
@@ -195,7 +200,7 @@ def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs)
         pull.expand_kwargs(push().map(does_not_work_with_c))
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
     # The third one (for "c") will fail.
     assert run_ti(dag, "pull", 2) == TerminalTIState.FAILED
 
@@ -222,12 +227,13 @@ def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs)
 
 def test_xcom_map_nest(mock_supervisor_comms, run_ti):
     results = set()
+    values = ["a", "b", "c"]
 
     with DAG("test") as dag:
 
         @dag.task()
         def push():
-            return ["a", "b", "c"]
+            return values
 
         @dag.task()
         def pull(value):
@@ -237,7 +243,7 @@ def test_xcom_map_nest(mock_supervisor_comms, run_ti):
         pull.expand_kwargs(converted)
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
 
     # Now "pull" should apply the mapping functions in order.
     for map_index in range(3):
@@ -295,12 +301,13 @@ def test_xcom_map_zip_nest(mock_supervisor_comms, run_ti):
 
 def test_xcom_map_raise_to_skip(run_ti, mock_supervisor_comms):
     result = []
+    values = ["a", "b", "c"]
 
     with DAG("test") as dag:
 
         @dag.task()
         def push():
-            return ["a", "b", "c"]
+            return values
 
         @dag.task()
         def forward(value):
@@ -314,7 +321,7 @@ def test_xcom_map_raise_to_skip(run_ti, mock_supervisor_comms):
         forward.expand_kwargs(push().map(skip_c))
 
     # Mock xcom result from push task
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=values)
 
     # Run "forward". This should automatically skip "c".
     states = [run_ti(dag, "forward", map_index) for map_index in range(3)]
