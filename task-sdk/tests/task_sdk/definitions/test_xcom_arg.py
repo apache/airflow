@@ -119,7 +119,7 @@ def test_xcom_map_transform_to_none_and_filter_on_dict(run_ti: RunTI, mock_super
     for map_index in range(3):
         assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
 
-    assert dict(results) == {"a": "alpha", "b": "beta"}
+    assert results == {"a", "b"}
 
 
 def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, captured_logs):

@@ -395,7 +395,7 @@ def _get_callable_name(f: Callable | str) -> str:
 
 class CallableResultMixin(Generic[T], Sequence, metaclass=ABCMeta):
     def __init__(self, value: T, callables: MapCallables) -> None:
-        self.value = list(value.items()) if isinstance(value, dict) else value
+        self.value = list(value) if isinstance(value, dict) else value
         self.callables = callables
 
     def _apply_callables(self, value):
