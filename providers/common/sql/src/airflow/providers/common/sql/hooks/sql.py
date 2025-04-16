@@ -397,7 +397,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
-        return self._get_pandas_df(sql, parameters, **kwargs)
+        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
 
     @deprecated(
         reason="Replaced by function `get_df_by_chunks`.",
@@ -412,7 +412,7 @@ class DbApiHook(BaseHook):
         chunksize: int,
         **kwargs,
     ) -> Generator[DataFrame, None, None]:
-        return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
 
     def get_df(
         self,
