@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-15T20:27:31.806487
+# This constraints file was automatically generated on 2025-04-16T12:00:37.600871
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -338,7 +338,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.7.3
+limits==5.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -377,7 +377,7 @@ mypy-boto3-redshift-data==1.37.8
 mypy-boto3-s3==1.37.24
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==9.2.0
+mysql-connector-python==9.3.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbconvert==7.16.6
@@ -436,6 +436,7 @@ platformdirs==4.3.7
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
+polars==1.27.1
 portalocker==2.10.1
 pprintpp==0.4.0
 pre_commit==4.2.0
@@ -530,7 +531,7 @@ rich-toolkit==0.14.1
 rich==13.9.4
 roman-numerals-py==3.1.0
 rpds-py==0.24.0
-rsa==4.9
+rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2

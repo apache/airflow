@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-15T20:33:45.896841
+# This constraints file was automatically generated on 2025-04-16T12:07:09.479846
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -314,7 +314,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.7.3
+limits==5.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -345,7 +345,7 @@ multi_key_dict==2.0.3
 multidict==6.4.3
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==9.2.0
+mysql-connector-python==9.3.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbconvert==7.16.6
@@ -483,7 +483,7 @@ rich-click==1.8.8
 rich-toolkit==0.14.1
 rich==13.9.4
 rpds-py==0.24.0
-rsa==4.9
+rsa==4.9.1
 ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2
