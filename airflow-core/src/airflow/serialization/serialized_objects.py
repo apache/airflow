@@ -1847,7 +1847,14 @@ class SerializedDAG(DAG, BaseSerialization):
             for k in tasks_remove:
                 default_args["__var"].pop(k, None)
 
-        if sched := dag_dict.pop("schedule_interval", None):
+        if timetable := dag_dict.get("timetable"):
+            if timetable["__type"] in {
+                "airflow.timetables.simple.DatasetTriggeredTimetable",
+                "airflow.timetables.datasets.DatasetOrTimeSchedule",
+            }:
+                dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+        else:
+            sched = dag_dict.pop("schedule_interval", None)
             if sched is None:
                 dag_dict["timetable"] = {
                     "__var": {},
@@ -1883,12 +1890,6 @@ class SerializedDAG(DAG, BaseSerialization):
                     "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
                     "__var": {"delta": sched["__var"]},
                 }
-        elif timetable := dag_dict.get("timetable"):
-            if timetable["__type"] in {
-                "airflow.timetables.simple.DatasetTriggeredTimetable",
-                "airflow.timetables.datasets.DatasetOrTimeSchedule",
-            }:
-                dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
 
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:
