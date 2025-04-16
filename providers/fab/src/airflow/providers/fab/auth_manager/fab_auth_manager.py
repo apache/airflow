@@ -233,7 +233,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
-        with folder.joinpath("openapi", "v1.yaml").open() as f:
+        with folder.joinpath("openapi", "v1-flask-api.yaml").open() as f:
             specification = safe_load(f)
         return FlaskApi(
             specification=specification,

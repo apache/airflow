@@ -94,7 +94,7 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = 100) -> LimitFilter:
+    def depends(cls, limit: NonNegativeInt = 50) -> LimitFilter:
         return cls().set_value(limit)
 
 

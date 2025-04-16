@@ -2542,8 +2542,12 @@ if STATICA_HACK:  # pragma: no cover
 
 def _run_inline_trigger(trigger):
     async def _run_inline_trigger_main():
-        async for event in trigger.run():
-            return event
+        # We can replace it with `return await anext(trigger.run(), default=None)`
+        # when we drop support for Python 3.9
+        try:
+            return await trigger.run().__anext__()
+        except StopAsyncIteration:
+            return None
 
     return asyncio.run(_run_inline_trigger_main())
 
