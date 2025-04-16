@@ -451,17 +451,21 @@ class _LazyMapResult(CallableResultMixin):
         return self.value[index]
 
     def __len__(self) -> int:
-        with suppress(StopIteration):
-            while True:
+        while True:
+            try:
                 self._next_mapped()
+            except StopIteration:
+                break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
 
-        with suppress(StopIteration):
-            while True:
+        while True:
+            try:
                 yield self._next_mapped()
+            except StopIteration:
+                break
 
 
 class MapXComArg(XComArg):
@@ -657,17 +661,21 @@ class _FilterResult(CallableResultMixin):
 
     def __len__(self) -> int:
         # Fully consume the iterator to get total length
-        with suppress(StopIteration):
-            while True:
+        while True:
+            try:
                 self._next_filtered()
+            except StopIteration:
+                break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
 
-        with suppress(StopIteration):
-            while True:
+        while True:
+            try:
                 yield self._next_filtered()
+            except StopIteration:
+                break
 
 
 class FilterXComArg(XComArg):
