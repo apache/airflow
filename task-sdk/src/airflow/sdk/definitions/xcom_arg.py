@@ -656,7 +656,10 @@ class _FilterResult(CallableResultMixin):
             raise IndexError
 
         while len(self.value) <= index:
-            self._next_filtered()
+            try:
+                self._next_filtered()
+            except StopIteration:
+                break
         return self.value[index]
 
     def __len__(self) -> int:
