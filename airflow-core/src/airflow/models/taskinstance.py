@@ -2206,7 +2206,7 @@ class TaskInstance(Base, LoggingMixin):
                             f"Returned output was type {type(xcom_value)} "
                             "expected dictionary for multiple_outputs"
                         )
-                    for key in xcom_value:
+                    for key in xcom_value.keys():
                         if not isinstance(key, str):
                             raise AirflowException(
                                 "Returned dictionary keys must be strings when using "
