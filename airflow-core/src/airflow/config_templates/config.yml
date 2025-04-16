@@ -2456,22 +2456,23 @@ dag_processor:
       type: string
       example: >
         [
-            {
+              {
                 "name": "my-git-repo",
                 "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
                 "kwargs": {
-                    "subdir": "dags",
-                    "tracking_ref": "main",
-                    "refresh_interval": 0
-            }
+                  "subdir": "dags",
+                  "tracking_ref": "main",
+                  "refresh_interval": 0
+                }
+              }
             ]
       default: >
         [
-            {{
-              "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-              "kwargs": {{}}
-            }}
+              {{
+                "name": "dags-folder",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {{}}
+              }}
             ]
     refresh_interval:
       description: |
