@@ -34,14 +34,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.4.3
+......
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`694bdc6c43 <https://github.com/apache/airflow/commit/694bdc6c43f926a20dd765e5a20a238884325c29>`__  2025-04-16   ``Remove 'subdir' arg from CLI commands (#49317)``
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`0ca0f17996 <https://github.com/apache/airflow/commit/0ca0f17996c86efb292cf5b10181944c67e3b862>`__  2025-04-13   ``Remove unused db method in k8s provider (#49186)``
+==================================================================================================  ===========  ===================================================================================================
+
 10.4.2
 ......
 
-Latest change: 2025-04-08
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 `86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
 `139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``

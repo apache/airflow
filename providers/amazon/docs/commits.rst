@@ -34,6 +34,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.6.1
+.....
+
+Latest change: 2025-04-15
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`fe52138b3d <https://github.com/apache/airflow/commit/fe52138b3dcc4aa72312b8ca9160cb9a06a11623>`__  2025-04-15   ``Add base_url fallback for aws auth_manager (#49305)``
+`2a0009dddf <https://github.com/apache/airflow/commit/2a0009dddfdaf26fa9b5746257202a97b5552da0>`__  2025-04-14   ``Unpause DAG in AWS MWAA system test (#49145)``
+`20f8af546e <https://github.com/apache/airflow/commit/20f8af546e63c6178df19166acbda8f768c21bf0>`__  2025-04-14   ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`1781dc9d5f <https://github.com/apache/airflow/commit/1781dc9d5fcbb93bce7018a4050ddd36ec1a65d5>`__  2025-04-13   ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+`4fa0eec9d4 <https://github.com/apache/airflow/commit/4fa0eec9d472c76be564422c9d0339246d1b5ace>`__  2025-04-12   ``Help pip to find appropriate boto for aiobotocore (#49166)``
+`a4a6e2bc99 <https://github.com/apache/airflow/commit/a4a6e2bc99cbcf95f13af6732ee272961a761aba>`__  2025-04-11   ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+`3d6460e034 <https://github.com/apache/airflow/commit/3d6460e034ad8b4a5e878c54f1959c237f24bc8e>`__  2025-04-11   ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+`28a96413bb <https://github.com/apache/airflow/commit/28a96413bb7705f3626ff56bf4dffc4d3d109846>`__  2025-04-10   ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+`87306b32c1 <https://github.com/apache/airflow/commit/87306b32c18b42dd5dbe24227076fb4ba76778e0>`__  2025-04-10   ``Fix AWS auth manager system test (#49072)``
+==================================================================================================  ===========  ===================================================================================================
+
 9.6.0
 .....
 
@@ -42,6 +63,7 @@ Latest change: 2025-04-10
 ==================================================================================================  ===========  ============================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
 `e0eaa604f4 <https://github.com/apache/airflow/commit/e0eaa604f49a612432451910e30e74eaf2563601>`__  2025-04-10   ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
 `f1a12f13e4 <https://github.com/apache/airflow/commit/f1a12f13e486f4c3b9e89fee92d5fccc488073dc>`__  2025-04-09   ``Refactor AWS system tests to not use @task.branch (#48973)``

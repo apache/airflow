@@ -52,7 +52,6 @@ except ImportError:  # 2.x compatibility.
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
     ARG_OUTPUT_PATH,
-    ARG_SUBDIR,
     ARG_VERBOSE,
     ActionCommand,
     Arg,
@@ -94,6 +93,16 @@ if TYPE_CHECKING:
         AirflowKubernetesScheduler,
     )
 
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.cli.cli_config import ARG_BUNDLE_NAME
+
+    ARG_COMPAT = ARG_BUNDLE_NAME
+else:
+    from airflow.cli.cli_config import ARG_SUBDIR  # type: ignore[attr-defined]
+
+    ARG_COMPAT = ARG_SUBDIR
+
 # CLI Args
 ARG_NAMESPACE = Arg(
     ("--namespace",),
@@ -128,7 +137,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_COMPAT, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 
