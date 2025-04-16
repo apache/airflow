@@ -393,17 +393,17 @@ def _get_callable_name(f: Callable | str) -> str:
 
 
 class CallableResultMixin(Sequence, metaclass=ABCMeta):
-    def __init__(self, value: list | set | dict, callables: MapCallables) -> None:
+    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
         self.value = self._convert(value)
         self.callables = callables
 
     @classmethod
-    def _convert(cls, value: list | set | dict) -> Sequence:
+    def _convert(cls, value: Sequence | dict) -> list | set:
         if isinstance(value, dict):
             return list(value)
         return value
 
-    def append(self, value: list | set) -> Any:
+    def append(self, value: Sequence) -> Any:
         if isinstance(self.value, list):
             self.value.append(value)
         elif isinstance(self.value, set):
@@ -632,7 +632,7 @@ class ConcatXComArg(XComArg):
 
 
 class _FilterResult(CallableResultMixin):
-    def __init__(self, value: Iterable | list | set | dict, callables: FilterCallables) -> None:
+    def __init__(self, value: Iterable, callables: FilterCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
 
