@@ -44,6 +44,7 @@
     Python API <_api/airflow/providers/common/sql/index>
     Supported Database Types </supported-database-types>
     Dialects <dialects>
+    Data Frames <dataframes>
 
 .. toctree::
     :hidden:
