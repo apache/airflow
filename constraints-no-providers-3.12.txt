@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-15T07:55:25.719509
+# This constraints file was automatically generated on 2025-04-16T02:29:25.105954
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -56,14 +56,14 @@ aiosignal==1.3.2
 aiosqlite==0.21.0
 airbyte-api==0.52.2
 alembic==1.15.2
-alibabacloud-adb20211201==2.2.1
+alibabacloud-adb20211201==3.0.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.0
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.13
+alibabacloud_tea_openapi==0.3.14
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
@@ -114,7 +114,7 @@ azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
 bcrypt==4.3.0
-beautifulsoup4==4.13.3
+beautifulsoup4==4.13.4
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -139,7 +139,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.14.2
+cohere==5.15.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -168,7 +168,7 @@ docutils==0.21.2
 duckdb==1.2.2
 durationpy==0.9
 elastic-transport==8.17.1
-elasticsearch==8.17.2
+elasticsearch==8.18.0
 email_validator==2.2.0
 entrypoints==0.4
 et_xmlfile==2.0.0
@@ -224,7 +224,7 @@ google-cloud-logging==3.11.4
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
-google-cloud-orchestration-airflow==1.17.4
+google-cloud-orchestration-airflow==1.17.5
 google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
@@ -245,7 +245,7 @@ google-crc32c==1.7.1
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 graphviz==0.20.3
-greenlet==3.1.1
+greenlet==3.2.0
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -314,7 +314,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.7.3
+limits==5.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -345,7 +345,7 @@ multi_key_dict==2.0.3
 multidict==6.4.3
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==9.2.0
+mysql-connector-python==9.3.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbconvert==7.16.6
@@ -403,7 +403,7 @@ pprintpp==0.4.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
-prompt_toolkit==3.0.50
+prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
 protobuf==4.25.6
@@ -476,7 +476,7 @@ requests-toolbelt==1.0.0
 requests==2.32.3
 requests_ntlm==1.3.0
 restructuredtext_lint==1.4.0
-retryhttp==1.3.1
+retryhttp==1.3.2
 rfc3986==2.0.0
 rich-argparse==1.7.0
 rich-click==1.8.8
@@ -496,7 +496,7 @@ scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
-sentry-sdk==2.26.0
+sentry-sdk==2.26.1
 setproctitle==1.3.5
 setuptools==78.1.0
 shapely==2.1.0
