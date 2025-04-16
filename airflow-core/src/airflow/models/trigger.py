@@ -252,7 +252,9 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(), session=session, extra={"from_trigger": True}
+                asset=asset.to_public(),
+                extra={"from_trigger": True, "payload": event.payload},
+                session=session,
             )
 
     @classmethod

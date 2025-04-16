@@ -217,7 +217,6 @@ class _TemplateWithContext(NamedTuple):
             "navbar_text_color",
             "navbar_hover_color",
             "navbar_text_hover_color",
-            "navbar_logo_text_color",
             "airflow_version",
             "git_version",
             "k8s_or_k8scelery_executor",

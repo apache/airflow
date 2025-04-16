@@ -161,6 +161,7 @@ PKG-INFO
 .openapi-generator-ignore
 version.txt
 v1*.yaml
+_private_ui*.yaml
 
 # Front end generated files
 api-generated.ts

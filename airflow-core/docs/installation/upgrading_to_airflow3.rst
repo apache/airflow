@@ -47,7 +47,7 @@ Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 
 To minimize friction for users upgrading from prior versions of Airflow, we have created a DAG upgrade check utility using `Ruff <https://docs.astral.sh/ruff/>`_.
 
-Use the latest available ``ruff`` version to get updates to the rules but at the very least use ``0.11.5``:
+Use the latest available ``ruff`` version to get updates to the rules but at the very least use ``0.11.6``:
 
 .. code-block:: bash
 

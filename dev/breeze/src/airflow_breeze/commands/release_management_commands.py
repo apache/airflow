@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import glob
 import operator
 import os
@@ -1414,10 +1415,8 @@ def tag_providers(
             get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
             if clean_local_tags:
                 for tag in tags:
-                    try:
+                    with contextlib.suppress(subprocess.CalledProcessError):
                         run_command(["git", "tag", "-d", tag], check=True)
-                    except subprocess.CalledProcessError:
-                        pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")
             else:
                 get_console().print(
@@ -2152,6 +2151,12 @@ def clean_old_provider_artifacts(
     "rc/alpha/beta images are built.",
 )
 @click.option(
+    "--include-pre-release",
+    is_flag=True,
+    help="Whether to Include pre-release distributions from PyPI when building images. Useful when we "
+    "want to build an RC image with RC provider versions.",
+)
+@click.option(
     "--slim-images",
     is_flag=True,
     help="Whether to prepare slim images instead of the regular ones.",
@@ -2165,6 +2170,7 @@ def release_prod_images(
     limit_python: str | None,
     commit_sha: str | None,
     skip_latest: bool,
+    include_pre_release: bool,
     chicken_egg_providers: str,
 ):
     perform_environment_checks()
@@ -2215,6 +2221,7 @@ def release_prod_images(
                 "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
+                "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             }
             if commit_sha:
                 slim_build_args["COMMIT_SHA"] = commit_sha
@@ -2250,6 +2257,7 @@ def release_prod_images(
             regular_build_args = {
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
+                "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             }
             if commit_sha:
                 regular_build_args["COMMIT_SHA"] = commit_sha

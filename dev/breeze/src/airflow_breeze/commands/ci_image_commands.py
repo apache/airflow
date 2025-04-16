@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import subprocess
@@ -200,10 +201,8 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
 
 
 def kill_process_group(build_process_group_id: int):
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(build_process_group_id, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def get_exitcode(status: int) -> int:

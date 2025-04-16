@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+9.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+* ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+* ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``Add base_url fallback for aws auth_manager (#49305)``
+* ``remove superfluous else block (#49199)``
+* ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+* ``Help pip to find appropriate boto for aiobotocore (#49166)``
+* ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Unpause DAG in AWS MWAA system test (#49145)``
+   * ``Fix AWS auth manager system test (#49072)``
+
 9.6.0
 .....
 

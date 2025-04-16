@@ -76,7 +76,11 @@ REPLICA_COUNT = 1
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
 # Because `gcs/data/` is shared folder for Airflow's workers.
 IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
-LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
+LOCAL_TRAINING_SCRIPT_PATH = (
+    "gcs/data/california_housing_training_script.py"
+    if IS_COMPOSER
+    else "california_housing_training_script.py"
+)
 
 
 with DAG(

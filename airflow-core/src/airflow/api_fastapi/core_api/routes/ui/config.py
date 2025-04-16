@@ -42,7 +42,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "navbar_logo_text_color",
 ]
 
 

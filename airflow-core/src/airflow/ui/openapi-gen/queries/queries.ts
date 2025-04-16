@@ -61,49 +61,6 @@ import {
 import * as Common from "./common";
 
 /**
- * Get Auth Menus
- * @returns MenuItemCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useAuthLinksServiceGetAuthMenus = <
-  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
-    queryFn: () => AuthLinksService.getAuthMenus() as TData,
-    ...options,
-  });
-/**
- * Next Run Assets
- * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const useAssetServiceNextRunAssets = <
-  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-  }: {
-    dagId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
-    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
-    ...options,
-  });
-/**
  * Get Assets
  * Get assets.
  * @param data The data for the request.
@@ -416,100 +373,127 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
     ...options,
   });
 /**
- * Get Configs
- * Get configs for UI.
- * @returns ConfigResponse Successful Response
- * @throws ApiError
- */
-export const useConfigServiceGetConfigs = <
-  TData = Common.ConfigServiceGetConfigsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey),
-    queryFn: () => ConfigService.getConfigs() as TData,
-    ...options,
-  });
-/**
- * Get Config
+ * Next Run Assets
  * @param data The data for the request.
- * @param data.section
- * @param data.accept
- * @returns Config Successful Response
+ * @param data.dagId
+ * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useConfigServiceGetConfig = <
-  TData = Common.ConfigServiceGetConfigDefaultResponse,
+export const useAssetServiceNextRunAssets = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    accept,
-    section,
+    dagId,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    section?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
-    queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
-    ...options,
-  });
-/**
- * Get Config Value
- * @param data The data for the request.
- * @param data.section
- * @param data.option
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const useConfigServiceGetConfigValue = <
-  TData = Common.ConfigServiceGetConfigValueDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    accept,
-    option,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    option: string;
-    section: string;
+    dagId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
-    queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
     ...options,
   });
 /**
- * Hook Meta Data
- * Retrieve information about available connection types (hook classes) and their parameters.
- * @returns ConnectionHookMetaData Successful Response
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useConnectionServiceHookMetaData = <
-  TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
+export const useBackfillServiceListBackfills = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
-    queryFn: () => ConnectionService.hookMetaData() as TData,
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ dagId, limit, offset, orderBy }, queryKey),
+    queryFn: () => BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns BackfillResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceGetBackfill = <
+  TData = Common.BackfillServiceGetBackfillDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    backfillId,
+  }: {
+    backfillId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
+    queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.dagId
+ * @param data.active
+ * @returns BackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfills1 = <
+  TData = Common.BackfillServiceListBackfills1DefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    active,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    active?: boolean;
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
+      { active, dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => BackfillService.listBackfills1({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -577,392 +561,22 @@ export const useConnectionServiceGetConnections = <
     ...options,
   });
 /**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.tagsMatchMode
- * @param data.owners
- * @param data.dagIds
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.excludeStale
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * Hook Meta Data
+ * Retrieve information about available connection types (hook classes) and their parameters.
+ * @returns ConnectionHookMetaData Successful Response
  * @throws ApiError
  */
-export const useDagsServiceRecentDagRuns = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
+export const useConnectionServiceHookMetaData = <
+  TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagIds,
-    dagRunsLimit,
-    excludeStale,
-    lastDagRunState,
-    limit,
-    offset,
-    owners,
-    paused,
-    tags,
-    tagsMatchMode,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagIds?: string[];
-    dagRunsLimit?: number;
-    excludeStale?: boolean;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-    tagsMatchMode?: "any" | "all";
-  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagIds,
-        dagRunsLimit,
-        excludeStale,
-        lastDagRunState,
-        limit,
-        offset,
-        owners,
-        paused,
-        tags,
-        tagsMatchMode,
-      }) as TData,
-    ...options,
-  });
-/**
- * Get Dependencies
- * Dependencies graph.
- * @param data The data for the request.
- * @param data.nodeId
- * @returns BaseGraphResponse Successful Response
- * @throws ApiError
- */
-export const useDependenciesServiceGetDependencies = <
-  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    nodeId,
-  }: {
-    nodeId?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
-    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
-    ...options,
-  });
-/**
- * Historical Metrics
- * Return cluster activity historical metrics.
- * @param data The data for the request.
- * @param data.startDate
- * @param data.endDate
- * @returns HistoricalMetricDataResponse Successful Response
- * @throws ApiError
- */
-export const useDashboardServiceHistoricalMetrics = <
-  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    endDate,
-    startDate,
-  }: {
-    endDate?: string;
-    startDate: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
-    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
-    ...options,
-  });
-/**
- * Structure Data
- * Get Structure Data.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.includeUpstream
- * @param data.includeDownstream
- * @param data.root
- * @param data.externalDependencies
- * @param data.versionNumber
- * @returns StructureDataResponse Successful Response
- * @throws ApiError
- */
-export const useStructureServiceStructureData = <
-  TData = Common.StructureServiceStructureDataDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    externalDependencies,
-    includeDownstream,
-    includeUpstream,
-    root,
-    versionNumber,
-  }: {
-    dagId: string;
-    externalDependencies?: boolean;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
-    root?: string;
-    versionNumber?: number;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
-      queryKey,
-    ),
-    queryFn: () =>
-      StructureService.structureData({
-        dagId,
-        externalDependencies,
-        includeDownstream,
-        includeUpstream,
-        root,
-        versionNumber,
-      }) as TData,
-    ...options,
-  });
-/**
- * List Backfills
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.dagId
- * @param data.active
- * @returns BackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceListBackfills = <
-  TData = Common.BackfillServiceListBackfillsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    active,
-    dagId,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    active?: boolean;
-    dagId?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
-      { active, dagId, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () => BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
- * List Backfills
- * @param data The data for the request.
- * @param data.dagId
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns BackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceListBackfills1 = <
-  TData = Common.BackfillServiceListBackfills1DefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    dagId: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ dagId, limit, offset, orderBy }, queryKey),
-    queryFn: () => BackfillService.listBackfills1({ dagId, limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
- * Get Backfill
- * @param data The data for the request.
- * @param data.backfillId
- * @returns BackfillResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceGetBackfill = <
-  TData = Common.BackfillServiceGetBackfillDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    backfillId,
-  }: {
-    backfillId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
-    queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
-    ...options,
-  });
-/**
- * Grid Data
- * Return grid data.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.includeUpstream
- * @param data.includeDownstream
- * @param data.root
- * @param data.offset
- * @param data.runType
- * @param data.state
- * @param data.limit
- * @param data.orderBy
- * @param data.runAfterGte
- * @param data.runAfterLte
- * @param data.logicalDateGte
- * @param data.logicalDateLte
- * @returns GridResponse Successful Response
- * @throws ApiError
- */
-export const useGridServiceGridData = <
-  TData = Common.GridServiceGridDataDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    includeDownstream,
-    includeUpstream,
-    limit,
-    logicalDateGte,
-    logicalDateLte,
-    offset,
-    orderBy,
-    root,
-    runAfterGte,
-    runAfterLte,
-    runType,
-    state,
-  }: {
-    dagId: string;
-    includeDownstream?: boolean;
-    includeUpstream?: boolean;
-    limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
-    offset?: number;
-    orderBy?: string;
-    root?: string;
-    runAfterGte?: string;
-    runAfterLte?: string;
-    runType?: string[];
-    state?: string[];
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseGridServiceGridDataKeyFn(
-      {
-        dagId,
-        includeDownstream,
-        includeUpstream,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        root,
-        runAfterGte,
-        runAfterLte,
-        runType,
-        state,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      GridService.gridData({
-        dagId,
-        includeDownstream,
-        includeUpstream,
-        limit,
-        logicalDateGte,
-        logicalDateLte,
-        offset,
-        orderBy,
-        root,
-        runAfterGte,
-        runAfterLte,
-        runType,
-        state,
-      }) as TData,
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
+    queryFn: () => ConnectionService.hookMetaData() as TData,
     ...options,
   });
 /**
@@ -1215,6 +829,84 @@ export const useDagReportServiceGetDagReports = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
     queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
+    ...options,
+  });
+/**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfig = <
+  TData = Common.ConfigServiceGetConfigDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
+    queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
+    ...options,
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfigValue = <
+  TData = Common.ConfigServiceGetConfigValueDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
+    ...options,
+  });
+/**
+ * Get Configs
+ * Get configs for UI.
+ * @returns ConfigResponse Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfigs = <
+  TData = Common.ConfigServiceGetConfigsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey),
+    queryFn: () => ConfigService.getConfigs() as TData,
     ...options,
   });
 /**
@@ -1586,7 +1278,7 @@ export const useEventLogServiceGetEventLogs = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useExtraLinksServiceGetExtraLinks = <
@@ -1621,7 +1313,7 @@ export const useExtraLinksServiceGetExtraLinks = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.mapIndex
- * @returns ExtraLinksResponse Successful Response
+ * @returns ExtraLinkCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServiceGetExtraLinks = <
@@ -2996,6 +2688,314 @@ export const useLoginServiceLogout = <
     ...options,
   });
 /**
+ * Get Auth Menus
+ * @returns MenuItemCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAuthLinksServiceGetAuthMenus = <
+  TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthMenus() as TData,
+    ...options,
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.tagsMatchMode
+ * @param data.owners
+ * @param data.dagIds
+ * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
+ * @param data.excludeStale
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagsServiceRecentDagRuns = <
+  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagIds,
+    dagRunsLimit,
+    excludeStale,
+    lastDagRunState,
+    limit,
+    offset,
+    owners,
+    paused,
+    tags,
+    tagsMatchMode,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagIds?: string[];
+    dagRunsLimit?: number;
+    excludeStale?: boolean;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+    tagsMatchMode?: "any" | "all";
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagIds,
+        dagRunsLimit,
+        excludeStale,
+        lastDagRunState,
+        limit,
+        offset,
+        owners,
+        paused,
+        tags,
+        tagsMatchMode,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependencies = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetrics = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate?: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Structure Data
+ * Get Structure Data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.root
+ * @param data.externalDependencies
+ * @param data.versionNumber
+ * @returns StructureDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useStructureServiceStructureData = <
+  TData = Common.StructureServiceStructureDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    externalDependencies,
+    includeDownstream,
+    includeUpstream,
+    root,
+    versionNumber,
+  }: {
+    dagId: string;
+    externalDependencies?: boolean;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+    versionNumber?: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseStructureServiceStructureDataKeyFn(
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        externalDependencies,
+        includeDownstream,
+        includeUpstream,
+        root,
+        versionNumber,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Grid Data
+ * Return grid data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @param data.root
+ * @param data.offset
+ * @param data.runType
+ * @param data.state
+ * @param data.limit
+ * @param data.orderBy
+ * @param data.runAfterGte
+ * @param data.runAfterLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @returns GridResponse Successful Response
+ * @throws ApiError
+ */
+export const useGridServiceGridData = <
+  TData = Common.GridServiceGridDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    root,
+    runAfterGte,
+    runAfterLte,
+    runType,
+    state,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
+    runType?: string[];
+    state?: string[];
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseGridServiceGridDataKeyFn(
+      {
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runAfterGte,
+        runAfterLte,
+        runType,
+        state,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      GridService.gridData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        root,
+        runAfterGte,
+        runAfterLte,
+        runType,
+        state,
+      }) as TData,
+    ...options,
+  });
+/**
  * Create Asset Event
  * Create asset events.
  * @param data The data for the request.
@@ -3066,6 +3066,78 @@ export const useAssetServiceMaterializeAsset = <
     TContext
   >({
     mutationFn: ({ assetId }) => AssetService.materializeAsset({ assetId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Backfill
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns BackfillResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfill = <
+  TData = Common.BackfillServiceCreateBackfillMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Backfill Dry Run
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns DryRunBackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfillDryRun = <
+  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3161,78 +3233,6 @@ export const useConnectionServiceCreateDefaultConnections = <
 ) =>
   useMutation<TData, TError, void, TContext>({
     mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Create Backfill
- * @param data The data for the request.
- * @param data.requestBody
- * @returns BackfillResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfill = <
-  TData = Common.BackfillServiceCreateBackfillMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Create Backfill Dry Run
- * @param data The data for the request.
- * @param data.requestBody
- * @returns DryRunBackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfillDryRun = <
-  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
