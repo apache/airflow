@@ -1040,7 +1040,9 @@ def _deploy_helm_chart(
             "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
+            *_prepare_k8s_probes_options(),
         ]
+
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
         if upgrade:
@@ -1061,6 +1063,26 @@ def _deploy_helm_chart(
         if result.returncode == 0:
             get_console(output=output).print(f"[success]Deployed {cluster_name} with airflow Helm Chart.")
         return result
+
+
+def _prepare_k8s_probes_options() -> list[str]:
+    probes = {
+        "apiServer": {
+            "startupProbe": {
+                "failureThreshold": 20,
+                "timeoutSeconds": 5,
+                "initialDelaySeconds": 15,
+            },
+        },
+    }
+    options = []
+    for component, component_probes in probes.items():
+        for probe_name, probe_options in component_probes.items():
+            for probe_option, option_value in probe_options.items():
+                options.append("--set")
+                options.append(f"{component}.{probe_name}.{probe_option}={option_value}")
+
+    return options
 
 
 def _deploy_airflow(
