@@ -60,6 +60,7 @@ if TYPE_CHECKING:
         from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import DagIsPaused
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
@@ -129,6 +130,7 @@ class TriggerDagRunOperator(BaseOperator):
         Default is ``[DagRunState.FAILED]``.
     :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
         DAG for the same logical date already exists.
+    :param fail_when_dag_is_paused: If the dag to trigger is paused, DagIsPaused will be raised.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     """
@@ -158,6 +160,7 @@ class TriggerDagRunOperator(BaseOperator):
         allowed_states: list[str | DagRunState] | None = None,
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
+        fail_when_dag_is_paused: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -177,6 +180,7 @@ class TriggerDagRunOperator(BaseOperator):
         else:
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
+        self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self._defer = deferrable
         self.logical_date = logical_date
         if logical_date is NOTSET:
@@ -213,6 +217,13 @@ class TriggerDagRunOperator(BaseOperator):
                 )
             else:
                 run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())  # type: ignore[misc,call-arg]
+
+        if self.fail_when_dag_is_paused:
+            dag_model = DagModel.get_current(self.trigger_dag_id)
+            if dag_model.is_paused:
+                if AIRFLOW_V_3_0_PLUS:
+                    raise DagIsPaused(dag_id=self.trigger_dag_id)
+                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(context=context, run_id=run_id, parsed_logical_date=parsed_logical_date)
