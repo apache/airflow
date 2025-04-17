@@ -47,6 +47,8 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+pytestmark = pytest.mark.db_test
+
 TI = TaskInstance
 
 
