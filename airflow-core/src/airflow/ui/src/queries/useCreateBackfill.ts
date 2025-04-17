@@ -81,7 +81,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
         from_date: formattedDataIntervalStart,
         max_active_runs: data.requestBody.max_active_runs,
         reprocess_behavior: data.requestBody.reprocess_behavior,
-        run_backwards: false,
+        run_backwards: data.requestBody.run_backwards,
         to_date: formattedDataIntervalEnd,
       },
     });
