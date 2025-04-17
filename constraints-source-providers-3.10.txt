@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-17T07:47:54.065417
+# This constraints file was automatically generated on 2025-04-17T13:56:36.071011
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -415,6 +415,7 @@ ordered-set==4.1.0
 orjson==3.10.16
 oss2==2.19.1
 packaging==24.2
+pagerduty==2.0.0
 pandas-gbq==0.28.0
 pandas-stubs==2.2.3.250308
 pandas==2.1.4
@@ -426,7 +427,6 @@ pathable==0.4.4
 pathspec==0.12.1
 pbr==6.1.1
 pdbr==0.9.0
-pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.4.0
