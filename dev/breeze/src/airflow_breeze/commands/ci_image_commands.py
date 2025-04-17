@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import subprocess
@@ -135,6 +136,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
         capture_output=True,
         text=True,
         check=False,
+        output=output,
     )
     if result.returncode != 0:
         return True
@@ -200,10 +202,8 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
 
 
 def kill_process_group(build_process_group_id: int):
-    try:
+    with contextlib.suppress(OSError):
         os.killpg(build_process_group_id, signal.SIGTERM)
-    except OSError:
-        pass
 
 
 def get_exitcode(status: int) -> int:

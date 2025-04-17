@@ -33,7 +33,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_color",
     "page_size",
     "auto_refresh_interval",
-    "default_ui_timezone",
     "hide_paused_dags_by_default",
     "warn_deployment_exposure",
     "default_wrap",
@@ -43,7 +42,6 @@ WEBSERVER_CONFIG_KEYS = [
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "navbar_logo_text_color",
 ]
 
 

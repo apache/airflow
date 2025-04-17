@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 from unittest import mock
 
@@ -180,10 +181,8 @@ class TestDockerSwarmOperator:
         operator = DockerSwarmOperator(
             image="", auto_remove=auto_remove, task_id="unittest", enable_logging=False
         )
-        try:
+        with contextlib.suppress(AirflowException):
             operator.execute(None)
-        except AirflowException:
-            pass
 
         assert (client_mock.remove_service.call_count > 0) == expected_remove_call
 

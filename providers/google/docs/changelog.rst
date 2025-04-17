@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ORC support to GCSToBigQueryOperator and test for external tables (#49188)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix default value wait_for_operation_result in OperationHelper (#49121)``
+* ``Fix get_confluent_token callback for Managed Kafka service (#48926)``
+* ``Fix: BigQuery connection UI defaults 'Use Legacy SQL' to true on edit (#49038)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+* ``Deprecate start_sql_job in DataflowHook (#48663)``
+* ``type: annotate miss type in 'provider' (#49130)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+   * ``Fix xcom for system tests (#49337)``
+
 15.0.1
 ......
 

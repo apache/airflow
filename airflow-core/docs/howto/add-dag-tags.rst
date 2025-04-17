@@ -37,7 +37,7 @@ In your DAG file, pass a list of tags you want to add to the DAG object:
 
 **Screenshot**:
 
-.. image:: ../img/add-dag-tags.png
+.. image:: ../img/ui-dark/add-dag-tags.png
 
 Tags are registered as part of DAG parsing.
 In case of stale tags, you can purge old data with the Airflow CLI command ``airflow db clean``.

@@ -31,7 +31,6 @@ configuring an Airflow environment.
 
     Using the CLI <usage-cli>
     add-dag-tags
-    add-owner-links
     notifications
     set-config
     set-up-database
@@ -52,4 +51,3 @@ configuring an Airflow environment.
     email-config
     dynamic-dag-generation
     docker-compose/index
-    upgrading-from-1-10/index

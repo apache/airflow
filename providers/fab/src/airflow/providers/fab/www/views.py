@@ -68,7 +68,7 @@ class FabIndexView(IndexView):
     def index(self):
         if g.user is not None and g.user.is_authenticated:
             token = get_auth_manager().generate_jwt(g.user)
-            response = make_response(redirect(f"{conf.get('api', 'base_url')}", code=302))
+            response = make_response(redirect(f"{conf.get('api', 'base_url', fallback='/')}", code=302))
 
             secure = conf.has_option("api", "ssl_cert")
             response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)

@@ -17,6 +17,6 @@ Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
 
 * Migration rules needed
 
-  * ``airflow config lint``
+  * ``airflow config update``
 
-    * [ ] Convert all ``DebugExecutor`` to ``LocalExecutor`` when present in ``[core] executor``
+    * [x] Convert all ``DebugExecutor`` to ``LocalExecutor`` when present in ``[core] executor``

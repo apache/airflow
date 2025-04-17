@@ -94,6 +94,7 @@ class ProviderPackageDetails(NamedTuple):
     excluded_python_versions: list[str]
     plugins: list[PluginInfo]
     removed: bool
+    extra_project_metadata: str | None = None
 
 
 class PackageSuspendedException(Exception):
@@ -470,6 +471,11 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
     return "apache_airflow_providers_" + provider_id.replace(".", "_")
 
 
+def floor_version_suffix(version_suffix: str) -> str:
+    # always use `pre-release`+ `0` as the version suffix
+    return version_suffix.rstrip("0123456789") + "0"
+
+
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
     pypi_version_suffix = remove_local_version_suffix(version_suffix)
@@ -491,10 +497,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         from packaging.version import Version
 
         base_version = Version(version).base_version
-        # always use `pre-release`+ `0` as the version suffix
-        pypi_version_suffix = pypi_version_suffix.rstrip("0123456789") + "0"
-
-        target_version = Version(str(base_version) + "." + pypi_version_suffix)
+        target_version = Version(str(base_version) + "." + floor_version_suffix(pypi_version_suffix))
         return prefix + ">=" + str(target_version)
     return install_clause
 
@@ -565,6 +568,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
+        extra_project_metadata=provider_info.get("extra-project-metadata", ""),
     )
 
 
@@ -690,6 +694,7 @@ def get_provider_jinja_context(
             get_provider_requirements(provider_id), markdown=False
         ),
         "REQUIRES_PYTHON": requires_python_version,
+        "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
     }
     return context
 

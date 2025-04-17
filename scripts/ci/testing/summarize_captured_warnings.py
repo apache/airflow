@@ -246,6 +246,9 @@ def main(_input: str, _output: str | None, pattern: str | None) -> int | str:
 
     try:
         input_path = Path(os.path.expanduser(os.path.expandvars(_input))).resolve(strict=True)
+    except FileNotFoundError:
+        print(f"The path {_input!r} does not exist. Skipping it.")
+        return 0
     except OSError as ex:
         return f"Unable to resolve {_input!r} path. {type(ex).__name__}: {ex}"
 

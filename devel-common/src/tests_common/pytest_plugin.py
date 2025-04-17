@@ -1643,6 +1643,7 @@ def cleanup_providers_manager():
         yield
     finally:
         ProvidersManager()._cleanup()
+        ProvidersManager().initialize_providers_configuration()
 
 
 @pytest.fixture(autouse=True)
@@ -1949,7 +1950,7 @@ def mocked_parse(spy_agency):
         )
         if hasattr(parse, "spy"):
             spy_agency.unspy(parse)
-        spy_agency.spy_on(parse, call_fake=lambda _: ti)
+        spy_agency.spy_on(parse, call_fake=lambda _, log: ti)
         return ti
 
     return set_dag
