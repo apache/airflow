@@ -23,9 +23,9 @@ import datetime
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG
 
 with DAG(
     dag_id="example_bash_operator",
@@ -72,6 +72,3 @@ this_will_skip = BashOperator(
 )
 # [END howto_operator_bash_skip]
 this_will_skip >> run_this_last
-
-if __name__ == "__main__":
-    dag.test()

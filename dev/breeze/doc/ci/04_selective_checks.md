@@ -244,7 +244,6 @@ GitHub Actions to pass the list of parameters to a command to execute
 | skip-pre-commits                               | Which pre-commits should be skipped during the static-checks run                                       | flynt,identity                          |      |
 | skip-providers-tests                           | When provider tests should be skipped (on non-main branch or when no provider changes detected)        | true                                    |      |
 | sqlite-exclude                                 | Which versions of Sqlite to exclude for tests as JSON array                                            | []                                      |      |
-| test-groups                                    | List of test groups that are valid for this run                                                        | \['core', 'providers'\]                 |      |
 | testable-core-integrations                     | List of core integrations that are testable in the build as JSON array                                 | \['celery', 'kerberos'\]                |      |
 | testable-providers-integrations                | List of core integrations that are testable in the build as JSON array                                 | \['mongo', 'kafka'\]                    |      |
 | upgrade-to-newer-dependencies                  | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)         | false                                   |      |

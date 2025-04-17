@@ -153,7 +153,7 @@ or
    are used from the connection.
 
 
-.. image:: ../img/email_connection.png
+.. image:: ../img/ui-dark/email_connection.png
     :align: center
     :alt: create email connection
 

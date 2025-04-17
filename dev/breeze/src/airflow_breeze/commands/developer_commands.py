@@ -81,16 +81,12 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
-from airflow_breeze.commands.testing_commands import (
-    option_force_lowest_dependencies,
-)
 from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
-    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -125,6 +121,8 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
+
+CELERY_INTEGRATION = "celery"
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -299,7 +297,6 @@ option_load_default_connections = click.option(
 @option_executor_shell
 @option_excluded_providers
 @option_force_build
-@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_include_mypy_volume
@@ -354,7 +351,6 @@ def shell(
     extra_args: tuple,
     excluded_providers: str,
     force_build: bool,
-    force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
     include_mypy_volume: bool,
@@ -425,7 +421,6 @@ def shell(
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
-        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         include_mypy_volume=include_mypy_volume,
@@ -1097,9 +1092,8 @@ def find_airflow_container() -> str | None:
             # On docker-compose v1 we get '--------' as output here
             stop_exec_on_error(docker_compose_ps_command.returncode)
         return container_running
-    else:
-        stop_exec_on_error(1)
-        return None
+    stop_exec_on_error(1)
+    return None
 
 
 @main.command(

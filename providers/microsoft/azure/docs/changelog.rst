@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+12.3.1
+......
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+12.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``add message_id, reply_to, and message_headers to send message operator (#47522)``
+
+Misc
+~~~~
+
+* ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
+* ``Rework remote task log handling for the structlog era. (#48491)``
+* ``Updated msgraph-core and kiota libraries (#48589)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Revert "Remove Upper Pin package microsoft-kiota-abstractions (#48461)" (#48535)``
+   * ``Remove Upper Pin package microsoft-kiota-abstractions (#48461)``
+
 12.2.2
 ......
 

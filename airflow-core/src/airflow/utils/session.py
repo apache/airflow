@@ -97,9 +97,8 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     def wrapper(*args, **kwargs) -> RT:
         if "session" in kwargs or session_args_idx < len(args):
             return func(*args, **kwargs)
-        else:
-            with create_session() as session:
-                return func(*args, session=session, **kwargs)
+        with create_session() as session:
+            return func(*args, session=session, **kwargs)
 
     return wrapper
 

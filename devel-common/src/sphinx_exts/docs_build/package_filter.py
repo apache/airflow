@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 from pathlib import Path
 
 PROVIDERS_DIR = Path(__file__).parents[3].resolve() / "airflow" / "providers"
@@ -38,13 +39,37 @@ def get_removed_provider_ids() -> list[str]:
     return removed_provider_ids
 
 
-def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
+def find_packages_to_build(available_packages: list[str], package_filters: list[str] | None):
     """
     Filters the package list against a set of filters.
 
-    A packet is returned if it matches at least one filter. The function keeps the order of the packages.
+    A package is returned if it matches at least one filter. The function keeps the order of the packages.
     """
     if not package_filters:
+        current_dir = Path(os.curdir).resolve()
+        while not current_dir == current_dir.root:
+            pyproject_toml_path = current_dir / "pyproject.toml"
+            if pyproject_toml_path.exists():
+                folder_name = pyproject_toml_path.parent.name
+                if folder_name == "providers-summary-docs":
+                    package_name = "apache-airflow-providers"
+                elif folder_name == "airflow-core":
+                    # Historically airflow-core documentation is built as apache-airflow
+                    package_name = "apache-airflow"
+                elif folder_name == "chart":
+                    package_name = "helm-chart"
+                else:
+                    try:
+                        import tomllib
+                    except ImportError:
+                        import tomli as tomllib
+                    read_toml = tomllib.loads(pyproject_toml_path.read_text())
+                    package_name = read_toml["project"]["name"]
+                    if package_name == "apache-airflow":
+                        # meta package
+                        return available_packages
+                return [package_name]
+            current_dir = current_dir.parent
         return available_packages
 
     suspended_packages = [

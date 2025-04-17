@@ -27,13 +27,12 @@ ALL_PROVIDER_YAMLS = load_package_data()
 ALL_PROVIDER_YAMLS_WITH_SUSPENDED = load_package_data(include_suspended=True)
 DEVEL_COMMON_PATH = AIRFLOW_CONTENT_ROOT_PATH / "devel-common"
 GENERATED_PATH = AIRFLOW_CONTENT_ROOT_PATH / "generated"
-GENERATED_APIS_PATH = GENERATED_PATH / "apis"
 DOCS_SOURCES_PATH = DEVEL_COMMON_PATH / "src" / "docs"
 
 AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""
 PROCESS_TIMEOUT = 15 * 60 * 2
 
-CONSOLE_WIDTH = 180
+CONSOLE_WIDTH = 250
 
 
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:

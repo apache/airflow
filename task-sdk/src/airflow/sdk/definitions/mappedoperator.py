@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 import attrs
 import methodtools
 
-from airflow.models.abstractoperator import NotMapped
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -41,6 +40,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    NotMapped,
 )
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
@@ -357,6 +357,8 @@ class MappedOperator(AbstractOperator):
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
         return (frozenset(attrs.fields_dict(MappedOperator)) | {"task_type"}) - {
+            "_is_empty",
+            "_can_skip_downstream",
             "_task_type",
             "dag",
             "deps",

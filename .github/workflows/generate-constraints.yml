@@ -115,6 +115,11 @@ jobs:
         run: >
           breeze release-management prepare-airflow-distributions
           --distribution-format wheel --version-suffix-for-pypi dev0
+      - name: "Prepare task-sdk distribution"
+        shell: bash
+        run: >
+          breeze release-management prepare-task-sdk-distributions
+          --distribution-format wheel --version-suffix-for-pypi dev0
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25

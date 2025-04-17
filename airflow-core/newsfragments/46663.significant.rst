@@ -24,7 +24,7 @@ Property ``allow_future_exec_dates`` on the DAG class has also been removed.
 
     * AIR302
 
-      * [ ] property ``airflow...DAG.allow_future_exec_dates``
+      * [x] property ``airflow...DAG.allow_future_exec_dates``
 
   * ``airflow config lint``
 

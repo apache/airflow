@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import os
@@ -37,23 +38,19 @@ def get_python_source(x: Any) -> str | None:
         source_code = inspect.getsource(x.func)
 
     if source_code is None:
-        try:
+        with contextlib.suppress(TypeError):
             source_code = inspect.getsource(x)
-        except TypeError:
-            pass
 
     if source_code is None:
-        try:
+        with contextlib.suppress(TypeError, AttributeError):
             source_code = inspect.getsource(x.__call__)
-        except (TypeError, AttributeError):
-            pass
 
     if source_code is None:
         source_code = f"No source code available for {type(x)}"
     return source_code
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
+def prepare_code_snippet(file_path: Path, line_no: int, context_lines_count: int = 5) -> str:
     """
     Prepare code snippet with line numbers and  a specific line marked.
 
@@ -62,7 +59,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
     :param context_lines_count: The number of lines that will be cut before and after.
     :return: str
     """
-    code_lines = Path(file_path).read_text().splitlines()
+    code_lines = file_path.read_text().splitlines()
     # Prepend line number
     code_lines = [
         f">{lno:3} | {line}" if line_no == lno else f"{lno:4} | {line}"

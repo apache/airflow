@@ -23,7 +23,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from airflowctl.api.client import Client, Credentials
+from airflowctl.api.client import Client, ClientKind, Credentials
 
 pytest_plugins = "tests_common.pytest_plugin"
 
@@ -48,16 +48,18 @@ def pytest_runtest_setup(item):
 
 
 @pytest.fixture(scope="session")
-def cli_api_client_maker(client_credentials):
+def api_client_maker(client_credentials):
     """
     Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
     """
 
-    def make_cli_api_client(transport: httpx.MockTransport) -> Client:
+    def make_api_client(transport: httpx.MockTransport, kind: ClientKind = ClientKind.CLI) -> Client:
         """Get a client with a custom transport"""
-        return Client(base_url="test://server", transport=transport, token="")
+        return Client(base_url="test://server", transport=transport, token="", kind=kind)
 
-    def _cli_api_client(path: str, response_json: dict, expected_http_status_code: int) -> Client:
+    def _api_client(
+        path: str, response_json: dict, expected_http_status_code: int, kind: ClientKind = ClientKind.CLI
+    ) -> Client:
         """Get a client with a custom transport"""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -65,9 +67,9 @@ def cli_api_client_maker(client_credentials):
             assert request.url.path == path
             return httpx.Response(expected_http_status_code, json=response_json)
 
-        return make_cli_api_client(transport=httpx.MockTransport(handle_request))
+        return make_api_client(transport=httpx.MockTransport(handle_request), kind=kind)
 
-    return _cli_api_client
+    return _api_client
 
 
 @pytest.fixture(scope="session")

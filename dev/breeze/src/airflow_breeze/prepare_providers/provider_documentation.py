@@ -389,10 +389,9 @@ def _get_all_changes_for_package(
             if not only_min_version_update:
                 _print_changes_table(changes_table)
             return False, [array_of_changes], changes_table
-        else:
-            if not only_min_version_update:
-                get_console().print(f"[info]No changes for {provider_id}")
-            return False, [], ""
+        if not only_min_version_update:
+            get_console().print(f"[info]No changes for {provider_id}")
+        return False, [], ""
     if len(provider_details.versions) == 1:
         get_console().print(
             f"[info]The provider '{provider_id}' has never been released but it is ready to release!\n"
@@ -754,7 +753,7 @@ def update_release_notes(
             if answer == Answer.NO:
                 get_console().print(f"\n[warning]Skipping provider: {provider_id} on user request![/]\n")
                 raise PrepareReleaseDocsUserSkippedException()
-            elif answer == Answer.QUIT:
+            if answer == Answer.QUIT:
                 raise PrepareReleaseDocsUserQuitException()
         elif not list_of_list_of_changes:
             get_console().print(
@@ -807,7 +806,8 @@ def update_release_notes(
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(provider_id=provider_id, type_of_change=type_of_change)
                 )
-                _update_source_date_epoch_in_provider_yaml(provider_id)
+                if not reapply_templates_only:
+                    _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,
@@ -815,7 +815,8 @@ def update_release_notes(
                 only_min_version_update=only_min_version_update,
             )
     else:
-        _update_source_date_epoch_in_provider_yaml(provider_id)
+        if not reapply_templates_only:
+            _update_source_date_epoch_in_provider_yaml(provider_id)
 
     provider_details = get_provider_details(provider_id)
     current_release_version = provider_details.versions[0]
@@ -854,7 +855,8 @@ def update_release_notes(
                 provider_id=provider_id,
                 type_of_change=type_of_change,
             )
-            _update_source_date_epoch_in_provider_yaml(provider_id)
+            if not reapply_templates_only:
+                _update_source_date_epoch_in_provider_yaml(provider_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_id=provider_id,
                 base_branch=base_branch,
@@ -1152,6 +1154,7 @@ def _generate_readme_rst(context: dict[str, Any], provider_details: ProviderPack
 def _generate_build_files_for_provider(
     context: dict[str, Any],
     provider_details: ProviderPackageDetails,
+    skip_readme: bool,
 ):
     init_py_content = black_format(
         render_template(
@@ -1163,7 +1166,8 @@ def _generate_build_files_for_provider(
     )
     init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
-    _generate_readme_rst(context, provider_details)
+    if not skip_readme:
+        _generate_readme_rst(context, provider_details)
     _generate_docs_conf(context, provider_details)
     regenerate_pyproject_toml(context, provider_details, version_suffix=None)
     _generate_get_provider_info_py(context, provider_details)
@@ -1188,13 +1192,14 @@ def _replace_min_airflow_version_in_provider_yaml(
 
 
 def update_min_airflow_version_and_build_files(
-    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
+    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool, skip_readme: bool
 ):
     """Updates min airflow version in provider yaml and __init__.py
 
     :param provider_id: provider package id
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :param skip_readme: skip updating readme: skip_readme
     :return:
     """
     provider_details = get_provider_details(provider_id)
@@ -1208,6 +1213,7 @@ def update_min_airflow_version_and_build_files(
     _generate_build_files_for_provider(
         context=jinja_context,
         provider_details=provider_details,
+        skip_readme=skip_readme,
     )
     _replace_min_airflow_version_in_provider_yaml(
         context=jinja_context, provider_yaml_path=provider_details.provider_yaml_path

@@ -20,7 +20,7 @@
 BranchDateTimeOperator
 ======================
 
-Use the :class:`~airflow.operators.datetime.BranchDateTimeOperator` to branch into one of two execution paths
+Use the :class:`~airflow.providers.standard.operators.datetime.BranchDateTimeOperator` to branch into one of two execution paths
 depending on whether the time falls into the range given by two target arguments,
 
 This operator has two modes. First mode is to use current time (machine clock time at the
@@ -76,7 +76,7 @@ back-filled.
 BranchDayOfWeekOperator
 =======================
 
-Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
+Use the :class:`~airflow.providers.standard.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
 
 .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_branch_day_of_week_operator.py
     :language: python

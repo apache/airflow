@@ -101,7 +101,7 @@ then you will want to turn catchup off, which is the default setting or can be d
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
 
-    from airflow.models.dag import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
@@ -241,7 +241,7 @@ Example of a parameterized DAG:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(

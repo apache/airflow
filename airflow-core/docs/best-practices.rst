@@ -124,8 +124,8 @@ Not avoiding top-level DAG code:
 
   import pendulum
 
-  from airflow import DAG
-  from airflow.decorators import task
+  from airflow.sdk import DAG
+  from airflow.sdk import task
 
 
   def expensive_api_call():
@@ -153,8 +153,8 @@ Avoiding top-level DAG code:
 
   import pendulum
 
-  from airflow import DAG
-  from airflow.decorators import task
+  from airflow.sdk import DAG
+  from airflow.sdk import task
 
 
   def expensive_api_call():
@@ -227,7 +227,7 @@ Imagine this code:
 
 .. code-block:: python
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
@@ -259,7 +259,7 @@ What you can do to check it is add some print statements to the code you want to
 
 .. code-block:: python
 
-  from airflow import DAG
+  from airflow.sdk import DAG
   from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
@@ -408,7 +408,7 @@ Bad example:
 
 .. code-block:: python
 
-    from airflow.models import Variable
+    from airflow.sdk import Variable
 
     foo_var = Variable.get("foo")  # AVOID THAT
     bash_use_variable_bad_1 = BashOperator(
@@ -459,7 +459,7 @@ Bad example:
 
 .. code-block:: python
 
-    from airflow.models.variable import Variable
+    from airflow.sdk import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
 
 
@@ -472,7 +472,7 @@ Good example:
 
 .. code-block:: python
 
-    from airflow.models.variable import Variable
+    from airflow.sdk import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
 
 
@@ -535,8 +535,8 @@ It's easier to grab the concept with an example. Let's say that we have the foll
 
     from datetime import datetime
 
-    from airflow import DAG
-    from airflow.decorators import task
+    from airflow.sdk import DAG
+    from airflow.sdk import task
     from airflow.exceptions import AirflowException
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.utils.trigger_rule import TriggerRule
@@ -781,7 +781,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
     import pendulum
     import pytest
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1015,7 +1015,7 @@ There are certain limitations and overhead introduced by this operator:
   same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` in
-:ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
+:ref:`this section in the Taskflow API tutorial <taskflow-dynamically-created-virtualenv>`.
 
 
 Using ExternalPythonOperator
@@ -1071,7 +1071,7 @@ The drawbacks:
   installed in those environments
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
 that make it smoother to move from development phase to production phase. As a DAG author you'd normally
@@ -1083,7 +1083,7 @@ The nice thing about this is that you can switch the decorator back at any time 
 developing it "dynamically" with ``PythonVirtualenvOperator``.
 
 You can see detailed examples of using :class:`airflow.providers.standard.operators.python.ExternalPythonOperator` in
-:ref:`Taskflow External Python example <taskflow/external_python_example>`
+:ref:`Taskflow External Python example <taskflow-external-python-environment>`
 
 Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
@@ -1147,9 +1147,9 @@ The drawbacks:
   containers etc. in order to author a DAG that uses those operators.
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
-:ref:`Taskflow Docker example <taskflow/docker_example>`
+:ref:`Taskflow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
-:ref:`Taskflow Kubernetes example <taskflow/kubernetes_example>`
+:ref:`Taskflow Kubernetes example <tasfklow-kpo>`
 
 Using multiple Docker Images and Celery Queues
 ----------------------------------------------

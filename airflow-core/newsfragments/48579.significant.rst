@@ -1,0 +1,22 @@
+``DebugExecutor`` has been removed from the in-tree executors.
+
+This executor was primarily used for local testing but is now redundant, as ``LocalExecutor``
+supports SQLite with WAL mode and provides better performance with parallel execution.
+Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config update``
+
+    * [x] Convert all ``DebugExecutor`` to ``LocalExecutor`` when present in ``[core] executor``

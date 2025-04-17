@@ -62,14 +62,7 @@ SET_DURING_EXECUTION = SetDuringExecution()
 
 
 if TYPE_CHECKING:
-    import logging
-
     from airflow.sdk.definitions._internal.node import DAGNode
-
-    Logger = logging.Logger
-else:
-
-    class Logger: ...
 
 
 def validate_instance_args(instance: DAGNode, expected_arg_types: dict[str, Any]) -> None:

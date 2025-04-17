@@ -23,6 +23,7 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
@@ -51,10 +52,7 @@ export const Header = ({
       : []),
     {
       label: "DAG Version",
-      value:
-        taskInstance.dag_version?.version_number === undefined
-          ? ""
-          : `v${taskInstance.dag_version.version_number}`,
+      value: <DagVersion version={taskInstance.dag_version} />,
     },
   ];
 

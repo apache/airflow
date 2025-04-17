@@ -17,8 +17,11 @@
 
 from __future__ import annotations
 
+import pendulum
 import pytest
 
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.taskgroup import TaskGroup
 
 
@@ -51,3 +54,69 @@ class TestTaskGroup:
         with pytest.raises(exc_type) as ctx:
             TaskGroup(group_id)
         assert str(ctx.value) == exc_value
+
+
+def test_task_group_dependencies_between_tasks_if_task_group_is_empty_1():
+    """
+    Test that if a task group is empty, the dependencies between tasks are still maintained.
+    """
+    with DAG(dag_id="test_dag", schedule=None, start_date=pendulum.parse("20200101")):
+        task1 = EmptyOperator(task_id="task1")
+        with TaskGroup("group1") as tg1:
+            pass
+        with TaskGroup("group2") as tg2:
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            task2 >> task3
+
+        task1 >> tg1 >> tg2
+
+    assert task1.downstream_task_ids == {"group2.task2"}
+
+
+def test_task_group_dependencies_between_tasks_if_task_group_is_empty_2():
+    """
+    Test that if a task group is empty, the dependencies between tasks are still maintained.
+    """
+    with DAG(dag_id="test_dag", schedule=None, start_date=pendulum.parse("20200101")):
+        task1 = EmptyOperator(task_id="task1")
+        with TaskGroup("group1") as tg1:
+            pass
+        with TaskGroup("group2") as tg2:
+            pass
+        with TaskGroup("group3") as tg3:
+            pass
+        with TaskGroup("group4") as tg4:
+            pass
+        with TaskGroup("group5") as tg5:
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+            task2 >> task3
+        task1 >> tg1 >> tg2 >> tg3 >> tg4 >> tg5
+
+    assert task1.downstream_task_ids == {"group5.task2"}
+
+
+def test_task_group_dependencies_between_tasks_if_task_group_is_empty_3():
+    """
+    Test that if a task group is empty, the dependencies between tasks are still maintained.
+    """
+    with DAG(dag_id="test_dag", schedule=None, start_date=pendulum.parse("20200101")):
+        task1 = EmptyOperator(task_id="task1")
+        with TaskGroup("group1") as tg1:
+            pass
+        with TaskGroup("group2") as tg2:
+            pass
+        task2 = EmptyOperator(task_id="task2")
+        with TaskGroup("group3") as tg3:
+            pass
+        with TaskGroup("group4") as tg4:
+            pass
+        with TaskGroup("group5") as tg5:
+            task3 = EmptyOperator(task_id="task3")
+            task4 = EmptyOperator(task_id="task4")
+            task3 >> task4
+        task1 >> tg1 >> tg2 >> task2 >> tg3 >> tg4 >> tg5
+
+    assert task1.downstream_task_ids == {"task2"}
+    assert task2.downstream_task_ids == {"group5.task3"}

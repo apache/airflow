@@ -110,10 +110,9 @@ def get_docs_integrations(docs_path: Path = DOCUMENTATION_PATH):
         """Filter callable to exclude header and empty cells."""
         if len(j) == 0:
             return False
-        elif j in ["Description", "Identifier"]:
+        if j in ["Description", "Identifier"]:
             return False
-        else:
-            return True
+        return True
 
     table_cells = list(filter(_list_matcher, table_cells))
     return table_cells
@@ -156,7 +155,7 @@ def _get_breeze_description(parsed_compose: dict[str, Any], label_key: str = "br
                 if _label_name == label_key:
                     image_label_map[_img_name] = label
         except KeyError:
-            # service has no 'lables' entry
+            # service has no 'labels' entry
             continue
     return image_label_map
 

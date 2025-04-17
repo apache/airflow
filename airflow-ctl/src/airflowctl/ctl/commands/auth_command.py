@@ -23,11 +23,40 @@ import sys
 
 import rich
 
-from airflowctl.api.client import Credentials
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, Credentials, provide_api_client
+from airflowctl.api.datamodels.auth_generated import LoginBody
 
 
-def login(args) -> None:
+@provide_api_client(kind=ClientKind.AUTH)
+def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
+    success_message = "[green]Login successful! Welcome to airflowctl![/green]"
+    # Check is username and password are passed
+    if args.username and args.password:
+        # Generate empty credentials with the api_url and env
+        credentials = Credentials(
+            api_url=args.api_url,
+            api_token="",
+            api_environment=args.env,
+        )
+        # After logging in, the token will be saved in the credentials file
+        try:
+            credentials.save()
+            login_response = api_client.login.login_with_username_and_password(
+                LoginBody(
+                    username=args.username,
+                    password=args.password,
+                )
+            )
+            credentials.api_token = login_response.access_token
+            credentials.save()
+            rich.print(success_message)
+            return
+        except Exception as e:
+            rich.print(f"[red]Login failed: {e}")
+            sys.exit(1)
+
+    # Check if token is passed or environment variable is set
     if not (token := args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")):
         # Exit
         rich.print("[red]No token found.")
@@ -36,8 +65,10 @@ def login(args) -> None:
             "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
         )
         sys.exit(1)
+
     Credentials(
         api_url=args.api_url,
         api_token=token,
         api_environment=args.env,
     ).save()
+    rich.print(success_message)

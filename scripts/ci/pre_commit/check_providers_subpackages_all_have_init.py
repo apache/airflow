@@ -125,6 +125,7 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
             relative_root_path = root_path.relative_to(providers_base_folder)
             need_path_extension = (
                 root_path == providers_base_folder
+                or len(relative_root_path.parts) == 1
                 or len(relative_root_path.parts) == 2
                 and relative_root_path.parts[1] in KNOWN_SECOND_LEVEL_PATHS
                 and relative_root_path.parts[0] == "providers"

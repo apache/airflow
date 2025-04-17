@@ -73,7 +73,7 @@ file:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
 
@@ -194,7 +194,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     import pendulum
 
-    from airflow import DAG
+    from airflow.sdk import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
     from airflow.providers.standard.operators.empty import EmptyOperator
 

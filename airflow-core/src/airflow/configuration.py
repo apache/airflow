@@ -49,7 +49,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
@@ -125,8 +124,7 @@ def expand_env_var(env_var: str | None) -> str | None:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:
             return interpolated
-        else:
-            env_var = interpolated
+        env_var = interpolated
 
 
 def run_command(command: str) -> str:
@@ -387,6 +385,9 @@ class AirflowConfigParser(ConfigParser):
                 # The actual replacement value will be updated after defaults are loaded from config.yml
                 "XX-set-after-default-config-loaded-XX",
             ),
+        },
+        "core": {
+            "executor": (re.compile(re.escape("SequentialExecutor")), "LocalExecutor"),
         },
     }
 
@@ -1158,13 +1159,12 @@ class AirflowConfigParser(ConfigParser):
             val = val.split("#")[0].strip()
         if val in ("t", "true", "1"):
             return True
-        elif val in ("f", "false", "0"):
+        if val in ("f", "false", "0"):
             return False
-        else:
-            raise AirflowConfigException(
-                f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+        raise AirflowConfigException(
+            f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
+            f'Current value: "{val}".'
+        )
 
     def getint(self, section: str, key: str, **kwargs) -> int:  # type: ignore[override]
         val = self.get(section, key, _extra_stacklevel=1, **kwargs)
@@ -1888,11 +1888,9 @@ class AirflowConfigParser(ConfigParser):
         self._default_values = create_default_config_parser(self.configuration_description)
         # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
         # the cached values, and it will be refreshed on next access.
-        try:
-            del self.sensitive_config_values
-        except AttributeError:
+        with contextlib.suppress(AttributeError):
             # no problem if cache is not set yet
-            pass
+            del self.sensitive_config_values
         self._providers_configuration_loaded = True
 
     @staticmethod
@@ -2018,7 +2016,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             f"but got a directory {airflow_config.__fspath__()!r}."
         )
         raise IsADirectoryError(msg)
-    elif not airflow_config.exists():
+    if not airflow_config.exists():
         log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
         config_directory = airflow_config.parent
         if not config_directory.exists():
@@ -2105,21 +2103,7 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
-    # Set the WEBSERVER_CONFIG variable
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
     return airflow_config_parser
-
-
-@providers_configuration_loaded
-def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
-    webserver_config = airflow_config_parser.get("webserver", "config_file")
-    if not os.path.isfile(webserver_config):
-        import shutil
-
-        pathlib.Path(webserver_config).parent.mkdir(parents=True, exist_ok=True)
-        log.info("Creating new FAB webserver config file in: %s", webserver_config)
-        shutil.copy(_default_config_file_path("default_webserver_config.py"), webserver_config)
 
 
 def make_group_other_inaccessible(file_path: str):
@@ -2261,7 +2245,6 @@ else:
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 JWT_SECRET_KEY = ""
-WEBSERVER_CONFIG = ""  # Set by initialize_config
 
 conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()

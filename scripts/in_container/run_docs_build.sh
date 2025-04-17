@@ -21,7 +21,7 @@
 cd "${AIRFLOW_SOURCES}" || exit 1
 python -m docs.build_docs "${@}"
 
-
+# Copy the generated documentation to the mounted volume
 if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/generated/_build/docs/" ]]; then
     rm -rf "/files/documentation"
     cp -r "${AIRFLOW_SOURCES}/generated/_build" "/files/documentation"

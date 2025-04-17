@@ -26,7 +26,7 @@ import sys
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar, cast
 
 import msgspec
 import structlog
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 __all__ = [
@@ -194,55 +195,54 @@ def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True):
             "timestamper": timestamper,
             "console": console,
         }
+    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
+        use_rich=False, show_locals=False, suppress=suppress
+    )
+
+    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+    if hasattr(__builtins__, "BaseExceptionGroup"):
+        exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
+        processors.append(exc_group_processor)
     else:
-        dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
-            use_rich=False, show_locals=False, suppress=suppress
-        )
+        exc_group_processor = None
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
-        if hasattr(__builtins__, "BaseExceptionGroup"):
-            exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
-            processors.append(exc_group_processor)
-        else:
-            exc_group_processor = None
-
-        def json_dumps(msg, default):
-            # Note: this is likely an "expensive" step, but lets massage the dict order for nice
-            # viewing of the raw JSON logs.
-            # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
-            msg = {
-                "timestamp": msg.pop("timestamp"),
-                "level": msg.pop("level"),
-                "event": msg.pop("event"),
-                **msg,
-            }
-            return msgspec.json.encode(msg, enc_hook=default)
-
-        def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            # Stdlib logging doesn't need the re-ordering, it's fine as it is
-            return msgspec.json.encode(event_dict).decode("utf-8")
-
-        json = structlog.processors.JSONRenderer(serializer=json_dumps)
-
-        processors.extend(
-            (
-                dict_tracebacks,
-                structlog.processors.UnicodeDecoder(),
-            ),
-        )
-
-        # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
-        if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-            processors.extend(remote_processors)
-
-        processors.append(json)
-
-        return processors, {
-            "timestamper": timestamper,
-            "exc_group_processor": exc_group_processor,
-            "dict_tracebacks": dict_tracebacks,
-            "json": json_processor,
+    def json_dumps(msg, default):
+        # Note: this is likely an "expensive" step, but lets massage the dict order for nice
+        # viewing of the raw JSON logs.
+        # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
+        msg = {
+            "timestamp": msg.pop("timestamp"),
+            "level": msg.pop("level"),
+            "event": msg.pop("event"),
+            **msg,
         }
+        return msgspec.json.encode(msg, enc_hook=default)
+
+    def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
+        # Stdlib logging doesn't need the re-ordering, it's fine as it is
+        return msgspec.json.encode(event_dict).decode("utf-8")
+
+    json = structlog.processors.JSONRenderer(serializer=json_dumps)
+
+    processors.extend(
+        (
+            dict_tracebacks,
+            structlog.processors.UnicodeDecoder(),
+        ),
+    )
+
+    # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
+    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+        processors.extend(remote_processors)
+
+    processors.append(json)
+
+    return processors, {
+        "timestamper": timestamper,
+        "exc_group_processor": exc_group_processor,
+        "dict_tracebacks": dict_tracebacks,
+        "json": json_processor,
+    }
 
 
 @cache
@@ -319,8 +319,7 @@ def configure_logging(
                 raise ValueError(
                     f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
                 )
-            else:
-                output = output.buffer
+            output = cast("TextIO", output).buffer
         if TYPE_CHECKING:
             # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
             # runtime. mypy doesn't grok that though
@@ -342,6 +341,12 @@ def configure_logging(
 
     if _warnings_showwarning is None:
         _warnings_showwarning = warnings.showwarning
+
+        if sys.platform == "darwin":
+            # This warning is not "end-user actionable" so we silence it.
+            warnings.filterwarnings(
+                "ignore", r"This process \(pid=\d+\) is multi-threaded, use of fork\(\).*"
+            )
         # Capture warnings and show them via structlog
         warnings.showwarning = _showwarning
 
@@ -496,27 +501,38 @@ def load_remote_log_handler() -> RemoteLogIO | None:
     return airflow.logging_config.REMOTE_TASK_LOG
 
 
-def upload_to_remote(logger: FilteringBoundLogger):
-    from airflow.configuration import conf
-
-    raw_logger = getattr(logger, "_logger")
-
-    if not raw_logger or not hasattr(raw_logger, "_file"):
+def relative_path_from_logger(logger) -> Path | None:
+    if not logger:
+        return None
+    if not hasattr(logger, "_file"):
         logger.warning("Unable to find log file, logger was of unexpected type", type=type(logger))
-        return
+        return None
 
-    fh = raw_logger._file
+    fh = logger._file
     fname = fh.name
 
     if fh.fileno() == 1 or not isinstance(fname, str):
         # Logging to stdout, or something odd about this logger, don't try to upload!
-        return
+        return None
+    from airflow.configuration import conf
+
     base_log_folder = conf.get("logging", "base_log_folder")
-    relative_path = Path(fname).relative_to(base_log_folder)
+    return Path(fname).relative_to(base_log_folder)
+
+
+def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
+    raw_logger = getattr(logger, "_logger")
 
     handler = load_remote_log_handler()
     if not handler:
         return
 
+    try:
+        relative_path = relative_path_from_logger(raw_logger)
+    except Exception:
+        return
+    if not relative_path:
+        return
+
     log_relative_path = relative_path.as_posix()
-    handler.upload(log_relative_path)
+    handler.upload(log_relative_path, ti)

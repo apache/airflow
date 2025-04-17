@@ -41,6 +41,7 @@ from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
@@ -100,7 +101,6 @@ class TestCliTasks:
             logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             run_after=DEFAULT_DATE,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -234,11 +234,10 @@ class TestCliTasks:
 
     @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
-    @mock.patch("airflow.providers.standard.triggers.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(
-        self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
-    ):
+    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
+        mock_os.path.isfile.return_value = True
         with caplog.at_level(level=logging.INFO):
             task_command.task_test(
                 self.parser.parse_args(
@@ -339,6 +338,9 @@ class TestCliTasks:
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
         task2 = dag2.get_task(task_id="print_the_context")
+
+        dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
+
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
@@ -349,7 +351,6 @@ class TestCliTasks:
             data_interval=data_interval,
             run_after=default_date2,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.CLI,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
@@ -434,7 +435,6 @@ class TestLogsfromTaskRunCommand:
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            dag_version=None,
             triggered_by=DagRunTriggeredByType.TEST,
         )
         self.tis = self.dr.get_task_instances()

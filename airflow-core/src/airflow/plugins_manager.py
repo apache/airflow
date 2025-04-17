@@ -68,6 +68,7 @@ macros_modules: list[Any] | None = None
 admin_views: list[Any] | None = None
 flask_blueprints: list[Any] | None = None
 fastapi_apps: list[Any] | None = None
+fastapi_root_middlewares: list[Any] | None = None
 menu_links: list[Any] | None = None
 flask_appbuilder_views: list[Any] | None = None
 flask_appbuilder_menu_links: list[Any] | None = None
@@ -88,6 +89,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "admin_views",
     "flask_blueprints",
     "fastapi_apps",
+    "fastapi_root_middlewares",
     "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
@@ -151,6 +153,7 @@ class AirflowPlugin:
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
     fastapi_apps: list[Any] = []
+    fastapi_root_middlewares: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -406,8 +409,9 @@ def initialize_fastapi_plugins():
     """Collect extension points for the API."""
     global plugins
     global fastapi_apps
+    global fastapi_root_middlewares
 
-    if fastapi_apps:
+    if fastapi_apps is not None and fastapi_root_middlewares is not None:
         return
 
     ensure_plugins_loaded()
@@ -415,12 +419,14 @@ def initialize_fastapi_plugins():
     if plugins is None:
         raise AirflowPluginException("Can't load plugins.")
 
-    log.debug("Initialize FastAPI plugin")
+    log.debug("Initialize FastAPI plugins")
 
     fastapi_apps = []
+    fastapi_root_middlewares = []
 
     for plugin in plugins:
         fastapi_apps.extend(plugin.fastapi_apps)
+        fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
 
 
 def initialize_extra_operators_links_plugins():
@@ -585,6 +591,16 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                     info[attr] = [
                         {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
                         for d in getattr(plugin, attr)
+                    ]
+                elif attr == "fastapi_root_middlewares":
+                    # remove args and kwargs from plugin info to hide potentially sensitive info.
+                    info[attr] = [
+                        {
+                            k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
+                            for k, v in middleware_dict.items()
+                            if k not in ("args", "kwargs")
+                        }
+                        for middleware_dict in getattr(plugin, attr)
                     ]
                 else:
                     info[attr] = getattr(plugin, attr)

@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
@@ -101,6 +102,7 @@ class FileGroupForCi(Enum):
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
     API_FILES = "api_files"
+    GIT_PROVIDER_FILES = "git_provider_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
@@ -168,8 +170,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/tests/unit/api/",
             r"^airflow-core/tests/unit/api_fastapi/",
         ],
+        FileGroupForCi.GIT_PROVIDER_FILES: [
+            r"^providers/git/src/",
+        ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
@@ -531,6 +536,16 @@ class SelectiveChecks:
             get_console().print("[warning]Running full set of tests because api files changed[/]")
             return True
         if self._matching_files(
+            FileGroupForCi.GIT_PROVIDER_FILES,
+            CI_FILE_GROUP_MATCHES,
+        ):
+            # TODO(potiuk): remove me when we get rid of the dependency
+            get_console().print(
+                "[warning]Running full set of tests because git provider files changed "
+                "and for now we have core tests depending on them.[/]"
+            )
+            return True
+        if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
             CI_FILE_GROUP_MATCHES,
         ):
@@ -665,11 +680,8 @@ class SelectiveChecks:
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
             return True
-        else:
-            get_console().print(
-                f"[warning]{source_area} disabled because it did not match any changed files[/]"
-            )
-            return False
+        get_console().print(f"[warning]{source_area} disabled because it did not match any changed files[/]")
+        return False
 
     @cached_property
     def mypy_checks(self) -> list[str]:
@@ -777,6 +789,10 @@ class SelectiveChecks:
         return self.run_tests
 
     @cached_property
+    def only_pyproject_toml_files_changed(self) -> bool:
+        return all(Path(file).name == "pyproject.toml" for file in self._files)
+
+    @cached_property
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
@@ -876,25 +892,22 @@ class SelectiveChecks:
         if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
-            else:
-                return ["Providers"]
-        else:
-            all_providers_source_files = self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
-            )
-            assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
+            return ["Providers"]
+        all_providers_source_files = self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+        )
+        assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
 
-            if (
-                len(all_providers_source_files) == 0
-                and len(assets_source_files) == 0
-                and not self.needs_api_tests
-            ):
-                # IF API tests are needed, that will trigger extra provider checks
-                return []
-            else:
-                affected_providers = self._find_all_providers_affected(
-                    include_docs=False,
-                )
+        if (
+            len(all_providers_source_files) == 0
+            and len(assets_source_files) == 0
+            and not self.needs_api_tests
+        ):
+            # IF API tests are needed, that will trigger extra provider checks
+            return []
+        affected_providers = self._find_all_providers_affected(
+            include_docs=False,
+        )
         candidate_test_types: set[str] = set()
         if isinstance(affected_providers, AllProvidersSentinel):
             if split_to_individual_providers:
@@ -988,9 +1001,9 @@ class SelectiveChecks:
         # We are hard-coding the number of lists as reasonable starting point to split the
         # list of test types - and we can modify it in the future
         # TODO: In Python 3.12 we will be able to use itertools.batched
-        if len(current_test_types) < 5:
+        if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, 5)
+        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -1213,16 +1226,6 @@ class SelectiveChecks:
         return True
 
     @cached_property
-    def test_groups(self):
-        if self.skip_providers_tests:
-            if self.run_tests:
-                return "['core']"
-        else:
-            if self.run_tests:
-                return "['core', 'providers']"
-        return "[]"
-
-    @cached_property
     def docker_cache(self) -> str:
         return "disabled" if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels else "registry"
 
@@ -1424,30 +1427,27 @@ class SelectiveChecks:
 
         if all_source_files and new_ui_source_files and not remaining_files:
             return True
-        else:
-            return False
+        return False
 
     @cached_property
     def testable_core_integrations(self) -> list[str]:
         if not self.run_tests:
             return []
-        else:
-            return [
-                integration
-                for integration in TESTABLE_CORE_INTEGRATIONS
-                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-            ]
+        return [
+            integration
+            for integration in TESTABLE_CORE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
         if not self.run_tests:
             return []
-        else:
-            return [
-                integration
-                for integration in TESTABLE_PROVIDERS_INTEGRATIONS
-                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-            ]
+        return [
+            integration
+            for integration in TESTABLE_PROVIDERS_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):

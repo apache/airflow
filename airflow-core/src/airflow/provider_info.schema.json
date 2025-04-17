@@ -21,7 +21,7 @@
                 "type": "string"
             },
             "deprecated": {
-                "description": "The hook-class-names property has been deprecated in favour of connection-types which is more performant version allowing to only import individual Hooks rather than all hooks at once",
+                "description": "The hook-class-names property has been deprecated in favor of connection-types which is more performant version allowing to only import individual Hooks rather than all hooks at once",
                 "deprecatedVersion": "2.2.0"
             }
         },
@@ -32,7 +32,182 @@
                 "type": "string"
             }
         },
+        "integrations": {
+            "description": "Array of integrations provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integrations to expose by the provider",
+                        "type": "string"
+                    },
+                    "external-doc-url": {
+                        "description": "URL that describes the integration",
+                        "type": "string"
+                    },
+                    "logo": {
+                        "description": "URL or  path on the airflow side where you can find the logo",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "description": "Tags describing the integration (free-form)",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+
+            }
+        },
+        "operators": {
+            "description": "List of operators provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where operators are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "sensors": {
+            "description": "List of sensors provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where sensors are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "hooks": {
+            "description": "List of hooks provided by the integration",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "description": "Name of the integration",
+                        "type": "string"
+                    },
+                    "python-modules": {
+                        "description": "List of modules where hooks are found",
+                        "type" : "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "asset-uris": {
+            "description": "List of asset uris provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "description": "Array of schemes supported",
+                        "type": "array",
+                        "items" : {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "description": "Handler used to handle the asset",
+                        "anyOf": [
+                            { "type": "string" },
+                            { "type": "null" }
+                        ]
+                    },
+                    "factory": {
+                        "description": "Factory to create the asset",
+                        "type": "string"
+                    },
+                    "to_openlineage_converter": {
+                        "description": "Converter to open-lineage event",
+                        "type": "string"
+                    }
+                },
+                "required": ["schemes"]
+            }
+        },
+        "dataset-uris": {
+            "description": "List of asset uris provided by the provider",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "description": "Array of schemes supported",
+                        "type": "array",
+                        "items" : {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "description": "Handler used to handle the asset",
+                        "anyOf": [
+                            { "type": "string" },
+                            { "type": "null" }
+                        ]
+                    },
+                    "factory": {
+                        "description": "Factory to create the asset",
+                        "type": "string"
+                    },
+                    "to_openlineage_converter": {
+                        "description": "Converter to open-lineage event",
+                        "type": "string"
+                    }
+                },
+                "required": ["schemes"]
+            },
+            "deprecated": {
+                "description": "The dataset-uris property has been deprecated in favor of asset-uris in airflow 3.0",
+                "deprecatedVersion": "3.0.0"
+            }
+        },
+        "dialects": {
+            "description": "List of dialects the provider provides",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dialect-type": {
+                        "description": "Type of SQL dialect",
+                        "type": "string"
+                    },
+                    "dialect-class-name": {
+                        "description": "Class name that implements the dialect",
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "transfers": {
+            "description": "List of transfer operators the provider provides",
             "type": "array",
             "items": {
                 "type": "object",
@@ -43,15 +218,15 @@
                     },
                     "source-integration-name": {
                         "type": "string",
-                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
                     },
                     "target-integration-name": {
                         "type": "string",
-                        "description": "Target integration name. It must have a matching item in the 'integration' section of any provider."
+                        "description": "Target integration name. It must have a matching item in the 'integration' section of any provider"
                     },
                     "python-module": {
                         "type": "string",
-                        "description": "List of python modules containing the transfers."
+                        "description": "List of python modules containing the transfers"
                     }
                 },
                 "additionalProperties": false,
@@ -69,10 +244,10 @@
                 "properties": {
                     "integration-name": {
                         "type": "string",
-                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
                     },
                     "python-modules": {
-                        "description": "List of Python modules containing the triggers.",
+                        "description": "List of Python modules containing the triggers",
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -93,10 +268,10 @@
                 "properties": {
                     "integration-name": {
                         "type": "string",
-                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider"
                     },
                     "python-modules": {
-                        "description": "List of python modules containing the bundles.",
+                        "description": "List of python modules containing the bundles",
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -112,7 +287,7 @@
         },
         "connection-types": {
             "type": "array",
-            "description": "Map of connection types mapped to hook class names.",
+            "description": "Map of connection types mapped to hook class names",
             "items": {
                 "type": "object",
                 "properties": {
@@ -225,6 +400,20 @@
                 },
                 "path": {
                     "type": "string"
+                }
+            }
+        },
+        "plugins": {
+            "type": "array",
+            "description": "Plugins provided by the provider",
+            "items": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the plugin"
+                },
+                "plugin-class": {
+                    "type": "string",
+                    "description": "Class to instantiate the plugin"
                 }
             }
         }

@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.sdk import DAG
 
 with DAG(
     dag_id="example_trigger_controller_dag",

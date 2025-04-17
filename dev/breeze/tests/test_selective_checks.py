@@ -27,6 +27,7 @@ from rich.console import Console
 from airflow_breeze.global_constants import (
     COMMITTERS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
 )
@@ -1121,8 +1122,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
-                    "testable-core-integrations": "['celery', 'kerberos']",
-                    "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', "
+                    "testable-core-integrations": "['kerberos']",
+                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'kafka', 'mongo', "
                     "'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
@@ -1224,7 +1225,7 @@ def test_list_splitting():
         list_of_types["test_types"].split(" ")
         for list_of_types in individual_providers_test_types_list_as_string
     ]
-    assert len(all_providers_in_sub_lists) == 5
+    assert len(all_providers_in_sub_lists) == NUMBER_OF_LOW_DEP_SLICES
     assert sum([len(list_of_types) for list_of_types in all_providers_in_sub_lists]) == len(
         LIST_OF_ALL_PROVIDER_TESTS
     )
@@ -1300,6 +1301,41 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
     [
         (
             pytest.param(
+                ("providers/git/src/airflow/providers/git/test_file.py",),
+                (),
+                "main",
+                {
+                    "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "all-versions": "false",
+                    "mysql-versions": "['8.0']",
+                    "postgres-versions": "['13']",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-tests": "true",
+                    "skip-providers-tests": "false",
+                    "docs-build": "true",
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                    "upgrade-to-newer-dependencies": "false",
+                    "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
+                    "needs-mypy": "true",
+                    "mypy-checks": ALL_MYPY_CHECKS,
+                },
+                id="Everything should run including all providers when git provider is changed"
+                "(special case for now)",
+            )
+        ),
+        (
+            pytest.param(
                 ("INTHEWILD.md",),
                 ("full tests needed", "all versions"),
                 "main",
@@ -1319,7 +1355,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1355,7 +1390,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1391,7 +1425,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1428,7 +1461,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1465,7 +1497,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1499,7 +1530,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "false",
-                    "test-groups": "['core', 'providers']",
                     "docs-build": "true",
                     "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
@@ -1533,7 +1563,6 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "prod-image-build": "true",
                     "run-tests": "true",
                     "skip-providers-tests": "true",
-                    "test-groups": "['core']",
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
@@ -1578,7 +1607,6 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "skip-providers-tests": "true",
-                "test-groups": "[]",
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "full-tests-needed": "false",
@@ -1602,7 +1630,6 @@ def test_expected_output_full_tests_needed(
                 "prod-image-build": "true",
                 "run-tests": "true",
                 "skip-providers-tests": "true",
-                "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
@@ -1631,7 +1658,6 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "skip-providers-tests": "true",
-                "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
@@ -1658,7 +1684,6 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "skip-providers-tests": "true",
-                "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
@@ -1787,7 +1812,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "skip-providers-tests": "true",
-                "test-groups": "[]",
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
@@ -1809,7 +1833,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "skip-providers-tests": "true",
-                "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS,
@@ -1840,7 +1863,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "skip-providers-tests": "false",
-                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
@@ -1880,7 +1902,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "skip-providers-tests": "true",
-                "test-groups": "['core']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow",
                 "skip-pre-commits": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
@@ -1893,7 +1914,7 @@ def test_expected_output_push(
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
-            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-rest-api-generated.yaml",),
             {
                 "selected-providers-list-as-string": "",
                 "all-python-versions": "['3.9']",
@@ -1902,7 +1923,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "skip-providers-tests": "false",
-                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
@@ -1931,7 +1951,6 @@ def test_expected_output_push(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "skip-providers-tests": "false",
-                "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql "
                 "dbt.cloud ftp google microsoft.mssql mysql "

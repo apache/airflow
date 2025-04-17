@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     import logging
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
 
 
@@ -48,7 +49,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: str | os.PathLike):
+    def upload(self, path: str | os.PathLike, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
@@ -83,7 +84,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             )
             return None
 
-    def read(self, relative_path) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
         # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
@@ -210,6 +211,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         if TYPE_CHECKING:
             assert self.handler is not None
 
+        self.ti = ti
         full_path = self.handler.baseFilename
         self.log_relative_path = Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
@@ -229,7 +231,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         if not self.upload_on_close:
             return
 
-        self.io.upload(self.log_relative_path)
+        if hasattr(self, "ti"):
+            self.io.upload(self.log_relative_path, self.ti)
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -240,7 +243,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # in set_context method.
         worker_log_rel_path = self._render_filename(ti, try_number)
 
-        messages, logs = self.io.read(worker_log_rel_path)
+        messages, logs = self.io.read(worker_log_rel_path, ti)
 
         if logs is None:
             logs = []

@@ -26,9 +26,9 @@ import datetime
 
 import pendulum
 
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+from airflow.sdk import DAG
 from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(

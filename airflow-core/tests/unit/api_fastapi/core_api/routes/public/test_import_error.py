@@ -82,12 +82,13 @@ def clear_db():
 def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
-            bundle_name=BUNDLE_NAME,
+            bundle_name=bundle,
             filename=filename,
             stacktrace=stacktrace,
             timestamp=timestamp,
         )
-        for filename, stacktrace, timestamp in zip(
+        for bundle, filename, stacktrace, timestamp in zip(
+            (BUNDLE_NAME, BUNDLE_NAME, None),
             (FILENAME1, FILENAME2, FILENAME3),
             (STACKTRACE1, STACKTRACE2, STACKTRACE3),
             (TIMESTAMP1, TIMESTAMP2, TIMESTAMP3),
@@ -146,6 +147,16 @@ class TestGetImportError:
                     "filename": FILENAME2,
                     "stack_trace": STACKTRACE2,
                     "bundle_name": BUNDLE_NAME,
+                },
+            ),
+            (
+                2,
+                200,
+                {
+                    "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP3),
+                    "filename": FILENAME3,
+                    "stack_trace": STACKTRACE3,
+                    "bundle_name": None,
                 },
             ),
             (None, 404, {}),

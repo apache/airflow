@@ -67,7 +67,7 @@ When writing a deferrable operators these are the main points to consider:
     from typing import Any
 
     from airflow.configuration import conf
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
     from airflow.utils.context import Context
 
@@ -177,7 +177,7 @@ Here's a basic example of how a sensor might trigger deferral:
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
     if TYPE_CHECKING:
@@ -220,7 +220,7 @@ Below is an outline of how you can achieve this.
 
     import asyncio
 
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk import BaseOperator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -290,7 +290,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -321,7 +321,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:
@@ -348,7 +348,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
             return
 
 
-The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (fallbacks to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage.
+The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (with a fallback to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage.
 
 After the trigger has finished executing, the task may be sent back to the worker to execute the ``next_method``, or the task instance may end directly. (Refer to :ref:`Exiting deferred task from Triggers<deferring/exiting_from_trigger>`) If the task is sent back to the worker, the arguments in the ``__init__`` method will still take effect before the ``next_method`` is executed, but they will not affect the execution of the trigger.
 
@@ -360,7 +360,7 @@ After the trigger has finished executing, the task may be sent back to the worke
     from datetime import timedelta
     from typing import TYPE_CHECKING, Any
 
-    from airflow.sensors.base import BaseSensorOperator
+    from airflow.sdk import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
 
     if TYPE_CHECKING:

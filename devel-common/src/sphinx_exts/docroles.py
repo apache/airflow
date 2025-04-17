@@ -42,11 +42,8 @@ def get_template_field(env, fullname) -> list[str]:
     """
     modname, classname = fullname.rsplit(".", 1)
 
-    try:
-        with mock(env.config.autodoc_mock_imports):
-            mod = import_module(modname)
-    except ImportError:
-        raise RoleException(f"Error loading {modname} module.")
+    with mock(env.config.autodoc_mock_imports):
+        mod = import_module(modname)
 
     clazz = getattr(mod, classname)
     if not clazz:

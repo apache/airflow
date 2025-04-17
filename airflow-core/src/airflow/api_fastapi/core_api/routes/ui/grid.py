@@ -21,6 +21,7 @@ import collections
 import itertools
 from typing import Annotated
 
+import structlog
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -54,8 +55,11 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     get_task_group_map,
 )
 from airflow.models import DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.state import TaskInstanceState
 
+log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
 
@@ -159,11 +163,31 @@ def grid_data(
 
     for tis in tis_by_run_id.values():
         # this is a simplification - we account for structure based on the first task
-        run_dag = tis[0].dag_version.serialized_dag.dag
+        version = tis[0].dag_version
+        if not version:
+            version = session.scalar(
+                select(DagVersion)
+                .where(
+                    DagVersion.dag_id == tis[0].dag_id,
+                )
+                .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
+                .limit(1)
+            )
+        if not version.serialized_dag:
+            log.error(
+                "No serialized dag found",
+                dag_id=tis[0].dag_id,
+                version_id=version.id,
+                version_number=version.version_number,
+            )
+            continue
+        run_dag = version.serialized_dag.dag
         task_node_map = get_task_group_map(dag=run_dag)
         for ti in tis:
-            # Skip the Task Instances if upstream/downstream filtering is applied
-            if task_node_map_exclude and ti.task_id not in task_node_map_exclude:
+            # Skip the Task Instances if upstream/downstream filtering is applied or if the task was removed.
+            if (
+                task_node_map_exclude and ti.task_id not in task_node_map_exclude
+            ) or ti.state == TaskInstanceState.REMOVED:
                 continue
 
             # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
@@ -190,7 +214,7 @@ def grid_data(
             (task_id_parent, run_id): parent_tis[(task_id_parent, run_id)] + parent_tis[(task_id, run_id)]
             for task_id, task_map in task_group_map.items()
             if task_map["is_group"]
-            for (task_id_parent, run_id), tis in parent_tis.items()
+            for (task_id_parent, run_id), tis in list(parent_tis.items())
             if task_id_parent == task_map["parent_id"]
         }
     )
@@ -233,6 +257,6 @@ def grid_data(
     ]
 
     flat_tis = itertools.chain.from_iterable(tis_by_run_id.values())
-    structure = get_combined_structure(task_instances=flat_tis)
+    structure = get_combined_structure(task_instances=flat_tis, session=session)
 
     return GridResponse(dag_runs=grid_dag_runs, structure=structure)

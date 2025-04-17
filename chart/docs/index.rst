@@ -60,7 +60,7 @@ Requirements
 ------------
 
 -  Kubernetes 1.29+ cluster
--  Helm 3.0+
+-  Helm 3.10+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features

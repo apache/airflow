@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import glob
 import operator
 import os
@@ -126,6 +127,7 @@ from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     expand_all_provider_distributions,
     find_matching_long_package_names,
+    floor_version_suffix,
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
@@ -243,7 +245,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.10"
+AIRFLOW_UV_VERSION = "0.6.13"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -251,7 +253,7 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.10"
+UV_VERSION = "0.6.13"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -416,9 +418,32 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
                     f"{version_suffix} suffix."
                 )
-        if line.strip().startswith('"apache-airflow-providers-') and ">=" in line:
+        if line.strip().startswith('"apache-airflow-') and ">=" in line:
             if not line.endswith(
                 f'.{version_suffix}"',
+            ):
+                floored_version_suffix = floor_version_suffix(version_suffix)
+                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{floored_version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
+        if line.strip().startswith('"apache-airflow-core') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
+            ):
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{version_suffix}",'
+            else:
+                get_console().print(
+                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
+                    f"{version_suffix} suffix."
+                )
+        if line.strip().startswith('"apache-airflow-task-sdk') and "==" in line:
+            if not line.endswith(
+                f'.{version_suffix}",',
             ):
                 get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
                 line = line.rstrip('",') + f'.{version_suffix}",'
@@ -898,6 +923,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
+@click.option(
+    "--skip-changelog",
+    is_flag=True,
+    help="Skip changelog generation. This is used in pre-commit that updates build-files only.",
+)
+@click.option(
+    "--skip-readme",
+    is_flag=True,
+    help="Skip readme generation. This is used in pre-commit that updates build-files only.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -909,6 +944,8 @@ def prepare_provider_documentation(
     provider_distributions: tuple[str],
     reapply_templates_only: bool,
     skip_git_fetch: bool,
+    skip_changelog: bool,
+    skip_readme: bool,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -951,7 +988,7 @@ def prepare_provider_documentation(
                 f"Update release notes for package '{provider_id}' ",
                 skip_printing_title=only_min_version_update,
             ):
-                if not only_min_version_update:
+                if not only_min_version_update and not reapply_templates_only:
                     get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
@@ -965,8 +1002,9 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    skip_readme=skip_readme,
                 )
-            if not only_min_version_update:
+            if not only_min_version_update and not reapply_templates_only and not skip_changelog:
                 with ci_group(
                     f"Updates changelog for last release of package '{provider_id}'",
                     skip_printing_title=only_min_version_update,
@@ -1379,10 +1417,8 @@ def tag_providers(
             get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
             if clean_local_tags:
                 for tag in tags:
-                    try:
+                    with contextlib.suppress(subprocess.CalledProcessError):
                         run_command(["git", "tag", "-d", tag], check=True)
-                    except subprocess.CalledProcessError:
-                        pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")
             else:
                 get_console().print(
@@ -1541,7 +1577,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -2029,6 +2065,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
         python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
+        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
@@ -2116,6 +2153,12 @@ def clean_old_provider_artifacts(
     "rc/alpha/beta images are built.",
 )
 @click.option(
+    "--include-pre-release",
+    is_flag=True,
+    help="Whether to Include pre-release distributions from PyPI when building images. Useful when we "
+    "want to build an RC image with RC provider versions.",
+)
+@click.option(
     "--slim-images",
     is_flag=True,
     help="Whether to prepare slim images instead of the regular ones.",
@@ -2129,6 +2172,7 @@ def release_prod_images(
     limit_python: str | None,
     commit_sha: str | None,
     skip_latest: bool,
+    include_pre_release: bool,
     chicken_egg_providers: str,
 ):
     perform_environment_checks()
@@ -2179,6 +2223,7 @@ def release_prod_images(
                 "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
+                "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             }
             if commit_sha:
                 slim_build_args["COMMIT_SHA"] = commit_sha
@@ -2214,6 +2259,7 @@ def release_prod_images(
             regular_build_args = {
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
+                "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
             }
             if commit_sha:
                 regular_build_args["COMMIT_SHA"] = commit_sha
@@ -2425,14 +2471,23 @@ def generate_issue_content_providers(
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
+                pr_or_issue = None
                 try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                    pr_or_issue = repo.get_pull(pr_number)
+                    if pr_or_issue.user.login == "dependabot[bot]":
+                        get_console().print(
+                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                        )
+                        continue
+                    pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pr_or_issue = repo.get_issue(pr_number)  # type: ignore[assignment]
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                pull_requests[pr_number] = pr_or_issue  # type: ignore[assignment]
+
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
@@ -2900,9 +2955,8 @@ def modify_single_file_constraints(
             constraints_file.write_text(constraint_content)
         get_console().print("[success]Updated.[/]")
         return True
-    else:
-        get_console().print("[warning]The file has not been modified.[/]")
-        return False
+    get_console().print("[warning]The file has not been modified.[/]")
+    return False
 
 
 def modify_all_constraint_files(
@@ -2934,10 +2988,9 @@ def confirm_modifications(constraints_repo: Path) -> bool:
     confirm = user_confirm("Do you want to continue?")
     if confirm == Answer.YES:
         return True
-    elif confirm == Answer.NO:
+    if confirm == Answer.NO:
         return False
-    else:
-        sys.exit(1)
+    sys.exit(1)
 
 
 def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:

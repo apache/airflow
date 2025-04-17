@@ -261,7 +261,7 @@ def test_validate_provider_info_with_schema():
     "provider_id, min_version",
     [
         ("amazon", "2.9.0"),
-        ("fab", "3.0.0.dev0"),
+        ("fab", "3.0.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -287,10 +287,7 @@ def test_get_provider_info_dict():
     assert provider_info_dict["name"] == "Amazon"
     assert provider_info_dict["package-name"] == "apache-airflow-providers-amazon"
     assert "Amazon" in provider_info_dict["description"]
-    assert provider_info_dict["state"] == "ready"
     assert provider_info_dict["filesystems"] == ["airflow.providers.amazon.aws.fs.s3"]
-    assert len(provider_info_dict["versions"]) > 45
-    assert len(provider_info_dict["dependencies"]) > 10
     assert len(provider_info_dict["integrations"]) > 35
     assert len(provider_info_dict["hooks"]) > 30
     assert len(provider_info_dict["triggers"]) > 15
@@ -304,3 +301,6 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["logging"]) > 1
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0
+    assert len(provider_info_dict["dataset-uris"]) > 0
+    assert len(provider_info_dict["dataset-uris"]) > 0
+    assert len(provider_info_dict["asset-uris"]) > 0

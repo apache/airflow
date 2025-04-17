@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from functools import total_ordering
+from pathlib import Path
 from typing import NamedTuple
 
 from rich.console import Console
@@ -37,7 +38,7 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class DocBuildError(NamedTuple):
     """Errors found in docs build."""
 
-    file_path: str | None
+    file_path: Path | None
     line_no: int | None
     message: str
 
@@ -49,13 +50,13 @@ class DocBuildError(NamedTuple):
     def __ne__(self, other):
         return not self == other
 
-    def __lt__(self, right):
-        file_path_a = self.file_path or ""
-        file_path_b = right.file_path or ""
-        line_no_a = self.line_no or 0
-        line_no_b = right.line_no or 0
+    def __lt__(self, other):
+        file_path_a: Path = self.file_path or Path("")
+        file_path_b: Path = other.file_path or Path("")
+        line_no_a: int = self.line_no or 0
+        line_no_b: int = other.line_no or 0
         left = (file_path_a, line_no_a, self.message)
-        right = (file_path_b, line_no_b, right.message)
+        right = (file_path_b, line_no_b, other.message)
         return left < right
 
 
@@ -73,21 +74,19 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
             console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
             console.print(error.message)
             console.print()
-            if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
-                console.print(
-                    f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})"
-                )
+            if error.file_path and not error.file_path.as_posix().endswith("<unknown>") and error.line_no:
+                console.print(f"File path: {error.file_path.resolve()}:{error.line_no}")
                 if os.path.isfile(error.file_path):
                     console.print()
                     console.print(prepare_code_snippet(error.file_path, error.line_no))
             elif error.file_path:
-                console.print(f"File path: {error.file_path}")
+                console.print(f"File path: {error.file_path.resolve()}")
     console.print()
     console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
     console.print()
 
 
-def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildError]:
+def parse_sphinx_warnings(warning_text: str, docs_dir: Path) -> list[DocBuildError]:
     """
     Parses warnings from Sphinx.
 
@@ -96,6 +95,15 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildErro
     :return: list of DocBuildErrors.
     """
     sphinx_build_errors = []
+    if "Traceback (most recent call last)" in warning_text:
+        sphinx_build_errors.append(
+            DocBuildError(
+                file_path=None,
+                line_no=None,
+                message=warning_text,
+            )
+        )
+        return sphinx_build_errors
     for sphinx_warning in warning_text.splitlines():
         if not sphinx_warning:
             continue
@@ -104,7 +112,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildErro
             try:
                 sphinx_build_errors.append(
                     DocBuildError(
-                        file_path=os.path.join(docs_dir, warning_parts[0]),
+                        file_path=docs_dir / warning_parts[0],
                         line_no=int(warning_parts[1]),
                         message=warning_parts[2],
                     )

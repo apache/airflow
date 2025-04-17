@@ -36,13 +36,13 @@ import os
 from typing import Any
 
 import airflow
-from chart.docs.conf import CHART_DOC_PATH
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
     AUTOAPI_OPTIONS,
     BASIC_AUTOAPI_IGNORE_PATTERNS,
     BASIC_SPHINX_EXTENSIONS,
+    CHART_DOC_PATH,
     SMARTQUOTES_EXCLUDES,
     SPELLING_WORDLIST_PATH,
     SPHINX_DESIGN_STATIC_PATH,

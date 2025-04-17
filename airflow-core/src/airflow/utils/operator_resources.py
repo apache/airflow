@@ -50,7 +50,7 @@ class Resource:
         self._units_str = units_str
         self._qty = qty
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.__dict__ == other.__dict__
@@ -133,7 +133,7 @@ class Resources:
         self.disk = DiskResource(disk)
         self.gpus = GpuResource(gpus)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return self.__dict__ == other.__dict__

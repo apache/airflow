@@ -88,11 +88,11 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     # We check the module using the ast once and then fix it through cst if needed.
     # The primary reason we don't do it all through cst is performance.
     if visitor.error_linenos:
-        _fix_invalide_deferrable_default_value(module_filename)
+        _fix_invalid_deferrable_default_value(module_filename)
     yield from (f"{module_filename}:{lineno}" for lineno in visitor.error_linenos)
 
 
-def _fix_invalide_deferrable_default_value(module_filename: str) -> None:
+def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
     AddImportsVisitor.add_needed_import(context, "airflow.configuration", "conf")
     transformer = DefaultDeferrableTransformer()

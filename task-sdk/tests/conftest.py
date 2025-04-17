@@ -126,6 +126,11 @@ def captured_logs(request):
         cap = LogCapture()
         processors.append(cap)
         structlog.configure(processors=processors)
+        task_logger = logging.getLogger("airflow.task")
+
+        from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+
+        task_logger.addFilter(SecretsMasker())
         yield cap.entries
     finally:
         structlog.configure(processors=cur_processors)

@@ -36,6 +36,8 @@ from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+    from airflow.timetables.trigger import DeltaTriggerTimetable
     from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
@@ -310,3 +312,23 @@ class TestLatestOnlyOperator:
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
         }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Only applicable to Airflow 3.0+")
+    def test_zero_length_interval_treated_as_latest(self, run_task):
+        """Test that when the data_interval_start and data_interval_end are the same, the task is treated as latest."""
+        with DAG(
+            "test_dag",
+            schedule=DeltaTriggerTimetable(datetime.timedelta(hours=1)),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        run_task(latest_task, run_type=DagRunType.SCHEDULED)
+
+        assert run_task.dagrun.data_interval_start == run_task.dagrun.data_interval_end
+
+        # The task will raise DownstreamTasksSkipped exception if it is not the latest run
+        assert run_task.state == State.SUCCESS
