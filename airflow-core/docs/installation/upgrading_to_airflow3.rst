@@ -32,10 +32,11 @@ Step 2: Clean and back up your existing Airflow Instance
 ---------------------------------------------------------
 
 - It is highly recommended that you make a backup of your Airflow instance, specifically your Airflow metadata database before starting the migration process.
-   - If you do not have a "hot backup" capability for your database, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
-     For example, if you don't turn off your Airflow instance, the backup of the database will not include all TaskInstances or DagRuns.
-   - If you did not make a backup and your migration fails, you might end up in a half-migrated state. This can be caused by, for example, a broken network connection between your
-     Airflow CLI and the database during the migration. Having a backup is an important precaution to avoid problems like this.
+
+    - If you do not have a "hot backup" capability for your database, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent. For example, if you don't turn off your Airflow instance, the backup of the database will not include all TaskInstances or DagRuns.
+
+    - If you did not make a backup and your migration fails, you might end up in a half-migrated state. This can be caused by, for example, a broken network connection between your Airflow CLI and the database during the migration. Having a backup is an important precaution to avoid problems like this.
+
 - A long running Airflow instance can accumulate a substantial amount of data that are no longer required (for example, old XCom data). Schema changes will be a part of the Airflow 3
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
@@ -106,13 +107,13 @@ You should now be able to start up your Airflow 3 instance.
 Step 6: Changes to your startup scripts
 ---------------------------------------
 
-- In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
+In Airflow 3, the Webserver has become a generic API server. The API server can be started up using the following command:
 
 .. code-block:: bash
 
     airflow api-server
 
-- The dag processor must now be started independently, even for local or development setups:
+The dag processor must now be started independently, even for local or development setups:
 
 .. code-block:: bash
 
@@ -132,7 +133,6 @@ These include:
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by `DAG bundles <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=294816356>`_.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
-
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``
   - ``yesterday_ds``
@@ -145,10 +145,9 @@ These include:
   - ``next_ds_nodash``
   - ``next_ds``
   - ``execution_date``
-
 - The ``catchup_by_default`` dag parameter is now ``False`` by default.
 - The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
-- **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``.
+- **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
 
