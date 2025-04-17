@@ -42,7 +42,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+    pass
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -74,35 +74,34 @@ class TestSensorHelper:
     @staticmethod
     def _clean_db():
         db.clear_db_dags()
-        db.clear_db_jobs()
         db.clear_db_runs()
+        db.clear_db_jobs()
 
     @staticmethod
     def create_dag_run(
         dag: DAG,
         *,
         task_states: Mapping[str, TaskInstanceState] | None = None,
-        logical_date: datetime.datetime | None = None,
+        execution_date: datetime.datetime | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
-        logical_date = pendulum.instance(logical_date or now)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        execution_date = pendulum.instance(execution_date or now)
         run_type = DagRunType.MANUAL
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
         dag_run = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=run_type,
-                run_after=logical_date,
-                data_interval=data_interval,
-                logical_date=logical_date,
+                run_after=execution_date,
+                data_interval=None,
+                logical_date=execution_date,
             ),
             run_type=run_type,
             data_interval=data_interval,
             start_date=now,
             state=DagRunState.SUCCESS,  # not important
             external_trigger=False,
-            **triggered_by_kwargs,  # type: ignore
+            execution_date=execution_date,  # type: ignore[call-arg]
         )
 
         if task_states is not None:
