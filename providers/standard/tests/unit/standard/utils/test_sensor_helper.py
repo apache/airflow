@@ -47,11 +47,11 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-pytestmark = pytest.mark.db_test
-
 TI = TaskInstance
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for AF2")
+@pytest.mark.db_test
 class TestSensorHelper:
     DAG_ID = "test_dag"
     TASK_ID = "test_task"
@@ -95,6 +95,7 @@ class TestSensorHelper:
                 run_type=run_type,
                 run_after=logical_date,
                 data_interval=data_interval,
+                logical_date=logical_date,
             ),
             run_type=run_type,
             logical_date=logical_date,
@@ -405,3 +406,53 @@ class TestSensorHelper:
 
         allowed_state_count = len(allowed_task_instance_states) / len(self.TASK_ID_LIST)
         assert count == allowed_state_count
+
+
+@pytest.mark.parametrize(
+    "run_id_task_state_map, states, expected_count",
+    [
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": "success"},
+            },
+            ["success"],
+            1,
+            id="single_runid_with_success",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": "success"},
+                "run_id_2": {"task_id_1": "success", "task_id_2": "success"},
+            },
+            ["success"],
+            2,
+            id="multiple_runid_with_success",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "failed", "task_id_2": "failed"},
+            },
+            ["failed"],
+            1,
+            id="single_runid_with_failed",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": "failed"},
+            },
+            ["failed"],
+            0,
+            id="single_runid_with_no_success",
+        ),
+    ],
+)
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for AF3")
+def test_get_count_by_matched_states(
+    run_id_task_state_map,
+    states,
+    expected_count,
+):
+    from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
+
+    count = _get_count_by_matched_states(run_id_task_state_map=run_id_task_state_map, states=states)
+    assert count == expected_count
