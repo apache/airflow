@@ -278,7 +278,9 @@ class TestCliDags:
         # Clear the database
         clear_db_dags()
         path_to_parse = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
-        args = self.parser.parse_args(["dags", "list", "--output", "json", "--local", "--bundle-name", "testing"])
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "testing"]
+        )
         with configure_testing_dag_bundle(path_to_parse):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_list_dags(args)
@@ -286,7 +288,9 @@ class TestCliDags:
                 dag_list = json.loads(out)
             for key in ["dag_id", "fileloc", "owners", "is_paused"]:
                 assert key in dag_list[0]
-            assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list)
+            assert any(
+                str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list
+            )
         # Rebuild Test DB for other tests
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
@@ -333,7 +337,9 @@ class TestCliDags:
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing", "--local"])
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "yaml", "--bundle-name", "testing", "--local"]
+        )
 
         with configure_testing_dag_bundle(path_to_parse):
             with contextlib.redirect_stderr(StringIO()) as temp_stderr:
