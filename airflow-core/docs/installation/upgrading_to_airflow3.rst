@@ -18,21 +18,22 @@
 Upgrading to Airflow 3
 =======================
 
-Apache Airflow 3 is a major release and contains breaking changes. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
+Apache Airflow 3 is a major release and contains :ref:`breaking changes<breaking-changes>`. This guide walks you through the steps required to upgrade from Airflow 2.x to Airflow 3.0.
 
 Step 1: Take care of prerequisites
 ----------------------------------
 
 - Make sure that you are on Airflow 2.7 or later.
 - Make sure that your Python version is in the supported list. Airflow 3.0.0 supports the following Python versions: Python 3.9, 3.10, 3.11 and 3.12.
-- Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<Breaking Changes>`.
+- Ensure that you are not using any features or functionality that have been :ref:`removed in Airflow 3<breaking-changes>`.
+
 
 Step 2: Clean and back up your existing Airflow Instance
 ---------------------------------------------------------
 
 - It is highly recommended that you make a backup of your Airflow instance, specifically your Airflow metadata database before starting the migration process.
    - If you do not have a "hot backup" capability for your database, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
-   For example, if you don't turn off your Airflow instance, the backup of the database will not include all TaskInstances or DagRuns.
+     For example, if you don't turn off your Airflow instance, the backup of the database will not include all TaskInstances or DagRuns.
    - If you did not make a backup and your migration fails, you might end up in a half-migrated state. This can be caused by, for example, a broken network connection between your
      Airflow CLI and the database during the migration. Having a backup is an important precaution to avoid problems like this.
 - A long running Airflow instance can accumulate a substantial amount of data that are no longer required (for example, old XCom data). Schema changes will be a part of the Airflow 3
@@ -67,9 +68,9 @@ Step 4: Install the Standard Providers
 --------------------------------------
 
 - Some of the commonly used Operators which were bundled as part of the ``airflow-core`` package (for example ``BashOperator`` and ``PythonOperator``)
-have now been split out into a separate package: ``apache-airflow-providers-standard``.
+  have now been split out into a separate package: ``apache-airflow-providers-standard``.
 - For convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the standard provider
-package instead of Airflow Core.
+  package instead of Airflow Core.
 
 
 Step 5: Deployment Managers - Upgrade your Airflow Instance
@@ -117,6 +118,8 @@ Step 6: Changes to your startup scripts
 
     airflow dag-processor
 
+
+.. _breaking-changes:
 
 Breaking Changes
 ================
