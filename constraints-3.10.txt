@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-16T14:05:29.927676
+# This constraints file was automatically generated on 2025-04-17T02:39:03.314535
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,7 +81,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.15.2
-alibabacloud-adb20211201==3.0.1
+alibabacloud-adb20211201==3.0.2
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.0
 alibabacloud-tea==0.4.3
@@ -133,6 +133,7 @@ apache-airflow-providers-dbt-cloud==4.3.2
 apache-airflow-providers-dingding==3.7.3
 apache-airflow-providers-discord==3.9.5
 apache-airflow-providers-docker==4.3.1
+apache-airflow-providers-edge3==1.0.0rc1
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.4
 apache-airflow-providers-facebook==3.7.1
@@ -249,7 +250,7 @@ celery==5.5.1
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.33.2
+cfn-lint==1.34.0
 chardet==5.2.0
 charset-normalizer==3.4.1
 checksumdir==1.2.0
@@ -317,14 +318,14 @@ gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
 geomet==0.2.1.post1
 gitdb==4.0.12
-google-ads==26.0.1
+google-ads==26.1.0
 google-analytics-admin==0.23.6
 google-api-core==2.24.2
 google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.39.0
-google-cloud-aiplatform==1.88.0
+google-cloud-aiplatform==1.89.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -346,7 +347,7 @@ google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
 google-cloud-kms==3.4.1
 google-cloud-language==2.17.1
-google-cloud-logging==3.11.4
+google-cloud-logging==3.12.0
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
@@ -446,7 +447,7 @@ krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
-lazy-object-proxy==1.10.0
+lazy-object-proxy==1.11.0
 libcst==1.7.0
 limits==5.0.0
 linkify-it-py==2.0.3
@@ -500,7 +501,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.74.0
+openai==1.75.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.31.0
@@ -646,7 +647,7 @@ ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
 s3transfer==0.11.3
-sagemaker_studio==1.0.11
+sagemaker_studio==1.0.12
 scikit-learn==1.5.2
 scipy==1.15.2
 scramp==1.4.5
@@ -776,7 +777,7 @@ xmltodict==0.14.2
 yamllint==1.37.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
-yarl==1.19.0
+yarl==1.20.0
 ydb-dbapi==0.1.11
 ydb==3.20.1
 zeep==4.3.1
