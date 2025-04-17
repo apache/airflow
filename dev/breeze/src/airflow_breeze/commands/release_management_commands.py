@@ -127,6 +127,7 @@ from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     expand_all_provider_distributions,
     find_matching_long_package_names,
+    floor_version_suffix,
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
@@ -421,8 +422,9 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
             if not line.endswith(
                 f'.{version_suffix}"',
             ):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{version_suffix}",'
+                floored_version_suffix = floor_version_suffix(version_suffix)
+                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{floored_version_suffix}",'
             else:
                 get_console().print(
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
@@ -1575,7 +1577,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -2469,14 +2471,23 @@ def generate_issue_content_providers(
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
+                pr_or_issue = None
                 try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                    pr_or_issue = repo.get_pull(pr_number)
+                    if pr_or_issue.user.login == "dependabot[bot]":
+                        get_console().print(
+                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                        )
+                        continue
+                    pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pr_or_issue = repo.get_issue(pr_number)  # type: ignore[assignment]
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                pull_requests[pr_number] = pr_or_issue  # type: ignore[assignment]
+
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())

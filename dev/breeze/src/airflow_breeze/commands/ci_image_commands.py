@@ -136,6 +136,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
         capture_output=True,
         text=True,
         check=False,
+        output=output,
     )
     if result.returncode != 0:
         return True
