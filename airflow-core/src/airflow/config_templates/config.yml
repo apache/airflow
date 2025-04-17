@@ -629,9 +629,22 @@ database:
         <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__
         e.g ``connect_args={"timeout":30}`` can be defined in ``airflow_local_settings.py`` and
         can be imported as shown below
+
+        *Changed in 3.0.0*: This configuration is only applied to synchronous engines, such as psycopg2.
+        See ``sql_alchemy_connect_args_async``.
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_connect_args_async:
+      description: |
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        This is similar to ``sql_alchemy_connect_args``, but only for async connections.
+
+        This configuration is only applied to async engines, such as asyncpg.
+      version_added: 3.0.0
+      type: string
+      example: 'airflow_local_settings.connect_args_async'
       default: ~
     sql_alchemy_session_maker:
       description: |

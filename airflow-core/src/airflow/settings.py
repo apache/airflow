@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
     from airflow.api_fastapi.common.types import UIAlert
+    from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
 
@@ -320,18 +321,14 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
-def _configure_async_session():
-    global async_engine
-    global AsyncSession
-
-    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
-    AsyncSession = sessionmaker(
-        bind=async_engine,
-        autocommit=False,
-        autoflush=False,
-        class_=SAAsyncSession,
-        expire_on_commit=False,
-    )
+def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
+    key = {
+        "sync": "sql_alchemy_connect_args",
+        "async": "sql_alchemy_connect_args_async",
+    }[mode]
+    if conf.has_option("database", key):
+        return conf.getimport("database", key)
+    return {}
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
@@ -346,9 +343,11 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 
+    global AsyncSession
+    global async_engine
+    global NonScopedSession
     global Session
     global engine
-    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -358,18 +357,31 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
-    if conf.has_option("database", "sql_alchemy_connect_args"):
-        connect_args = conf.getimport("database", "sql_alchemy_connect_args")
-    else:
-        connect_args = {}
-
+    connect_args = _get_connect_args("sync")
     if SQL_ALCHEMY_CONN.startswith("sqlite"):
         # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    engine = create_engine(
+        SQL_ALCHEMY_CONN,
+        connect_args=connect_args,
+        **engine_args,
+        future=True,
+    )
+    async_engine = create_async_engine(
+        SQL_ALCHEMY_CONN_ASYNC,
+        connect_args=_get_connect_args("async"),
+        future=True,
+    )
+    AsyncSession = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
     mask_secret(engine.url.password)
     setup_event_handlers(engine)
 
@@ -384,8 +396,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         )
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
-
-    _configure_async_session()
 
     if register_at_fork := getattr(os, "register_at_fork", None):
         # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
