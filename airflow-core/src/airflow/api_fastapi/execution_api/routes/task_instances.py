@@ -131,6 +131,10 @@ def ti_run(
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
 
+    # don't update start date when resuming from deferral
+    if ti.next_kwargs:
+        data.pop("start_date")
+
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     previous_state = ti.state
