@@ -27,6 +27,7 @@ import pytest
 
 from airflow.models import DAG, TaskInstance
 from airflow.models.dagbag import DagBag
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.sensor_helper import (
     _count_stmt,
     _get_count,
@@ -41,11 +42,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunTriggeredByType
-else:
-    # TODO: Remove this import when we drop support for Airflow 2
-    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
