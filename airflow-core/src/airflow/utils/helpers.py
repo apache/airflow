@@ -124,8 +124,7 @@ def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None
 
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
-    else:
-        return template_string, None
+    return template_string, None
 
 
 @cache
@@ -136,17 +135,16 @@ def log_filename_template_renderer() -> Callable[..., str]:
         import jinja2
 
         return jinja2.Template(template).render
-    else:
 
-        def f_str_format(ti: TaskInstance, try_number: int | None = None):
-            return template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                logical_date=ti.logical_date.isoformat(),
-                try_number=try_number or ti.try_number,
-            )
+    def f_str_format(ti: TaskInstance, try_number: int | None = None):
+        return template.format(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            logical_date=ti.logical_date.isoformat(),
+            try_number=try_number or ti.try_number,
+        )
 
-        return f_str_format
+    return f_str_format
 
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
@@ -276,8 +274,7 @@ def at_most_one(*args) -> bool:
     def is_set(val):
         if val is NOTSET:
             return False
-        else:
-            return bool(val)
+        return bool(val)
 
     return sum(map(is_set, args)) in (0, 1)
 
@@ -294,7 +291,7 @@ def prune_dict(val: Any, mode="strict"):
     def is_empty(x):
         if mode == "strict":
             return x is None
-        elif mode == "truthy":
+        if mode == "truthy":
             return bool(x) is False
         raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
 
@@ -303,27 +300,26 @@ def prune_dict(val: Any, mode="strict"):
         for k, v in val.items():
             if is_empty(v):
                 continue
-            elif isinstance(v, (list, dict)):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_dict[k] = new_val
             else:
                 new_dict[k] = v
         return new_dict
-    elif isinstance(val, list):
+    if isinstance(val, list):
         new_list = []
         for v in val:
             if is_empty(v):
                 continue
-            elif isinstance(v, (list, dict)):
+            if isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
                 if not is_empty(new_val):
                     new_list.append(new_val)
             else:
                 new_list.append(v)
         return new_list
-    else:
-        return val
+    return val
 
 
 def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:

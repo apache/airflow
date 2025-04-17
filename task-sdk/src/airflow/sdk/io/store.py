@@ -144,7 +144,7 @@ def attach(
     if alias:
         if store := _STORE_CACHE.get(alias):
             return store
-        elif not protocol:
+        if not protocol:
             raise ValueError(f"No registered store with alias: {alias}")
 
     if not protocol:

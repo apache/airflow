@@ -88,7 +88,7 @@ class DAGResponse(BaseModel):
 
         if v is None:
             return []
-        elif isinstance(v, str):
+        if isinstance(v, str):
             return v.split(",")
         return v
 

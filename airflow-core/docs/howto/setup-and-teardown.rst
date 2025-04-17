@@ -55,7 +55,7 @@ For convenience we can do this in one line by passing ``create_cluster`` to the 
 
 Here's the graph for this dag:
 
-.. image:: ../img/setup-teardown-simple.png
+.. image:: ../img/ui-dark/setup-teardown-simple.png
 
 Observations:
 
@@ -75,7 +75,7 @@ This will set create_cluster to run before the tasks in the context, and delete_
 
 Here it is, shown in the graph:
 
-.. image:: ../img/setup-teardown-complex.png
+.. image:: ../img/ui-dark/setup-teardown-complex.png
 
 Note that if you are attempting to add an already-instantiated task to a setup context you need to do it explicitly:
 
@@ -98,7 +98,7 @@ Let's look at an example:
 
 And the graph:
 
-.. image:: ../img/setup-teardown-scope.png
+.. image:: ../img/ui-dark/setup-teardown-scope.png
 
 In the above example, ``w1`` and ``w2`` are "between" ``s1`` and ``t1`` and therefore are assumed to require ``s1``. Thus if ``w1`` or ``w2`` is cleared, so too will be ``s1`` and ``t1``.  But if ``w3`` or ``w4`` is cleared, neither ``s1`` nor ``t1`` will be cleared.
 
@@ -165,7 +165,7 @@ Consider this example:
 
 Graph:
 
-.. image:: ../img/setup-teardown-group.png
+.. image:: ../img/ui-dark/setup-teardown-group.png
 
 If ``t1`` were not a teardown task, then this dag would effectively be ``s1 >> w1 >> t1 >> w2``.  But since we have marked ``t1`` as a teardown, it's ignored in ``tg >> w2``.  So the dag is equivalent to the following:
 
@@ -190,7 +190,7 @@ Now let's consider an example with nesting:
 
 Graph:
 
-.. image:: ../img/setup-teardown-nesting.png
+.. image:: ../img/ui-dark/setup-teardown-nesting.png
 
 In this example ``s1`` is downstream of ``dag_s1``, so it must wait for ``dag_s1`` to complete successfully.  But ``t1`` and ``dag_t1`` can run concurrently, because ``t1`` is ignored in the expression ``tg >> dag_t1``.  If you clear ``w2``, it will clear ``dag_s1`` and ``dag_t1``, but not anything in the task group.
 
@@ -209,7 +209,7 @@ You can run setup tasks in parallel:
 
 Graph:
 
-.. image:: ../img/setup-teardown-parallel.png
+.. image:: ../img/ui-dark/setup-teardown-parallel.png
 
 It can be nice visually to put them in a group:
 
@@ -226,7 +226,7 @@ It can be nice visually to put them in a group:
 
 And the graph:
 
-.. image:: ../img/setup-teardown-setup-group.png
+.. image:: ../img/ui-dark/setup-teardown-setup-group.png
 
 Trigger rule behavior for teardowns
 """""""""""""""""""""""""""""""""""

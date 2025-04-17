@@ -495,8 +495,7 @@ class BaseOperator(TaskSDKBaseOperator):
         """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
-        else:
-            return self.downstream_list
+        return self.downstream_list
 
     @staticmethod
     def xcom_push(

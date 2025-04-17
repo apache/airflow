@@ -470,9 +470,9 @@ class _AssetEventAccessorsMixin(Generic[T]):
     def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
         if name and uri:
             return self[Asset(name=name, uri=uri)]
-        elif name:
+        if name:
             return self[Asset.ref(name=name)]
-        elif uri:
+        if uri:
             return self[Asset.ref(uri=uri)]
 
         raise ValueError("name and uri cannot both be None")

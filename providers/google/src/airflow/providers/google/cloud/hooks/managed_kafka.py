@@ -120,7 +120,7 @@ class ManagedKafkaHook(GoogleBaseHook):
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
 
-    def get_confluent_token(self):
+    def get_confluent_token(self, config_str: str):
         """Get the authentication token for confluent client."""
         token_provider = ManagedKafkaTokenProvider(credentials=self.get_credentials())
         token = token_provider.confluent_token()

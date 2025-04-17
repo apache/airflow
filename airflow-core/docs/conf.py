@@ -343,9 +343,9 @@ spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
 
-main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-generated.yaml")
-sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-generated.yaml")
-redocs = [
+main_openapi_path = Path(main_openapi_file).parent.joinpath("v1-rest-api-generated.yaml")
+sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v1-simple-auth-manager-generated.yaml")
+redoc = [
     {
         "name": "Simple auth manager token API",
         "page": "core-concepts/auth-manager/simple/sam-token-api-ref",

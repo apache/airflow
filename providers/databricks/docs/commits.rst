@@ -34,14 +34,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.3.2
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  =============================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =============================================================================
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`9dcce2f71b <https://github.com/apache/airflow/commit/9dcce2f71b80e829f4b216d2ec48a8f9fbe29b1f>`__  2025-04-13   ``Fixing DatabricksNotebookOperator invalid dependency graph issue (#48492)``
+==================================================================================================  ===========  =============================================================================
+
 7.3.1
 .....
 
-Latest change: 2025-04-08
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  =====================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 `139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
 `659150689e <https://github.com/apache/airflow/commit/659150689e631c610ea18485b9986e3ff27f0b36>`__  2025-04-07   ``Fix Databricks provider tests (#48877)``

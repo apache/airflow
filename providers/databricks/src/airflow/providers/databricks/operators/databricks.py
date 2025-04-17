@@ -1277,15 +1277,14 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                 task_key = f"{self.dag_id}__{task_id}".encode()
                 _databricks_task_key = hashlib.md5(task_key).hexdigest()
             return _databricks_task_key
-        else:
-            if not self._databricks_task_key or len(self._databricks_task_key) > 100:
-                self.log.info(
-                    "databricks_task_key has not be provided or the provided one exceeds 100 characters and will be truncated by the Databricks API. This will cause failure when trying to monitor the task. A task_key will be generated using the hash value of dag_id+task_id"
-                )
-                task_key = f"{self.dag_id}__{self.task_id}".encode()
-                self._databricks_task_key = hashlib.md5(task_key).hexdigest()
-                self.log.info("Generated databricks task_key: %s", self._databricks_task_key)
-            return self._databricks_task_key
+        if not self._databricks_task_key or len(self._databricks_task_key) > 100:
+            self.log.info(
+                "databricks_task_key has not be provided or the provided one exceeds 100 characters and will be truncated by the Databricks API. This will cause failure when trying to monitor the task. A task_key will be generated using the hash value of dag_id+task_id"
+            )
+            task_key = f"{self.dag_id}__{self.task_id}".encode()
+            self._databricks_task_key = hashlib.md5(task_key).hexdigest()
+            self.log.info("Generated databricks task_key: %s", self._databricks_task_key)
+        return self._databricks_task_key
 
     @property
     def _databricks_workflow_task_group(self) -> DatabricksWorkflowTaskGroup | None:

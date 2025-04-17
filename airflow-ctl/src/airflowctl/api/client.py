@@ -142,8 +142,7 @@ class Credentials:
                 self.api_url = credentials["api_url"]
                 self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
             return self
-        else:
-            raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
+        raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
 
 
 class BearerAuth(httpx.Auth):

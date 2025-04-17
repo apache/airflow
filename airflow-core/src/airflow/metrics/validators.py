@@ -259,8 +259,7 @@ class PatternAllowListValidator(ListValidator):
     def test(self, name: str) -> bool:
         if self.validate_list is not None:
             return super()._has_pattern_match(name)
-        else:
-            return True  # default is all metrics are allowed
+        return True  # default is all metrics are allowed
 
 
 class PatternBlockListValidator(ListValidator):
@@ -269,5 +268,4 @@ class PatternBlockListValidator(ListValidator):
     def test(self, name: str) -> bool:
         if self.validate_list is not None:
             return not super()._has_pattern_match(name)
-        else:
-            return True  # default is all metrics are allowed
+        return True  # default is all metrics are allowed

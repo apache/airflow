@@ -76,7 +76,7 @@ apache-airflow-providers-apache-cassandra package
 `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 
-Release: 3.7.1
+Release: 3.7.2
 
 Provider package
 ----------------
