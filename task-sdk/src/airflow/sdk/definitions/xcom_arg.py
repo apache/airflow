@@ -34,6 +34,8 @@ from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
+from airflow.sdk.definitions._internal.expandinput import _needs_run_time_resolution
+
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -366,6 +368,8 @@ class PlainXComArg(XComArg):
                 default=NOTSET,
             )
         if not isinstance(result, ArgNotSet):
+            if _needs_run_time_resolution(result):
+                result = result.resolve(context)
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
