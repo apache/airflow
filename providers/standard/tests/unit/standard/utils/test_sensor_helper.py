@@ -98,7 +98,6 @@ class TestSensorHelper:
                 logical_date=logical_date,
             ),
             run_type=run_type,
-            logical_date=logical_date,
             data_interval=data_interval,
             start_date=now,
             state=DagRunState.SUCCESS,  # not important
@@ -170,7 +169,7 @@ class TestSensorHelper:
 
         for dttm in self.DTTM_FILTER:
             self.create_dag_run(
-                dag=dag, task_states=dttm_to_task_state[dttm], logical_date=dttm, session=session
+                dag=dag, task_states=dttm_to_task_state[dttm], execution_date=dttm, session=session
             )
 
         dttm_filter = [pendulum.instance(dttm) for dttm in self.DTTM_FILTER]
@@ -197,7 +196,7 @@ class TestSensorHelper:
                     EmptyOperator(task_id=subtask_id)
 
         for dttm in self.DTTM_FILTER:
-            self.create_dag_run(dag=dag, logical_date=dttm, session=session)
+            self.create_dag_run(dag=dag, execution_date=dttm, session=session)
 
         with mock.patch.object(DagBag, "get_dag") as mock_get_dag:
             mock_get_dag.return_value = dag
@@ -227,7 +226,7 @@ class TestSensorHelper:
             EmptyOperator(task_id=self.TASK_ID)
 
         now = timezone.utcnow()
-        self.create_dag_run(dag, task_states={self.TASK_ID: state}, logical_date=now, session=session)
+        self.create_dag_run(dag, task_states={self.TASK_ID: state}, execution_date=now, session=session)
 
         count = _get_count(
             dttm_filter=[now],
@@ -261,7 +260,7 @@ class TestSensorHelper:
 
         for dttm in self.DTTM_FILTER:
             self.create_dag_run(
-                dag=dag, task_states={self.TASK_ID: task_states[dttm]}, logical_date=dttm, session=session
+                dag=dag, task_states={self.TASK_ID: task_states[dttm]}, execution_date=dttm, session=session
             )
 
         dttm_filter = [pendulum.instance(dttm) for dttm in self.DTTM_FILTER]
@@ -317,7 +316,7 @@ class TestSensorHelper:
 
         for dttm in self.DTTM_FILTER:
             self.create_dag_run(
-                dag=dag, task_states=dttm_to_task_state[dttm], logical_date=dttm, session=session
+                dag=dag, task_states=dttm_to_task_state[dttm], execution_date=dttm, session=session
             )
 
         dttm_filter = [pendulum.instance(dttm) for dttm in self.DTTM_FILTER]
@@ -381,7 +380,7 @@ class TestSensorHelper:
 
         for dttm in self.DTTM_FILTER:
             self.create_dag_run(
-                dag=dag, task_states=dttm_to_subtask_state[dttm], logical_date=dttm, session=session
+                dag=dag, task_states=dttm_to_subtask_state[dttm], execution_date=dttm, session=session
             )
 
         with mock.patch.object(DagBag, "get_dag") as mock_get_dag:
