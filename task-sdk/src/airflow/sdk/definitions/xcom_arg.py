@@ -711,8 +711,8 @@ class FilterXComArg(XComArg):
                     raise ValueError("filter() argument must be a plain function, not a @task operator")
         self.callables = callables
 
-    @classmethod
-    def none_filter(cls, value) -> bool:
+    @staticmethod
+    def none_filter(value) -> bool:
         return value if True else False
 
     def __repr__(self) -> str:
