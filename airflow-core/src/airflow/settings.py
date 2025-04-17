@@ -25,11 +25,12 @@ import os
 import sys
 import warnings
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -43,6 +44,8 @@ from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
+
     from sqlalchemy.engine import Engine
 
     from airflow.api_fastapi.common.types import UIAlert
@@ -207,13 +210,36 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
-def _get_async_conn_uri_from_sync(sync_uri):
-    scheme, rest = sync_uri.split(":", maxsplit=1)
-    scheme = scheme.split("+", maxsplit=1)[0]
-    aiolib = AIO_LIBS_MAPPING.get(scheme)
-    if aiolib:
-        return f"{scheme}+{aiolib}:{rest}"
-    return sync_uri
+def _convert_asyncpg_connect_args(args: Iterable[tuple[str, str]]) -> Iterator[tuple[str, str]]:
+    """
+    Convert DBAPI flags to be compatible for asyncpg.
+
+    This works around https://github.com/MagicStack/asyncpg/issues/737 in the
+    most trivial case. Unfortunately asyncpg does not support other ssl-related
+    arguments like 'sslcert', but requires you to pass a rich object to 'ssl',
+    which is not possible with a URL string.
+
+    We can revisit this when a user actually reports it as an issue. We need to
+    pass this value another way.
+
+    In case we need to do this in the future:
+    https://github.com/sqlalchemy/sqlalchemy/discussions/5975
+    """
+    for k, v in args:
+        if k == "sslmode":
+            yield "ssl", v
+        else:
+            yield k, v
+
+
+def _get_async_conn_uri_from_sync(sync_uri: str) -> str:
+    sqla_url = make_url(sync_uri)
+    if not (scheme := sqla_url.drivername.split("+", 1)[0]) or not (aiolib := AIO_LIBS_MAPPING.get(scheme)):
+        return sync_uri
+    sqla_url = sqla_url.set(drivername=f"{scheme}+{aiolib}")
+    if aiolib == "asyncpg":
+        sqla_url = sqla_url.set(query=dict(_convert_asyncpg_connect_args(sqla_url.query.items())))
+    return sqla_url.render_as_string(hide_password=False)
 
 
 def configure_vars():
@@ -357,6 +383,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         connect_args["check_same_thread"] = False
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    # TODO: Do we need to pass connect_args here too? If we do, they need to be
+    # converted like in _get_async_conn_uri_from_sync.
     async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
     AsyncSession = sessionmaker(
         bind=async_engine,
