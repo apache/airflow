@@ -845,6 +845,7 @@ idempotency
 IdP
 ie
 iframe
+iframes
 IGM
 igm
 ignorable
@@ -1108,6 +1109,7 @@ microservice
 microservices
 microsoft
 middleware
+middlewares
 Midnights
 midnights
 milli
