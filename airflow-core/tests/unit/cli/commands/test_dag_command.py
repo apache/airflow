@@ -271,7 +271,7 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=False)
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle):
@@ -288,7 +288,7 @@ class TestCliDags:
                 assert key in dag_list[0]
             assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=False)
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_custom_cols(self):
@@ -342,7 +342,7 @@ class TestCliDags:
 
         assert "Failed to load all files." in out
         # Rebuild Test DB for other tests
-        parse_and_sync_to_db(os.devnull, include_examples=False)
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
