@@ -408,6 +408,7 @@ class TestDagDetails(TestDagEndpoint):
         file_token = res_json["file_token"]
         expected = {
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
@@ -516,6 +517,7 @@ class TestGetDag(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "bundle_name": "dag_maker",
+            "bundle_version": None,
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
