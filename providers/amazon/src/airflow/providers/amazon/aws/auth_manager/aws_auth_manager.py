@@ -87,7 +87,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
 
     @cached_property
     def apiserver_endpoint(self) -> str:
-        return conf.get("api", "base_url")
+        return conf.get("api", "base_url", fallback="/")
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
         return AwsAuthManagerUser(user_id=token.pop("sub"), **token)

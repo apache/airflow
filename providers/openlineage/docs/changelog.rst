@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add support for task's manual state change notification in OpenLineage listener (#49040)``
+* ``feat: Explicitly propagate airflow logging level to OL client (#49108)``
+* ``feat: Add owner_links in DAG object in airflow facet (#49085)``
+
+Misc
+~~~~
+
+* ``gate import behind Airflow 2 path (#49209)``
+* ``remove superfluous else block (#49199)``
+* ``chore: Update requirement for openlineage client to >=1.31.0 (#49083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.3
+.....
+
+Misc
+~~~~
+
+* ``Move ObjectStoragePath and attach to Task SDK (#48906)``
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: verify openlineage airflow models serialization (#47915)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 2.1.2
 .....
 

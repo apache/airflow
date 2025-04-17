@@ -131,6 +131,7 @@ Docker Compose
 
 1. Installing latest version of the Docker Compose plugin
 
+on Debian / Ubuntu,
 Install using the repository:
 
 .. code-block:: bash
@@ -151,10 +152,16 @@ Install manually:
   sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
 
   sudo chmod +x /usr/local/bin/docker-compose
-
 .. note::
     This option requires you to manage updates manually.
     It is recommended that you set up Docker's repository for easier maintenance.
+
+on macOS, you can also install docker-compose via
+
+.. code-block:: bash
+
+  brew install docker-compose
+
 
 1. Verifying installation
 
@@ -484,8 +491,8 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
+   Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -501,7 +508,7 @@ Using Breeze
 
    * Port forwarding:
 
-        Ports are forwarded to the running docker containers for webserver and database
+        Ports are forwarded to the running docker containers for components and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
           * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555
@@ -747,7 +754,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst" target="_blank">
    Workflow for a contribution</a>
 
 

@@ -587,22 +587,19 @@ class MockSFTPClient:
     async def listdir(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("File does not exist")
-        else:
-            return ["..", ".", "file"]
+        return ["..", ".", "file"]
 
     async def readdir(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("File does not exist")
-        else:
-            return [SFTPName(".."), SFTPName("."), SFTPName("file")]
+        return [SFTPName(".."), SFTPName("."), SFTPName("file")]
 
     async def stat(self, path: str):
         if path == "/path/does_not/exist/":
             raise SFTPNoSuchFile("No files matching")
-        else:
-            sftp_obj = SFTPAttrs()
-            sftp_obj.mtime = 1667302566
-            return sftp_obj
+        sftp_obj = SFTPAttrs()
+        sftp_obj.mtime = 1667302566
+        return sftp_obj
 
 
 class MockSSHClient:

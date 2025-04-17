@@ -202,7 +202,7 @@ def make_initialization_workspace_flow(
 def define_default_location(region: str) -> DataformLocations:
     if "us" in region:
         return DataformLocations.US
-    elif "europe" in region:
+    if "europe" in region:
         return DataformLocations.EUROPE
 
     regions_mapping: Mapping[str, DataformLocations] = {}

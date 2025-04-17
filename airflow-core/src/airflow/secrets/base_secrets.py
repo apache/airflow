@@ -63,8 +63,7 @@ class BaseSecretsBackend(ABC):
         value = value.strip()
         if value[0] == "{":
             return Connection.from_json(conn_id=conn_id, value=value)
-        else:
-            return Connection(conn_id=conn_id, uri=value)
+        return Connection(conn_id=conn_id, uri=value)
 
     def get_connection(self, conn_id: str) -> Connection | None:
         """
@@ -78,8 +77,7 @@ class BaseSecretsBackend(ABC):
 
         if value:
             return self.deserialize_connection(conn_id=conn_id, value=value)
-        else:
-            return None
+        return None
 
     def get_variable(self, key: str) -> str | None:
         """

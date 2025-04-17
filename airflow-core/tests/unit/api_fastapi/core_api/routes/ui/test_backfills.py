@@ -63,7 +63,7 @@ class TestBackfillEndpoint:
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
-                is_active=True,
+                is_stale=False,
                 timetable_summary="0 0 * * *",
                 is_paused=is_paused,
             )

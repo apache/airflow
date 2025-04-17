@@ -76,8 +76,8 @@ class TestClearTasks:
             # do the incrementing of try_number ordinarily handled by scheduler
             ti0.try_number += 1
             ti1.try_number += 1
-            session.merge(ti0)
-            session.merge(ti1)
+            ti0 = session.merge(ti0)
+            ti1 = session.merge(ti1)
             session.commit()
 
             # we use order_by(task_id) here because for the test DAG structure of ours
@@ -87,8 +87,9 @@ class TestClearTasks:
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session, dag=dag)
 
-        ti0.refresh_from_db()
-        ti1.refresh_from_db()
+            ti0.refresh_from_db(session)
+            ti1.refresh_from_db(session)
+
         # Next try to run will be try 2
         assert ti0.state is None
         assert ti0.try_number == 1
@@ -530,11 +531,7 @@ class TestClearTasks:
         with create_session() as session:
 
             def count_task_reschedule(ti):
-                return (
-                    session.query(TaskReschedule)
-                    .filter(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == 1)
-                    .count()
-                )
+                return session.query(TaskReschedule).filter(TaskReschedule.ti_id == ti.id).count()
 
             assert count_task_reschedule(ti0) == 1
             assert count_task_reschedule(ti1) == 1
@@ -626,12 +623,14 @@ class TestClearTasks:
         assert ti0.try_number == 1
         dag.clear()
         ti0.refresh_from_db()
+        ti1.refresh_from_db()
         assert ti0.try_number == 1
         assert ti0.state == State.NONE
         assert ti0.max_tries == 1
 
         assert ti1.max_tries == 2
-        session.get(TaskInstance, ti1.id).try_number += 1
+        session.add(ti1)
+        ti1.try_number += 1
         session.commit()
         ti1.run()
 
@@ -747,29 +746,37 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti1, ti2 = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.task_id)
         ti1.task = op1
         ti2.task = op2
 
         session.get(TaskInstance, ti2.id).try_number += 1
         session.commit()
-        ti2.run()
+        ti2.run(session=session)
         # Dependency not met
         assert ti2.try_number == 1
         assert ti2.max_tries == 1
 
-        op2.clear(upstream=True)
+        op2.clear(upstream=True, session=session)
+        ti1.refresh_from_db(session)
+        ti2.refresh_from_db(session)
         # max tries will be set to retries + curr try number == 1 + 1 == 2
-        assert session.get(TaskInstance, ti2.id).max_tries == 2
+        assert ti2.max_tries == 2
 
-        session.get(TaskInstance, ti1.id).try_number += 1
+        ti1.try_number += 1
+        session.merge(ti1)
         session.commit()
-        ti1.run()
+
+        ti1.run(session=session)
+        ti1.refresh_from_db(session)
+        ti2.refresh_from_db(session)
         assert ti1.try_number == 1
 
-        session.get(TaskInstance, ti2.id).try_number += 1
-        session.commit()
-        ti2.run(ignore_ti_state=True)
+        ti2.try_number += 1
+        session.add(ti2)
+        session.flush()
+        ti2.run(ignore_ti_state=True, session=session)
+        ti2.refresh_from_db(session)
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.
         assert ti1.max_tries == 0

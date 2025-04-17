@@ -224,8 +224,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             results: list = [self.hook.conn.get_statement_result(Id=sid) for sid in statement_ids]
             self.log.debug("Statement result(s): %s", results)
             return results
-        else:
-            return statement_ids
+        return statement_ids
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""

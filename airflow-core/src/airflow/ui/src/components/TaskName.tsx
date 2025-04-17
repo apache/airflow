@@ -51,7 +51,15 @@ export const TaskName = ({
   // We don't have a task group details page to link to
   if (isGroup) {
     return (
-      <Text fontSize="md" fontWeight="bold" {...rest}>
+      <Text
+        fontSize="md"
+        fontWeight="bold"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        title={label}
+        whiteSpace="nowrap"
+        {...rest}
+      >
         {label}
         {isMapped ? " [ ]" : undefined}
       </Text>
@@ -59,7 +67,15 @@ export const TaskName = ({
   }
 
   return (
-    <Text fontSize={isZoomedOut ? "lg" : "md"} fontWeight="bold" {...rest}>
+    <Text
+      fontSize={isZoomedOut ? "lg" : "md"}
+      fontWeight="bold"
+      overflow="hidden"
+      textOverflow="ellipsis"
+      title={label}
+      whiteSpace="nowrap"
+      {...rest}
+    >
       {label}
       {isMapped ? ` [${childCount ?? " "}]` : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}

@@ -53,10 +53,9 @@ class TestProducerHook:
         def acked(err, msg):
             if err is not None:
                 raise Exception(f"{err}")
-            else:
-                assert msg.topic() == topic
-                assert msg.partition() == 0
-                assert msg.offset() == 0
+            assert msg.topic() == topic
+            assert msg.partition() == 0
+            assert msg.offset() == 0
 
         # Standard Init
         p_hook = KafkaProducerHook(kafka_config_id="kafka_default")

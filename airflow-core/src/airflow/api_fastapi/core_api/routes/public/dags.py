@@ -36,10 +36,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
+    QueryExcludeStaleFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
-    QueryOnlyActiveFilter,
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
@@ -78,7 +78,7 @@ def get_dags(
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
-    only_active: QueryOnlyActiveFilter,
+    exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_start_date_range: Annotated[
@@ -131,7 +131,7 @@ def get_dags(
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(dag_runs_select),
         filters=[
-            only_active,
+            exclude_stale,
             paused,
             dag_id_pattern,
             dag_display_name_pattern,
@@ -269,7 +269,7 @@ def patch_dags(
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearchWithNone,
-    only_active: QueryOnlyActiveFilter,
+    exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     editable_dags_filter: EditableDagsFilterDep,
@@ -293,7 +293,15 @@ def patch_dags(
 
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(),
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dags_filter],
+        filters=[
+            exclude_stale,
+            paused,
+            dag_id_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+            editable_dags_filter,
+        ],
         order_by=None,
         offset=offset,
         limit=limit,

@@ -34,40 +34,7 @@ message queue, and triggers an asset update when a relevant event occurs.
 The ``watchers`` parameter in the ``Asset`` definition allows you to associate multiple ``AssetWatcher`` instances with an
 asset, enabling it to respond to various event sources.
 
-Example: Triggering a DAG from an external message queue
---------------------------------------------------------
-
-Below is an example of how you can configure an Airflow DAG to be triggered by an external message queue, such as AWS
-SQS:
-
-.. code-block:: python
-
-    from airflow.sdk import Asset, AssetWatcher
-    from airflow.providers.common.msgq.triggers.msg_queue import MessageQueueTrigger
-    from airflow.sdk import DAG
-    from datetime import datetime
-
-    # Define a trigger that listens to an external message queue (AWS SQS in this case)
-    trigger = MessageQueueTrigger(queue="https://sqs.us-east-1.amazonaws.com/0123456789/my-queue")
-
-    # Define an asset that watches for messages on the queue
-    asset = Asset("sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)])
-
-    # Define the DAG that will be triggered when the asset is updated
-    with DAG(dag_id="event_driven_dag", schedule=[asset], catchup=False) as dag:
-        ...
-
-How it works
-------------
-1. **Message Queue Trigger**: The ``MessageQueueTrigger`` listens for messages from an external queue
-(e.g., AWS SQS, Kafka, or another messaging system).
-
-2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the SQS queue in this example.
-The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
-asset.
-
-3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
-(e.g., a new message in the queue).
+See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
 ----------------------------------------------
@@ -96,6 +63,31 @@ already compatible with event-driven scheduling, then you just need to change th
 event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
+
+Avoid infinite scheduling
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reason why some triggers are not compatible with event-driven scheduling is that they are waiting
+for an external resource to reach a given state. Examples:
+
+* Wait for a file to exist in a storage service
+* Wait for a job to be in a success state
+* Wait for a row to be present in a database
+
+Scheduling under such conditions can lead to infinite rescheduling. This is because once the condition becomes true,
+it is likely to remain true for an extended period.
+
+For example, consider a DAG scheduled to run when a specific job reaches a "success" state.
+Once the job succeeds, it will typically remain in that state. As a result, the DAG will be triggered repeatedly every
+time the triggerer checks the condition.
+
+Another example is the ``S3KeyTrigger``, which checks for the presence of a specific file in an S3 bucket.
+Once the file is created, the trigger will continue to succeed on every check, since the condition
+"is file X present in bucket Y" remains true.
+This leads to the DAG being triggered indefinitely every time the trigger mechanism runs.
+
+When creating custom triggers, be cautious about using conditions that remain permanently true once met.
+This can unintentionally result in infinite DAG executions and overwhelm your system.
 
 Use cases for event-driven dags
 -------------------------------

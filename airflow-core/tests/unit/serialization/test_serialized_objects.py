@@ -457,3 +457,21 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker):
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
+
+
+def test_get_task_assets():
+    asset1 = Asset("1")
+    with DAG("testdag") as source_dag:
+        a = BashOperator(task_id="a", outlets=[asset1], bash_command="echo u")
+        b = BashOperator(task_id="b", inlets=[asset1], bash_command="echo v")
+        c = BashOperator.partial(task_id="c", inlets=[asset1]).expand(bash_command=["echo w", "echo x"])
+        d = BashOperator.partial(task_id="d", outlets=[asset1]).expand(bash_command=["echo y", "echo z"])
+        a >> b >> c >> d
+
+    deser_dag = LazyDeserializedDAG(data=SerializedDAG.to_dict(source_dag))
+    assert sorted(deser_dag.get_task_assets()) == [
+        ("a", asset1),
+        ("b", asset1),
+        ("c", asset1),
+        ("d", asset1),
+    ]

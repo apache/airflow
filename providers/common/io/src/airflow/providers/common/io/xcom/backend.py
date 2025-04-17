@@ -118,8 +118,7 @@ class XComObjectStorageBackend(BaseXCom):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> bytes | str:
-        # we will always serialize ourselves and not by BaseXCom as the deserialize method
-        # from BaseXCom accepts only XCom objects and not the value directly
+        # We will use this serialized value to write to the object store.
         s_val = json.dumps(value, cls=XComEncoder)
         s_val_encoded = s_val.encode("utf-8")
 
@@ -131,11 +130,10 @@ class XComObjectStorageBackend(BaseXCom):
         threshold = _get_threshold()
         if threshold < 0 or len(s_val_encoded) < threshold:  # Either no threshold or value is small enough.
             if AIRFLOW_V_3_0_PLUS:
-                return s_val
-            else:
-                # TODO: Remove this branch once we drop support for Airflow 2
-                # This is for Airflow 2.10 where the value is expected to be bytes
-                return s_val_encoded
+                return BaseXCom.serialize_value(value)
+            # TODO: Remove this branch once we drop support for Airflow 2
+            # This is for Airflow 2.10 where the value is expected to be bytes
+            return s_val_encoded
 
         base_path = _get_base_path()
         while True:  # Safeguard against collisions.
@@ -160,9 +158,16 @@ class XComObjectStorageBackend(BaseXCom):
 
         Compression is inferred from the file extension.
         """
-        data = BaseXCom.deserialize_value(result)
+        base_xcom_deser_result = BaseXCom.deserialize_value(result)
+        data = base_xcom_deser_result
+
+        if not AIRFLOW_V_3_0_PLUS:
+            with contextlib.suppress(TypeError, ValueError):
+                # When XComObjectStorageBackend is used, xcom value will be serialized using json.dumps
+                # likely, we need to deserialize it using json.loads
+                data = json.loads(base_xcom_deser_result, cls=XComDecoder)
         try:
-            path = XComObjectStorageBackend._get_full_path(data)
+            path = XComObjectStorageBackend._get_full_path(base_xcom_deser_result)
         except (TypeError, ValueError):  # Likely value stored directly in the database.
             return data
         try:
