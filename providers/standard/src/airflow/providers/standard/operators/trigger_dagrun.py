@@ -223,8 +223,7 @@ class TriggerDagRunOperator(BaseOperator):
             if dag_model.is_paused:
                 if AIRFLOW_V_3_0_PLUS:
                     raise DagIsPaused(dag_id=self.trigger_dag_id)
-                else:
-                    raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(context=context, run_id=run_id, parsed_logical_date=parsed_logical_date)
