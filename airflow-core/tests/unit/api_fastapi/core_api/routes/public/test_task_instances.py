@@ -274,7 +274,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": None,
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -1961,7 +1961,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": None,
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -2361,7 +2361,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
         assert failed_dag_runs == 0
@@ -2529,7 +2529,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
 
@@ -2614,7 +2614,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in [
-                {key: ti[key] for key in task_instance} for ti in response.json()["task_instances"]
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
             ]
         assert response.json()["total_entries"] == 6
 
@@ -3023,7 +3023,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": None,
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }

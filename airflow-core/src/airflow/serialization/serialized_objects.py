@@ -1790,8 +1790,8 @@ class SerializedDAG(DAG, BaseSerialization):
         cls.validate_schema(json_dict)
         return json_dict
 
-    @classmethod
-    def conversion_v1_to_v2(cls, ser_obj: dict):
+    @staticmethod
+    def conversion_v1_to_v2(ser_obj: dict):
         dag_dict = ser_obj["dag"]
         dag_renames = [
             ("_dag_id", "dag_id"),
@@ -1839,6 +1839,17 @@ class SerializedDAG(DAG, BaseSerialization):
 
             return obj
 
+        def _create_compat_timetable(value):
+            from airflow import settings
+            from airflow.sdk.definitions.dag import _create_timetable
+
+            if tzs := dag_dict.get("timezone"):
+                timezone = decode_timezone(tzs)
+            else:
+                timezone = settings.TIMEZONE
+            timetable = _create_timetable(value, timezone)
+            return encode_timetable(timetable)
+
         for old, new in dag_renames:
             if old in dag_dict:
                 dag_dict[new] = dag_dict.pop(old)
@@ -1847,48 +1858,23 @@ class SerializedDAG(DAG, BaseSerialization):
             for k in tasks_remove:
                 default_args["__var"].pop(k, None)
 
-        if sched := dag_dict.pop("schedule_interval", None):
-            if sched is None:
-                dag_dict["timetable"] = {
-                    "__var": {},
-                    "__type": "airflow.timetables.simple.NullTimetable",
-                }
-            elif isinstance(sched, str):
-                # "@daily" etc
-                if sched == "@once":
-                    dag_dict["timetable"] = {
-                        "__var": {},
-                        "__type": "airflow.timetables.simple.OnceTimetable",
-                    }
-                elif sched == "@continuous":
-                    dag_dict["timetable"] = {
-                        "__var": {},
-                        "__type": "airflow.timetables.simple.ContinuousTimetable",
-                    }
-                elif sched == "@daily":
-                    dag_dict["timetable"] = {
-                        "__var": {
-                            "interval": 0.0,
-                            "timezone": "UTC",
-                            "expression": "0 0 * * *",
-                            "run_immediately": False,
-                        },
-                        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
-                    }
-                else:
-                    # We should maybe convert this to None and warn instead
-                    raise ValueError(f"Unknown schedule_interval field {sched!r}")
-            elif sched.get("__type") == "timedelta":
-                dag_dict["timetable"] = {
-                    "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
-                    "__var": {"delta": sched["__var"]},
-                }
-        elif timetable := dag_dict.get("timetable"):
+        if timetable := dag_dict.get("timetable"):
             if timetable["__type"] in {
                 "airflow.timetables.simple.DatasetTriggeredTimetable",
                 "airflow.timetables.datasets.DatasetOrTimeSchedule",
             }:
                 dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+        elif (sched := dag_dict.pop("schedule_interval", None)) is None:
+            dag_dict["timetable"] = _create_compat_timetable(None)
+        elif isinstance(sched, str):
+            dag_dict["timetable"] = _create_compat_timetable(sched)
+        elif sched.get("__type") == "timedelta":
+            dag_dict["timetable"] = _create_compat_timetable(datetime.timedelta(seconds=sched["__var"]))
+        elif sched.get("__type") == "relativedelta":
+            dag_dict["timetable"] = _create_compat_timetable(decode_relativedelta(sched["__var"]))
+        else:
+            # We should maybe convert this to None and warn instead
+            raise ValueError(f"Unknown schedule_interval field {sched!r}")
 
         if "dag_dependencies" in dag_dict:
             for dep in dag_dict["dag_dependencies"]:

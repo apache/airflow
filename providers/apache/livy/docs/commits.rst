@@ -34,14 +34,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.2
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  ==========================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==========================================
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+==================================================================================================  ===========  ==========================================
+
 4.3.1
 .....
 
-Latest change: 2025-04-09
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ===================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `45cb7f1177 <https://github.com/apache/airflow/commit/45cb7f1177ec2d21ddcf47894559175363d511a2>`__  2025-04-09   ``Remove sqlite provider from preinstalled and use aiosqlite as core dep (#48966)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 `139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``

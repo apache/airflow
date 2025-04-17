@@ -534,7 +534,7 @@ class ShellParams:
             _set_var(
                 _env,
                 "AIRFLOW__CORE__EXECUTOR",
-                "airflow.providers.edgeexecutor.executors.edge_executor.EdgeExecutor",
+                "airflow.providers.edge3.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(

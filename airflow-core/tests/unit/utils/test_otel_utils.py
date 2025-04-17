@@ -699,8 +699,8 @@ From task sub_span3.
         assert span_name_to_test == span_dict.get(span_id)["name"]
 
         # The span isn't a root span.
-        assert span_id not in root_span_dict
-        assert span_id in span_dict
+        assert span_id not in root_span_dict.keys()
+        assert span_id in span_dict.keys()
 
         expected_child_span_names = ["task_1_sub_span"]
         actual_child_span_names = []

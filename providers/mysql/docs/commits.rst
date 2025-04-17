@@ -34,14 +34,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.2
+.....
+
+Latest change: 2025-04-15
+
+==================================================================================================  ===========  ============================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ============================================================
+`e6cee6c24f <https://github.com/apache/airflow/commit/e6cee6c24fb04bfe6394f44bdfdf81b4a56ac008>`__  2025-04-15   ``Remove limitation for mysql-connector-python (#49321)``
+`d0d0e3c5db <https://github.com/apache/airflow/commit/d0d0e3c5db1f1e51d2a5ef80fcd3fc8cdeba341f>`__  2025-04-15   ``Exclude 9.3.0 release of mysql-connector-python (#49300)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+==================================================================================================  ===========  ============================================================
+
 6.2.1
 .....
 
-Latest change: 2025-04-08
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 `7b177a2b4c <https://github.com/apache/airflow/commit/7b177a2b4c660265a193728693c42410d2952123>`__  2025-04-08   ``fix: overwrite 'get-uri' for 'MySQL' (#48706)``
 `139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``

@@ -398,7 +398,7 @@ Building Airflow K8s images
 ...........................
 
 Before deploying Airflow Helm Chart, you need to make sure the appropriate Airflow image is build (it has
-embedded test dags, pod templates and webserver is configured to refresh immediately. This can
+embedded test dags, pod templates and api-server is configured to refresh immediately. This can
 be done via ``breeze k8s build-k8s-image`` command. It can also be done in parallel for all images via
 ``--run-in-parallel`` flag.
 
