@@ -83,7 +83,7 @@ An example of pushing multiple XComs and pulling them individually:
 Object Storage XCom Backend
 ---------------------------
 
-The default XCom backend, BaseXCom, stores XComs in the Airflow database, which works well for small values but can cause issues with large values or a high volume of XComs. To overcome this limitation, object storage is recommended for efficiently handling larger data. For a detailed overview, refer to the :doc:`documentation <apache-airflow-providers-common-io:xcom_backend>`.
+The default XCom backend, XComModel, stores XComs in the Airflow database, which works well for small values but can cause issues with large values or a high volume of XComs. To overcome this limitation, object storage is recommended for efficiently handling larger data. For a detailed overview, refer to the :doc:`documentation <apache-airflow-providers-common-io:xcom_backend>`.
 
 
 Custom XCom Backends
