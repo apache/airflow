@@ -638,7 +638,7 @@ Here's an example DAG which illustrates labeling different branches:
 
 .. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
-    :start-after: from airflow.sdk import Label
+    :start-after: from airflow.sdk import DAG, Label
 
 
 DAG & Task Documentation
