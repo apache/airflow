@@ -24,7 +24,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
-import { useLogs, useLogContent } from "src/queries/useLogs";
+import { useLogs, useLogDownload } from "src/queries/useLogs";
 
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
@@ -67,15 +67,6 @@ export const Logs = () => {
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
 
-  /* const downloadCurrentLog = () => {
-    const file; // get log file
-    const element = document.createElement("a");
-    element.href = URL.createObjectURL(file);
-    element.download = "currLog.txt";
-    document.body.appendChild(element);
-    element.click();
-    }*/
-
   const {
     data,
     error: logError,
@@ -88,7 +79,7 @@ export const Logs = () => {
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
-  const { datum } = useLogContent({
+  const { datum } = useLogDownload({
     dagId,
     logLevelFilters,
     sourceFilters,
@@ -97,11 +88,12 @@ export const Logs = () => {
   });
 
   const downloadLog = () => {
-    const texts = datum;
+    const texts = datum as Array<BlobPart>;
     const file = new Blob(texts, { type: "text/plain" });
     const element = document.createElement("a");
+
     element.href = URL.createObjectURL(file);
-    element.download = `fullLogs.txt`;
+    element.download = `taskInstanceLogs.txt`;
     document.body.append(element);
     element.click();
   };
