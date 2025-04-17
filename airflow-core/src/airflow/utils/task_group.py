@@ -63,7 +63,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
         task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or is_mapped)
-        for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        for child in task_group.topological_sort()
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
