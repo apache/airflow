@@ -230,6 +230,7 @@ def _convert_asyncpg_connect_args(args: Iterable[tuple[str, str]]) -> Iterator[t
             yield "ssl", v
         else:
             yield k, v
+    yield "statement_cache_size", "0"
 
 
 def _get_async_conn_uri_from_sync(sync_uri: str) -> str:
