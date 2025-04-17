@@ -1577,7 +1577,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 
