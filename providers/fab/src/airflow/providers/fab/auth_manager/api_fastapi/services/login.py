@@ -54,5 +54,4 @@ class FABAuthManagerLogin:
                     user=user, expiration_time_in_seconds=expiration_time_in_seconds
                 )
             )
-        else:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")

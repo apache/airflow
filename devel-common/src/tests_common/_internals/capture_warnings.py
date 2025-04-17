@@ -122,9 +122,9 @@ class CapturedWarning:
         """
         if "/tests/" in self.filename:
             return "tests"
-        elif self.filename.startswith("airflow/"):
+        if self.filename.startswith("airflow/"):
             return "airflow"
-        elif self.filename.startswith("providers/"):
+        if self.filename.startswith("providers/"):
             return "providers"
         return "other"
 

@@ -167,8 +167,7 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
                 "Your custom StatsD client must extend the statsd.StatsClient in order to ensure "
                 "backwards compatibility."
             )
-        else:
-            log.info("Successfully loaded custom StatsD client")
+        log.info("Successfully loaded custom StatsD client")
 
     else:
         stats_class = StatsClient

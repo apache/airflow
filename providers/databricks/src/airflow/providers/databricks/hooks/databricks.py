@@ -384,8 +384,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         if not matching_jobs:
             return None
-        else:
-            return matching_jobs[0]["job_id"]
+        return matching_jobs[0]["job_id"]
 
     def list_pipelines(
         self, batch_size: int = 25, pipeline_name: str | None = None, notebook_path: str | None = None
@@ -445,8 +444,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         if not pipeline_name or len(matching_pipelines) == 0:
             return None
-        else:
-            return matching_pipelines[0]["pipeline_id"]
+        return matching_pipelines[0]["pipeline_id"]
 
     def get_run_page_url(self, run_id: int) -> str:
         """
@@ -640,8 +638,7 @@ class DatabricksHook(BaseDatabricksHook):
         repair_history = response["repair_history"]
         if len(repair_history) == 1:
             return None
-        else:
-            return repair_history[-1]["id"]
+        return repair_history[-1]["id"]
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """

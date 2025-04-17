@@ -19,7 +19,7 @@ See :ref:`Differences between "trigger" and "data interval" timetables` for more
 
 * Migration rules needed
 
-  * ``airflow config lint``
+  * ``airflow config update``
 
-    * [ ] ``scheduler.create_cron_data_intervals``
-    * [ ] ``scheduler.create_delta_data_intervals``
+    * [x] ``scheduler.create_cron_data_intervals``
+    * [x] ``scheduler.create_delta_data_intervals``

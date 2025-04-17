@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import collections.abc
+import contextlib
 import logging
 import re
 import sys
@@ -203,10 +204,8 @@ class SecretsMasker(logging.Filter):
     def _redact_exception_with_context(self, exception):
         # Exception class may not be modifiable (e.g. declared by an
         # extension module such as JDBC).
-        try:
+        with contextlib.suppress(AttributeError):
             exception.args = (self.redact(v) for v in exception.args)
-        except AttributeError:
-            pass
         if exception.__context__:
             self._redact_exception_with_context(exception.__context__)
         if exception.__cause__ and exception.__cause__ is not exception.__context__:
@@ -241,13 +240,12 @@ class SecretsMasker(logging.Filter):
             return {
                 dict_key: self._redact_all(subval, depth + 1, max_depth) for dict_key, subval in item.items()
             }
-        elif isinstance(item, (tuple, set)):
+        if isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval, depth + 1, max_depth) for subval in item)
-        elif isinstance(item, list):
+        if isinstance(item, list):
             return list(self._redact_all(subval, depth + 1, max_depth) for subval in item)
-        else:
-            return item
+        return item
 
     def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
@@ -264,33 +262,32 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif isinstance(item, Enum):
+            if isinstance(item, Enum):
                 return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
-            elif _is_v1_env_var(item):
+            if _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = "***"
                 else:
                     return self._redact(item=tmp, name=name, depth=depth, max_depth=max_depth)
                 return tmp
-            elif isinstance(item, str):
+            if isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
                     return self.replacer.sub("***", str(item))
                 return item
-            elif isinstance(item, (tuple, set)):
+            if isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
                 return tuple(
                     self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
                 )
-            elif isinstance(item, list):
+            if isinstance(item, list):
                 return [
                     self._redact(subval, name=None, depth=(depth + 1), max_depth=max_depth) for subval in item
                 ]
-            else:
-                return item
+            return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
         # but it caused infinite recursion, to avoid this we mark the log as already filtered.

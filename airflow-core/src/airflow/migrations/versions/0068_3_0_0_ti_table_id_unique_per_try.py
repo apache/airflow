@@ -40,20 +40,15 @@ airflow_version = "3.0.0"
 
 
 def _get_uuid_type(dialect_name: str) -> sa.types.TypeEngine:
-    if dialect_name == "sqlite":
+    if dialect_name != "postgres":
         return sa.String(36)
-    else:
-        return UUIDType(binary=False)
+    return UUIDType(binary=False)
 
 
 def upgrade():
     """Apply Change TI table to have unique UUID id/pk per attempt."""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.drop_constraint("task_instance_try_id_uq", type_="unique")
-        batch_op.drop_column("try_id")
-
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.create_index("idx_tih_dag_run", ["dag_id", "run_id"], unique=False)
         batch_op.drop_column("task_instance_id")
@@ -124,7 +119,3 @@ def downgrade():
         batch_op.add_column(
             sa.Column("task_instance_id", UUIDType(binary=False), autoincrement=False, nullable=False)
         )
-
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("try_id", _get_uuid_type(dialect_name), nullable=False))
-        batch_op.create_unique_constraint("task_instance_try_id_uq", ["try_id"])

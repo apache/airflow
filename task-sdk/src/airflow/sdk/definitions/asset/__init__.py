@@ -356,7 +356,7 @@ class Asset(os.PathLike, BaseAsset):
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
-        elif name is None:
+        if name is None:
             name = str(uri)
         elif uri is None:
             uri = name

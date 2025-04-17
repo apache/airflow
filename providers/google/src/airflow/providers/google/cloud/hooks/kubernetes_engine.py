@@ -352,8 +352,7 @@ class GKEHook(GoogleBaseHook):
             or node_pools_autoscaled
         ):
             return True
-        else:
-            return False
+        return False
 
 
 class GKEAsyncHook(GoogleBaseAsyncHook):

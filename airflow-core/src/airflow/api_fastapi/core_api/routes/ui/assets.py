@@ -55,6 +55,7 @@ def next_run_assets(
             select(
                 AssetModel.id,
                 AssetModel.uri,
+                AssetModel.name,
                 func.max(AssetEvent.timestamp).label("lastUpdate"),
             )
             .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
@@ -79,9 +80,10 @@ def next_run_assets(
                 isouter=True,
             )
             .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
-            .group_by(AssetModel.id, AssetModel.uri)
+            .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
             .order_by(AssetModel.uri)
         )
     ]
+
     data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data

@@ -157,8 +157,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     def _generate_rows_with_action(self, type_check: bool):
         if type_check and self.upload_as_account:
             return {FlushAction.EXPORT_EVERY_ACCOUNT: []}
-        else:
-            return {FlushAction.EXPORT_ONCE: []}
+        return {FlushAction.EXPORT_ONCE: []}
 
     def _prepare_rows_for_upload(
         self,

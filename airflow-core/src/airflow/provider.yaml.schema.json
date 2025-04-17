@@ -475,6 +475,10 @@
             "examples": [
                 1609459200
             ]
+        },
+        "extra-project-metadata": {
+            "type": "string",
+            "description": "Extra project metadata. Added to pyproject.toml."
         }
     },
     "additionalProperties": false,

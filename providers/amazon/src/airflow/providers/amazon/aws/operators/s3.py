@@ -158,9 +158,8 @@ class S3GetBucketTaggingOperator(AwsBaseOperator[S3Hook]):
         if self.hook.check_for_bucket(self.bucket_name):
             self.log.info("Getting tags for bucket %s", self.bucket_name)
             return self.hook.get_bucket_tagging(self.bucket_name)
-        else:
-            self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
-            return None
+        self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
+        return None
 
 
 class S3PutBucketTaggingOperator(AwsBaseOperator[S3Hook]):
@@ -213,9 +212,8 @@ class S3PutBucketTaggingOperator(AwsBaseOperator[S3Hook]):
             return self.hook.put_bucket_tagging(
                 key=self.key, value=self.value, tag_set=self.tag_set, bucket_name=self.bucket_name
             )
-        else:
-            self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
-            return None
+        self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
+        return None
 
 
 class S3DeleteBucketTaggingOperator(AwsBaseOperator[S3Hook]):
@@ -254,9 +252,8 @@ class S3DeleteBucketTaggingOperator(AwsBaseOperator[S3Hook]):
         if self.hook.check_for_bucket(self.bucket_name):
             self.log.info("Deleting tags for bucket %s", self.bucket_name)
             return self.hook.delete_bucket_tagging(self.bucket_name)
-        else:
-            self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
-            return None
+        self.log.warning(BUCKET_DOES_NOT_EXIST_MSG, self.bucket_name)
+        return None
 
 
 class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
@@ -725,10 +722,9 @@ class S3FileTransformOperator(AwsBaseOperator[S3Hook]):
 
                     if process.returncode:
                         raise AirflowException(f"Transform script failed: {process.returncode}")
-                    else:
-                        self.log.info(
-                            "Transform script successful. Output temporarily located at %s", f_dest.name
-                        )
+                    self.log.info(
+                        "Transform script successful. Output temporarily located at %s", f_dest.name
+                    )
 
             self.log.info("Uploading transformed file to S3")
             f_dest.flush()

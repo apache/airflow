@@ -76,7 +76,7 @@ apache-airflow-providers-airbyte package
 `Airbyte <https://airbyte.com/>`__
 
 
-Release: 5.0.1
+Release: 5.0.2
 
 Provider package
 ----------------

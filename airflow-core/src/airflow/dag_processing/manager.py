@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import importlib
 import inspect
@@ -199,7 +200,9 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_int_factory("dag_processor", "max_callbacks_per_loop")
     )
 
-    base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
+    base_log_dir: str = attrs.field(
+        factory=_config_get_factory("logging", "dag_processor_child_process_log_directory")
+    )
     _latest_log_symlink_date: datetime = attrs.field(factory=datetime.today, init=False)
 
     bundle_refresh_check_interval: int = attrs.field(
@@ -398,10 +401,8 @@ class DagFileProcessorManager(LoggingMixin):
         bundles_to_refresh: set[str] = set()
         for file in files:
             # Try removing the file if already present
-            try:
+            with contextlib.suppress(ValueError):
                 self._file_queue.remove(file)
-            except ValueError:
-                pass
             # enqueue file to the start of the queue.
             self._file_queue.appendleft(file)
             bundles_to_refresh.add(file.bundle_name)

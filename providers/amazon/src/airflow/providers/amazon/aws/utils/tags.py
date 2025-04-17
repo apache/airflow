@@ -35,7 +35,6 @@ def format_tags(source: Any, *, key_label: str = "Key", value_label: str = "Valu
     """
     if source is None:
         return []
-    elif isinstance(source, dict):
+    if isinstance(source, dict):
         return [{key_label: kvp[0], value_label: kvp[1]} for kvp in source.items()]
-    else:
-        return source
+    return source

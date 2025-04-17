@@ -94,10 +94,9 @@ def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str |
                 if commit_line and commit_line.endswith(f"(#{issue.number})"):
                     return commit_line.split(" ")[0]
             return None
-        else:
-            pr: PullRequest = issue.as_pull_request()
-            if pr.is_merged():
-                return pr.merge_commit_sha
+        pr: PullRequest = issue.as_pull_request()
+        if pr.is_merged():
+            return pr.merge_commit_sha
     return None
 
 
@@ -186,7 +185,7 @@ def is_core_commit(files: list[str]) -> bool:
             if file.startswith(ignore):
                 break
             # Handle renaming. Form: {old_name => new_name}somename.py
-            elif file.startswith("{"):
+            if file.startswith("{"):
                 new_files = file[1:].split(" => ")
                 if any(n.strip().startswith(ignore) for n in new_files):
                     break

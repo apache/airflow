@@ -571,8 +571,7 @@ class WeaviateHook(BaseHook):
                 raise ValueError(
                     "Property 'id' already in dataset. Consider renaming or specify 'uuid_column'."
                 )
-            else:
-                uuid_column = "id"
+            uuid_column = "id"
 
         if uuid_column in column_names:
             raise ValueError(
@@ -847,7 +846,7 @@ class WeaviateHook(BaseHook):
                 f"Documents {', '.join(changed_documents)} already exists. You can either skip or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
-        elif existing == "skip":
+        if existing == "skip":
             data = data[data[document_column].isin(new_documents)]
             if verbose:
                 self.log.info(

@@ -34,6 +34,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.0
+.....
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ===========================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===========================================================================
+`074294d5d7 <https://github.com/apache/airflow/commit/074294d5d7e928327927ab559988c67e6670b5ce>`__  2025-04-16   ``Conditionally add session related imports in standard provider (#49218)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`0c883c5be7 <https://github.com/apache/airflow/commit/0c883c5be7c6d24768b4f54904e582b4262da4b6>`__  2025-04-13   ``Remove dag_version as a create_dagrun argument (#49148)``
+`ef80791fba <https://github.com/apache/airflow/commit/ef80791fbae6a48059cf2870b7e175a61cf7c361>`__  2025-04-11   ``Fix ExternalTaskSensor task_group_id check condition (#49027)``
+`d112830cd9 <https://github.com/apache/airflow/commit/d112830cd935375ced2bee186ff55f9b3887550b>`__  2025-04-10   ``Ensure that TI.id is unique per try. (#48749)``
+==================================================================================================  ===========  ===========================================================================
+
 0.4.0
 .....
 
@@ -42,6 +57,7 @@ Latest change: 2025-04-10
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
 `636224df61 <https://github.com/apache/airflow/commit/636224df611109e1cb008e83b094899ea2d36322>`__  2025-04-09   ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
 `57cda9ec70 <https://github.com/apache/airflow/commit/57cda9ec70148ee23a667b423b9f9308a9db2341>`__  2025-04-09   ``Make default as time.now() for TriggerDagRunOperator (#48969)``

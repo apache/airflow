@@ -171,8 +171,7 @@ class PrStat:
     def body_length(self) -> int:
         if self.pull_request.body is not None:
             return len(self.pull_request.body)
-        else:
-            return 0
+        return 0
 
     @cached_property
     def num_additions(self) -> int:
@@ -265,13 +264,12 @@ class PrStat:
                 f'"{self.pull_request.title}". '
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
             )
-        else:
-            return (
-                f"Score: {self.score:.2f}: PR{self.pull_request.number}"
-                f"by @{self.pull_request.user.login}: "
-                f'"{self.pull_request.title}". '
-                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-            )
+        return (
+            f"Score: {self.score:.2f}: PR{self.pull_request.number}"
+            f"by @{self.pull_request.user.login}: "
+            f'"{self.pull_request.title}". '
+            f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+        )
 
     def verboseStr(self) -> str:
         if self.tagged_protm:

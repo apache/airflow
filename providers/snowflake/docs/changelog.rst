@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.2.1
 .....
 

@@ -1565,7 +1565,7 @@ class LazySelectSequence(Sequence[T]):
             if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
                 raise IndexError(key)
             return self._process_row(row)
-        elif isinstance(key, slice):
+        if isinstance(key, slice):
             # This implements the slicing syntax. We want to optimize negative
             # slicing (e.g. seq[-10:]) by not doing an additional COUNT query
             # if possible. We can do this unless the start and stop have
