@@ -693,6 +693,54 @@ To check if Feature View Sync succeeded you can use
     :start-after: [START how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
     :end-before: [END how_to_cloud_vertex_ai_feature_store_feature_view_sync_sensor]
 
+Interacting with Ray on Vertex AI Cluster
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Ray cluster you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.CreateRayClusterOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_ray_cluster_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_ray_cluster_operator]
+
+To delete cluster you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.DeleteRayClusterOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_ray_cluster_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_ray_cluster_operator]
+
+To get cluster you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.GetRayClusterOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_ray_cluster_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_ray_cluster_operator]
+
+To get a list of clusters you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.ListRayClustersOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_ray_clusters_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_ray_clusters_operator]
+
+To update cluster you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.ray.UpdateRayClusterOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/vertex_ai/example_vertex_ai_ray.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_update_ray_cluster_operator]
+    :end-before: [END how_to_cloud_vertex_ai_update_ray_cluster_operator]
+
 Reference
 ^^^^^^^^^
 
