@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import inspect
 import itertools
-from abc import ABCMeta
-from collections.abc import Iterable, Iterator, Mapping, Set, Sequence, Sized
+from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable, Iterator, Mapping, Sequence, Sized
 from contextlib import suppress
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, overload, _T_co
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -33,8 +33,6 @@ from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
-
-from airflow.sdk.definitions._internal.expandinput import _needs_run_time_resolution
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -368,7 +366,7 @@ class PlainXComArg(XComArg):
                 default=NOTSET,
             )
         if not isinstance(result, ArgNotSet):
-            if _needs_run_time_resolution(result):
+            if isinstance(result, ResolveMixin):
                 result = result.resolve(context)
             return result
         if self.key == XCOM_RETURN_KEY:
@@ -396,13 +394,19 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MappableResult(Sequence, metaclass=ABCMeta):
+class _MappableResult(Sequence):
     def __init__(self, value: Sequence | dict, callables: FilterCallables | MapCallables) -> None:
         self.value = self._convert(value)
         self.callables = callables
 
-    @classmethod
-    def _convert(cls, value: Sequence | dict) -> list:
+    def __getitem__(self, index: Any) -> Any:
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def _convert(value: Sequence | dict) -> list:
         if isinstance(value, (dict, set)):
             return list(value)
         if isinstance(value, list):
@@ -411,7 +415,7 @@ class _MappableResult(Sequence, metaclass=ABCMeta):
             f"XCom filter expects sequence or dict, not {type(value).__name__}"
         )
 
-    def _apply_callables(self, value):
+    def _apply_callables(self, value) -> Any:
         for func in self.callables:
             value = func(value)
         return value
@@ -431,10 +435,10 @@ class _LazyMapResult(_MappableResult):
         super().__init__([], callables)
         self._iterator = iter(value)
 
-    def _next_mapped(self) -> Any:
-        item = next(self._iterator)
-        result = self.value.append(self._apply_callables(item))
-        return result
+    def __next__(self) -> Any:
+        value = self._apply_callables(next(self._iterator))
+        self.value.append(value)
+        return value
 
     def __getitem__(self, index: Any) -> Any:
         if index < 0:
@@ -442,26 +446,24 @@ class _LazyMapResult(_MappableResult):
 
         while len(self.value) <= index:
             try:
-                self._next_mapped()
+                next(self)
             except StopIteration:
                 raise IndexError
         return self.value[index]
 
     def __len__(self) -> int:
-        # Fully consume the iterator to get total length
         while True:
             try:
-                self._next_mapped()
+                next(self)
             except StopIteration:
                 break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
-
         while True:
             try:
-                yield self._next_mapped()
+                yield next(self)
             except StopIteration:
                 break
 
@@ -642,11 +644,12 @@ class _FilterResult(_MappableResult):
         super().__init__([], callables)
         self._iterator = iter(value)
 
-    def _next_filtered(self) -> Any:
+    def __next__(self) -> Any:
         while True:
-            item = next(self._iterator)
-            if self._apply_callables(item):
-                return self.value.append(item)
+            value = next(self._iterator)
+            if self._apply_callables(value):
+                self.value.append(value)
+                return value
 
     def __getitem__(self, index: int) -> Any:
         if index < 0:
@@ -654,26 +657,25 @@ class _FilterResult(_MappableResult):
 
         while len(self.value) <= index:
             try:
-                self._next_filtered()
+                next(self)
             except StopIteration:
                 break
+
         return self.value[index]
 
     def __len__(self) -> int:
-        # Fully consume the iterator to get total length
         while True:
             try:
-                self._next_filtered()
+                next(self)
             except StopIteration:
                 break
         return len(self.value)
 
     def __iter__(self) -> Iterator:
         yield from self.value
-
         while True:
             try:
-                yield self._next_filtered()
+                yield next(self)
             except StopIteration:
                 break
 
