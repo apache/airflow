@@ -32,8 +32,8 @@ export const handlers: Array<HttpHandler> = [
       fileloc: "/airflow/dags/tutorial_taskflow_api.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
-      is_active: true,
       is_paused: false,
+      is_stale: false,
       last_parsed_time: "2025-01-13T07:34:01.593459Z",
       latest_dag_runs: [
         {
@@ -68,8 +68,8 @@ export const handlers: Array<HttpHandler> = [
       fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
-      is_active: true,
       is_paused: false,
+      is_stale: false,
       last_parsed_time: "2025-01-13T07:34:01.593459Z",
       latest_dag_runs: [
         {
@@ -126,8 +126,8 @@ export const handlers: Array<HttpHandler> = [
       fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
-      is_active: true,
       is_paused: false,
+      is_stale: false,
       last_expired: null,
       last_parsed_time: "2025-01-13T06:45:33.009609Z",
       max_active_runs: 16,
@@ -152,8 +152,8 @@ export const handlers: Array<HttpHandler> = [
       fileloc: "/airflow/dags/tutorial_taskflow_api_success.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
-      is_active: true,
       is_paused: false,
+      is_stale: false,
       last_expired: null,
       last_parsed_time: "2025-01-13T06:45:33.009609Z",
       max_active_runs: 16,

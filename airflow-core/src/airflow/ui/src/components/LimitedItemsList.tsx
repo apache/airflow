@@ -16,35 +16,55 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Text, VStack } from "@chakra-ui/react";
-import type { ReactNode } from "react";
+import { Box, Text, HStack } from "@chakra-ui/react";
+import React, { type ReactNode } from "react";
 
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "./ui";
 
-type Props = {
+type ListProps = {
   readonly icon?: ReactNode;
-  readonly items: Array<string>;
+  readonly items: Array<ReactNode | string>;
   readonly maxItems?: number;
-  readonly wrap?: boolean;
+  readonly separator?: string;
 };
 
-export const LimitedItemsList = ({ icon, items, maxItems = 3, wrap = false }: Props) =>
-  items.length ? (
-    <Flex alignItems="center" textWrap={wrap ? "normal" : "nowrap"}>
+export const LimitedItemsList = ({ icon, items, maxItems, separator = ", " }: ListProps) => {
+  const shouldTruncate = maxItems !== undefined && items.length > maxItems;
+  const displayItems = shouldTruncate ? items.slice(0, maxItems) : items;
+  const remainingItems = shouldTruncate ? items.slice(maxItems) : [];
+  const remainingItemsList = remainingItems
+    .map((item) => (typeof item === "string" ? item : "item"))
+    .join(", ");
+
+  if (!items.length) {
+    return undefined;
+  }
+
+  return (
+    <HStack align="center" gap={1}>
       {icon}
-      <Text fontSize="sm">{items.slice(0, maxItems).join(", ")}</Text>
-      {items.length > maxItems && (
-        <Tooltip
-          content={
-            <VStack gap={1} p={1}>
-              {items.slice(maxItems).map((item) => (
-                <Text key={item}>{item}</Text>
-              ))}
-            </VStack>
-          }
-        >
-          <Text as="span">, +{items.length - maxItems} more</Text>
-        </Tooltip>
-      )}
-    </Flex>
-  ) : undefined;
+      <Box fontSize="sm">
+        {displayItems.map((item, index) => (
+          // eslint-disable-next-line react/no-array-index-key
+          <React.Fragment key={index}>
+            <Text as="span">{item}</Text>
+            {index < displayItems.length - 1 || (shouldTruncate && remainingItems.length > 1) ? (
+              <Text as="span">{separator}</Text>
+            ) : undefined}
+          </React.Fragment>
+        ))}
+        {shouldTruncate ? (
+          remainingItems.length === 1 ? (
+            <Text as="span">{remainingItems[0]}</Text>
+          ) : (
+            <Tooltip content={`More items: ${remainingItemsList}`}>
+              <Text as="span" cursor="help">
+                , +{remainingItems.length} more
+              </Text>
+            </Tooltip>
+          )
+        ) : undefined}
+      </Box>
+    </HStack>
+  );
+};

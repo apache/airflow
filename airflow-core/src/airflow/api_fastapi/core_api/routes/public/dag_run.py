@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -71,7 +72,6 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
-from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -275,15 +275,14 @@ def clear_dag_run(
             task_instances=cast("list[TaskInstanceResponse]", task_instances),
             total_entries=len(task_instances),
         )
-    else:
-        dag.clear(
-            run_id=dag_run_id,
-            task_ids=None,
-            only_failed=body.only_failed,
-            session=session,
-        )
-        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-        return dag_run_cleared
+    dag.clear(
+        run_id=dag_run_id,
+        task_ids=None,
+        only_failed=body.only_failed,
+        session=session,
+    )
+    dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    return dag_run_cleared
 
 
 @dag_run_router.get(
@@ -300,6 +299,7 @@ def get_dag_runs(
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
+    run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     order_by: Annotated[
         SortParam,
@@ -349,6 +349,7 @@ def get_dag_runs(
             end_date_range,
             update_at_range,
             state,
+            run_type,
             readable_dag_runs_filter,
         ],
         order_by=order_by,
@@ -386,7 +387,7 @@ def trigger_dag_run(
     session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
-    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
@@ -408,7 +409,6 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
-            dag_version=DagVersion.get_latest_version(dag.dag_id),
             state=DagRunState.QUEUED,
             session=session,
         )

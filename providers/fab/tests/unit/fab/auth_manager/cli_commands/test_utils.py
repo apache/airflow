@@ -39,7 +39,7 @@ pytestmark = pytest.mark.db_test
 def flask_app():
     """Fixture to set up the Flask app with the necessary configuration."""
     # Get the webserver config file path
-    webserver_config = conf.get_mandatory_value("webserver", "config_file")
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
 
     with get_application_builder() as appbuilder:
         flask_app = appbuilder.app

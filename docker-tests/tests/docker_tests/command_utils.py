@@ -27,15 +27,13 @@ def run_command(
     try:
         if return_output:
             return subprocess.check_output(cmd, **kwargs).decode()
-        else:
-            try:
-                result = subprocess.run(cmd, check=check, **kwargs)
-                return result.returncode == 0
-            except FileNotFoundError:
-                if check:
-                    raise
-                else:
-                    return False
+        try:
+            result = subprocess.run(cmd, check=check, **kwargs)
+            return result.returncode == 0
+        except FileNotFoundError:
+            if check:
+                raise
+            return False
     except subprocess.CalledProcessError as ex:
         if print_output_on_error:
             print("========================= OUTPUT start ============================")

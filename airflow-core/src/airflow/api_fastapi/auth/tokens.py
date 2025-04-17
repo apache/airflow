@@ -92,10 +92,9 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
 
     if isinstance(key, RSAPrivateKey):
         return "RS512"
-    elif isinstance(key, Ed25519PrivateKey):
+    if isinstance(key, Ed25519PrivateKey):
         return "EdDSA"
-    else:
-        raise ValueError(f"Unknown key object {type(key)}")
+    raise ValueError(f"Unknown key object {type(key)}")
 
 
 @attrs.define(repr=False)
@@ -297,8 +296,7 @@ class JWTValidator:
                     "Cannot guess the algorithm when using JWKS - please specify it in the config option "
                     "[api_auth] jwt_algorithm"
                 )
-            else:
-                self.algorithm = ["HS512"]
+            self.algorithm = ["HS512"]
 
     def _get_kid_from_header(self, unvalidated: str) -> str:
         header = jwt.get_unverified_header(unvalidated)
@@ -475,7 +473,7 @@ def generate_private_key(key_type: str = "RSA", key_size: int = 2048):
         # Generate an RSA private key
 
         return rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
-    elif key_type == "Ed25519":
+    if key_type == "Ed25519":
         return ed25519.Ed25519PrivateKey.generate()
     raise ValueError(f"unsupported key type: {key_type}")
 

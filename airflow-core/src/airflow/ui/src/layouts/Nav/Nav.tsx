@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack, Link } from "@chakra-ui/react";
+import { Box, Flex, VStack } from "@chakra-ui/react";
 import { FiDatabase, FiHome } from "react-icons/fi";
 
-import { useVersionServiceGetVersion } from "openapi/queries";
+import { useAuthLinksServiceGetAuthMenus, useVersionServiceGetVersion } from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
@@ -33,6 +33,7 @@ import { UserSettingsButton } from "./UserSettingsButton";
 
 export const Nav = () => {
   const { data } = useVersionServiceGetVersion();
+  const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
 
   return (
     <VStack
@@ -52,25 +53,26 @@ export const Nav = () => {
           <AirflowPin height="35px" width="35px" />
         </Box>
         <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
-        <NavButton icon={<DagIcon height="1.75rem" width="1.75rem" />} title="Dags" to="dags" />
-        <NavButton icon={<FiDatabase size="1.75rem" />} title="Assets" to="assets" />
-        <BrowseButton />
-        <AdminButton />
+        <NavButton
+          disabled={!authLinks?.authorized_menu_items.includes("Dags")}
+          icon={<DagIcon height="1.75rem" width="1.75rem" />}
+          title="Dags"
+          to="dags"
+        />
+        <NavButton
+          disabled={!authLinks?.authorized_menu_items.includes("Assets")}
+          icon={<FiDatabase size="1.75rem" />}
+          title="Assets"
+          to="assets"
+        />
+        <BrowseButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
+        <AdminButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <SecurityButton />
         <PluginMenus />
       </Flex>
       <Flex flexDir="column">
-        <DocsButton />
+        <DocsButton showAPI={authLinks?.authorized_menu_items.includes("Docs")} version={data?.version} />
         <UserSettingsButton />
-        <Link
-          aria-label={data?.version}
-          color="fg.info"
-          href={`https://airflow.apache.org/docs/apache-airflow/${data?.version}/index.html`}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {data?.version}
-        </Link>
       </Flex>
     </VStack>
   );

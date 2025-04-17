@@ -14,6 +14,7 @@ actionCard
 Acyclic
 acyclic
 adb
+additionalProperties
 AddressesType
 adf
 adhoc
@@ -32,6 +33,7 @@ Airbnb
 airbnb
 Airbyte
 airbyte
+AirflowConfigParser
 AirflowException
 airflowignore
 ajax
@@ -64,6 +66,7 @@ AnnotateTextResponse
 AnotherExampleDisplayName
 ans
 Ansible
+anyOf
 apache
 api
 apikey
@@ -463,6 +466,7 @@ decrypted
 Decrypts
 dedented
 deduplicate
+deduplicated
 deduplication
 deepcopy
 deepcopying
@@ -478,6 +482,8 @@ dep
 DependencyMixin
 deployable
 deploymentUrl
+deprecatedVersion
+deprecationMessage
 Deprecations
 deprecations
 deps
@@ -570,6 +576,7 @@ ecb
 ECR
 ecs
 EdDSA
+edgeexecutor
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -1298,6 +1305,7 @@ podName
 PodSpec
 podSpec
 podspec
+polars
 poller
 polyfill
 pooler
@@ -1486,6 +1494,7 @@ rmse
 rmsle
 rmspe
 Roadmap
+roadmap
 Robinhood
 roc
 RoleBinding
@@ -1507,6 +1516,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runtimes
 SaaS
 sade
 Sagemaker

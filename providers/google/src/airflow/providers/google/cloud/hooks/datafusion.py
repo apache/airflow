@@ -170,9 +170,9 @@ class DataFusionHook(GoogleBaseHook):
     def _check_response_status_and_data(response, message: str) -> None:
         if response.status == 404:
             raise AirflowNotFoundException(message)
-        elif response.status == 409:
+        if response.status == 409:
             raise ConflictException("Conflict: Resource is still in use.")
-        elif response.status != 200:
+        if response.status != 200:
             raise AirflowException(message)
         if response.data is None:
             raise AirflowException(
@@ -572,8 +572,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                         raise
         if pipeline:
             return pipeline
-        else:
-            raise AirflowException("Could not retrieve pipeline. Aborting.")
+        raise AirflowException("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,

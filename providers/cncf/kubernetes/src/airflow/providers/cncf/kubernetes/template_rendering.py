@@ -19,14 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from jinja2 import TemplateAssertionError, UndefinedError
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -61,17 +58,3 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
     )
     sanitized_pod = ApiClient().sanitize_for_serialization(pod)
     return sanitized_pod
-
-
-@provide_session
-def get_rendered_k8s_spec(task_instance: TaskInstance, session=NEW_SESSION) -> dict | None:
-    """Fetch rendered template fields from DB."""
-    from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
-    rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(task_instance, session=session)
-    if not rendered_k8s_spec:
-        try:
-            rendered_k8s_spec = render_k8s_pod_yaml(task_instance)
-        except (TemplateAssertionError, UndefinedError) as e:
-            raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
-    return rendered_k8s_spec

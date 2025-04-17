@@ -65,7 +65,13 @@ export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
 
   return (
     <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
-      <IconButton aria-label="Download graph image" onClick={onClick} size="xs" variant="ghost">
+      <IconButton
+        aria-label="Download graph image"
+        onClick={onClick}
+        size="xs"
+        title="Download graph image"
+        variant="ghost"
+      >
         <FiDownload />
       </IconButton>
     </Panel>

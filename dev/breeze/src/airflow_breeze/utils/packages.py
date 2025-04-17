@@ -94,6 +94,7 @@ class ProviderPackageDetails(NamedTuple):
     excluded_python_versions: list[str]
     plugins: list[PluginInfo]
     removed: bool
+    extra_project_metadata: str | None = None
 
 
 class PackageSuspendedException(Exception):
@@ -228,6 +229,17 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
         raise SystemExit(1)
 
 
+def filter_provider_info_data(provider_info: dict[str, Any]) -> dict[str, Any]:
+    json_schema_dict = json.loads(PROVIDER_RUNTIME_DATA_SCHEMA_PATH.read_text())
+    runtime_properties = json_schema_dict["properties"].keys()
+    return_dict = {
+        property: provider_info[property]
+        for property in provider_info.keys()
+        if property in runtime_properties
+    }
+    return return_dict
+
+
 def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """Retrieves provider info from the provider yaml file.
 
@@ -236,6 +248,7 @@ def get_provider_info_dict(provider_id: str) -> dict[str, Any]:
     """
     provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     if provider_yaml_dict:
+        provider_yaml_dict = filter_provider_info_data(provider_yaml_dict)
         validate_provider_info_with_runtime_schema(provider_yaml_dict)
     return provider_yaml_dict or {}
 
@@ -365,12 +378,11 @@ def get_short_package_names(long_form_providers: Iterable[str]) -> tuple[str, ..
 def get_short_package_name(long_form_provider: str) -> str:
     if long_form_provider in REGULAR_DOC_PACKAGES:
         return long_form_provider
-    else:
-        if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
-            raise ValueError(
-                f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
-            )
-        return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
+    if not long_form_provider.startswith(LONG_PROVIDERS_PREFIX):
+        raise ValueError(
+            f"Invalid provider name: {long_form_provider}. Should start with {LONG_PROVIDERS_PREFIX}"
+        )
+    return long_form_provider[len(LONG_PROVIDERS_PREFIX) :].replace("-", ".")
 
 
 def find_matching_long_package_names(
@@ -459,6 +471,11 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
     return "apache_airflow_providers_" + provider_id.replace(".", "_")
 
 
+def floor_version_suffix(version_suffix: str) -> str:
+    # always use `pre-release`+ `0` as the version suffix
+    return version_suffix.rstrip("0123456789") + "0"
+
+
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
     pypi_version_suffix = remove_local_version_suffix(version_suffix)
@@ -480,10 +497,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         from packaging.version import Version
 
         base_version = Version(version).base_version
-        # always use `pre-release`+ `0` as the version suffix
-        pypi_version_suffix = pypi_version_suffix.rstrip("0123456789") + "0"
-
-        target_version = Version(str(base_version) + "." + pypi_version_suffix)
+        target_version = Version(str(base_version) + "." + floor_version_suffix(pypi_version_suffix))
         return prefix + ">=" + str(target_version)
     return install_clause
 
@@ -554,6 +568,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         excluded_python_versions=provider_info.get("excluded-python-versions", []),
         plugins=plugins,
         removed=provider_info["state"] == "removed",
+        extra_project_metadata=provider_info.get("extra-project-metadata", ""),
     )
 
 
@@ -629,10 +644,8 @@ def format_version_suffix(version_suffix: str) -> str:
     if version_suffix:
         if version_suffix[0] == "." or version_suffix[0] == "+":
             return version_suffix
-        else:
-            return f".{version_suffix}"
-    else:
-        return ""
+        return f".{version_suffix}"
+    return ""
 
 
 def get_provider_jinja_context(
@@ -681,6 +694,7 @@ def get_provider_jinja_context(
             get_provider_requirements(provider_id), markdown=False
         ),
         "REQUIRES_PYTHON": requires_python_version,
+        "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
     }
     return context
 
@@ -817,13 +831,6 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     provider_details = get_provider_details(provider_id)
     current_version = provider_details.versions[0]
     return get_version_tag(current_version, provider_id, suffix)
-
-
-IMPLICIT_CROSS_PROVIDERS_DEPENDENCIES = [
-    "common.sql",
-    "fab",
-    "standard",
-]
 
 
 def regenerate_pyproject_toml(

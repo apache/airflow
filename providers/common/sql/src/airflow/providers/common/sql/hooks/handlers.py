@@ -19,7 +19,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
+def return_single_query_results(
+    sql: str | Iterable[str], return_last: bool, split_statements: bool | None
+) -> bool:
     """
     Determine when results of single query only should be returned.
 
@@ -58,8 +60,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
         )
     if cursor.description is not None:
         return cursor.fetchall()
-    else:
-        return None
+    return None
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
@@ -71,5 +72,4 @@ def fetch_one_handler(cursor) -> list[tuple] | None:
         )
     if cursor.description is not None:
         return cursor.fetchone()
-    else:
-        return None
+    return None

@@ -457,8 +457,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         """Extract the value of the given field name."""
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
-        else:
-            return getattr(self.body, field_name, default_value)
+        return getattr(self.body, field_name, default_value)
 
     def _alert_deprecated_body_fields(self) -> None:
         """Generate warning messages if deprecated fields were used in the body."""

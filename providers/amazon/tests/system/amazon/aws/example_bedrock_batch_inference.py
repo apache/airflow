@@ -21,6 +21,8 @@ import logging
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 
+from botocore.exceptions import ClientError
+
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -92,7 +94,14 @@ def generate_prompts(_env_id: str, _bucket: str, _key: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def stop_batch_inference(job_arn: str):
     log.info("Stopping Batch Inference Job.")
-    BedrockHook().conn.stop_model_invocation_job(jobIdentifier=job_arn)
+    try:
+        BedrockHook().conn.stop_model_invocation_job(jobIdentifier=job_arn)
+    except ClientError as e:
+        # If the job has already completed, boto will raise a ValidationException.  Consider that a successful result.
+        if (e.response["Error"]["Code"] == "ValidationException") and (
+            "State was: Completed" in e.response["Error"]["Message"]
+        ):
+            pass
 
 
 with DAG(

@@ -1244,16 +1244,17 @@ You can test minimum dependencies that are installed by Airflow by running (for 
     breeze testing core-tests --force-lowest-dependencies --test-type "Core"
 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
-running the tests from there:
+running the tests from there, after manually downgrading the dependencies:
 
 .. code-block:: bash
 
-    breeze shell --force-lowest-dependencies
+    breeze shell   # enter the container
+    cd airflow-core
+    uv sync --resolution lowest-direct
 
-
-The way it works - when you run the breeze with ``--force-lowest-dependencies`` flag, breeze will use
-attempt (with the help of ``uv``) to downgrade the dependencies to the lowest version that is compatible
-with the dependencies specified in airflow dependencies. You will see it in the output of the breeze
+The way it works - after you enter breeze container, you run the uv-sync in the airflow-core
+folder to downgrade the dependencies to the lowest version that is compatible
+with the dependencies specified in airflow-core dependencies. You will see it in the output of the breeze
 command as a sequence of downgrades like this:
 
 .. code-block:: diff
@@ -1279,11 +1280,13 @@ If you find that the tests are failing for some dependencies, make sure to add m
 the dependency in the provider.yaml file of the appropriate provider and re-run it.
 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
-running the tests from there:
+manually downgrading dependencies for the provider and running the tests after that:
 
 .. code-block:: bash
 
-    breeze shell --force-lowest-dependencies
+    breeze shell
+    cd providers/PROVIDER_ID
+    uv sync --resolution lowest-direct
 
 Similarly as in case of "Core" tests, the dependencies will be downgraded to the lowest version that is
 compatible with the dependencies specified in the provider dependencies and you will see the list of
@@ -1306,7 +1309,8 @@ downgraded dependencies will contain both Airflow and Google Provider dependenci
  + gcloud-aio-bigquery==6.1.2
  - gcloud-aio-storage==9.2.0
 
-You can reproduce the same set of dependencies in your local virtual environment by:
+You can also (if your local virtualenv can install the dependencies for the provider)
+reproduce the same set of dependencies in your local virtual environment by:
 
 .. code-block:: bash
 
@@ -1317,7 +1321,7 @@ for airflow core, and
 
 .. code-block:: bash
 
-    cd providers/provider_id
+    cd providers/PROVIDER_ID
     uv sync --resolution lowest-direct
 
 for the providers.

@@ -33,6 +33,7 @@ Installation of Airflow®
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
+    Upgrading to Airflow 3 <upgrading_to_airflow3>
 
 This page describes installations options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
@@ -47,12 +48,6 @@ via extras and providers.
 
 When you install Airflow, you need to :doc:`setup the database <setting-up-the-database>` which must
 also be kept updated when Airflow is upgraded.
-
-.. warning::
-
-  As of June 2021 Airflow 1.10 is end-of-life and is not going to receive any fixes even critical
-  security fixes. Follow the :doc:`/howto/upgrading-from-1-10/index` to learn
-  how to upgrade the end-of-life 1.10 to Airflow 2.
 
 Using released sources
 ''''''''''''''''''''''

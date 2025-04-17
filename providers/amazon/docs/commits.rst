@@ -34,14 +34,62 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.6.1
+.....
+
+Latest change: 2025-04-15
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`fe52138b3d <https://github.com/apache/airflow/commit/fe52138b3dcc4aa72312b8ca9160cb9a06a11623>`__  2025-04-15   ``Add base_url fallback for aws auth_manager (#49305)``
+`2a0009dddf <https://github.com/apache/airflow/commit/2a0009dddfdaf26fa9b5746257202a97b5552da0>`__  2025-04-14   ``Unpause DAG in AWS MWAA system test (#49145)``
+`20f8af546e <https://github.com/apache/airflow/commit/20f8af546e63c6178df19166acbda8f768c21bf0>`__  2025-04-14   ``Fix 'EksClusterStateSensor'. Save 'region' as attribute (#49138)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`1781dc9d5f <https://github.com/apache/airflow/commit/1781dc9d5fcbb93bce7018a4050ddd36ec1a65d5>`__  2025-04-13   ``AWS Batch Operators/Sensors inherit AWS Base classes (#49172)``
+`4fa0eec9d4 <https://github.com/apache/airflow/commit/4fa0eec9d472c76be564422c9d0339246d1b5ace>`__  2025-04-12   ``Help pip to find appropriate boto for aiobotocore (#49166)``
+`a4a6e2bc99 <https://github.com/apache/airflow/commit/a4a6e2bc99cbcf95f13af6732ee272961a761aba>`__  2025-04-11   ``Decrease default value of 'waiter_max_attempts' in 'MwaaTriggerDagRunOperator' (#49136)``
+`3d6460e034 <https://github.com/apache/airflow/commit/3d6460e034ad8b4a5e878c54f1959c237f24bc8e>`__  2025-04-11   ``Update EKS Operators and Sensors to inherit AWS base classes (#48192)``
+`28a96413bb <https://github.com/apache/airflow/commit/28a96413bb7705f3626ff56bf4dffc4d3d109846>`__  2025-04-10   ``Increase default value of 'waiter_max_attempts' in 'BedrockBatchInferenceOperator' (#49090)``
+`87306b32c1 <https://github.com/apache/airflow/commit/87306b32c18b42dd5dbe24227076fb4ba76778e0>`__  2025-04-10   ``Fix AWS auth manager system test (#49072)``
+==================================================================================================  ===========  ===================================================================================================
+
+9.6.0
+.....
+
+Latest change: 2025-04-10
+
+==================================================================================================  ===========  ============================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ============================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
+`e0eaa604f4 <https://github.com/apache/airflow/commit/e0eaa604f49a612432451910e30e74eaf2563601>`__  2025-04-10   ``Rename list_jobs method to describe_jobs in GlueJobHook (#48904)``
+`f1a12f13e4 <https://github.com/apache/airflow/commit/f1a12f13e486f4c3b9e89fee92d5fccc488073dc>`__  2025-04-09   ``Refactor AWS system tests to not use @task.branch (#48973)``
+`f09d8bc79c <https://github.com/apache/airflow/commit/f09d8bc79c3a71fa6e17486778d4584a9babe02c>`__  2025-04-09   ``Handle NoCredentialsError in waiter_with_logging.py (#48946)``
+`5142a9a0d4 <https://github.com/apache/airflow/commit/5142a9a0d4910a1cc9959f77c95a57fe922ea30d>`__  2025-04-09   ``Fix botocore version in Amazon provider docs to match 'pyproject.toml' (#48981)``
+`7e3e1718b6 <https://github.com/apache/airflow/commit/7e3e1718b6e6f7833641ac337ccc4785d77c6865>`__  2025-04-09   ``Fix typo in docstring for MwaaHook (#48980)``
+`8d0170d200 <https://github.com/apache/airflow/commit/8d0170d200cff5897bc1187a10b8f8da08b4f38c>`__  2025-04-08   ``Bedrock Batch Inference - Trying to stop a completed job is a successful result (#48964)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`7bd1aa6bc0 <https://github.com/apache/airflow/commit/7bd1aa6bc0f0f4d6703d21e3accb87a8ed9e614c>`__  2025-04-07   ``Add Bedrock Batch Inference Operator and accompanying parts (#48468)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`8e8c84fed2 <https://github.com/apache/airflow/commit/8e8c84fed21bd2af1bb49e3355d00dc95fb82f38>`__  2025-04-07   ``Update ECS executor to support Task SDK (#48513)``
+`43652d5bbc <https://github.com/apache/airflow/commit/43652d5bbc3735868b05233aebb30c48c8d2f5c9>`__  2025-04-07   ``Update Amazon RDS Operators and Sensors to inherit AWS Base classes (#48872)``
+`f911e47085 <https://github.com/apache/airflow/commit/f911e4708575f07405454bfb1b29887cbb13a196>`__  2025-04-07   ``S3Hook: remove error return on inactivity period check (#48782)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`3b48df7697 <https://github.com/apache/airflow/commit/3b48df76975fe5207e41888f4596175cd5ac9fd8>`__  2025-04-06   ``Change provider-specific dependencies to refer to providers (#48843)``
+==================================================================================================  ===========  ============================================================================================
+
 9.5.0
 .....
 
-Latest change: 2025-04-04
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `1025474d28 <https://github.com/apache/airflow/commit/1025474d28a240b460d7ef8800c565f95d9dc012>`__  2025-04-04   ``Add 'ti' to the RemoteLogIO read and upload methods (#48804)``
 `5ca62b8f23 <https://github.com/apache/airflow/commit/5ca62b8f23ddb23bfb468044dfc08ef1126031ff>`__  2025-04-04   ``Fix Cloudwatch remote logging (#48774)``
 `7fda150de7 <https://github.com/apache/airflow/commit/7fda150de7e51e6f89d87918053cb3e46b62169f>`__  2025-04-03   ``Clarify the Redshift delete cluster operator messaging. (#48652)``

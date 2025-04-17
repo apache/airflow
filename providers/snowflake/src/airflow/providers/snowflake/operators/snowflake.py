@@ -433,7 +433,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             statement_status = self._hook.get_sql_api_query_status(query_id)
             if statement_status.get("status") == "running":
                 break
-            elif statement_status.get("status") == "success":
+            if statement_status.get("status") == "success":
                 succeeded_query_ids.append(query_id)
             else:
                 raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
@@ -503,7 +503,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             if "status" in event and event["status"] == "error":
                 msg = f"{event['status']}: {event['message']}"
                 raise AirflowException(msg)
-            elif "status" in event and event["status"] == "success":
+            if "status" in event and event["status"] == "success":
                 hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
                 query_ids = cast("list[str]", event["statement_query_ids"])
                 hook.check_query_output(query_ids)

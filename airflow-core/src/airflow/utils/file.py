@@ -143,8 +143,7 @@ def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
     _, archive, _ = search_.groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
-    else:
-        return fileloc
+    return fileloc
 
 
 def open_maybe_zipped(fileloc, mode="r"):
@@ -159,8 +158,7 @@ def open_maybe_zipped(fileloc, mode="r"):
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
-    else:
-        return open(fileloc, mode=mode)
+    return open(fileloc, mode=mode)
 
 
 def _find_path_from_directory(
@@ -236,10 +234,9 @@ def find_path_from_directory(
     """
     if ignore_file_syntax == "glob" or not ignore_file_syntax:
         return _find_path_from_directory(base_dir_path, ignore_file_name, _GlobIgnoreRule)
-    elif ignore_file_syntax == "regexp":
+    if ignore_file_syntax == "regexp":
         return _find_path_from_directory(base_dir_path, ignore_file_name, _RegexpIgnoreRule)
-    else:
-        raise ValueError(f"Unsupported ignore_file_syntax: {ignore_file_syntax}")
+    raise ValueError(f"Unsupported ignore_file_syntax: {ignore_file_syntax}")
 
 
 def list_py_file_paths(

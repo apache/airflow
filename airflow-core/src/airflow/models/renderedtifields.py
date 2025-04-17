@@ -179,8 +179,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         if result:
             rendered_fields = result.rendered_fields
             return rendered_fields
-        else:
-            return None
+        return None
 
     @classmethod
     @provide_session

@@ -389,7 +389,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        if client_spec and base_spec:
             client_spec.template.spec = PodGenerator.reconcile_specs(
                 base_spec.template.spec, client_spec.template.spec
             )

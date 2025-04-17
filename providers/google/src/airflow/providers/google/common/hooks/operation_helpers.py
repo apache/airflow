@@ -22,7 +22,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import GoogleAPICallError
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
 from airflow.exceptions import AirflowException
 
@@ -38,7 +37,7 @@ class OperationHelper:
     @staticmethod
     def wait_for_operation_result(
         operation: Operation,
-        timeout: int | None | _MethodDefault = DEFAULT,
+        timeout: int | None = None,
         polling: Retry | None = None,
         retry: Retry | None = None,
     ) -> Message:
