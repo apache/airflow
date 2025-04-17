@@ -532,6 +532,18 @@ database:
       sensitive: true
       example: ~
       default: "sqlite:///{AIRFLOW_HOME}/airflow.db"
+    sql_alchemy_conn_async:
+      description: |
+        The SQLAlchemy connection string to the metadata database used for async connections.
+        If this is not set, Airflow automatically derives a string by converting ``sql_alchemy_conn``.
+        Unfortunately, this conversion logic does not always work due to various incompatibilities
+        between sync and async db driver implementations. This sets the connection string directly
+        without any conversion instead.
+      version_added: 3.0.0
+      type: string
+      sensitive: true
+      example: "postgresql+asyncpg://postgres:airflow@postgres/airflow"
+      default: ~
     sql_alchemy_engine_args:
       description: |
         Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
