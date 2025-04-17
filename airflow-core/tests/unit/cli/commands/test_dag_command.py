@@ -286,7 +286,7 @@ class TestCliDags:
                 dag_list = json.loads(out)
             for key in ["dag_id", "fileloc", "owners", "is_paused"]:
                 assert key in dag_list[0]
-            assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") IN d["fileloc"] for d in dag_list)
+            assert any(str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list)
         # Rebuild Test DB for other tests
         parse_and_sync_to_db(os.devnull, include_examples=False)
 
