@@ -27,6 +27,11 @@ on:  # yamllint disable-line rule:truthy
         description: 'Skip Latest: Set to true if not latest.'
         default: ''
         required: false
+      includePreRelease:
+        description: 'Include pre-release: Set to true to include pre-releases.'
+        default: ''
+        type: boolean
+        required: false
 permissions:
   contents: read
   packages: read
@@ -47,6 +52,7 @@ jobs:
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
+      includePreRelease: ${{ github.event.inputs.includePreRelease == '' && ' ' || '--include-pre-release' }}
       limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}

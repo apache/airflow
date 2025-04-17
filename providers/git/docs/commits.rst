@@ -42,6 +42,8 @@ Latest change: 2025-04-16
 ==================================================================================================  ===========  ============================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================
+`dd0efe348b <https://github.com/apache/airflow/commit/dd0efe348b6ce94243ec7a727f9aa908eeafbc82>`__  2025-04-16   ``Use 'git_default' if the user defines nothing (#49359)``
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
 `192b337c86 <https://github.com/apache/airflow/commit/192b337c86eede5636f802d6f354fa97fe0f9030>`__  2025-04-16   ``Don't log repo_url in git dag bundle (#48909)``
 `2c7b56ee74 <https://github.com/apache/airflow/commit/2c7b56ee742409f65463534e34fa5f444d651af9>`__  2025-04-15   ``Make git connection optional for git dag bundle (#49270)``
 `b9052eed42 <https://github.com/apache/airflow/commit/b9052eed423f5f7f20c58815cce89e6cc659903c>`__  2025-04-15   ``Include subdir in Gitbundle view url (#49239)``
