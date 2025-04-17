@@ -41,9 +41,6 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    pass
-
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
@@ -74,8 +71,8 @@ class TestSensorHelper:
     @staticmethod
     def _clean_db():
         db.clear_db_dags()
-        db.clear_db_runs()
         db.clear_db_jobs()
+        db.clear_db_runs()
 
     @staticmethod
     def create_dag_run(
