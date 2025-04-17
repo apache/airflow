@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-17T13:56:47.066182
+# This constraints file was automatically generated on 2025-04-17T19:44:38.248643
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -198,7 +198,7 @@ gcsfs==2025.3.2
 geomet==0.2.1.post1
 gitdb==4.0.12
 google-ads==26.1.0
-google-analytics-admin==0.23.6
+google-analytics-admin==0.24.0
 google-api-core==2.24.2
 google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
@@ -214,13 +214,13 @@ google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery==3.31.0
 google-cloud-bigtable==2.30.0
 google-cloud-build==3.31.1
-google-cloud-compute==1.29.0
+google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
 google-cloud-datacatalog==3.26.1
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.10.0
+google-cloud-dataplex==2.10.1
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
@@ -236,7 +236,7 @@ google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
-google-cloud-secret-manager==2.23.2
+google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.53.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
