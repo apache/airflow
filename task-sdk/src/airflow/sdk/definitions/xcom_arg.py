@@ -23,7 +23,7 @@ from abc import ABCMeta
 from collections.abc import Iterable, Iterator, Mapping, Set, Sequence, Sized
 from contextlib import suppress
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, overload
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
@@ -392,8 +392,8 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class CallableResultMixin(Sequence, metaclass=ABCMeta):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
+class _MappableResult(Sequence, metaclass=ABCMeta):
+    def __init__(self, value: Sequence | dict, callables: FilterCallables | MapCallables) -> None:
         self.value = self._convert(value)
         self.callables = callables
 
@@ -407,20 +407,13 @@ class CallableResultMixin(Sequence, metaclass=ABCMeta):
             f"XCom filter expects sequence or dict, not {type(value).__name__}"
         )
 
-    def append(self, value: Sequence) -> Any:
-        if isinstance(self.value, list):
-            self.value.append(value)
-        elif isinstance(self.value, set):
-            self.value.add(value)
-        return value
-
     def _apply_callables(self, value):
         for func in self.callables:
             value = func(value)
         return value
 
 
-class _MapResult(CallableResultMixin):
+class _MapResult(_MappableResult):
     def __getitem__(self, index: Any) -> Any:
         value = self._apply_callables(self.value[index])
         return value
@@ -429,14 +422,14 @@ class _MapResult(CallableResultMixin):
         return len(self.value)
 
 
-class _LazyMapResult(CallableResultMixin):
+class _LazyMapResult(_MappableResult):
     def __init__(self, value: Iterable, callables: MapCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
 
     def _next_mapped(self) -> Any:
         item = next(self._iterator)
-        result = self.append(self._apply_callables(item))
+        result = self.value.append(self._apply_callables(item))
         return result
 
     def __getitem__(self, index: Any) -> Any:
@@ -451,6 +444,7 @@ class _LazyMapResult(CallableResultMixin):
         return self.value[index]
 
     def __len__(self) -> int:
+        # Fully consume the iterator to get total length
         while True:
             try:
                 self._next_mapped()
@@ -639,17 +633,16 @@ class ConcatXComArg(XComArg):
         return _ConcatResult(values)
 
 
-class _FilterResult(CallableResultMixin):
+class _FilterResult(_MappableResult):
     def __init__(self, value: Iterable, callables: FilterCallables) -> None:
         super().__init__([], callables)
         self._iterator = iter(value)
 
     def _next_filtered(self) -> Any:
-        """Return the next item from the iterator that passes all filters."""
         while True:
             item = next(self._iterator)
             if self._apply_callables(item):
-                return self.append(item)
+                return self.value.append(item)
 
     def __getitem__(self, index: int) -> Any:
         if index < 0:
@@ -679,6 +672,12 @@ class _FilterResult(CallableResultMixin):
                 yield self._next_filtered()
             except StopIteration:
                 break
+
+    def _apply_callables(self, value) -> bool:
+        for func in self.callables:
+            if not func(value):
+                return False
+        return True
 
 
 class FilterXComArg(XComArg):
