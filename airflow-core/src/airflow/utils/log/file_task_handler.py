@@ -100,6 +100,15 @@ class StructuredLogMessage(BaseModel):
     timestamp: datetime | None = None
     event: str
 
+    # Collisions of _sort_key may occur due to duplicated messages. If this happens, the heap will use the second element,
+    # which is the StructuredLogMessage for comparison. Therefore, we need to define a comparator for it.
+    def __lt__(self, other: StructuredLogMessage) -> bool:
+        return self.sort_key < other.sort_key
+
+    @property
+    def sort_key(self) -> datetime:
+        return self.timestamp or DEFAULT_SORT_DATETIME
+
     # We don't need to cache string when parsing in to this, as almost every line will have a different
     # values; `extra=allow` means we'll create extra properties as needed. Only timestamp and event are
     # required, everything else is up to what ever is producing the logs
@@ -276,24 +285,31 @@ def _sort_key(timestamp: datetime | None, line_num: int) -> int:
 
 def _add_log_from_parsed_log_streams_to_heap(
     heap: list[tuple[int, StructuredLogMessage]],
-    parsed_log_streams: list[ParsedLogStream],
+    parsed_log_streams: dict[int, ParsedLogStream],
 ) -> None:
     """
-    Add one log record from each parsed log stream to the heap, and will remove empty log stream from the list while iterating.
+    Add one log record from each parsed log stream to the heap, and will remove empty log stream from the dict after iterating.
 
     :param heap: heap to store log records
-    :param parsed_log_streams: list of parsed log streams
+    :param parsed_log_streams: dict of parsed log streams
     """
-    for log_stream in parsed_log_streams:
+    log_stream_to_remove: list[int] | None = None
+    for idx, log_stream in parsed_log_streams.items():
         record: ParsedLog | None = next(log_stream, None)
         if record is None:
-            parsed_log_streams.remove(log_stream)
+            if log_stream_to_remove is None:
+                log_stream_to_remove = []
+            log_stream_to_remove.append(idx)
             continue
         # add type hint to avoid mypy error
         record = cast("ParsedLog", record)
         timestamp, line_num, line = record
         # take int as sort key to avoid overhead of memory usage
         heapq.heappush(heap, (_sort_key(timestamp, line_num), line))
+    # remove empty log stream from the dict
+    if log_stream_to_remove is not None:
+        for idx in log_stream_to_remove:
+            del parsed_log_streams[idx]
 
 
 def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
@@ -317,9 +333,9 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
     # push only sort_key and line into heap
     heap: list[tuple[int, StructuredLogMessage]] = []
     # to allow removing empty streams while iterating, also turn the str stream into parsed log stream
-    parsed_log_streams: list[ParsedLogStream] = [
-        _log_stream_to_parsed_log_stream(log_stream) for log_stream in log_streams
-    ]
+    parsed_log_streams: dict[int, ParsedLogStream] = {
+        idx: _log_stream_to_parsed_log_stream(log_stream) for idx, log_stream in enumerate(log_streams)
+    }
 
     # keep adding records from logs until all logs are empty
     last = None
