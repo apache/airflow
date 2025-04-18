@@ -56,8 +56,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
         Install uv: `uv Installation Guide <https://docs.astral.sh/uv/getting-started/installation/>`_
 
 
-    For creating virtual environment with uv, refer to the documentation here:
-    `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv>`_
+    For creating virtual environment with ``uv``, refer to the documentation here:
+    `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
 
 3. Install Airflow using the constraints file, which is determined based on the URL we pass:
