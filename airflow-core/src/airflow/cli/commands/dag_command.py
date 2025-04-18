@@ -31,19 +31,16 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from itsdangerous import URLSafeSerializer
-from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from sqlalchemy import func, select
 
 from airflow.api.client import get_current_api_client
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, DagTag, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -61,66 +58,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.timetables.base import DataInterval
+
+DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
+
 log = logging.getLogger(__name__)
-
-
-# TODO: To clean up api_connexion, we need to move the below 2 classes to this file until migrated to FastAPI
-class DagTagSchema(SQLAlchemySchema):
-    """Dag Tag schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = DagTag
-
-    name = auto_field()
-
-
-class DAGSchema(SQLAlchemySchema):
-    """DAG schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = DagModel
-
-    dag_id = auto_field(dump_only=True)
-    dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
-    bundle_name = auto_field(dump_only=True)
-    bundle_version = auto_field(dump_only=True)
-    is_paused = auto_field()
-    is_stale = auto_field(dump_only=True)
-    last_parsed_time = auto_field(dump_only=True)
-    last_expired = auto_field(dump_only=True)
-    fileloc = auto_field(dump_only=True)
-    file_token = fields.Method("get_token", dump_only=True)
-    owners = fields.Method("get_owners", dump_only=True)
-    description = auto_field(dump_only=True)
-    timetable_summary = auto_field(dump_only=True)
-    timetable_description = auto_field(dump_only=True)
-    tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
-    max_active_tasks = auto_field(dump_only=True)
-    max_active_runs = auto_field(dump_only=True)
-    max_consecutive_failed_dag_runs = auto_field(dump_only=True)
-    has_task_concurrency_limits = auto_field(dump_only=True)
-    has_import_errors = auto_field(dump_only=True)
-    next_dagrun = auto_field(dump_only=True)
-    next_dagrun_data_interval_start = auto_field(dump_only=True)
-    next_dagrun_data_interval_end = auto_field(dump_only=True)
-    next_dagrun_create_after = auto_field(dump_only=True)
-
-    @staticmethod
-    def get_owners(obj: DagModel):
-        """Convert owners attribute to DAG representation."""
-        if not getattr(obj, "owners", None):
-            return []
-        return obj.owners.split(",")
-
-    @staticmethod
-    def get_token(obj: DagModel):
-        """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
-        return serializer.dumps(obj.fileloc)
 
 
 @cli_utils.action_cli
@@ -295,6 +236,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_stale": dag.get_is_stale(),
         "last_parsed_time": None,
         "last_expired": None,
+        "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,
@@ -309,10 +251,10 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
             t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
         ),
         "has_import_errors": False,
-        "next_dagrun": None,
         "next_dagrun_data_interval_start": None,
         "next_dagrun_data_interval_end": None,
-        "next_dagrun_create_after": None,
+        "next_dagrun_logical_date": None,
+        "next_dagrun_run_after": None,
     }
 
 
@@ -391,16 +333,13 @@ def dag_next_execution(args) -> None:
 def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
-    dag_schema_fields = DAGSchema().fields
-    invalid_cols = [c for c in cols if c not in dag_schema_fields]
-    valid_cols = [c for c in cols if c in dag_schema_fields]
 
-    if invalid_cols:
+    if invalid_cols := [c for c in cols if c not in DAG_DETAIL_FIELDS]:
         from rich import print as rich_print
 
         rich_print(
             f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {invalid_cols}.  "
-            f"List of valid columns: {list(dag_schema_fields.keys())}",
+            f"List of valid columns: {sorted(DAG_DETAIL_FIELDS)}",
             file=sys.stderr,
         )
 
@@ -426,10 +365,12 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         if dag_model:
-            dag_detail = DAGSchema().dump(dag_model)
+            dag_detail = DAGResponse.from_orm(dag_model).model_dump()
         else:
             dag_detail = _get_dagbag_dag_details(dag)
-        return {col: dag_detail[col] for col in valid_cols}
+        if not cols:
+            return dag_detail
+        return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
     def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
@@ -458,7 +399,7 @@ def dag_details(args, session: Session = NEW_SESSION):
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dag_detail = DAGSchema().dump(dag)
+    dag_detail = DAGResponse.from_orm(dag).model_dump()
 
     if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]

@@ -41,6 +41,7 @@ Step 2: Clean and back up your existing Airflow Instance
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
+
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
 

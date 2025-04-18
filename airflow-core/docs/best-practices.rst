@@ -451,7 +451,7 @@ for any variable that contains sensitive data.
 
 Timetables
 ----------
-Avoid using Airflow Variables/Connections or accessing airflow database at the top level of your timetable code.
+Avoid using Airflow Variables/Connections or accessing Airflow database at the top level of your timetable code.
 Database access should be delayed until the execution time of the DAG. This means that you should not have variables/connections retrieval
 as argument to your timetable class initialization or have Variable/connection at the top level of your custom timetable module.
 
@@ -980,7 +980,7 @@ The benefits of the operator are:
 
 * There is no need to prepare the venv upfront. It will be dynamically created before task is run, and
   removed after it is finished, so there is nothing special (except having virtualenv package in your
-  airflow dependencies) to make use of multiple virtual environments
+  Airflow dependencies) to make use of multiple virtual environments
 * You can run tasks with different sets of dependencies on the same workers - thus Memory resources are
   reused (though see below about the CPU overhead involved in creating the venvs).
 * In bigger installations, DAG Authors do not need to ask anyone to create the venvs for you.
