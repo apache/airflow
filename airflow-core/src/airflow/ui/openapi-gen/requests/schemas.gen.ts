@@ -1439,6 +1439,17 @@ export const $DAGDetailsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -1737,6 +1748,7 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -1839,6 +1851,17 @@ export const $DAGResponse = {
         },
       ],
       title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
     },
     relative_fileloc: {
       anyOf: [
@@ -1993,6 +2016,7 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -6070,6 +6094,17 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -6242,6 +6277,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
