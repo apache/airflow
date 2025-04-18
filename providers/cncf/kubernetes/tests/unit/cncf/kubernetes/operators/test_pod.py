@@ -1657,7 +1657,7 @@ class TestKubernetesPodOperator:
         assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": k.pod,
+            "pod": self.await_pod_mock.return_value,
             "operator": k,
             "context": context,
         }
@@ -1744,7 +1744,7 @@ class TestKubernetesPodOperator:
         assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": k.pod,
+            "pod": self.await_pod_mock.return_value,
             "operator": k,
             "context": context,
         }
