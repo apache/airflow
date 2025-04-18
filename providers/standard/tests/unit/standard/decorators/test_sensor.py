@@ -35,7 +35,7 @@ pytestmark = pytest.mark.db_test
     reason="Decorators were part of core not providers, so this test doesnt make sense for < AF3.",
 )
 class TestSensorDecorator:
-    def test_sensor_fails_on_none_python_callable(self, dag_maker):
+    def test_sensor_fails_on_none_python_callable(self):
         not_callable = {}
         with pytest.raises(TypeError):
             task.sensor(not_callable)
