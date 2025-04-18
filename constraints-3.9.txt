@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-17T19:56:07.817706
+# This constraints file was automatically generated on 2025-04-18T02:33:18.081235
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -264,7 +264,7 @@ cohere==5.15.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.9.0
+confluent-kafka==2.10.0
 connexion==2.14.2
 coverage==7.8.0
 crcmod==1.7
@@ -309,7 +309,7 @@ fasteners==0.19
 fastjsonschema==2.21.1
 filelock==3.18.0
 flower==2.0.1
-frozenlist==1.5.0
+frozenlist==1.6.0
 fsspec==2025.3.2
 future==1.0.0
 gcloud-aio-auth==5.4.1
@@ -333,7 +333,7 @@ google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery==3.31.0
-google-cloud-bigtable==2.30.0
+google-cloud-bigtable==2.30.1
 google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
