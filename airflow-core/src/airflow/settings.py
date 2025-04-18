@@ -22,6 +22,7 @@ import functools
 import json
 import logging
 import os
+import platform
 import sys
 import warnings
 from importlib import metadata
@@ -384,15 +385,17 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
-    # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
-    def clean_in_fork():
-        _globals = globals()
-        if engine := _globals.get("engine"):
-            engine.dispose(close=False)
-        if async_engine := _globals.get("async_engine"):
-            async_engine.sync_engine.dispose(close=False)
+    if not platform.system() == "Windows":
+        # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
+        def clean_in_fork():
+            _globals = globals()
+            if engine := _globals.get("engine"):
+                engine.dispose(close=False)
+            if async_engine := _globals.get("async_engine"):
+                async_engine.sync_engine.dispose(close=False)
 
-    os.register_at_fork(after_in_child=clean_in_fork)
+        # Won't work on Windows
+        os.register_at_fork(after_in_child=clean_in_fork)
 
 
 DEFAULT_ENGINE_ARGS = {

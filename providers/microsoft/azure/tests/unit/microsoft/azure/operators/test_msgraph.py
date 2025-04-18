@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import locale
+import warnings
 from base64 import b64encode
 from os.path import dirname
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -36,12 +37,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
-if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -336,17 +336,21 @@ class TestMSGraphAsyncOperator(Base):
                 execute_callable(
                     lambda context, response: response,
                     "response",
-                    {"execution_date": timezone.utcnow()},
+                    Context({"execution_date": timezone.utcnow()}),
                     "result_processor signature has changed, result parameter should be defined before context!",
                 )
                 == "response"
             )
-        assert (
-            execute_callable(
-                lambda response, **context: response,
-                "response",
-                {"execution_date": timezone.utcnow()},
-                "result_processor signature has changed, result parameter should be defined before context!",
+
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            warnings.simplefilter("error")  # Treat warnings as errors
+            assert (
+                execute_callable(
+                    lambda response, **context: response,
+                    "response",
+                    Context({"execution_date": timezone.utcnow()}),
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
+                == "response"
             )
-            == "response"
-        )
+            assert len(recorded_warnings) == 0
