@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -72,4 +74,34 @@ class TestGetPlugins:
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/plugins")
+        assert response.status_code == 403
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestGetPluginImportErrors:
+    @patch(
+        "airflow.plugins_manager.import_errors",
+        new={"plugins/test_plugin.py": "something went wrong"},
+    )
+    def test_should_respond_200(self, test_client, session):
+        response = test_client.get("/plugins/importErrors")
+        assert response.status_code == 200
+
+        body = response.json()
+        assert body == {
+            "import_errors": [
+                {
+                    "source": "plugins/test_plugin.py",
+                    "error": "something went wrong",
+                }
+            ],
+            "total_entries": 1,
+        }
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/plugins/importErrors")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/plugins/importErrors")
         assert response.status_code == 403

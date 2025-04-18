@@ -21,12 +21,16 @@ from typing import cast
 
 from fastapi import Depends
 
+from airflow import plugins_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.plugins import PluginCollectionResponse, PluginResponse
+from airflow.api_fastapi.core_api.datamodels.plugins import (
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
+    PluginResponse,
+)
 from airflow.api_fastapi.core_api.security import requires_access_view
-from airflow.plugins_manager import get_plugin_info
 
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
@@ -39,8 +43,25 @@ def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
 ) -> PluginCollectionResponse:
-    plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
+    plugins_info = sorted(plugins_manager.get_plugin_info(), key=lambda x: x["name"])
     return PluginCollectionResponse(
         plugins=cast("list[PluginResponse]", plugins_info[offset.value :][: limit.value]),
         total_entries=len(plugins_info),
+    )
+
+
+@plugins_router.get(
+    "/importErrors",
+    dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
+)
+def import_errors() -> PluginImportErrorCollectionResponse:
+    plugins_manager.ensure_plugins_loaded()  # make sure import_errors are loaded
+
+    return PluginImportErrorCollectionResponse.model_validate(
+        {
+            "import_errors": [
+                {"source": source, "error": error} for source, error in plugins_manager.import_errors.items()
+            ],
+            "total_entries": len(plugins_manager.import_errors),
+        }
     )

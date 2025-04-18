@@ -910,6 +910,22 @@ export type PluginCollectionResponse = {
 };
 
 /**
+ * Plugin Import Error Collection serializer.
+ */
+export type PluginImportErrorCollectionResponse = {
+  import_errors: Array<PluginImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Plugin Import Error serializer for responses.
+ */
+export type PluginImportErrorResponse = {
+  source: string;
+  error: string;
+};
+
+/**
  * Plugin serializer.
  */
 export type PluginResponse = {
@@ -2412,6 +2428,8 @@ export type GetPluginsData = {
 };
 
 export type GetPluginsResponse = PluginCollectionResponse;
+
+export type ImportErrorsResponse = PluginImportErrorCollectionResponse;
 
 export type DeletePoolData = {
   poolName: string;
@@ -4727,6 +4745,24 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/plugins/importErrors": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };

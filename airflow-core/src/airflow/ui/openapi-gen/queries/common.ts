@@ -1334,6 +1334,16 @@ export const UsePluginServiceGetPluginsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type PluginServiceImportErrorsDefaultResponse = Awaited<ReturnType<typeof PluginService.importErrors>>;
+export type PluginServiceImportErrorsQueryResult<
+  TData = PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceImportErrorsKey = "PluginServiceImportErrors";
+export const UsePluginServiceImportErrorsKeyFn = (queryKey?: Array<unknown>) => [
+  usePluginServiceImportErrorsKey,
+  ...(queryKey ?? []),
+];
 export type PoolServiceGetPoolDefaultResponse = Awaited<ReturnType<typeof PoolService.getPool>>;
 export type PoolServiceGetPoolQueryResult<
   TData = PoolServiceGetPoolDefaultResponse,
