@@ -438,6 +438,7 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -502,6 +503,7 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -1534,6 +1536,7 @@ export type DAGWithLatestDagRunsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
