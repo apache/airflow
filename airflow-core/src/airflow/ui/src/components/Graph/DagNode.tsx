@@ -54,7 +54,7 @@ export const DagNode = ({
             style={{ zIndex: 2 }}
           />
         </HStack>
-        <LinkOverlay asChild onClick={(event) => event.stopPropagation()}>
+        <LinkOverlay asChild>
           <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
         </LinkOverlay>
       </Flex>
