@@ -113,7 +113,6 @@ class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
         if project_id:
             LifeSciencesLink.persist(
                 context=context,
-                task_instance=self,
                 project_id=project_id,
             )
         return hook.run_pipeline(body=self.body, location=self.location, project_id=self.project_id)

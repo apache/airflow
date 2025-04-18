@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 DATACATALOG_BASE_LINK = "/datacatalog"
 ENTRY_GROUP_LINK = (
@@ -50,20 +44,6 @@ class DataCatalogEntryGroupLink(BaseGoogleLink):
     key = "data_catalog_entry_group"
     format_str = ENTRY_GROUP_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        entry_group_id: str,
-        location_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=DataCatalogEntryGroupLink.key,
-            value={"entry_group_id": entry_group_id, "location_id": location_id, "project_id": project_id},
-        )
-
 
 class DataCatalogEntryLink(BaseGoogleLink):
     """Helper class for constructing Data Catalog Entry Link."""
@@ -72,26 +52,6 @@ class DataCatalogEntryLink(BaseGoogleLink):
     key = "data_catalog_entry"
     format_str = ENTRY_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        entry_id: str,
-        entry_group_id: str,
-        location_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=DataCatalogEntryLink.key,
-            value={
-                "entry_id": entry_id,
-                "entry_group_id": entry_group_id,
-                "location_id": location_id,
-                "project_id": project_id,
-            },
-        )
-
 
 class DataCatalogTagTemplateLink(BaseGoogleLink):
     """Helper class for constructing Data Catalog Tag Template Link."""
@@ -99,17 +59,3 @@ class DataCatalogTagTemplateLink(BaseGoogleLink):
     name = "Data Catalog Tag Template"
     key = "data_catalog_tag_template"
     format_str = TAG_TEMPLATE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        tag_template_id: str,
-        location_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=DataCatalogTagTemplateLink.key,
-            value={"tag_template_id": tag_template_id, "location_id": location_id, "project_id": project_id},
-        )

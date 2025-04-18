@@ -136,7 +136,6 @@ class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
             raise AirflowException(f"Operation failed: result={result}")
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=f"{self.bucket}/{result['response']['outputUrl'].split('/')[3]}",
             project_id=self.project_id or ds_hook.project_id,
         )
@@ -211,6 +210,12 @@ class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context):
         self.log.info("Importing data from Cloud Storage bucket %s", self.bucket)
         ds_hook = DatastoreHook(
@@ -231,8 +236,7 @@ class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
         state = result["metadata"]["common"]["state"]
         if state != "SUCCESSFUL":
             raise AirflowException(f"Operation failed: result={result}")
-
-        CloudDatastoreImportExportLink.persist(context=context, task_instance=self)
+        CloudDatastoreImportExportLink.persist(context=context)
         return result
 
 
@@ -282,6 +286,12 @@ class CloudDatastoreAllocateIdsOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> list:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -291,7 +301,7 @@ class CloudDatastoreAllocateIdsOperator(GoogleCloudBaseOperator):
             partial_keys=self.partial_keys,
             project_id=self.project_id,
         )
-        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
+        CloudDatastoreEntitiesLink.persist(context=context)
         return keys
 
 
@@ -398,6 +408,12 @@ class CloudDatastoreCommitOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -407,7 +423,7 @@ class CloudDatastoreCommitOperator(GoogleCloudBaseOperator):
             body=self.body,
             project_id=self.project_id,
         )
-        CloudDatastoreEntitiesLink.persist(context=context, task_instance=self)
+        CloudDatastoreEntitiesLink.persist(context=context)
         return response
 
 

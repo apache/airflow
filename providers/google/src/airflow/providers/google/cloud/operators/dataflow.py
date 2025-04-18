@@ -383,7 +383,12 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                context=context,
+                project_id=self.project_id,
+                region=self.location,
+                job_id=self.job.get("id"),
+            )
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -418,7 +423,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             environment=self.environment,
         )
         job_id = self.hook.extract_job_id(self.job)
-        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.location, job_id=job_id
+        )
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -590,7 +597,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                context=context, project_id=self.project_id, region=self.location, job_id=self.job.get("id")
+            )
 
         if not self.deferrable:
             self.job = self.hook.start_flex_template(
@@ -609,7 +618,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         job_id = self.hook.extract_job_id(self.job)
-        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.location, job_id=job_id
+        )
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -764,7 +775,9 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
             location=self.region,
         )
 
-        DataflowJobLink.persist(self, context, self.project_id, self.region, self.job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.region, job_id=self.job_id
+        )
 
         if self.deferrable:
             self.defer(
@@ -971,6 +984,14 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
 
         self.pipeline_name = self.body["name"].split("/")[-1] if self.body else None
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+            "pipeline_name": self.pipeline_name,
+        }
+
     def execute(self, context: Context):
         if self.body is None:
             raise AirflowException(
@@ -1003,7 +1024,7 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
                     pipeline_name=self.pipeline_name,
                     location=self.location,
                 )
-        DataflowPipelineLink.persist(self, context, self.project_id, self.location, self.pipeline_name)
+        DataflowPipelineLink.persist(context=context)
         self.xcom_push(context, key="pipeline_name", value=self.pipeline_name)
         if self.pipeline:
             if "error" in self.pipeline:
@@ -1076,7 +1097,9 @@ class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
             )["job"]
             job_id = self.dataflow_hook.extract_job_id(self.job)
             self.xcom_push(context, key="job_id", value=job_id)
-            DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+            DataflowJobLink.persist(
+                context=context, project_id=self.project_id, region=self.location, job_id=job_id
+            )
         except HttpError as e:
             if e.resp.status == 404:
                 raise AirflowException("Pipeline with given name was not found.")

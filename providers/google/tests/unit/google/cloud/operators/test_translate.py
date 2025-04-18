@@ -207,7 +207,6 @@ class TestTranslateTextBatchOperator:
 
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
@@ -268,7 +267,7 @@ class TestTranslateDatasetCreate:
         mock_link_persist.assert_called_once_with(
             context=context,
             dataset_id=DATASET_ID,
-            task_instance=op,
+            location=LOCATION,
             project_id=PROJECT_ID,
         )
         assert result == DS_CREATION_RESULT_SAMPLE
@@ -319,7 +318,6 @@ class TestTranslateListDatasets:
         )
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
         assert result == [DS_ID_1, DS_ID_2]
@@ -362,7 +360,7 @@ class TestTranslateImportData:
         mock_link_persist.assert_called_once_with(
             context=context,
             dataset_id=DATASET_ID,
-            task_instance=op,
+            location=LOCATION,
             project_id=PROJECT_ID,
         )
 
@@ -455,10 +453,10 @@ class TestTranslateModelCreate:
         mock_xcom_push.assert_called_once_with(context, key="model_id", value=MODEL_ID)
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             model_id=MODEL_ID,
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
+            location=LOCATION,
         )
         assert result == MODEL_CREATION_RESULT_SAMPLE
 
@@ -515,7 +513,6 @@ class TestTranslateListModels:
         assert result == [MODEL_ID_1, MODEL_ID_2]
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
 
@@ -634,7 +631,6 @@ class TestTranslateDocumentBatchOperator:
         assert result == BATCH_DOC_TRANSLATION_RESULT
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
@@ -709,7 +705,6 @@ class TestTranslateDocumentOperator:
         assert result == DOC_TRANSLATION_RESULT
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
             output_config=OUTPUT_CONFIG,
         )
@@ -884,7 +879,6 @@ class TestTranslateListGlossaries:
         assert result == [GLOSSARY_ID_1, GLOSSARY_ID_2]
         mock_link_persist.assert_called_once_with(
             context=context,
-            task_instance=op,
             project_id=PROJECT_ID,
         )
 

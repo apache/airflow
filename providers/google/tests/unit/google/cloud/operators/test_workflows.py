@@ -248,8 +248,8 @@ class TestWorkflowsGetWorkflowOperator:
 class TestWorkflowExecutionsCreateExecutionOperator:
     @mock.patch(BASE_PATH.format("Execution"))
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
-    @mock.patch(BASE_PATH.format("WorkflowsCreateExecutionOperator.xcom_push"))
-    def test_execute(self, mock_xcom, mock_hook, mock_object):
+    @mock.patch(BASE_PATH.format("WorkflowsExecutionLink.persist"))
+    def test_execute(self, mock_link_persist, mock_hook, mock_object):
         mock_hook.return_value.create_execution.return_value.name = "name/execution_id"
         op = WorkflowsCreateExecutionOperator(
             task_id="test_task",
@@ -280,15 +280,12 @@ class TestWorkflowExecutionsCreateExecutionOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_xcom.assert_called_with(
-            context,
-            key="workflow_execution",
-            value={
-                "location_id": LOCATION,
-                "workflow_id": WORKFLOW_ID,
-                "execution_id": EXECUTION_ID,
-                "project_id": PROJECT_ID,
-            },
+        mock_link_persist.assert_called_with(
+            context=context,
+            location_id=LOCATION,
+            workflow_id=WORKFLOW_ID,
+            execution_id=EXECUTION_ID,
+            project_id=PROJECT_ID,
         )
         assert result == mock_object.to_dict.return_value
 

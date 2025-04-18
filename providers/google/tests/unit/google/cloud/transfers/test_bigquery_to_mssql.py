@@ -81,7 +81,6 @@ class TestBigQueryToMsSqlOperator:
 
         mock_link.persist.assert_called_once_with(
             context=mock_context,
-            task_instance=operator,
             dataset_id=TEST_DATASET,
             project_id=TEST_PROJECT,
             table_id=TEST_TABLE_ID,
