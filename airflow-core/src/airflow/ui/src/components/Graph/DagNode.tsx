@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, LinkOverlay } from "@chakra-ui/react";
+import { Flex, HStack, LinkOverlay } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -55,9 +55,7 @@ export const DagNode = ({
           />
         </HStack>
         <LinkOverlay asChild onClick={(event) => event.stopPropagation()}>
-          <Link asChild color="fg.info" mb={2}>
-            <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
-          </Link>
+          <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
         </LinkOverlay>
       </Flex>
     </NodeWrapper>

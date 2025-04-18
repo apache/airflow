@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, HStack, Link, LinkOverlay, Text } from "@chakra-ui/react";
+import { Flex, Heading, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { FiDatabase } from "react-icons/fi";
 import { useParams, Link as RouterLink } from "react-router-dom";
@@ -70,9 +70,7 @@ export const AssetNode = ({
             <FiDatabase />
           </Heading>
           <LinkOverlay asChild>
-            <Link asChild color="fg.info">
-              <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
-            </Link>
+            <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
           </LinkOverlay>
         </HStack>
         {assetEvent === undefined ? undefined : (
