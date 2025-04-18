@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+7.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing DatabricksNotebookOperator invalid dependency graph issue (#48492)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.3.1
 .....
 

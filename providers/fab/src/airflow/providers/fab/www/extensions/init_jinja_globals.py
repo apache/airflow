@@ -56,7 +56,6 @@ def init_jinja_globals(app, enable_plugins: bool):
             "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
             "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
             "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
-            "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
             "airflow_version": airflow_version,
             "git_version": git_version,
             "show_plugin_message": enable_plugins,

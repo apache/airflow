@@ -635,14 +635,14 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["git", "common.messaging", "fab"])
+CHICKEN_EGG_PROVIDERS = " ".join(["git", "common.messaging", "fab", "standard", "openlineage"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant common.messaging fab edgeexecutor git",
+        "remove-providers": "cloudant common.messaging fab edge3 git",
         "run-tests": "true",
     },
     {

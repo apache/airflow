@@ -231,7 +231,7 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(args.bundle_name, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
@@ -255,7 +255,7 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.subdir, args.dag_id, from_db=True)
+    dag = get_dag(args.bundle_name, args.dag_id, from_db=True)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)
@@ -266,7 +266,7 @@ def task_state(args) -> None:
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or get_dag(args.bundle_name, args.dag_id)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -365,7 +365,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or get_dag(args.bundle_name, args.dag_id)
 
     dag = DAG.from_sdk_dag(dag)
 
@@ -424,7 +424,8 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
     if not dag:
-        dag = get_dag(args.subdir, args.dag_id)
+        dag = get_dag(args.bundle_name, args.dag_id)
+    dag = DAG.from_sdk_dag(dag)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
@@ -448,12 +449,12 @@ def task_render(args, dag: DAG | None = None) -> None:
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
-    if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
+    if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
         # Reading from_db because clear method still not implemented in Task SDK DAG
-        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex, from_db=True)
+        dags = get_dags(args.bundle_name, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
         if args.task_regex:
             for idx, dag in enumerate(dags):

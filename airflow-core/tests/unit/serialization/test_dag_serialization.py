@@ -2025,7 +2025,7 @@ class TestStringifiedDAGs:
         Tests edge_info serialization/deserialization.
         """
         from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.utils.edgemodifier import Label
+        from airflow.sdk import Label
 
         with DAG(
             "test_edge_info_serialization",

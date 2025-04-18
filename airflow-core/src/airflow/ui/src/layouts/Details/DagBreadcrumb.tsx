@@ -28,9 +28,11 @@ import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const DagBreadcrumb = () => {
   const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -44,6 +46,7 @@ export const DagBreadcrumb = () => {
     undefined,
     {
       enabled: Boolean(runId),
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
 

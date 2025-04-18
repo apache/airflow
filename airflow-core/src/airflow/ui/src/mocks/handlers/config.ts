@@ -31,7 +31,6 @@ export const handlers: Array<HttpHandler> = [
       instance_name_has_markup: false,
       navbar_color: "#fff",
       navbar_hover_color: "#eee",
-      navbar_logo_text_color: "#51504f",
       navbar_text_color: "#51504f",
       navbar_text_hover_color: "#51504f",
       page_size: 15,

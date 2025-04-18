@@ -438,6 +438,7 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -502,6 +503,7 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -1445,7 +1447,6 @@ export type ConfigResponse = {
   navbar_text_color: string;
   navbar_hover_color: string;
   navbar_text_hover_color: string;
-  navbar_logo_text_color: string;
   page_size: number;
   auto_refresh_interval: number;
   hide_paused_dags_by_default: boolean;
@@ -1535,6 +1536,7 @@ export type DAGWithLatestDagRunsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;

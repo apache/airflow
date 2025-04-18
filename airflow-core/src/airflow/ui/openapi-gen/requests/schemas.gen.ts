@@ -1439,6 +1439,17 @@ export const $DAGDetailsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -1737,6 +1748,7 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -1839,6 +1851,17 @@ export const $DAGResponse = {
         },
       ],
       title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
     },
     relative_fileloc: {
       anyOf: [
@@ -1993,6 +2016,7 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -5750,10 +5774,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Navbar Text Hover Color",
     },
-    navbar_logo_text_color: {
-      type: "string",
-      title: "Navbar Logo Text Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5816,7 +5836,6 @@ export const $ConfigResponse = {
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
@@ -6075,6 +6094,17 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -6247,6 +6277,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",

@@ -115,7 +115,7 @@ looks like:
         # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
         appbuilder_menu_items = []
 
-        # A callback to perform actions when airflow starts and the plugin is loaded.
+        # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
         #   function in future changes
@@ -192,7 +192,7 @@ definitions in Airflow.
         static_url_path="/static/test_plugin",
     )
 
-    # Creating a FastAPI application to integrate in airflow Rest API.
+    # Creating a FastAPI application to integrate in Airflow Rest API.
     app = FastAPI()
 
 
