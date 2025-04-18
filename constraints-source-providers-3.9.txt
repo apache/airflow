@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-18T02:21:21.315715
+# This constraints file was automatically generated on 2025-04-18T13:48:54.348323
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -62,7 +62,7 @@ alabaster==0.7.16
 alembic==1.15.2
 alibabacloud-adb20211201==3.0.2
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.0
+alibabacloud-credentials==1.0.1
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.3
@@ -347,7 +347,6 @@ looker-sdk==25.4.0
 lxml==5.3.2
 lz4==4.4.4
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
