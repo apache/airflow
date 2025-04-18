@@ -118,37 +118,10 @@ class HookMetaService:
         MutableMapping[str, HookInfo | None], dict[str, ConnectionFormWidgetInfo], dict[str, dict]
     ]:
         """Get hooks with all details w/o FAB needing to be installed."""
-        from unittest import mock
-
         from airflow.providers_manager import ProvidersManager
 
-        def mock_lazy_gettext(txt: str) -> str:
-            """Mock for flask_babel.lazy_gettext."""
-            return txt
-
-        def mock_any_of(allowed_values: list) -> HookMetaService.MockEnum:
-            """Mock for wtforms.validators.any_of."""
-            return HookMetaService.MockEnum(allowed_values)
-
-        with (
-            mock.patch("wtforms.StringField", HookMetaService.MockStringField),
-            mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),
-            mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField),
-            mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField),
-            mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField),
-            mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField),
-            mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField),
-            mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField),
-            mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField),
-            mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext),
-            mock.patch("flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget),
-            mock.patch("flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget),
-            mock.patch("flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget),
-            mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
-            mock.patch("wtforms.validators.any_of", mock_any_of),
-        ):
-            pm = ProvidersManager()
-            return pm.hooks, pm.connection_form_widgets, pm.field_behaviours
+        pm = ProvidersManager()
+        return pm.hooks, pm.connection_form_widgets, pm.field_behaviours
 
     @staticmethod
     def _make_standard_fields(field_behaviour: dict | None) -> StandardHookFields | None:
