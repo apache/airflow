@@ -235,10 +235,8 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        dag_detail_fields = dag_command.DAGSchema().fields.keys()
-
         # Check if DAG Details field are present
-        for field in dag_detail_fields:
+        for field in dag_command.DAG_DETAIL_FIELDS:
             assert field in out
 
         # Check if identifying values are present
@@ -309,10 +307,9 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
-        valid_cols = [c for c in dag_command.DAGSchema().fields]
         dagbag = DagBag(include_examples=True, read_dags_from_db=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
-        assert list(dag_details.keys()) == valid_cols
+        assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):

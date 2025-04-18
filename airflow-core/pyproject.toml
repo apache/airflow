@@ -98,7 +98,6 @@ dependencies = [
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
-    "marshmallow-oneofschema>=2.0.1",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-exporter-otlp>=1.24.0",
