@@ -98,3 +98,17 @@ class PluginCollectionResponse(BaseModel):
 
     plugins: list[PluginResponse]
     total_entries: int
+
+
+class PluginImportErrorResponse(BaseModel):
+    """Plugin Import Error serializer for responses."""
+
+    source: str
+    error: str
+
+
+class PluginImportErrorCollectionResponse(BaseModel):
+    """Plugin Import Error Collection serializer."""
+
+    import_errors: list[PluginImportErrorResponse]
+    total_entries: int
