@@ -22,7 +22,7 @@
 TriggerDagRunOperator
 =======================
 
-Use the :class:`~airflow.providers.standard.operators.TriggerDagRunOperator` to trigger dag from another dag.
+Use the :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator` to trigger dag from another dag.
 
 .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_trigger_controller_dag.py
     :language: python

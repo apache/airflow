@@ -22,7 +22,7 @@
 LatestOnlyOperator
 =======================
 
-Use the :class:`~airflow.providers.standard.operators.LatestOnlyOperator`.
+Use the :class:`~airflow.providers.standard.operators.latest_only.LatestOnlyOperator`.
 
 .. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_latest_only.py
     :language: python
