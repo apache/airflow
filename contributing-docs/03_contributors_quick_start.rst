@@ -491,8 +491,8 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
-   It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
+   Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -508,7 +508,7 @@ Using Breeze
 
    * Port forwarding:
 
-        Ports are forwarded to the running docker containers for webserver and database
+        Ports are forwarded to the running docker containers for components and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
           * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555

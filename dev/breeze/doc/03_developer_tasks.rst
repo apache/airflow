@@ -112,7 +112,7 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 .. code-block::
 
     * 12322 -> forwarded to Airflow ssh server -> airflow:22
-    * 28080 -> forwarded to Airflow API server or webserver -> airflow:8080
+    * 28080 -> forwarded to Airflow API server -> airflow:8080
     * 25555 -> forwarded to Flower dashboard -> airflow:5555
     * 25433 -> forwarded to Postgres database -> postgres:5432
     * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -124,14 +124,14 @@ You can connect to these ports/databases using:
 .. code-block::
 
     * ssh connection for remote debugging: ssh -p 12322 airflow@localhost pw: airflow
-    * API server or webserver:    http://localhost:28080
+    * API server:    http://localhost:28080
     * Flower:    http://localhost:25555
     * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
     * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
     * Redis:     redis://localhost:26379/0
 
 If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
-You may need to create a user prior to running the webserver in order to log in.
+You may need to create a user prior to running the API server in order to log in.
 This can be done with the following command:
 
 .. code-block:: bash
@@ -152,7 +152,7 @@ database client:
 You can change the used host port numbers by setting appropriate environment variables:
 
 * ``SSH_PORT``
-* ``WEB_HOST_PORT`` - API server for Airflow 3, or webserver port for Airflow 2 when --use-airflow-version is used
+* ``WEB_HOST_PORT`` - API server when --use-airflow-version is used
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
 * ``MSSQL_HOST_PORT``
@@ -392,7 +392,7 @@ Launching multiple terminals in the same environment
 ----------------------------------------------------
 
 Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
-run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+run ``airflow api-server``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
 
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
 is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
@@ -417,8 +417,8 @@ These are all available flags of ``exec`` command:
 Compiling ui assets
 --------------------
 
-Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
-command takes care about it. This is needed when you want to run webserver inside of the breeze.
+Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
+command takes care about it. This is needed when you want to run API server inside of the breeze.
 
 .. image:: ./images/output_compile-ui-assets.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
@@ -494,7 +494,7 @@ Running Breeze with a StatsD Metrics Stack
 ..........................................
 
 You can launch an instance of Breeze pre-configured to emit StatsD metrics using
-``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+``breeze start-airflow --integration statsd``.  This will launch an Airflow API server
 within the Breeze environment as well as containers running StatsD, Prometheus, and
 Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
 Grafana, and includes a default dashboard in Grafana.
@@ -547,9 +547,9 @@ Running Breeze with OpenLineage
 ...............................
 
 You can launch an instance of Breeze pre-configured to emit OpenLineage metrics using
-``breeze start-airflow --integration openlineage``.  This will launch an Airflow webserver
+``breeze start-airflow --integration openlineage``.  This will launch an Airflow API server
 within the Breeze environment as well as containers running a [Marquez](https://marquezproject.ai/)
-webserver and API server.
+API server.
 
 When you run Airflow Breeze with this integration, in addition to the standard ports
 (See "Port Forwarding" below), the following are also automatically forwarded:
