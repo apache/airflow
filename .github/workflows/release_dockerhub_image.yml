@@ -27,11 +27,6 @@ on:  # yamllint disable-line rule:truthy
         description: 'Skip Latest: Set to true if not latest.'
         default: ''
         required: false
-      includePreRelease:
-        description: 'Include pre-release: Set to true to include pre-releases.'
-        default: ''
-        type: boolean
-        required: false
 permissions:
   contents: read
   packages: read
@@ -52,7 +47,6 @@ jobs:
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
-      includePreRelease: ${{ github.event.inputs.includePreRelease == '' && ' ' || '--include-pre-release' }}
       limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -151,16 +145,16 @@ jobs:
       - name: "Create airflow_cache builder"
         run: docker buildx create --name airflow_cache
       - name: "Prepare chicken-eggs provider distributions"
-        # In case of provider distributions which use latest dev0 version of providers, we should prepare them
+        # In case of provider distributions which use latest r00 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.rc0
         shell: bash
         env:
           CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-distributions
           --distribution-format wheel
-          --version-suffix-for-pypi dev0 ${CHICKEN_EGG_PROVIDERS}
+          --version-suffix-for-pypi rc0 ${CHICKEN_EGG_PROVIDERS}
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "Copy dist packages to docker-context files"
         shell: bash
