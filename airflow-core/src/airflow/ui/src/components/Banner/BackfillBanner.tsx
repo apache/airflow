@@ -22,8 +22,8 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 
 import {
   useBackfillServiceCancelBackfill,
-  useBackfillServiceListBackfills,
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfills1,
+  useBackfillServiceListBackfills1Key,
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
@@ -47,12 +47,12 @@ const buttonProps = {
 
 const onSuccess = async () => {
   await queryClient.invalidateQueries({
-    queryKey: [useBackfillServiceListBackfillsKey],
+    queryKey: [useBackfillServiceListBackfills1Key],
   });
 };
 
 const BackfillBanner = ({ dagId }: Props) => {
-  const { data, isLoading } = useBackfillServiceListBackfills({
+  const { data, isLoading } = useBackfillServiceListBackfills1({
     dagId,
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
