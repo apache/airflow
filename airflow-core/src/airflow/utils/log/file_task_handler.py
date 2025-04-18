@@ -55,7 +55,12 @@ if TYPE_CHECKING:
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
+DEFAULT_SORT_TIMESTAMP = int(DEFAULT_SORT_DATETIME.timestamp() * 1000)
 SORT_KEY_OFFSET = 10000000
+"""An offset used by the _sort_key utility.
+
+Assuming 50 characters per line, an offset of 10,000,000 can represent approximately 500 MB of file data, which is sufficient for use as a constant.
+"""
 HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 PARALLEL_YIELD_SIZE = HEAP_DUMP_SIZE // 100
@@ -283,6 +288,20 @@ def _sort_key(timestamp: datetime | None, line_num: int) -> int:
     return int((timestamp or DEFAULT_SORT_DATETIME).timestamp() * 1000) * SORT_KEY_OFFSET + line_num
 
 
+def _is_sort_key_with_default_timestamp(sort_key: int) -> bool:
+    """
+    Check if the sort key was generated with the DEFAULT_SORT_TIMESTAMP.
+
+    This is used to identify log records that don't have timestamp.
+
+    :param sort_key: The sort key to check
+    :return: True if the sort key was generated with DEFAULT_SORT_TIMESTAMP, False otherwise
+    """
+    # Extract the timestamp part from the sort key (remove the line number part)
+    timestamp_part = sort_key // SORT_KEY_OFFSET
+    return timestamp_part == DEFAULT_SORT_TIMESTAMP
+
+
 def _add_log_from_parsed_log_streams_to_heap(
     heap: list[tuple[int, StructuredLogMessage]],
     parsed_log_streams: dict[int, ParsedLogStream],
@@ -345,20 +364,16 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
         # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
         if len(heap) >= HEAP_DUMP_SIZE:
             for _ in range(HALF_HEAP_DUMP_SIZE):
-                _, line = heapq.heappop(heap)
-                if line == last:  # dedupe
-                    last = line
-                    continue
-                yield line
+                sort_key, line = heapq.heappop(heap)
+                if line != last or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
+                    yield line
                 last = line
 
     # yield remaining records
     for _ in range(len(heap)):
-        _, line = heapq.heappop(heap)
-        if line == last:  # dedupe
-            last = line
-            continue
-        yield line
+        sort_key, line = heapq.heappop(heap)
+        if line != last or _is_sort_key_with_default_timestamp(sort_key):  # dedupe
+            yield line
         last = line
     # free memory
     del heap
