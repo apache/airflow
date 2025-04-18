@@ -28,7 +28,6 @@ from multiprocessing import Process
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
@@ -166,7 +165,7 @@ def logger_setup_handler(logger, **kwargs):
     * logs of severity lower than error goes to stdout.
     """
     if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
-        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
+        celery_formatter = logging.Formatter(kwargs["format"])
 
         class NoErrorOrAboveFilter(logging.Filter):
             """Allow only logs with level *lower* than ERROR to be reported."""
