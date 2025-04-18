@@ -1091,6 +1091,7 @@ class DAGDetailsResponse(BaseModel):
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
@@ -1144,6 +1145,7 @@ class DAGResponse(BaseModel):
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")] = None
     last_expired: Annotated[datetime | None, Field(title="Last Expired")] = None
     bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
     fileloc: Annotated[str, Field(title="Fileloc")]
     description: Annotated[str | None, Field(title="Description")] = None
