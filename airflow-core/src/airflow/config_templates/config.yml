@@ -697,7 +697,8 @@ database:
     external_db_managers:
       description: |
         List of DB managers to use to migrate external tables in airflow database. The managers must inherit
-        from BaseDBManager
+        from BaseDBManager. If ``FabAuthManager`` is configured in the environment,
+        ``airflow.providers.fab.auth_manager.models.db.FABDBManager`` is automatically added.
       version_added: 3.0.0
       type: string
       example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
