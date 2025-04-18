@@ -129,7 +129,7 @@ class CommonBuildParams:
 
     @property
     def airflow_image_readme_url(self):
-        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
+        return "https://raw.githubusercontent.com/apache/airflow/refs/heads/main/docker-stack-docs/README.md"
 
     def get_cache(self, single_platform: str) -> str:
         if "," in single_platform:
@@ -188,3 +188,24 @@ class CommonBuildParams:
             # in case of any failure just fall back to the original version set
             pass
         return airflow_version
+
+    def _set_common_opt_args(self):
+        self._opt_arg("AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
+        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
+        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
+        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
+        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
+        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
+        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
+        self._opt_arg("COMMIT_SHA", self.commit_sha)
+        self._opt_arg("DEV_APT_COMMAND", self.dev_apt_command)
+        self._opt_arg("DEV_APT_DEPS", self.dev_apt_deps)
+        self._opt_arg("DOCKER_HOST", self.docker_host)
+        self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+
+    def _set_common_req_args(self):
+        self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
+        self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
+        self._req_arg("BUILD_ID", self.build_id)
+        self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
