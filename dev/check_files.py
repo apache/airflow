@@ -24,9 +24,8 @@ import rich_click as click
 from rich import print
 
 PROVIDERS_DOCKER = """\
-FROM ghcr.io/apache/airflow/main/ci/python3.10
-RUN rm -rf /opt/airflow/airflow/providers
-
+FROM ghcr.io/apache/airflow/main/ci/python3.9
+RUN cd airflow-core; uv sync --no-sources
 
 # Install providers
 {}
@@ -206,7 +205,9 @@ def providers(ctx, path: str):
     files = os.listdir(os.path.join(path, "providers"))
     pips = [f"{name}=={version}" for name, version in get_packages()]
     missing_files = check_providers(files)
-    create_docker(PROVIDERS_DOCKER.format("RUN uv pip install --system " + " ".join(f"'{p}'" for p in pips)))
+    create_docker(
+        PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips))
+    )
     if missing_files:
         warn_of_missing_files(missing_files)
 
