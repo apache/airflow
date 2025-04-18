@@ -96,7 +96,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^.*/_vendor/.*$
+        exclude: ^\.github/.*$|^.*/_vendor/.*$|^airflow-ctl/.*/.*generated\.py$
         files: \.py$|\.pyi$
         args:
           - --comment-style
