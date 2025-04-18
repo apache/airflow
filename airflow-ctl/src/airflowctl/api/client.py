@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
 
 import httpx
 import keyring
+import rich
 import structlog
 from keyring.errors import NoKeyringError
 from platformdirs import user_config_path
@@ -281,7 +282,7 @@ def get_client(kind: ClientKind = ClientKind.CLI):
 
 def provide_api_client(
     kind: ClientKind = ClientKind.CLI,
-) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:
+) -> Callable[[Callable[PS, RT]], Callable[PS, RT | None]]:
     """
     Provide a CLI API Client to the decorated function.
 
@@ -292,12 +293,16 @@ def provide_api_client(
     will create one and close it for you.
     """
 
-    def decorator(func: Callable[PS, RT]) -> Callable[PS, RT]:
+    def decorator(func: Callable[PS, RT]) -> Callable[PS, RT | None]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> RT:
+        def wrapper(*args, **kwargs) -> RT | None:
             if "api_client" not in kwargs:
-                with get_client(kind=kind) as api_client:
-                    return func(*args, api_client=api_client, **kwargs)
+                try:
+                    with get_client(kind=kind) as api_client:
+                        return func(*args, api_client=api_client, **kwargs)
+                except AirflowCtlNotFoundException as e:
+                    rich.print("Failed to run due to ", e)
+                    return None
             # The CLI API Client should be only passed for Mocking and Testing
             return func(*args, **kwargs)
 
