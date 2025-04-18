@@ -58,6 +58,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.timetables.base import DataInterval
+
+DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
+
 log = logging.getLogger(__name__)
 
 
@@ -233,6 +236,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_stale": dag.get_is_stale(),
         "last_parsed_time": None,
         "last_expired": None,
+        "relative_fileloc": dag.relative_fileloc,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,
@@ -247,10 +251,10 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
             t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
         ),
         "has_import_errors": False,
-        "next_dagrun": None,
         "next_dagrun_data_interval_start": None,
         "next_dagrun_data_interval_end": None,
-        "next_dagrun_create_after": None,
+        "next_dagrun_logical_date": None,
+        "next_dagrun_run_after": None,
     }
 
 
@@ -330,12 +334,12 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
 
-    if invalid_cols := [c for c in cols if c not in DAGResponse.model_fields]:
+    if invalid_cols := [c for c in cols if c not in DAG_DETAIL_FIELDS]:
         from rich import print as rich_print
 
         rich_print(
             f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {invalid_cols}.  "
-            f"List of valid columns: {list(DAGResponse.model_fields)}",
+            f"List of valid columns: {sorted(DAG_DETAIL_FIELDS)}",
             file=sys.stderr,
         )
 
@@ -366,7 +370,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dag_detail = _get_dagbag_dag_details(dag)
         if not cols:
             return dag_detail
-        return {col: dag_detail[col] for col in cols if col in DAGResponse.model_fields}
+        return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
     def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
         """Filter DAGs based on the specified bundle name, if provided."""

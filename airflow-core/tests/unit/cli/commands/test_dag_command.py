@@ -33,7 +33,6 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -237,7 +236,7 @@ class TestCliDags:
             out = temp_stdout.getvalue()
 
         # Check if DAG Details field are present
-        for field in DAGResponse.model_fields:
+        for field in dag_command.DAG_DETAIL_FIELDS:
             assert field in out
 
         # Check if identifying values are present
@@ -308,10 +307,9 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
-        valid_cols = sorted(DAGResponse.model_fields)
         dagbag = DagBag(include_examples=True, read_dags_from_db=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
-        assert sorted(dag_details) == valid_cols
+        assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
