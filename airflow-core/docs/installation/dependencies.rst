@@ -23,7 +23,7 @@ Airflow extra dependencies
 
 The ``apache-airflow`` PyPI basic package only installs what's needed to get started.
 Additional packages can be installed depending on what will be useful in your
-environment. For instance, if you don't need connectivity with Postgres,
+environment. For instance, if you don't need connectivity with PostgreSQL,
 you won't have to go through the trouble of installing the ``postgres-devel``
 yum package, or whatever equivalent applies on the distribution you are using.
 
@@ -55,7 +55,7 @@ Just to prevent confusion of extras versus providers: Extras and providers are d
 though many extras are leading to installing providers.
 
 Extras are standard Python setuptools feature that allows to add additional set of dependencies as
-optional features to "core" Apache Airflow. One of the type of such optional features are providers
+optional features to "core" Apache Airflow. One type of such optional features is providers
 packages, but not all optional features of Apache Airflow have corresponding providers.
 
 We are using the ``extras`` setuptools features to also install providers.

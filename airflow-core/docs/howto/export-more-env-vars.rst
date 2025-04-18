@@ -23,7 +23,7 @@ Export dynamic environment variables available for operators to use
 
 
 The key value pairs returned in ``get_airflow_context_vars`` defined in
-``airflow_local_settings.py`` are injected to default airflow context environment variables,
+``airflow_local_settings.py`` are injected to default Airflow context environment variables,
 which are available as environment variables when running tasks. Note, both key and
 value are must be string.
 

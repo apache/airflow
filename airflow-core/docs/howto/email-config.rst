@@ -88,7 +88,7 @@ Send email using SendGrid
 Using Default SMTP
 ^^^^^^^^^^^^^^^^^^
 
-You can use the default airflow SMTP backend to send email with SendGrid
+You can use the default Airflow SMTP backend to send email with SendGrid
 
   .. code-block:: ini
 

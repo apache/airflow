@@ -59,7 +59,7 @@ A minimal Airflow installation consists of the following components:
 * A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
-* A *metadata database*, which airflow components use to store state of workflows and tasks.
+* A *metadata database*, which Airflow components use to store state of workflows and tasks.
   Setting up a metadata database is described in :doc:`/howto/set-up-database` and is required for
   Airflow to work.
 

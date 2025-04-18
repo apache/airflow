@@ -318,7 +318,7 @@ try to import the package now:
     >>>
 
 We can also use :envvar:`PYTHONPATH` variable with the airflow commands.
-For example, if we run the following airflow command:
+For example, if we run the following Airflow command:
 
 .. code-block:: bash
 

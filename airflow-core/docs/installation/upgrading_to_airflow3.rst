@@ -33,7 +33,7 @@ Step 2: Clean and back up your existing Airflow Instance
 
 - It is highly recommended to make a backup of your Airflow instance specifically including your Airflow metadata DB before starting the migration process.
 - If you do not have a "hot backup" capability for your DB, you should do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
-- If you did not make a backup and your migration fails, you might end-up in a half-migrated state and restoring DB from backup and repeating the migration
+- If you did not make a backup and your migration fails, you might end up in a half-migrated state and restoring DB from backup and repeating the migration
   might be the only easy way out. This can for example be caused by a broken network connection between your CLI and the database while the migration happens, so taking a
   backup is an important precaution to avoid problems like this.
 - A long running Airflow instance can accumulate a certain amount of silt, in the form of old database entries, which are no longer
@@ -134,7 +134,7 @@ These include:
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands (``--subdir`` or ``-S`` has been superseded by DAG bundles.
-- **Following keys are no longer available in task context. If not replaced, will cause DAG errors:**:
+- **Following keys are no longer available in task context. If not replaced, will cause DAG errors**:
 
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``

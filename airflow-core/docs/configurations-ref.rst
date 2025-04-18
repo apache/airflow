@@ -29,7 +29,7 @@ should be same on the Webserver and Worker to allow Webserver to fetch logs from
 
 The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
 generated using the secret key has a short expiry time though - make sure that time on ALL the machines
-that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+that you run Airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
 
 .. note::

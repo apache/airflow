@@ -186,7 +186,7 @@ Variable                            Description
 ``macros.random``                   The standard lib's :class:`random.random`
 =================================   ==============================================
 
-Some airflow specific macros are also defined:
+Some Airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
     :members:

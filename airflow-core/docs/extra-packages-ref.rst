@@ -26,18 +26,18 @@ already existing ``providers`` and the dependencies are isolated and simplified 
 packages.
 
 While the original installation methods via ``apache-airflow`` distribution package and extras still
-work as previously and it installs complete airflow installation ready to serve as scheduler, webserver, triggerer
+work as previously and it installs complete Airflow installation ready to serve as scheduler, webserver, triggerer
 and worker, the ``apache-airflow`` package is now a meta-package that installs all the other distribution
 packages, it's also possible to install only the distribution packages that are needed for a specific
-component you want to run airflow with.
+component you want to run Airflow with.
 
 The following distribution packages are available:
 
 +----------------------------+------------------------------------------------------------------+----------------------------------------------------------+
 | Distribution package       | Purpose                                                          |                      Optional extras                     |
 +----------------------------+------------------------------------------------------------------+----------------------------------------------------------+
-| apache-airflow-core        | This is the core distribution package that contains              | * Core extras that add optional functionality to airflow |
-|                            | the airflow scheduler, webserver, triggerer code.                |   core system - enhancing its functionality across       |
+| apache-airflow-core        | This is the core distribution package that contains              | * Core extras that add optional functionality to Airflow |
+|                            | the Airflow scheduler, webserver, triggerer code.                |   core system - enhancing its functionality across       |
 |                            |                                                                  |   multiple providers.                                    |
 |                            |                                                                  |                                                          |
 |                            |                                                                  | * Group ``all`` extra that installs all optional         |
@@ -71,7 +71,7 @@ The following distribution packages are available:
 
 As mentioned above, Airflow has a number of optional "extras" that you can use to add features to your
 installation when you are installing Airflow. Those extras are a good way for the users to manage their
-installation, but also they are useful for contributors to airflow when they want to contribute some of
+installation, but also they are useful for contributors to Airflow when they want to contribute some of
 the features - including optional integrations of Airflow - via providers.
 
 Here's the list of all the extra dependencies of Apache Airflow.
@@ -79,7 +79,7 @@ Here's the list of all the extra dependencies of Apache Airflow.
 Core Airflow extras
 -------------------
 
-These are core airflow extras that extend capabilities of core Airflow. They usually do not install provider
+These are core Airflow extras that extend capabilities of core Airflow. They usually do not install provider
 packages (with the exception of ``celery`` and ``cncf.kubernetes`` extras), they just install necessary
 python dependencies for the provided package.
 
@@ -129,7 +129,7 @@ Providers extras
 
 These providers extras are simply convenience extras to install providers so that you can install the providers with simple command - including
 provider package and necessary dependencies in single command, which allows PIP to resolve any conflicting dependencies. This is extremely useful
-for first time installation where you want to repeatably install version of dependencies which are 'valid' for both airflow and providers installed.
+for first time installation where you want to repeatably install version of dependencies which are 'valid' for both Airflow and providers installed.
 
 For example the below command will install:
 
