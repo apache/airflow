@@ -423,6 +423,20 @@ class TestPgbouncerConfig:
 
         assert docs == []
 
+    def test_should_add_annotations_to_pgbouncer_config_secret(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "configSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/secrets/pgbouncer-config-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
     def _get_pgbouncer_ini(self, values: dict) -> str:
         docs = render_chart(
             values=values,
@@ -567,6 +581,21 @@ class TestPgbouncerConfig:
             value = base64.b64decode(encoded).decode()
             assert expected == value
 
+    def test_should_add_annotations_to_pgbouncer_certificates_secret(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "ssl": {"ca": "someca", "cert": "somecert", "key": "somekey"},
+                    "certificatesSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/secrets/pgbouncer-certificates-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
     def test_extra_ini_configs(self):
         values = {"pgbouncer": {"enabled": True, "extraIni": "server_round_robin = 1\nstats_period = 30"}}
         ini = self._get_pgbouncer_ini(values)
@@ -631,6 +660,22 @@ class TestPgbouncerExporter:
             show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
         )
         assert len(docs) == 0
+
+    def test_should_add_annotations_to_pgbouncer_stats_secret(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretAnnotations": {"test_annotation": "test_annotation_value"},
+                    },
+                },
+            },
+            show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
     def _get_connection(self, values: dict) -> str:
         docs = render_chart(
