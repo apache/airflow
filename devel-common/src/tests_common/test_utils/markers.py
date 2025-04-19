@@ -30,5 +30,5 @@ skip_if_force_lowest_dependencies_marker = pytest.mark.skipif(
 
 skip_if_not_airflow_3_marker = pytest.mark.skipif(
     not AIRFLOW_V_3_0_PLUS,
-    reason="Airflow 2 had a different implementation",
+    reason="Not implemented in Airflow 2",
 )
