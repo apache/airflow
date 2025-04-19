@@ -165,6 +165,8 @@ This is equivalent to the :doc:`Viewer role in Flask AppBuilder <apache-airflow-
       Airflow::Action::"Pool.GET",
       Airflow::Action::"Variable.GET",
       Airflow::Action::"Asset.GET",
+      Airflow::Action::"AssetAlias.GET",
+      Airflow::Action::"Backfill.GET",
       Airflow::Action::"View.GET"
     ],
     resource
@@ -230,6 +232,8 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
       Airflow::Action::"Asset.POST",
       Airflow::Action::"Asset.PUT",
       Airflow::Action::"Asset.DELETE",
+      Airflow::Action::"Backfill.POST",
+      Airflow::Action::"Backfill.PUT",
 
     ],
     resource
