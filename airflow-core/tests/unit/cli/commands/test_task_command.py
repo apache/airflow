@@ -354,7 +354,9 @@ class TestCliTasks:
             triggered_by=DagRunTriggeredByType.CLI,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
-        ti2.set_state(State.SUCCESS)
+        with create_session() as session:
+            session.merge(ti2)
+            ti2.set_state(state=State.SUCCESS, session=session)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
 

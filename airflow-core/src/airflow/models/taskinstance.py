@@ -1154,6 +1154,7 @@ class TaskInstance(Base, LoggingMixin):
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
+    # TODO: shouldn't state be of type TaskInstanceState instead of string?
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
         """
@@ -1168,16 +1169,29 @@ class TaskInstance(Base, LoggingMixin):
 
         current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
-        if self not in session:
-            self.refresh_from_db(session)
-        self.state = state
         self.start_date = self.start_date or current_time
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
-        session.merge(self)
-        session.flush()
-        return True
+
+        result = session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.map_index == self.map_index,
+                TaskInstance.state != state,
+            )
+            .values(
+                state=state,
+                start_date=self.start_date,
+                end_date=self.end_date,
+                duration=self.duration,
+            )
+        )
+
+        return result.rowcount > 0
 
     @property
     def is_premature(self) -> bool:
