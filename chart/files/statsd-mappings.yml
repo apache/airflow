@@ -58,17 +58,20 @@ mappings:
       dag_id: "$1"
       task_id: "$2"
 
-  - match: airflow.dagrun.duration.success.*
+  - match: airflow.dagrun.duration.success.([a-zA-Z0-9_\-\.]*)$
+    match_type: regex
     name: "airflow_dagrun_duration"
     labels:
       dag_id: "$1"
 
-  - match: airflow.dagrun.duration.failed.*
+  - match: airflow.dagrun.duration.failed.([a-zA-Z0-9_\-\.]*)$
+    match_type: regex
     name: "airflow_dagrun_failed"
     labels:
       dag_id: "$1"
 
-  - match: airflow.dagrun.schedule_delay.*
+  - match: airflow.dagrun.schedule_delay.([a-zA-Z0-9_\-\.]*)$
+    match_type: regex
     name: "airflow_dagrun_schedule_delay"
     labels:
       dag_id: "$1"
