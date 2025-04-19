@@ -368,7 +368,7 @@ def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
     from tests_common.test_utils.db import initial_db_init
 
     if force_db_init:
-        print("Initializing the DB - forced with --with-db-init switch.")
+        print("Initializing the DB - forced with --with-db-init flag.")
     else:
         print(
             "Initializing the DB - first time after entering the container.\n"
