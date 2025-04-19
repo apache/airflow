@@ -21,7 +21,14 @@ import os
 
 import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 skip_if_force_lowest_dependencies_marker = pytest.mark.skipif(
     os.environ.get("FORCE_LOWEST_DEPENDENCIES", "") == "true",
     reason="When lowest dependencies are set only some providers are loaded",
+)
+
+skip_if_not_airflow_3_marker = pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS,
+    reason="Not implemented in Airflow 2",
 )
