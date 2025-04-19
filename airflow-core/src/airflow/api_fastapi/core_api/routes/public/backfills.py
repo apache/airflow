@@ -24,9 +24,8 @@ from sqlalchemy import select, update
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
-    AsyncSessionDep,
     SessionDep,
-    paginated_select_async,
+    paginated_select,
 )
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -67,7 +66,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
         Depends(requires_access_backfill(method="GET")),
     ],
 )
-async def list_backfills(
+def list_backfills(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -75,16 +74,16 @@ async def list_backfills(
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
-    session: AsyncSessionDep,
+    session: SessionDep,
 ) -> BackfillCollectionResponse:
-    select_stmt, total_entries = await paginated_select_async(
+    select_stmt, total_entries = paginated_select(
         statement=select(Backfill).where(Backfill.dag_id == dag_id),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = await session.scalars(select_stmt)
+    backfills = session.scalars(select_stmt)
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
