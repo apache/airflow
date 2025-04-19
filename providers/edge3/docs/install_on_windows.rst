@@ -33,7 +33,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
 2. Create an empty folder as base to start with. In our example it is ``C:\\Airflow``.
 3. Start Shell/Command Line in ``C:\\Airflow`` and create a new virtual environment via: ``python -m venv venv``
 4. Activate the virtual environment via: ``venv\\Scripts\\activate.bat``
-5. Install Edge provider using the Airflow constraints as of your airflow version via
+5. Install Edge provider using the Airflow constraints as of your Airflow version via
    ``pip install apache-airflow-providers-edge3 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.12.txt``.
    (or alternative build and copy the wheel of the edge provider to the folder ``C:\\Airflow``.
    This document used ``apache_airflow_providers_edge-0.9.7rc0-py3-none-any.whl``, install the wheel file with the
