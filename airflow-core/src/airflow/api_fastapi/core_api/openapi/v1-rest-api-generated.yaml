@@ -3673,6 +3673,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/plugins/importErrors:
+    get:
+      tags:
+      - Plugin
+      summary: Import Errors
+      operationId: import_errors
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginImportErrorCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /api/v2/pools/{pool_name}:
     delete:
       tags:
@@ -9043,6 +9070,36 @@ components:
       - total_entries
       title: PluginCollectionResponse
       description: Plugin Collection serializer.
+    PluginImportErrorCollectionResponse:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/PluginImportErrorResponse'
+          type: array
+          title: Import Errors
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - import_errors
+      - total_entries
+      title: PluginImportErrorCollectionResponse
+      description: Plugin Import Error Collection serializer.
+    PluginImportErrorResponse:
+      properties:
+        source:
+          type: string
+          title: Source
+        error:
+          type: string
+          title: Error
+      type: object
+      required:
+      - source
+      - error
+      title: PluginImportErrorResponse
+      description: Plugin Import Error serializer for responses.
     PluginResponse:
       properties:
         name:

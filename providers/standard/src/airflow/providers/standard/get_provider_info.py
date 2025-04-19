@@ -89,6 +89,10 @@ def get_provider_info():
                 ],
             }
         ],
+        "extra-links": [
+            "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
+            "airflow.providers.standard.sensors.external_task.ExternalDagLink",
+        ],
         "config": {
             "standard": {
                 "description": "Options for the standard provider operators.",

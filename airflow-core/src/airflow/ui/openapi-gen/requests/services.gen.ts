@@ -154,6 +154,7 @@ import type {
   GetJobsResponse,
   GetPluginsData,
   GetPluginsResponse,
+  ImportErrorsResponse,
   DeletePoolData,
   DeletePoolResponse,
   GetPoolData,
@@ -2671,6 +2672,22 @@ export class PluginService {
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Import Errors
+   * @returns PluginImportErrorCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static importErrors(): CancelablePromise<ImportErrorsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/plugins/importErrors",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
       },
     });
   }

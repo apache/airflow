@@ -3450,6 +3450,43 @@ export const $PluginCollectionResponse = {
   description: "Plugin Collection serializer.",
 } as const;
 
+export const $PluginImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/PluginImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "PluginImportErrorCollectionResponse",
+  description: "Plugin Import Error Collection serializer.",
+} as const;
+
+export const $PluginImportErrorResponse = {
+  properties: {
+    source: {
+      type: "string",
+      title: "Source",
+    },
+    error: {
+      type: "string",
+      title: "Error",
+    },
+  },
+  type: "object",
+  required: ["source", "error"],
+  title: "PluginImportErrorResponse",
+  description: "Plugin Import Error serializer for responses.",
+} as const;
+
 export const $PluginResponse = {
   properties: {
     name: {
