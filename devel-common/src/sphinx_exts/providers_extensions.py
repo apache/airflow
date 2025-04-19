@@ -253,6 +253,7 @@ def _get_providers_class_registry(
                     ),
                     class_extras={
                         "provider_name": lambda **kwargs: provider_yaml_content["package-name"],
+                        "provider_version": lambda **kwargs: provider_yaml_content["versions"][0],
                         **(class_extras or {}),
                     },
                 )
@@ -293,7 +294,9 @@ def _render_openlineage_supported_classes_content():
         class_name = class_path.split(".")[-1]
         if class_name.startswith("_"):
             continue
-        provider_entry = providers.setdefault(info["provider_name"], {"operators": {}, "hooks": {}})
+        provider_entry = providers.setdefault(
+            info["provider_name"], {"operators": {}, "hooks": {}, "version": info["provider_version"]}
+        )
 
         if class_name.lower().endswith("operator"):
             if _has_method(
@@ -333,9 +336,11 @@ def _render_openlineage_supported_classes_content():
                 hook: sorted(methods)
                 for hook, methods in sorted(details["hooks"].items(), key=lambda x: x[0].split(".")[-1])
             },
+            "version": details["version"],
         }
         for provider, details in sorted(providers.items())
-        if any(details.values())  # This filters out providers with empty 'operators' and 'hooks'
+        # Below filters out providers with empty 'operators' and 'hooks'
+        if details["hooks"] or details["operators"]
     }
     db_hooks = sorted({db_type: hook for db_type, hook in db_hooks}.items(), key=lambda x: x[0])
 
