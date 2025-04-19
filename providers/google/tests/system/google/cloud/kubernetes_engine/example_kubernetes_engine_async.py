@@ -25,6 +25,7 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
@@ -38,6 +39,7 @@ from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine_async"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 
 GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
@@ -97,8 +99,15 @@ with DAG(
 
     # [START howto_operator_gke_xcom_result_async]
     pod_task_xcom_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom_async') }}\"",
         task_id="pod_task_xcom_result",
+        bash_command="""
+        {% if params.airflow_v3 %}
+        echo "{{ task_instance.xcom_pull('pod_task_xcom_async') }}"
+        {% else %}
+        echo "{{ task_instance.xcom_pull('pod_task_xcom_async')[0] }}"
+        {% endif %}
+        """,
+        params={"airflow_v3": AIRFLOW_V_3_0_PLUS},
     )
     # [END howto_operator_gke_xcom_result_async]
 
