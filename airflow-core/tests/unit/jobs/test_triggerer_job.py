@@ -58,6 +58,7 @@ from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dags,
     clear_db_runs,
+    clear_db_triggers,
     clear_db_variables,
     clear_db_xcom,
 )
@@ -76,12 +77,14 @@ def clean_database():
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
+    clear_db_triggers()
     yield  # Test runs here
     clear_db_runs()
     clear_db_dags()
     clear_db_xcom()
     clear_db_variables()
     clear_db_connections()
+    clear_db_triggers()
 
 
 def create_trigger_in_db(session, trigger, operator=None):
@@ -622,12 +625,8 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(20)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_access_variables_connections_and_xcoms(session, dag_maker):
     """Checks that the trigger will successfully access Variables, Connections and XComs."""
     # Create the test DAG and task
@@ -726,13 +725,8 @@ class CustomTriggerDagRun(BaseTrigger):
         yield TriggerEvent({"count": dag_run_states_count, "dag_run_state": dag_run_state})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -822,13 +816,8 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
         yield TriggerEvent({"ti_count": ti_count, "dr_count": dr_count, "task_states": task_states})
 
 
-@pytest.mark.xfail(
-    reason="We know that test is flaky and have no time to fix it before 3.0. "
-    "We should fix it later. TODO: AIP-72"
-)
 @pytest.mark.asyncio
-@pytest.mark.flaky(reruns=2, reruns_delay=10)
-@pytest.mark.execution_timeout(30)
+@pytest.mark.execution_timeout(60)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task
