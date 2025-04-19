@@ -2159,19 +2159,19 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
-    last_parsed_time = Column(UtcDateTime)
+    # last_parsed_time = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired = Column(UtcDateTime)
+    # last_expired = Column(UtcDateTime)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc = Column(String(2000))
-    relative_fileloc = Column(String(2000))
+    # fileloc = Column(String(2000))
+    # relative_fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
     # The version of the bundle the last time the DAG was processed
-    bundle_version = Column(String(200), nullable=True)
+    # bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
