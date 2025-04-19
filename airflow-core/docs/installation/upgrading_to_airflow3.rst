@@ -132,7 +132,7 @@ These include:
 - **SubDAGs**: Replaced by TaskGroups, Datasets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
-- **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by `DAG bundles <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=294816356>`_.
+- **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.
 - **Some Airflow context variables**: The following keys are no longer available in a :ref:`task instance's context <templates:variables>`. If not replaced, will cause dag errors:
   - ``tomorrow_ds``
   - ``tomorrow_ds_nodash``
