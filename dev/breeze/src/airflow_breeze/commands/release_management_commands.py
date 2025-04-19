@@ -789,7 +789,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_hatch(
@@ -811,7 +811,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_docker(
