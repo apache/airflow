@@ -76,12 +76,15 @@ Step 4: DAG Authors - Manual Steps to Update Your Airflow DAGs
 If you've used xcom_pull without specifying a task_ids, you'll need to manually update those occurrences to avoid ambiguous behavior.
 Example, if you had a downstream task, task2 pulling an xcom written by "task1" with key "key" written as:
 
-.. code-block:: bash
-    kwargs['ti'].xcom_pull(key="key")
+.. code-block:: python
+
+    kwargs["ti"].xcom_pull(key="key")
+
 Update it to:
 
-.. code-block:: bash
-    kwargs['ti'].xcom_pull(task_ids="task1", key="key")
+.. code-block:: python
+
+    kwargs["ti"].xcom_pull(task_ids="task1", key="key")
 
 
 Step 5: Install the Standard Providers
