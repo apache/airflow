@@ -39,7 +39,7 @@ of tasks in ``queued`` or ``running`` state.
        --namespace keda \
        --version "v2.0.0"
 
-Enable for the airflow instance by setting ``workers.keda.enabled=true`` in your
+Enable for the Airflow instance by setting ``workers.keda.enabled=true`` in your
 helm command or in the ``values.yaml``.
 
 .. code-block:: bash
@@ -51,7 +51,7 @@ helm command or in the ``values.yaml``.
        --set executor=CeleryExecutor \
        --set workers.keda.enabled=true
 
-A ``ScaledObject`` and an ``hpa`` will be created in the airflow namespace.
+A ``ScaledObject`` and an ``hpa`` will be created in the Airflow namespace.
 
 KEDA will derive the desired number of Celery workers by querying
 Airflow metadata database:
