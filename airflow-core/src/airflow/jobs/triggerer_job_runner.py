@@ -61,7 +61,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, add_span
+from airflow.traces.tracer import DebugTrace, Trace, add_span
 from airflow.triggers import base as events
 from airflow.utils import timezone
 from airflow.utils.helpers import log_filename_template_renderer
@@ -473,7 +473,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
+            with DebugTrace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
                 self.load_triggers()
 
                 # Wait for up to 1 second for activity

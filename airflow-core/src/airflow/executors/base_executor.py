@@ -33,7 +33,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, add_span, gen_context
+from airflow.traces.tracer import DebugTrace, Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -431,8 +431,8 @@ class BaseExecutor(LoggingMixin):
                 if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                     ti = item.ti
 
-                    # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-                    if self.active_spans is not None and self.active_spans.get(key) is None:
+                    # If it's None, then the span for the current id hasn't been started.
+                    if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
                         from airflow.models.taskinstance import SimpleTaskInstance
 
                         if isinstance(ti, (SimpleTaskInstance, workloads.TaskInstance)):
@@ -449,7 +449,7 @@ class BaseExecutor(LoggingMixin):
                             component="task",
                             start_as_current=False,
                         )
-                        self.active_spans.set(key, span)
+                        self.active_spans.set("ti:" + str(ti.id), span)
                         # Inject the current context into the carrier.
                         carrier = Trace.inject()
                         ti.context_carrier = carrier
@@ -474,7 +474,7 @@ class BaseExecutor(LoggingMixin):
             links = [{"trace_id": trace_id, "span_id": span_id}]
 
             # assuming that the span_id will very likely be unique inside the trace
-            with Trace.start_span(
+            with DebugTrace.start_span(
                 span_name=f"{key.dag_id}.{key.task_id}",
                 component="BaseExecutor",
                 span_id=span_id,
@@ -527,7 +527,7 @@ class BaseExecutor(LoggingMixin):
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_span(
                 span_name="fail",
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
@@ -554,7 +554,7 @@ class BaseExecutor(LoggingMixin):
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_span(
                 span_name="success",
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
