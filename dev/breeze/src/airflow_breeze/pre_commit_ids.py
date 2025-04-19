@@ -62,6 +62,7 @@ PRE_COMMIT_LIST = [
     "check-links-to-example-dags-do-not-use-hardcoded-versions",
     "check-merge-conflict",
     "check-min-python-version",
+    "check-model-changes",
     "check-newsfragments-are-valid",
     "check-no-airflow-deprecation-in-providers",
     "check-no-providers-in-core-examples",
