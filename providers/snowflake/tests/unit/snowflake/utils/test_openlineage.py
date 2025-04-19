@@ -325,6 +325,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
         try_number=1,
         logical_date=logical_date,
         state=TaskInstanceState.FAILED,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
     mock_ti.get_template_context.return_value = {"dag_run": mock.MagicMock(logical_date=logical_date)}
 
@@ -389,6 +390,10 @@ def test_emit_openlineage_events_for_snowflake_queries_with_hook(mock_now, mock_
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
                 job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
             ),
             "custom_run": "value_run",
         }
@@ -556,8 +561,11 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
         try_number=1 if AIRFLOW_V_2_10_PLUS else 2,
         logical_date=logical_date,
         state=TaskInstanceState.SUCCESS,  # This will be query default state if no metadata found
+        dag_run=mock.MagicMock(logical_date=logical_date, clear_number=0),
     )
-    mock_ti.get_template_context.return_value = {"dag_run": mock.MagicMock(logical_date=logical_date)}
+    mock_ti.get_template_context.return_value = {
+        "dag_run": mock.MagicMock(logical_date=logical_date, clear_number=0)
+    }
 
     additional_run_facets = {"custom_run": "value_run"}
     additional_job_facets = {"custom_job": "value_job"}
@@ -595,6 +603,10 @@ def test_emit_openlineage_events_for_snowflake_queries_without_hook(mock_now, mo
             "parent": parent_run.ParentRunFacet(
                 run=parent_run.Run(runId="01941f29-7c00-7087-8906-40e512c257bd"),
                 job=parent_run.Job(namespace=namespace(), name="dag_id.task_id"),
+                root=parent_run.Root(
+                    run=parent_run.RootRun(runId="01941f29-7c00-743e-b109-28b18d0a19c5"),
+                    job=parent_run.RootJob(namespace=namespace(), name="dag_id"),
+                ),
             ),
             "custom_run": "value_run",
         }

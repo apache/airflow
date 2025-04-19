@@ -33,6 +33,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 TASK_ID = "dbt_test"
 DAG_ID = "dbt_dag"
 TASK_UUID = "01481cfa-0ff7-3692-9bba-79417cf498c2"
+DAG_UUID = "01481cfa-1a1a-2b2b-3c3c-79417cf498c2"
 
 
 class MockResponse:
@@ -112,6 +113,7 @@ def test_previous_version_openlineage_provider():
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
+    @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_dag_run_id")
     @patch.object(DbtCloudHook, "get_job_run")
     @patch.object(DbtCloudHook, "get_project")
     @patch.object(DbtCloudHook, "get_job_run_artifact")
@@ -120,6 +122,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_get_job_run_artifact,
         mock_get_project,
         mock_get_job_run,
+        mock_build_dag_run_id,
         mock_build_task_instance_run_id,
         mock_get_openlineage_listener,
     ):
@@ -154,6 +157,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_task_instance = MagicMock()
         mock_task_instance.task_id = TASK_ID
         mock_task_instance.dag_id = DAG_ID
+        mock_task_instance.dag_run.clear_number = 0
 
         mock_client = MagicMock()
 
@@ -163,6 +167,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         )
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
+        mock_build_dag_run_id.return_value = DAG_UUID
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
         assert mock_client.emit.call_count == 4
 
