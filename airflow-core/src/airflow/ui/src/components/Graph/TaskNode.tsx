@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { CgRedo } from "react-icons/cg";
 
@@ -78,15 +78,17 @@ export const TaskNode = ({
             width={`${width + (isSelected ? 4 : 0)}px`}
           >
             <Box>
-              <TaskLink
-                childCount={taskInstance?.task_count}
-                id={id}
-                isGroup={isGroup}
-                isMapped={isMapped}
-                isOpen={isOpen}
-                label={label}
-                setupTeardownType={setupTeardownType}
-              />
+              <LinkOverlay asChild>
+                <TaskLink
+                  childCount={taskInstance?.task_count}
+                  id={id}
+                  isGroup={isGroup}
+                  isMapped={isMapped}
+                  isOpen={isOpen}
+                  label={label}
+                  setupTeardownType={setupTeardownType}
+                />
+              </LinkOverlay>
               <Text color="fg.muted" fontSize="sm" textTransform="capitalize">
                 {isGroup ? "Task Group" : operator}
               </Text>

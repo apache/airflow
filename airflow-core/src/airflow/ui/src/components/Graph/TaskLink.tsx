@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
@@ -35,16 +34,14 @@ export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
   }
 
   return (
-    <Link asChild data-testid={id}>
-      <RouterLink
-        to={{
-          // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
-          search: searchParams.toString(),
-        }}
-      >
-        <TaskName isMapped={isMapped} {...rest} />
-      </RouterLink>
-    </Link>
+    <RouterLink
+      to={{
+        // Do not include runId if there is no selected run, clicking a second time will deselect a task id
+        pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
+        search: searchParams.toString(),
+      }}
+    >
+      <TaskName isMapped={isMapped} {...rest} />
+    </RouterLink>
   );
 };
