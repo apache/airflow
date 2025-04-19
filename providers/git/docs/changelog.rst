@@ -33,6 +33,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Update documentation for edge3 and git provider (#49365)``
 
 0.0.1
 .....
