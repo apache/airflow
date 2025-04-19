@@ -24,6 +24,11 @@ from unittest.mock import patch
 from airflow.models import Connection
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
+from tests_common.test_utils.markers import (
+    skip_if_force_lowest_dependencies_marker,
+    skip_if_not_airflow_3_marker,
+)
+
 
 class TestVerticaHookConn:
     def setup_method(self):
@@ -169,15 +174,33 @@ class TestVerticaHook:
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook.get_pandas_df(statement)
+        df = self.db_hook.get_df(statement, df_type="pandas")
 
         assert column == df.columns[0]
 
         assert result_sets[0][0] == df.values.tolist()[0][0]
         assert result_sets[1][0] == df.values.tolist()[1][0]
+
+    @skip_if_force_lowest_dependencies_marker
+    @skip_if_not_airflow_3_marker
+    def test_get_df_polars(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_execute = mock.MagicMock()
+        mock_execute.description = [(column, None, None, None, None, None, None)]
+        mock_execute.fetchall.return_value = result_sets
+        self.cur.execute.return_value = mock_execute
+        df = self.db_hook.get_df(statement, df_type="polars")
+
+        self.cur.execute.assert_called_once_with(statement)
+        mock_execute.fetchall.assert_called_once_with()
+        assert column == df.columns[0]
+        assert result_sets[0][0] == df.row(0)[0]
+        assert result_sets[1][0] == df.row(1)[0]

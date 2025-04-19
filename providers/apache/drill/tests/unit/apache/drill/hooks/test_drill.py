@@ -23,6 +23,11 @@ import pytest
 
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
+from tests_common.test_utils.markers import (
+    skip_if_force_lowest_dependencies_marker,
+    skip_if_not_airflow_3_marker,
+)
+
 
 @pytest.mark.parametrize("host, expect_error", [("host_with?", True), ("good_host", False)])
 def test_get_host(host, expect_error):
@@ -90,13 +95,13 @@ class TestDrillHook:
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook().get_pandas_df(statement)
+        df = self.db_hook().get_df(statement, df_type="pandas")
 
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
@@ -104,3 +109,21 @@ class TestDrillHook:
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
+
+    @skip_if_force_lowest_dependencies_marker
+    @skip_if_not_airflow_3_marker
+    def test_get_df_polars(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_execute = MagicMock()
+        mock_execute.description = [(column, None, None, None, None, None, None)]
+        mock_execute.fetchall.return_value = result_sets
+        self.cur.execute.return_value = mock_execute
+        df = self.db_hook().get_df(statement, df_type="polars")
+
+        self.cur.execute.assert_called_once_with(statement)
+        mock_execute.fetchall.assert_called_once_with()
+        assert column == df.columns[0]
+        assert result_sets[0][0] == df.row(0)[0]
+        assert result_sets[1][0] == df.row(1)[0]
