@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_precommit_utils import console, initialize_breeze_precommit
+from common_precommit_utils import AIRFLOW_ROOT_PATH, console, initialize_breeze_precommit
 
 initialize_breeze_precommit(__name__, __file__)
 
@@ -32,12 +32,11 @@ if res_setup.returncode != 0:
     console.print("[red]\nError while setting up k8s environment.")
     sys.exit(res_setup.returncode)
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
-HELM_BIN_PATH = AIRFLOW_SOURCES_DIR / ".venv" / "bin" / "helm"
+HELM_BIN_PATH = AIRFLOW_ROOT_PATH / ".venv" / "bin" / "helm"
 
 ps = subprocess.Popen(
     [os.fspath(HELM_BIN_PATH), "template", ".", "-f", "values.yaml"],
-    cwd=AIRFLOW_SOURCES_DIR / "chart",
+    cwd=AIRFLOW_ROOT_PATH / "chart",
     stdout=subprocess.PIPE,
 )
 result = subprocess.run(

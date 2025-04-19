@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
+from common_precommit_utils import AIRFLOW_ROOT_PATH
 
 
 def insert_content(file_path: Path, content: list[str], header: str, footer: str, file_name: str):
@@ -39,9 +39,9 @@ def insert_content(file_path: Path, content: list[str], header: str, footer: str
 
 
 if __name__ == "__main__":
-    DOCKERFILE_FILE = AIRFLOW_SOURCES_DIR / "Dockerfile"
-    DOCKERFILE_CI_FILE = AIRFLOW_SOURCES_DIR / "Dockerfile.ci"
-    SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_DIR / "scripts" / "docker"
+    DOCKERFILE_FILE = AIRFLOW_ROOT_PATH / "Dockerfile"
+    DOCKERFILE_CI_FILE = AIRFLOW_ROOT_PATH / "Dockerfile.ci"
+    SCRIPTS_DOCKER_DIR = AIRFLOW_ROOT_PATH / "scripts" / "docker"
 
     for file in [DOCKERFILE_FILE, DOCKERFILE_CI_FILE]:
         for script in SCRIPTS_DOCKER_DIR.iterdir():
