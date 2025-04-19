@@ -155,3 +155,138 @@ export const useLogs = (
 
   return { data: parsedData, ...rest };
 };
+
+type LineObject = {
+  props?: Props;
+};
+
+const logDateTime = (line: string): string | undefined => {
+  if (!line || typeof line !== "object") {
+    return undefined;
+  }
+
+  const lineObj = line as LineObject;
+
+  if (!lineObj.props || !("children" in lineObj.props)) {
+    return undefined;
+  }
+
+  const { children } = lineObj.props;
+
+  if (!Array.isArray(children) || children.length <= 2) {
+    return undefined;
+  }
+
+  const { 2: thirdChild } = children;
+
+  const thirdChildObj = thirdChild as { props?: { datetime?: string } };
+
+  if (!thirdChildObj.props || typeof thirdChildObj.props.datetime !== "string") {
+    return undefined;
+  }
+
+  const datetimeStr = thirdChildObj.props.datetime;
+  const date = new Date(datetimeStr);
+
+  if (isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const formattedDate = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+  const formattedTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
+  return `${formattedDate}, ${formattedTime}`;
+};
+
+const logText = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) => {
+  let warning;
+  let parsedLines;
+  const sources: Array<string> = [];
+  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
+  const elements: Array<string> = [];
+
+  try {
+    parsedLines = data.map((datum, index) => {
+      if (typeof datum !== "string" && "logger" in datum) {
+        const source = datum.logger as string;
+
+        if (!sources.includes(source)) {
+          sources.push(source);
+        }
+      }
+
+      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An error occurred.";
+
+    console.warn(`Error parsing logs: ${errorMessage}`);
+    warning = "Unable to show logs. There was an error parsing logs.";
+
+    return { data, warning };
+  }
+  parsedLines.map((line) => {
+    const text = innerText(line);
+
+    if (text !== "") {
+      const datetime = logDateTime(line as string);
+
+      if (datetime === undefined) {
+        elements.push(`${text}\n`);
+      } else {
+        const first = text.slice(0, Math.max(0, text.indexOf("[")));
+        const second = text.slice(Math.max(0, text.indexOf("[") + 1));
+        const newtext = `${first}[${datetime}${second}`;
+
+        elements.push(`${newtext}\n`);
+      }
+    }
+
+    return text;
+  });
+
+  return elements;
+};
+
+export const useLogDownload = (
+  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
+) => {
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, ...rest } = useTaskInstanceServiceGetLog(
+    {
+      dagId,
+      dagRunId: taskInstance?.dag_run_id ?? "",
+      mapIndex: taskInstance?.map_index ?? -1,
+      taskId: taskInstance?.task_id ?? "",
+      tryNumber,
+    },
+    undefined,
+    {
+      enabled: Boolean(taskInstance),
+      refetchInterval: (query) =>
+        isStatePending(taskInstance?.state) ||
+        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
+          ? refetchInterval
+          : false,
+      ...options,
+    },
+  );
+
+  const logs = logText({
+    data: data?.content ?? [],
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber,
+  });
+
+  return { datum: logs, ...rest };
+};
