@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-18T14:03:02.340855
+# This constraints file was automatically generated on 2025-04-19T14:05:33.719811
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -81,7 +81,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.15.2
-alibabacloud-adb20211201==3.0.2
+alibabacloud-adb20211201==3.0.3
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.1
 alibabacloud-tea==0.4.3
@@ -534,7 +534,7 @@ pathspec==0.12.1
 pbr==6.1.1
 pdbr==0.9.0
 pdpyras==5.4.0
-pendulum==3.0.0
+pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.0
 pinecone-plugin-interface==0.0.7
@@ -755,7 +755,7 @@ uritemplate==4.1.1
 urllib3==2.4.0
 uuid6==2024.7.10
 uv==0.6.14
-uvicorn==0.34.1
+uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
