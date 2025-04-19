@@ -201,7 +201,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if all(
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
-            oauth_token = self.get_oauth_token()
+            oauth_token = self.get_oauth_token(conn_config=conn_config)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
@@ -232,9 +232,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self) -> str:
+    def get_oauth_token(self, conn_config: dict[str, Any]) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
-        conn_config = self._get_conn_params
         url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
         data = {
             "grant_type": "refresh_token",

@@ -26,7 +26,7 @@ The configuration parameters of the Edge Executor can be found in the Edge provi
 
 Here are a few imperative requirements for your workers:
 
-- ``airflow`` needs to be installed, and the airflow CLI needs to be in the path
+- ``airflow`` needs to be installed, and the Airflow CLI needs to be in the path
 - Airflow configuration settings should be homogeneous across the cluster and on the edge site
 - Operators that are executed on the Edge Worker need to have their dependencies
   met in that context. Please take a look to the respective provider package
