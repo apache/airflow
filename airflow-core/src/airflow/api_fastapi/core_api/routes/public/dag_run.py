@@ -132,6 +132,8 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
         ],
     ),
     dependencies=[
@@ -156,8 +158,18 @@ def patch_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
@@ -260,7 +272,18 @@ def clear_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
 
     if body.dry_run:
         task_instances = dag.clear(
@@ -334,9 +357,20 @@ def get_dag_runs(
     query = select(DagRun)
 
     if dag_id != "~":
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        try:
+            dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        except (ImportError, SyntaxError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+            )
         if not dag:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
         query = query.filter(DagRun.dag_id == dag_id)
 
@@ -399,6 +433,20 @@ def trigger_dag_run(
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    except (ImportError, SyntaxError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to parse DAG '{dag_id}'. Check DAG file syntax or dependencies.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while trying to load DAG '{dag_id}'.",
+        )
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
+    try:
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
