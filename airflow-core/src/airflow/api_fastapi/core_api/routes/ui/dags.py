@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -39,6 +39,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    SortParam,
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -81,6 +82,16 @@ def recent_dag_runs(
     last_dag_run_state: QueryLastDagRunStateFilter,
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                DagModel,
+                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
+            ).dynamic_depends()
+        ),
+    ],
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get recent DAG runs."""
@@ -104,15 +115,21 @@ def recent_dag_runs(
             DagModel,
             recent_runs_subquery.c.run_after,
         )
-        .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
-        .join(
+        .select_from(DagModel)
+        .outerjoin(recent_runs_subquery, DagModel.dag_id == recent_runs_subquery.c.dag_id)
+        .outerjoin(
             DagRun,
             and_(
                 DagRun.dag_id == DagModel.dag_id,
                 DagRun.run_after == recent_runs_subquery.c.run_after,
             ),
         )
-        .where(recent_runs_subquery.c.rank <= dag_runs_limit)
+        .where(
+            or_(
+                recent_runs_subquery.c.rank <= dag_runs_limit,
+                recent_runs_subquery.c.rank.is_(None),
+            )
+        )
         .group_by(
             DagModel.dag_id,
             recent_runs_subquery.c.run_after,
@@ -134,7 +151,7 @@ def recent_dag_runs(
             last_dag_run_state,
             readable_dags_filter,
         ],
-        order_by=None,
+        order_by=order_by,
         offset=offset,
         limit=limit,
     )
@@ -144,6 +161,9 @@ def recent_dag_runs(
 
     for row in dags_with_recent_dag_runs:
         dag_run, dag, *_ = row
+        if dag_run is None:
+            continue
+
         dag_id = dag.dag_id
         dag_run_response = DAGRunResponse.model_validate(dag_run)
         if dag_id not in dag_runs_by_dag_id:

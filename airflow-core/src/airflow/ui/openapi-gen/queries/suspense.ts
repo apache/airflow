@@ -2716,6 +2716,7 @@ export const useAuthLinksServiceGetAuthMenusSuspense = <
  * @param data.excludeStale
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.orderBy
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2733,6 +2734,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     lastDagRunState,
     limit,
     offset,
+    orderBy,
     owners,
     paused,
     tags,
@@ -2746,6 +2748,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -2765,6 +2768,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,
@@ -2782,6 +2786,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         lastDagRunState,
         limit,
         offset,
+        orderBy,
         owners,
         paused,
         tags,
