@@ -69,21 +69,22 @@ To auto-fix:
 
     ruff check dag/ --select AIR301 --fix
 
+
+Step 4: DAG Authors - Manual Steps to Update Your Airflow DAGs
+---------------------------------------------------------------
+
 If you've used xcom_pull without specifying a task_ids, you'll need to manually update those occurrences to avoid ambiguous behavior.
 Example, if you had a downstream task, task2 pulling an xcom written by "task1" with key "key" written as:
 
 .. code-block:: bash
-
     kwargs['ti'].xcom_pull(key="key")
-
 Update it to:
 
 .. code-block:: bash
-
     kwargs['ti'].xcom_pull(task_ids="task1", key="key")
 
 
-Step 4: Install the Standard Providers
+Step 5: Install the Standard Providers
 --------------------------------------
 
 - Some of the commonly used Operators which were bundled as part of the Core Airflow OSS package such as the
@@ -91,7 +92,7 @@ Step 4: Install the Standard Providers
 - For user convenience, this package can also be installed on Airflow 2.x versions, so that DAGs can be modified to reference these Operators from the Standard Provider package instead of Airflow Core.
 
 
-Step 5: Deployment Managers - Upgrade your Airflow Instance
+Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------
 
 For an easier and safer upgrade process, we have also created a utility to upgrade your Airflow instance configuration as a deployment manager.
@@ -122,7 +123,7 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
 You should now be able to start up your Airflow 3 instance.
 
 
-Step 6: Changes to your startup scripts
+Step 7: Changes to your startup scripts
 ---------------------------------------
 
 - In Airflow 3, the Webserver has now become a generic API-server. The api-server can be started up using the following command:
