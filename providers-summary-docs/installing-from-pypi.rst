@@ -41,7 +41,7 @@ Only ``pip`` installation is currently officially supported.
   newer versions of ``bazel`` will handle it.
 
 
-Typical command to install airflow from PyPI looks like below (you need to use the right Airflow version and Python version):
+Typical command to install Airflow from PyPI looks like below (you need to use the right Airflow version and Python version):
 
 .. code-block::
 

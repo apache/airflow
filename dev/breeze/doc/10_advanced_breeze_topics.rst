@@ -117,7 +117,7 @@ which will be mapped to ``/files`` in your Docker container. You can pass there 
 configure and run Docker. They will not be removed between Docker runs.
 
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_ROOT_PATH>/files/dags`` and this is
-the directory used by airflow scheduler and api-server to scan dags for. You can use it to test your dags
+the directory used by Airflow scheduler and api-server to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to

@@ -1,4 +1,4 @@
-Removed airflow configuration ``navbar_logo_text_color``
+Removed Airflow configuration ``navbar_logo_text_color``
 
 * Types of change
 

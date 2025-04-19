@@ -57,7 +57,7 @@ To enable Kerberos authentication, set the following in the configuration:
     [kerberos]
     keytab = <KEYTAB>
 
-The airflow Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+The Airflow Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
 principal exists `in both the Kerberos database as well as in the keytab file </docs/apache-airflow/stable/security/kerberos.html#enabling-kerberos>`_.
 
 You have to make sure to name your users with the kerberos full username/realm in order to make it

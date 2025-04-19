@@ -163,7 +163,7 @@ Next, we'll download a CSV file, save it locally, and load it into ``employees_t
 
   @task
   def get_data():
-      # NOTE: configure this as appropriate for your airflow environment
+      # NOTE: configure this as appropriate for your Airflow environment
       data_path = "/opt/airflow/dags/files/employees.csv"
       os.makedirs(os.path.dirname(data_path), exist_ok=True)
 
@@ -280,7 +280,7 @@ Now that we've defined all our tasks, it's time to put them together into a DAG.
 
       @task
       def get_data():
-          # NOTE: configure this as appropriate for your airflow environment
+          # NOTE: configure this as appropriate for your Airflow environment
           data_path = "/opt/airflow/dags/files/employees.csv"
           os.makedirs(os.path.dirname(data_path), exist_ok=True)
 

@@ -184,7 +184,7 @@ Setting up virtual-env
 
   sudo apt install openssl sqlite3 default-libmysqlclient-dev libmysqlclient-dev postgresql
 
-If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
+If you want to install all Airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
 ``all`` extras while installing airflow.
 
@@ -212,7 +212,7 @@ Forking and cloning Project
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` you will find the link to your repo
+2. Goto your github account's fork of Airflow click on ``Code`` you will find the link to your repo
 
    .. raw:: html
 
@@ -450,7 +450,7 @@ see in CI in your local environment.
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
-6. Once you enter the Breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+6. Once you enter the Breeze environment, create Airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you
 
@@ -580,7 +580,7 @@ Using Breeze
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
+2. Now you can access Airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
    and password ``admin``
 
    .. |http://localhost:28080| raw:: html
@@ -640,7 +640,7 @@ Following are some of important topics of `Breeze documentation <../dev/breeze/d
 * `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
-Installing airflow in the local venv
+Installing Airflow in the local venv
 ------------------------------------
 
 1. It may require some packages to be installed; watch the output of the command to see which ones are missing

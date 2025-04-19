@@ -48,7 +48,7 @@ Connect your project to Gitpod
 
       <div align="center" style="padding-bottom:10px">
         <img src="images/airflow_gitpod_url.png"
-             alt="Open personal airflow clone with Gitpod">
+             alt="Open personal Airflow clone with Gitpod">
       </div>
 
 
@@ -103,7 +103,7 @@ Starting Airflow
 To start Airflow using Breeze:
 
 .. image:: images/airflow-gitpod.png
-   :alt: Open personal airflow clone with Gitpod
+   :alt: Open personal Airflow clone with Gitpod
    :align: center
    :width: 600px
 

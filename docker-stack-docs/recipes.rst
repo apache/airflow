@@ -74,7 +74,7 @@ Apache Beam Go Stack installation
 ---------------------------------
 
 To be able to run Beam Go Pipeline with the :class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`,
-you will need Go in your container. Install airflow with ``apache-airflow-providers-google>=6.5.0`` and ``apache-airflow-providers-apache-beam>=3.2.0``
+you will need Go in your container. Install Airflow with ``apache-airflow-providers-google>=6.5.0`` and ``apache-airflow-providers-apache-beam>=3.2.0``
 
 Create a new Dockerfile like the one shown below.
 

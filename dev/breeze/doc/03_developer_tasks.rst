@@ -352,7 +352,7 @@ For testing Airflow you often want to start multiple components (in multiple ter
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
 
-When you are starting airflow from local sources, www asset compilation is automatically executed before.
+When you are starting Airflow from local sources, www asset compilation is automatically executed before.
 
 .. code-block:: bash
 
@@ -391,7 +391,7 @@ These are all available flags of ``start-airflow`` command:
 Launching multiple terminals in the same environment
 ----------------------------------------------------
 
-Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
+Often if you want to run full Airflow in the Breeze environment you need to launch multiple terminals and
 run ``airflow api-server``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
 
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux

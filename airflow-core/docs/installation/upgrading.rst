@@ -52,7 +52,7 @@ In some cases the upgrade happens automatically - it depends if in your deployme
 built-in as post-install action. For example when you are using :doc:`helm-chart:index` with
 post-upgrade hooks enabled, the database upgrade happens automatically right after the new software
 is installed. Similarly all Airflow-As-A-Service solutions perform the upgrade automatically for you,
-when you choose to upgrade airflow via their UI.
+when you choose to upgrade Airflow via their UI.
 
 How to upgrade
 ==============
@@ -74,7 +74,7 @@ you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 Offline SQL migration scripts
 =============================
 If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
-to get the SQL statements that would be executed. You may also specify the starting airflow version with the ``--from-version`` flag and the ending airflow version with the ``-n`` or ``--to-version`` flag. This feature is supported in Postgres and MySQL
+to get the SQL statements that would be executed. You may also specify the starting Airflow version with the ``--from-version`` flag and the ending Airflow version with the ``-n`` or ``--to-version`` flag. This feature is supported in Postgres and MySQL
 from Airflow 2.0.0 onward.
 
 Sample usage for Airflow version 2.7.0 or greater:
