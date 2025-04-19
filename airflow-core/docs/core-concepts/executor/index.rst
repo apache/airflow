@@ -239,7 +239,8 @@ Important BaseExecutor Methods
 These methods don't require overriding to implement your own executor, but are useful to be aware of:
 
 * ``heartbeat``: The Airflow scheduler Job loop will periodically call heartbeat on the executor. This is one of the main points of interaction between the Airflow scheduler and the executor. This method updates some metrics, triggers newly queued tasks to execute and updates state of running/completed tasks.
-* ``queue_command``: The Airflow Executor will call this method of the BaseExecutor to provide tasks to be run by the executor. The BaseExecutor simply adds the TaskInstances to an internal list of queued tasks within the executor.
+* ``queue_command``: Airflow 2 way of doing things. The Airflow Executor will call this method of the BaseExecutor to provide tasks to be run by the executor. The BaseExecutor simply adds the TaskInstances to an internal list of queued tasks within the executor. CeleryK8s and LocalK8s executors are examples of this.
+* ``queue_workload``: Airflow 3 way of doing things. The Airflow Executor will call this method of the BaseExecutor to provide tasks to be run by the executor. The BaseExecutor simply adds the workloads to an internal list of queued workloads to run within the executor. All in-tree executors except the ones mentioned above are using this.
 * ``get_event_buffer``: The Airflow scheduler calls this method to retrieve the current state of the TaskInstances the executor is executing.
 * ``has_task``: The scheduler uses this BaseExecutor method to determine if an executor already has a specific task instance queued or running.
 * ``send_callback``: Sends any callbacks to the sink configured on the executor.
@@ -251,7 +252,7 @@ Mandatory Methods to Implement
 The following methods must be overridden at minimum to have your executor supported by Airflow:
 
 * ``sync``: Sync will get called periodically during executor heartbeats. Implement this method to update the state of the tasks which the executor knows about. Optionally, attempting to execute queued tasks that have been received from the scheduler.
-* ``execute_async``: Executes a command asynchronously. A command in this context is an Airflow CLI command to run an Airflow task. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
+* ``execute_async``: Executes a command (Airflow 2) /workload(Airflow 3) asynchronously. A command is an Airflow CLI command whereas workload is basic unit of work that represents an Airflow task. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
 
 
 Optional Interface Methods to Implement
@@ -263,7 +264,7 @@ The following methods aren't required to override to have a functional Airflow e
 * ``end``: The Airflow scheduler job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
 * ``terminate``: More forcefully stop the executor, even killing/stopping in-flight tasks instead of synchronously waiting for completion.
 * ``try_adopt_task_instances``: Tasks that have been abandoned (e.g. from a scheduler job that died) are provided to the executor to adopt or otherwise handle them via this method. Any tasks that cannot be adopted (by default the BaseExecutor assumes all cannot be adopted) should be returned.
-* ``get_cli_commands``: Executors may vend CLI commands to users by implementing this method, see the `CLI`_ section below for more details.
+* ``get_cli_commands``: Airflow 2 and below. Executors may vend CLI commands to users by implementing this method, see the `CLI`_ section below for more details.
 * ``get_task_log``: Executors may vend log messages to Airflow task logs by implementing this method, see the `Logging`_ section below for more details.
 
 Compatibility Attributes
