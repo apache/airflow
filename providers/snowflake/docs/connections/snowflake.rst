@@ -39,10 +39,11 @@ Configuring the Connection
 --------------------------
 
 Login
-    Specify the snowflake username.
+    Specify the snowflake username. For OAuth, the OAuth Client ID.
 
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
+    For OAuth, the OAuth Client Secret.
 
 Schema (optional)
     Specify the snowflake schema to be used.
