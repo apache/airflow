@@ -27,7 +27,7 @@
 Changelog
 ---------
 
-6.3.0
+7.0.0
 .....
 
 Breaking changes
