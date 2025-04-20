@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-20T02:41:10.826354
+# This constraints file was automatically generated on 2025-04-20T07:59:44.180625
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -133,7 +133,7 @@ apache-airflow-providers-dbt-cloud==4.3.3
 apache-airflow-providers-dingding==3.7.3
 apache-airflow-providers-discord==3.9.5
 apache-airflow-providers-docker==4.3.1
-apache-airflow-providers-edge3==1.0.0rc1
+apache-airflow-providers-edge3==1.0.0rc2
 apache-airflow-providers-elasticsearch==6.2.2
 apache-airflow-providers-exasol==4.7.5
 apache-airflow-providers-facebook==3.7.2
@@ -542,7 +542,7 @@ pgvector==0.4.0
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
-pipdeptree==2.26.0
+pipdeptree==2.26.1
 platformdirs==4.3.7
 pluggy==1.5.0
 ply==3.11
