@@ -41,6 +41,10 @@ Step 2: Clean and back up your existing Airflow Instance
   process, there will be schema changes. Based on the size of the Airflow meta-database this can be somewhat time
   consuming. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use ``airflow db clean`` command for that.
+- Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
+  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
+  (and all errors gone) before you proceed with upgrade.
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
@@ -68,11 +72,6 @@ To auto-fix:
 .. code-block:: bash
 
     ruff check dag/ --select AIR301 --fix
-
-.. warning::
-
-    If you have any dags that are defined in multiple files, you *must* resolve this before upgrade.
-    If you can run ``airflow dags reserialize`` with no errors, you're ok.
 
 Step 4: Install the Standard Providers
 --------------------------------------
