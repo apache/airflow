@@ -21,6 +21,7 @@ import json
 import logging
 from json import JSONDecodeError
 from typing import Any
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
@@ -152,3 +153,108 @@ class Connection:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
+
+    @staticmethod
+    def _normalize_conn_type(conn_type: str | None) -> str | None:
+        """Normalize conn_type."""
+        if conn_type is None:
+            return None
+        conn_type = conn_type.lower()
+        return conn_type
+
+    @staticmethod
+    def _parse_netloc_to_hostname(uri_parts) -> str:
+        """
+        Parse a URI string to get the correct Hostname.
+        
+        Returns hostname from netloc, handling special cases.
+        """
+        hostname = unquote(uri_parts.hostname or "")
+        if "/" in hostname:
+            hostname = uri_parts.netloc
+            if "@" in hostname:
+                hostname = hostname.rsplit("@", 1)[1]
+            if ":" in hostname:
+                hostname = hostname.split(":", 1)[0]
+            hostname = unquote(hostname)
+        return hostname
+
+    @staticmethod
+    def _create_host(protocol: str | None, host: str | None) -> str | None:
+        """Return the connection host with the protocol."""
+        if not host:
+            return host
+        if protocol:
+            return f"{protocol}://{host}"
+        return host
+
+    def parse_from_uri(self, uri: str) -> None:
+        """
+        Parse connection parameters from a URI string.
+        
+        :param uri: The URI string to parse.
+        """
+        schemes_count_in_uri = uri.count("://")
+        if schemes_count_in_uri > 2:
+            raise AirflowException(f"Invalid connection string: {uri}.")
+        host_with_protocol = schemes_count_in_uri == 2
+        uri_parts = urlsplit(uri)
+        conn_type = uri_parts.scheme
+        self.conn_type = self._normalize_conn_type(conn_type)
+        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        if host_with_protocol:
+            uri_splits = rest_of_the_url.split("://", 1)
+            if "@" in uri_splits[0] or ":" in uri_splits[0]:
+                raise AirflowException(f"Invalid connection string: {uri}.")
+        uri_parts = urlsplit(rest_of_the_url)
+        protocol = uri_parts.scheme if host_with_protocol else None
+        host = self._parse_netloc_to_hostname(uri_parts)
+        self.host = self._create_host(protocol, host)
+        quoted_schema = uri_parts.path[1:]
+        self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
+        self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
+        self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
+        self.port = uri_parts.port
+        if uri_parts.query:
+            query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
+            if self.EXTRA_KEY in query:
+                self.extra = query[self.EXTRA_KEY]
+            else:
+                self.extra = json.dumps(query)
+
+    @classmethod
+    def from_json(cls, value: str, conn_id: str | None = None) -> Connection:
+        """
+        Create a Connection object from a JSON string.
+        
+        :param value: The JSON string containing connection parameters
+        :param conn_id: Optional connection ID
+        :return: A Connection instance
+        """
+        kwargs = json.loads(value)
+        extra = kwargs.pop("extra", None)
+        if extra:
+            kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop("conn_type", None)
+        if conn_type:
+            kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop("port", None)
+        if port:
+            try:
+                kwargs["port"] = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        return Connection(conn_id=conn_id, **kwargs)
+
+    def as_json(self) -> str:
+        """
+        Convert Connection to a JSON string.
+        
+        :return: A JSON representation of the connection
+        """
+        conn_dict = attrs.asdict(self)
+        # Remove conn_id as it's not part of the connection parameters
+        conn_dict.pop("conn_id", None)
+        # Remove None values for cleaner output
+        conn_dict = {k: v for k, v in conn_dict.items() if v is not None}
+        return json.dumps(conn_dict)
