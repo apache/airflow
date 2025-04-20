@@ -26,7 +26,7 @@ Airflow 3.0.0 (2025-04-22)
 We are proud to announce the General Availability of Apache Airflow 3.0 — the most significant release in the project's
 history. This version introduces a service-oriented architecture, a stable DAG authoring interface, expanded support for
 event-driven and ML workflows, and a fully modernized UI built on React. Airflow 3.0 reflects years of community
-investment and lays the foundation for the next era of scalable, modular orchestration
+investment and lays the foundation for the next era of scalable, modular orchestration.
 
 Highlights
 ^^^^^^^^^^
@@ -393,7 +393,7 @@ To maintain compatibility with existing DAGs, the ``apache-airflow-providers-sta
 Airflow 2.x and 3.x. Users upgrading from Airflow 2.x are encouraged to begin updating import paths and testing provider
 installation in advance of the upgrade.
 
-Legacy imports such as ``airflow.operators.python.PythonOperator`` will no longer work in Airflow 3.0 and should be
+Legacy imports such as ``airflow.operators.python.PythonOperator`` are deprecated and will be removed soon. They should be
 replaced with:
 
 .. code-block:: python
@@ -602,13 +602,6 @@ to remove old task instance, log, or XCom data. To apply the new schema:
 .. code-block:: bash
 
     airflow db migrate
-
-Breaking Changes Reference
-"""""""""""""""""""""""""""
-
-Airflow 3.0 removes several deprecated features, config keys, CLI flags, and context variables. Please see the
-:doc:`Upgrade Guide <installation/upgrading_to_airflow3>` and the "Deprecations & Removals" section in these notes for a
-summary of removed capabilities.
 
 Startup Behavior Changes
 """""""""""""""""""""""""
