@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import unittest
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -377,7 +378,7 @@ class TestSnowflakeSqlApiHook:
         )
 
     @pytest.fixture
-    def non_encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
+    def unencrypted_temporary_private_key(self, tmp_path: Path) -> Path:
         """Encrypt the pem file from the path"""
         key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
         private_key = key.private_bytes(
@@ -386,6 +387,10 @@ class TestSnowflakeSqlApiHook:
         test_key_file = tmp_path / "test_key.pem"
         test_key_file.write_bytes(private_key)
         return test_key_file
+
+    @pytest.fixture
+    def base64_encoded_unencrypted_private_key(self, unencrypted_temporary_private_key: Path) -> str:
+        return base64.b64encode(unencrypted_temporary_private_key.read_bytes()).decode("utf-8")
 
     @pytest.fixture
     def encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
@@ -400,8 +405,12 @@ class TestSnowflakeSqlApiHook:
         test_key_file.write_bytes(private_key)
         return test_key_file
 
+    @pytest.fixture
+    def base64_encoded_encrypted_private_key(self, encrypted_temporary_private_key: Path) -> str:
+        return base64.b64encode(encrypted_temporary_private_key.read_bytes()).decode("utf-8")
+
     def test_get_private_key_should_support_private_auth_in_connection(
-        self, encrypted_temporary_private_key: Path
+        self, base64_encoded_encrypted_private_key: str
     ):
         """Test get_private_key function with private_key_content in connection"""
         connection_kwargs: Any = {
@@ -413,7 +422,7 @@ class TestSnowflakeSqlApiHook:
                 "warehouse": "af_wh",
                 "region": "af_region",
                 "role": "af_role",
-                "private_key_content": str(encrypted_temporary_private_key.read_text()),
+                "private_key_content": base64_encoded_encrypted_private_key,
             },
         }
         with unittest.mock.patch.dict(
@@ -423,7 +432,9 @@ class TestSnowflakeSqlApiHook:
             hook.get_private_key()
             assert hook.private_key is not None
 
-    def test_get_private_key_raise_exception(self, encrypted_temporary_private_key: Path):
+    def test_get_private_key_raise_exception(
+        self, encrypted_temporary_private_key: Path, base64_encoded_encrypted_private_key: str
+    ):
         """
         Test get_private_key function with private_key_content and private_key_file in connection
         and raise airflow exception
@@ -437,7 +448,7 @@ class TestSnowflakeSqlApiHook:
                 "warehouse": "af_wh",
                 "region": "af_region",
                 "role": "af_role",
-                "private_key_content": str(encrypted_temporary_private_key.read_text()),
+                "private_key_content": base64_encoded_encrypted_private_key,
                 "private_key_file": str(encrypted_temporary_private_key),
             },
         }
@@ -479,7 +490,7 @@ class TestSnowflakeSqlApiHook:
 
     def test_get_private_key_should_support_private_auth_with_unencrypted_key(
         self,
-        non_encrypted_temporary_private_key,
+        unencrypted_temporary_private_key,
     ):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,
@@ -490,7 +501,7 @@ class TestSnowflakeSqlApiHook:
                 "warehouse": "af_wh",
                 "region": "af_region",
                 "role": "af_role",
-                "private_key_file": str(non_encrypted_temporary_private_key),
+                "private_key_file": str(unencrypted_temporary_private_key),
             },
         }
         with unittest.mock.patch.dict(
