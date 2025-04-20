@@ -141,7 +141,11 @@ def ti_run(
 
     # If we are already running, but this is a duplicate request from the same client return the same OK
     # -- it's possible there was a network glitch and they never got the response
-    if previous_state == TaskInstanceState.RUNNING and (ti["hostname"], ti["unixname"], ti["pid"]) == (
+    if previous_state == TaskInstanceState.RUNNING and (
+        ti._mapping["hostname"],
+        ti._mapping["unixname"],
+        ti._mapping["pid"],
+    ) == (
         ti_run_payload.hostname,
         ti_run_payload.unixname,
         ti_run_payload.pid,
