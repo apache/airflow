@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-20T07:46:44.889576
+# This constraints file was automatically generated on 2025-04-20T19:45:21.800568
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -512,7 +512,7 @@ snowflake-connector-python==3.14.0
 snowflake-snowpark-python==1.30.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
-soupsieve==2.6
+soupsieve==2.7
 spython==0.3.14
 sqlalchemy-bigquery==1.13.0
 sqlalchemy-spanner==1.10.0

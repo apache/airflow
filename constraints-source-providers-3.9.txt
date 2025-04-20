@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-20T07:46:34.850966
+# This constraints file was automatically generated on 2025-04-20T19:45:12.385550
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -560,7 +560,7 @@ snowflake-connector-python==3.14.0
 snowflake-snowpark-python==1.30.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
-soupsieve==2.6
+soupsieve==2.7
 sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.4.0
 sphinx-autoapi==3.6.0
