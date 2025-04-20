@@ -69,6 +69,11 @@ To auto-fix:
 
     ruff check dag/ --select AIR301 --fix
 
+.. warning::
+
+    If you have any dags that are defined in multiple files, you *must* resolve this before upgrade.
+    If you can run ``airflow dags reserialize`` with no errors, you're ok.
+
 Step 4: Install the Standard Providers
 --------------------------------------
 
