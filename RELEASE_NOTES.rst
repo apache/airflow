@@ -534,8 +534,8 @@ Migration Tooling & Upgrade Process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Airflow 3 was designed with migration in mind. Many Airflow 2 DAGs will work without changes, especially if deprecation
-warnings were addressed in earlier releases. To support the upgrade, Airflow 3 includes validation tools such as `ruff`
-and `airflow config update`, as well as a simplified startup model.
+warnings were addressed in earlier releases. To support the upgrade, Airflow 3 includes validation tools such as ``ruff``
+and ``airflow config update``, as well as a simplified startup model.
 
 For a step-by-step upgrade process, see the :doc:`Upgrade Guide <installation/upgrading_to_airflow3>`.
 
