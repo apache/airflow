@@ -237,7 +237,7 @@ ARG_SKIP_SERVE_LOGS = Arg(
 ARG_LIST_LOCAL = Arg(
     ("-l", "--local"),
     action="store_true",
-    help="This shows local DAGs and their import errors, not what's serialized in the DB",
+    help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
 )
 
 # list_dag_runs
