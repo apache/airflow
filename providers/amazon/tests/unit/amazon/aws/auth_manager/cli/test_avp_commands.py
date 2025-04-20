@@ -53,14 +53,11 @@ class TestAvpCommands:
             cls.arg_parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
-        [
-            (False, False),
-            (True, True),
-        ],
+        "dry_run",
+        [False, True],
     )
     @patch("airflow.providers.amazon.aws.auth_manager.cli.avp_commands._get_client")
-    def test_init_avp_with_no_existing_resources(self, mock_get_client, dry_run, verbose):
+    def test_init_avp_with_no_existing_resources(self, mock_get_client, dry_run):
         mock_get_client.return_value = mock_boto3
 
         policy_store_description = "test-policy-store"
@@ -81,8 +78,6 @@ class TestAvpCommands:
             ]
             if dry_run:
                 params.append("--dry-run")
-            if verbose:
-                params.append("--verbose")
             init_avp(self.arg_parser.parse_args(params))
 
         if dry_run:
@@ -103,14 +98,11 @@ class TestAvpCommands:
             )
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
-        [
-            (False, False),
-            (True, True),
-        ],
+        "dry_run",
+        [False, True],
     )
     @patch("airflow.providers.amazon.aws.auth_manager.cli.avp_commands._get_client")
-    def test_init_avp_with_existing_resources(self, mock_get_client, dry_run, verbose):
+    def test_init_avp_with_existing_resources(self, mock_get_client, dry_run):
         mock_get_client.return_value = mock_boto3
 
         policy_store_description = "test-policy-store"
@@ -132,8 +124,6 @@ class TestAvpCommands:
             ]
             if dry_run:
                 params.append("--dry-run")
-            if verbose:
-                params.append("--verbose")
             init_avp(self.arg_parser.parse_args(params))
 
         mock_boto3.create_policy_store.assert_not_called()
@@ -141,14 +131,11 @@ class TestAvpCommands:
         mock_boto3.put_schema.assert_not_called()
 
     @pytest.mark.parametrize(
-        "dry_run, verbose",
-        [
-            (False, False),
-            (True, True),
-        ],
+        "dry_run",
+        [False, True],
     )
     @patch("airflow.providers.amazon.aws.auth_manager.cli.avp_commands._get_client")
-    def test_update_schema(self, mock_get_client, dry_run, verbose):
+    def test_update_schema(self, mock_get_client, dry_run):
         mock_get_client.return_value = mock_boto3
 
         policy_store_id = "test-policy-store-id"
@@ -162,8 +149,6 @@ class TestAvpCommands:
             ]
             if dry_run:
                 params.append("--dry-run")
-            if verbose:
-                params.append("--verbose")
             update_schema(self.arg_parser.parse_args(params))
 
         if dry_run:

@@ -1258,13 +1258,6 @@ def get_provider_info():
             "aws_auth_manager": {
                 "description": "This section only applies if you are using the AwsAuthManager. In other words, if you set\n``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in\nAirflow's configuration.\n",
                 "options": {
-                    "enable": {
-                        "description": "AWS auth manager is not ready to be used. Turn on this flag to use it anyway.\nDo that at your own risk since the AWS auth manager is not in an usable state.\n",
-                        "version_added": "8.12.0",
-                        "type": "boolean",
-                        "example": "True",
-                        "default": "False",
-                    },
                     "conn_id": {
                         "description": "The Airflow connection (i.e. credentials) used by the AWS auth manager to make API calls to AWS\nIdentity Center and Amazon Verified Permissions.\n",
                         "version_added": "8.12.0",

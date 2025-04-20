@@ -72,13 +72,11 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     authentication and authorization in Airflow.
     """
 
-    def __init__(self) -> None:
+    def init(self) -> None:
         if not AIRFLOW_V_3_0_PLUS:
             raise AirflowOptionalProviderFeatureException(
                 "AWS auth manager is only compatible with Airflow versions >= 3.0.0"
             )
-
-        super().__init__()
         self._check_avp_schema_version()
 
     @cached_property
@@ -90,7 +88,12 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return conf.get("api", "base_url", fallback="/")
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
-        return AwsAuthManagerUser(user_id=token.pop("sub"), **token)
+        return AwsAuthManagerUser(
+            user_id=token.pop("sub"),
+            groups=token.get("groups", []),
+            username=token.get("username"),
+            email=token.get("email"),
+        )
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
         return {
@@ -364,7 +367,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
 
     def get_fastapi_app(self) -> FastAPI | None:
-        from airflow.providers.amazon.aws.auth_manager.router.login import login_router
+        from airflow.providers.amazon.aws.auth_manager.routes.login import login_router
 
         app = FastAPI(
             title="AWS auth manager sub application",
