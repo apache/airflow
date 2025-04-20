@@ -178,7 +178,7 @@ Installing ``hatch``
 
 More information about hatch can be found in https://hatch.pypa.io/
 
-We recommend to install ``hatch`` using ```uv tool`` command which will make hatch available as a CLI
+We recommend to install ``hatch`` using ``uv tool`` command which will make hatch available as a CLI
 command globally:
 
     uv tool install hatch
@@ -204,8 +204,8 @@ PEP-compliant packaging front-end. You can run those commands in:
 * `airflow-core` folder to build the core airflow package
 * any of the `providers` folders that has a pyproject.toml file to build the provider package
 
-The packages will have pre-installed dependencies for providers that are available when Airflow is i
-onstalled from PyPI. Both `wheel` and `sdist` packages are built by default.
+The packages will have pre-installed dependencies for providers that are available when Airflow is
+installed from PyPI. Both `wheel` and `sdist` packages are built by default.
 
     hatch build
 
