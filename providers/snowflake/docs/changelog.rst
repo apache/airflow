@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   The following breaking changes were introduced:
+   * ``private_key_content``  in Snowflake connection should now be base64 encoded.
+
+
 6.2.2
 .....
 
