@@ -85,7 +85,9 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
 ];
 
 export const Connections = () => {
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    sorting: [{ desc: false, id: "connection_id" }],
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [connectionIdPattern, setConnectionIdPattern] = useState(
