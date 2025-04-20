@@ -96,18 +96,17 @@ class LevelDBHook(BaseHook):
             if not value:
                 raise ValueError("Please provide `value`!")
             return self.put(key, value)
-        elif command == "get":
+        if command == "get":
             return self.get(key)
-        elif command == "delete":
+        if command == "delete":
             return self.delete(key)
-        elif command == "write_batch":
+        if command == "write_batch":
             if not keys:
                 raise ValueError("Please provide `keys`!")
             if not values:
                 raise ValueError("Please provide `values`!")
             return self.write_batch(keys, values)
-        else:
-            raise LevelDBHookException("Unknown command for LevelDB hook")
+        raise LevelDBHookException("Unknown command for LevelDB hook")
 
     def put(self, key: bytes, value: bytes):
         """

@@ -358,11 +358,10 @@ class GCSHook(GoogleBaseHook):
                     )
                     self.log.info("File downloaded to %s", filename)
                     return filename
-                else:
-                    get_hook_lineage_collector().add_input_asset(
-                        context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
-                    )
-                    return blob.download_as_bytes()
+                get_hook_lineage_collector().add_input_asset(
+                    context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+                )
+                return blob.download_as_bytes()
 
             except GoogleCloudError:
                 if attempt == num_max_attempts - 1:
@@ -556,7 +555,7 @@ class GCSHook(GoogleBaseHook):
                 "specify a single parameter, either 'filename' for "
                 "local file uploads or 'data' for file content uploads."
             )
-        elif filename:
+        if filename:
             if not mime_type:
                 mime_type = "application/octet-stream"
             if gzip:

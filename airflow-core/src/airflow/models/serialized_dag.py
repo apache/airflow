@@ -105,7 +105,17 @@ class _DagDependenciesResolver:
                             dep_data[node_key] = f"asset:{asset_id}"
                             break
 
-                    dag_deps.append(DagDependency(**dep_data))
+                    dep_id = dep_data["dependency_id"]
+                    dag_deps.append(
+                        DagDependency(
+                            source=dep_data["source"],
+                            target=dep_data["target"],
+                            # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                            label=dep_data.get("label", dep_id),
+                            dependency_type=dep_data["dependency_type"],
+                            dependency_id=dep_id,
+                        )
+                    )
 
             dag_depdendencies_by_dag[dag_id] = dag_deps
         return dag_depdendencies_by_dag
@@ -171,8 +181,14 @@ class _DagDependenciesResolver:
     def resolve_asset_dag_dep(self, dep_data: dict) -> DagDependency:
         dep_id = dep_data["dependency_id"]
         unique_key = AssetUniqueKey.from_str(dep_id)
-        dep_data["dependency_id"] = str(self.asset_key_to_id[unique_key])
-        return DagDependency(**dep_data)
+        return DagDependency(
+            source=dep_data["source"],
+            target=dep_data["target"],
+            # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+            label=dep_data.get("label", unique_key.name),
+            dependency_type=dep_data["dependency_type"],
+            dependency_id=str(self.asset_key_to_id[unique_key]),
+        )
 
     def resolve_asset_ref_dag_dep(
         self, dep_data: dict, ref_type: Literal["asset-name-ref", "asset-uri-ref"]
@@ -198,6 +214,15 @@ class _DagDependenciesResolver:
                 dependency_type="asset",
                 dependency_id=str(asset_id),
             )
+        else:
+            yield DagDependency(
+                source=dep_data["source"],
+                target=dep_data["target"],
+                # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                label=dep_data.get("label", dep_id),
+                dependency_type=dep_data["dependency_type"],
+                dependency_id=dep_id,
+            )
 
     def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
@@ -207,26 +232,35 @@ class _DagDependenciesResolver:
 
     def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         dep_id = dep_data["dependency_id"]
-        for asset_id, asset_name in self.alias_names_to_asset_ids_names[dep_id]:
-            is_source_alias = dep_data["source"] == "asset-alias"
-            yield from [
+        assets = self.alias_names_to_asset_ids_names[dep_id]
+        if assets:
+            for asset_id, asset_name in assets:
+                is_source_alias = dep_data["source"] == "asset-alias"
                 # asset
-                DagDependency(
+                yield DagDependency(
                     source="asset" if is_source_alias else f"asset-alias:{dep_id}",
                     target=f"asset-alias:{dep_id}" if is_source_alias else "asset",
                     label=asset_name,
                     dependency_type="asset",
                     dependency_id=str(asset_id),
-                ),
+                )
                 # asset alias
-                DagDependency(
+                yield DagDependency(
                     source=f"asset:{asset_id}" if is_source_alias else dep_data["source"],
                     target=dep_data["target"] if is_source_alias else f"asset:{asset_id}",
                     label=dep_id,
                     dependency_type="asset-alias",
                     dependency_id=dep_id,
-                ),
-            ]
+                )
+        else:
+            yield DagDependency(
+                source=dep_data["source"],
+                target=dep_data["target"],
+                # handle the case that serialized_dag does not have label column (e.g., from 2.x)
+                label=dep_data.get("label", dep_id),
+                dependency_type=dep_data["dependency_type"],
+                dependency_id=dep_id,
+            )
 
 
 class SerializedDagModel(Base):
@@ -324,7 +358,7 @@ class SerializedDagModel(Base):
         """Recursively sort json_dict and its nested dictionaries and lists."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
-        elif isinstance(serialized_dag, list):
+        if isinstance(serialized_dag, list):
             if all(isinstance(i, dict) for i in serialized_dag):
                 if all(
                     isinstance(i.get("__var", {}), Iterable) and "task_id" in i.get("__var", {})
@@ -647,7 +681,6 @@ class SerializedDagModel(Base):
             if load_json is not None
             else query.all()
         )
-
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag

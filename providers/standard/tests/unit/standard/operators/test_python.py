@@ -866,8 +866,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -1156,7 +1155,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return True
             raise RuntimeError
 
-        self.run_as_task(f, system_site_packages=False, requirements=extra_requirements)
+        self.run_as_task(
+            f, system_site_packages=False, requirements=extra_requirements, serializer=serializer
+        )
 
     def test_system_site_packages(self):
         def f():
@@ -1202,7 +1203,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -1217,7 +1223,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs>1.0", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     def test_requirements_file(self):
         def f():
@@ -1528,8 +1539,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         with pytest.raises(
             AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"

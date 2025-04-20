@@ -605,6 +605,7 @@ DEFAULT_EXTRAS = [
     "celery",
     "cncf-kubernetes",
     "common-io",
+    "common-messaging",
     "docker",
     "elasticsearch",
     "fab",
@@ -634,22 +635,14 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "amazon",
-        "common.messaging",
-        "fab",
-        "git",
-        "openlineage",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join(["git", "common.messaging", "fab", "standard", "openlineage"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant common.messaging fab edge git",
+        "remove-providers": "cloudant common.messaging fab edge3 git",
         "run-tests": "true",
     },
     {

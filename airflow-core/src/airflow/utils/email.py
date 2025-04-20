@@ -285,12 +285,11 @@ def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
     """
     if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
-    elif isinstance(addresses, collections.abc.Iterable):
+    if isinstance(addresses, collections.abc.Iterable):
         if not all(isinstance(item, str) for item in addresses):
             raise TypeError("The items in your iterable must be strings.")
         return list(addresses)
-    else:
-        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+    raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
 
 
 def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
@@ -305,18 +304,17 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
     """
     if not with_ssl:
         return smtplib.SMTP(host=host, port=port, timeout=timeout)
+    ssl_context_string = conf.get("email", "SSL_CONTEXT")
+    if ssl_context_string == "default":
+        ssl_context = ssl.create_default_context()
+    elif ssl_context_string == "none":
+        ssl_context = None
     else:
-        ssl_context_string = conf.get("email", "SSL_CONTEXT")
-        if ssl_context_string == "default":
-            ssl_context = ssl.create_default_context()
-        elif ssl_context_string == "none":
-            ssl_context = None
-        else:
-            raise RuntimeError(
-                f"The email.ssl_context configuration variable must "
-                f"be set to 'default' or 'none' and is '{ssl_context_string}."
-            )
-        return smtplib.SMTP_SSL(host=host, port=port, timeout=timeout, context=ssl_context)
+        raise RuntimeError(
+            f"The email.ssl_context configuration variable must "
+            f"be set to 'default' or 'none' and is '{ssl_context_string}."
+        )
+    return smtplib.SMTP_SSL(host=host, port=port, timeout=timeout, context=ssl_context)
 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:

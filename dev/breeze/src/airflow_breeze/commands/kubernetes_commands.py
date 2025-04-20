@@ -291,12 +291,11 @@ def _create_cluster(
         num_tries -= 1
         if num_tries == 0:
             return result.returncode, f"K8S cluster {cluster_name}."
-        else:
-            get_console(output=output).print(
-                f"[warning]Failed to create KinD cluster {cluster_name}. "
-                f"Retrying! There are {num_tries} tries left.\n"
-            )
-            _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
+        get_console(output=output).print(
+            f"[warning]Failed to create KinD cluster {cluster_name}. "
+            f"Retrying! There are {num_tries} tries left.\n"
+        )
+        _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
 
 
 @kubernetes_group.command(
@@ -458,8 +457,7 @@ def _get_python_kubernetes_version_from_name(cluster_name: str) -> tuple[str | N
         python = cluster_match.group(1)
         kubernetes_version = cluster_match.group(2)
         return python, kubernetes_version
-    else:
-        return None, None
+    return None, None
 
 
 LIST_CONSOLE_WIDTH = 120

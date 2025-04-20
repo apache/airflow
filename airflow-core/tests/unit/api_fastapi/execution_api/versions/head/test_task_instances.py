@@ -268,6 +268,67 @@ class TestTIRunState:
             },
         }
 
+    @pytest.mark.parametrize("resume", [True, False])
+    def test_next_kwargs_determines_start_date_update(self, client, session, create_task_instance, resume):
+        dag_start_time_str = "2024-09-30T12:00:00Z"
+        dag_start_time = timezone.parse(dag_start_time_str)
+        orig_task_start_time = dag_start_time.add(seconds=5)
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_still_encoded",
+            state=State.QUEUED,
+            session=session,
+            start_date=orig_task_start_time,
+        )
+
+        ti.start_date = orig_task_start_time
+        ti.next_method = "execute_complete"
+
+        second_start_time = orig_task_start_time.add(seconds=30)
+        second_start_time_str = second_start_time.isoformat()
+
+        # ti.next_kwargs under the hood applies the serde encoding for us
+        if resume:
+            ti.next_kwargs = {"moment": second_start_time}
+            expected_start_date = orig_task_start_time
+            expected_next_kwargs = {
+                "__type": "dict",
+                "__var": {"moment": {"__type": "datetime", "__var": second_start_time.timestamp()}},
+            }
+        else:
+            expected_start_date = second_start_time
+            expected_next_kwargs = None
+
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": second_start_time_str,
+            },
+        )
+        session.commit()
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_run": mock.ANY,
+            "task_reschedule_count": 0,
+            "max_tries": 0,
+            "should_retry": False,
+            "variables": [],
+            "connections": [],
+            "xcom_keys_to_clear": [],
+            "next_method": "execute_complete",
+            "next_kwargs": expected_next_kwargs,
+        }
+        session.expunge_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.start_date == expected_start_date
+
     @pytest.mark.parametrize(
         "initial_ti_state",
         [s for s in TaskInstanceState if s not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING)],

@@ -106,8 +106,7 @@ def get_project_number():
                 "No project found with specified name, "
                 "or caller does not have permissions to read specified project"
             )
-        else:
-            raise exc
+        raise exc
 
 
 with DAG(

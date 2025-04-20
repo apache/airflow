@@ -117,7 +117,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
 
         if job_status in self.expected_statuses:
             return True
-        elif job_status in DataflowJobStatus.TERMINAL_STATES:
+        if job_status in DataflowJobStatus.TERMINAL_STATES:
             message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
             raise AirflowException(message)
 

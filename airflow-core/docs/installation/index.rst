@@ -33,13 +33,14 @@ Installation of Airflow®
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
+    Upgrading to Airflow 3 <upgrading_to_airflow3>
 
-This page describes installations options that you might use when considering how to install Airflow®.
+This page describes installation options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
 installation of Airflow might be quite complex, depending on the options you choose.
 
-You should also check-out the :doc:`Prerequisites <prerequisites>` that must be fulfilled when installing Airflow
-as well as  :doc:`Supported versions <supported-versions>` to know what are the policies for supporting
+You should also check out the :doc:`Prerequisites <prerequisites>` that must be fulfilled when installing Airflow
+as well as  :doc:`Supported versions <supported-versions>` to know what are the policies for the supporting
 Airflow, Python and Kubernetes.
 
 Airflow requires additional :doc:`Dependencies <dependencies>` to be installed - which can be done
@@ -47,12 +48,6 @@ via extras and providers.
 
 When you install Airflow, you need to :doc:`setup the database <setting-up-the-database>` which must
 also be kept updated when Airflow is upgraded.
-
-.. warning::
-
-  As of June 2021 Airflow 1.10 is end-of-life and is not going to receive any fixes even critical
-  security fixes. Follow the :doc:`/howto/upgrading-from-1-10/index` to learn
-  how to upgrade the end-of-life 1.10 to Airflow 2.
 
 Using released sources
 ''''''''''''''''''''''
@@ -73,9 +68,9 @@ More details: :doc:`installing-from-sources`
 
 **What are you expected to handle**
 
-* You are expected to build and install airflow and its components on your own.
+* You are expected to build and install Airflow and its components on your own.
 * You should develop and handle the deployment for all components of Airflow.
-* You are responsible for setting up database, creating and managing database schema with ``airflow db`` commands,
+* You are responsible for setting up the database, creating and managing database schema with ``airflow db`` commands,
   automated startup and recovery, maintenance, cleanup and upgrades of Airflow and the Airflow Providers.
 * You need to setup monitoring of your system allowing you to observe resources and react to problems.
 * You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
@@ -89,14 +84,14 @@ More details: :doc:`installing-from-sources`
 
 **Where to ask for help**
 
-* The ``#user-troubleshooting`` channel on slack can be used for quick general troubleshooting questions. The
+* The ``#user-troubleshooting`` channel on Slack can be used for quick general troubleshooting questions. The
   `GitHub discussions <https://github.com/apache/airflow/discussions>`__ if you look for longer discussion and have more information to share.
 
-* The ``#user-best-practices`` channel on slack can be used to ask for and share best practices on using and deploying airflow.
+* The ``#user-best-practices`` channel on Slack can be used to ask for and share best practices on using and deploying Airflow.
 
 * If you can provide description of a reproducible problem with Airflow software, you can open issue at `GitHub issues <https://github.com/apache/airflow/issues>`_
 
-* If you want to contribute back to Airflow, the ``#contributors`` slack channel for building the Airflow itself
+* If you want to contribute back to Airflow, the ``#contributors`` Slack channel for building the Airflow itself
 
 
 Using PyPI
@@ -108,7 +103,7 @@ More details:  :doc:`/installation/installing-from-pypi`
 
 * This installation method is useful when you are not familiar with Containers and Docker and want to install
   Apache Airflow on physical or virtual machines and you are used to installing and running software using custom
-  deployment mechanism.
+  deployment mechanisms.
 
 * The only officially supported mechanism of installation is via ``pip`` using constraint mechanisms. The constraint
   files are managed by Apache Airflow release managers to make sure that you can repeatably install Airflow from PyPI with all Providers and
@@ -127,7 +122,7 @@ More details:  :doc:`/installation/installing-from-pypi`
 
 * You are expected to install Airflow - all components of it - on your own.
 * You should develop and handle the deployment for all components of Airflow.
-* You are responsible for setting up database, creating and managing database schema with ``airflow db`` commands,
+* You are responsible for setting up the database, creating and managing database schema with ``airflow db`` commands,
   automated startup and recovery, maintenance, cleanup and upgrades of Airflow and Airflow Providers.
 * You need to setup monitoring of your system allowing you to observe resources and react to problems.
 * You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
@@ -149,8 +144,8 @@ More details:  :doc:`/installation/installing-from-pypi`
 * The ``#user-troubleshooting`` channel on Airflow Slack for quick general
   troubleshooting questions. The `GitHub discussions <https://github.com/apache/airflow/discussions>`__
   if you look for longer discussion and have more information to share.
-* The ``#user-best-practices`` channel on slack can be used to ask for and share best
-  practices on using and deploying airflow.
+* The ``#user-best-practices`` channel on Slack can be used to ask for and share best
+  practices on using and deploying Airflow.
 * If you can provide description of a reproducible problem with Airflow software, you can open
   issue at `GitHub issues <https://github.com/apache/airflow/issues>`__
 
@@ -167,7 +162,7 @@ running Airflow components in isolation from other software running on the same 
 maintenance of dependencies.
 
 The images are built by Apache Airflow release managers and they use officially released packages from PyPI
-and official constraint files- same that are used for installing Airflow from PyPI.
+and official constraint files - same that are used for installing Airflow from PyPI.
 
 **Intended users**
 
@@ -179,16 +174,16 @@ and official constraint files- same that are used for installing Airflow from Py
 
 * You are expected to be able to customize or extend Container/Docker images if you want to
   add extra dependencies. You are expected to put together a deployment built of several containers
-  (for example using docker-compose) and to make sure that they are linked together.
-* You are responsible for setting up database, creating and managing database schema with ``airflow db`` commands,
+  (for example using ``docker-compose``) and to make sure that they are linked together.
+* You are responsible for setting up the database, creating and managing database schema with ``airflow db`` commands,
   automated startup and recovery, maintenance, cleanup and upgrades of Airflow and the Airflow Providers.
 * You are responsible to manage your own customizations and extensions for your custom dependencies.
   With the Official Airflow Docker Images, upgrades of Airflow and Airflow Providers which
   are part of the reference image are handled by the community - you need to make sure to pick up
-  those changes when released by upgrading the base image. However, you are responsible in creating a
+  those changes when released by upgrading the base image. However, you are responsible for creating a
   pipeline of building your own custom images with your own added dependencies and Providers and need to
   repeat the customization step and building your own image when new version of Airflow image is released.
-* You should choose the right deployment mechanism. There a number of available options of
+* You should choose the right deployment mechanism. There are a number of available options of
   deployments of containers. You can use your own custom mechanism, custom Kubernetes deployments,
   custom Docker Compose, custom Helm charts etc., and you should choose it based on your experience
   and expectations.
@@ -213,8 +208,8 @@ and official constraint files- same that are used for installing Airflow from Py
 * The ``#user-troubleshooting`` channel on Airflow Slack for quick general
   troubleshooting questions. The `GitHub discussions <https://github.com/apache/airflow/discussions>`__
   if you look for longer discussion and have more information to share.
-* The ``#user-best-practices`` channel on slack can be used to ask for and share best
-  practices on using and deploying airflow.
+* The ``#user-best-practices`` channel on Slack can be used to ask for and share best
+  practices on using and deploying Airflow.
 * If you can provide description of a reproducible problem with Airflow software, you can open
   issue at `GitHub issues <https://github.com/apache/airflow/issues>`__
 
@@ -251,7 +246,7 @@ More details: :doc:`helm-chart:index`
 * You are responsible to manage your own customizations and extensions for your custom dependencies.
   With the Official Airflow Docker Images, upgrades of Airflow and Airflow Providers which
   are part of the reference image are handled by the community - you need to make sure to pick up
-  those changes when released by upgrading the base image. However, you are responsible in creating a
+  those changes when released by upgrading the base image. However, you are responsible for creating a
   pipeline of building your own custom images with your own added dependencies and Providers and need to
   repeat the customization step and building your own image when new version of Airflow image is released.
 * You need to setup monitoring of your system allowing you to observe resources and react to problems.
@@ -272,8 +267,8 @@ More details: :doc:`helm-chart:index`
 * The ``#user-troubleshooting`` channel on Airflow Slack for quick general
   troubleshooting questions. The `GitHub discussions <https://github.com/apache/airflow/discussions>`__
   if you look for longer discussion and have more information to share.
-* The ``#user-best-practices`` channel on slack can be used to ask for and share best
-  practices on using and deploying airflow.
+* The ``#user-best-practices`` channel on Slack can be used to ask for and share best
+  practices on using and deploying Airflow.
 * If you can provide description of a reproducible problem with Airflow software, you can open
   issue at `GitHub issues <https://github.com/apache/airflow/issues>`__
 
@@ -377,15 +372,15 @@ control theory - where there are two types of systems:
 2. Complex systems with multiple variables, that are hard to predict and where you need to monitor
    the system and adjust the knobs continuously to make sure the system is running smoothly.
 
-Airflow (and generally any modern system running usually on cloud services, with multiple layers responsible
-for resources as well multiple parameters to control their behaviour) is a complex system and they fall
+Airflow (and generally any modern systems running usually on cloud services, with multiple layers responsible
+for resources as well multiple parameters to control their behaviour) is a complex system and it fall
 much more in the second category. If you decide to run Airflow in production on your own, you should be
 prepared for the monitor/observe/adjust feedback loop to make sure the system is running smoothly.
 
 Having a good monitoring system that will allow you to monitor the system and adjust the parameters
 is a must to put that in practice.
 
-There are few guidelines that you can use for optimizing your resource usage as well. The
+There are a few guidelines that you can use for optimizing your resource usage as well. The
 :ref:`fine-tuning-scheduler` is a good starting point to fine-tune your scheduler, you can also follow
 the :ref:`best_practice` guide to make sure you are using Airflow in the most efficient way.
 

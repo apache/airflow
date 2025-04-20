@@ -117,7 +117,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "The private_key_file and private_key_content extra fields are mutually exclusive. "
                 "Please remove one."
             )
-        elif private_key_file:
+        if private_key_file:
             private_key_pem = Path(private_key_file).read_bytes()
         elif private_key_content:
             private_key_pem = private_key_content.encode()
@@ -201,7 +201,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if all(
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
-            oauth_token = self.get_oauth_token()
+            oauth_token = self.get_oauth_token(conn_config=conn_config)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
@@ -232,9 +232,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self) -> str:
+    def get_oauth_token(self, conn_config: dict[str, Any]) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
-        conn_config = self._get_conn_params
         url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
         data = {
             "grant_type": "refresh_token",
@@ -289,9 +288,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
-        elif status_code == 422:
+        if status_code == 422:
             return {"status": "error", "message": resp["message"]}
-        elif status_code == 200:
+        if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
             elif resp_statement_handle := resp.get("statementHandle"):
@@ -303,8 +302,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "message": resp["message"],
                 "statement_handles": statement_handles,
             }
-        else:
-            return {"status": "error", "message": resp["message"]}
+        return {"status": "error", "message": resp["message"]}
 
     def get_sql_api_query_status(self, query_id: str) -> dict[str, str | list[str]]:
         """

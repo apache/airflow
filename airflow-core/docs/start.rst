@@ -35,11 +35,6 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    ``pip`` or ``uv`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
-   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
-   Airflow. Please switch to ``pip`` or ``uv`` if you encounter such problems. ``Bazel`` community works on fixing
-   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
-   newer versions of ``bazel`` will handle it.
-
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
@@ -61,8 +56,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
         Install uv: `uv Installation Guide <https://docs.astral.sh/uv/getting-started/installation/>`_
 
 
-    For creating Virtualenv with uv, refer to the documentation here:
-    `Creating and Maintaining Local Virtualenv with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv>`_
+    For creating virtual environment with ``uv``, refer to the documentation here:
+    `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
 
 3. Install Airflow using the constraints file, which is determined based on the URL we pass:
@@ -71,14 +66,14 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
       :substitutions:
 
 
-      AIRFLOW_VERSION=2.10.5
+      AIRFLOW_VERSION=3.0.0
 
       # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
       # See above for supported versions.
       PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-      # For example this would install 2.10.5 with python 3.9: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt
+      # For example this would install 3.0.0 with python 3.9: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt
 
       uv pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
@@ -133,7 +128,7 @@ the all-in-one ``standalone`` command, you can instead run:
         --role Admin \
         --email spiderman@superhero.org
 
-    airflow webserver --port 8080
+    airflow api-server --port 8080
 
     airflow scheduler
 

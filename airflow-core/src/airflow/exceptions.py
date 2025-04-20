@@ -126,9 +126,9 @@ class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
 
         if isinstance(key, AssetUniqueKey):
             return f"Asset(name={key.name!r}, uri={key.uri!r})"
-        elif isinstance(key, AssetNameRef):
+        if isinstance(key, AssetNameRef):
             return f"Asset.ref(name={key.name!r})"
-        elif isinstance(key, AssetUriRef):
+        if isinstance(key, AssetUriRef):
             return f"Asset.ref(uri={key.uri!r})"
         return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
 
@@ -244,6 +244,17 @@ class AirflowClusterPolicyError(AirflowException):
 
 class AirflowTimetableInvalid(AirflowException):
     """Raise when a DAG has an invalid timetable."""
+
+
+class DagIsPaused(AirflowException):
+    """Raise when a dag is paused and something tries to run it."""
+
+    def __init__(self, dag_id: str) -> None:
+        super().__init__(dag_id)
+        self.dag_id = dag_id
+
+    def __str__(self) -> str:
+        return f"Dag {self.dag_id} is paused"
 
 
 class DagNotFound(AirflowNotFoundException):

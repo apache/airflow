@@ -1,4 +1,4 @@
-Move bash operators from airflow core to standard provider
+Move bash operators from Airflow core to standard provider
 
 * Types of change
 

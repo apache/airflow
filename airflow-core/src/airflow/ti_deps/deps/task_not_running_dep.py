@@ -30,7 +30,7 @@ class TaskNotRunningDep(BaseTIDep):
     NAME = "Task Instance Not Running"
     IGNORABLE = False
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Check if two task instance dependencies are of the same type."""
         return type(self) is type(other)
 

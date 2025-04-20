@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
-from airflow.models.asset import AssetActive, AssetModel
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DAG as SchedulerDAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
@@ -34,7 +34,7 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, Asset, task as task_decorator
+from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
@@ -418,7 +418,67 @@ class TestSerializedDagModel:
                     label=asset_name,
                     dependency_type="asset",
                     dependency_id=f"{asset_id}",
-                )
+                ),
+                DagDependency(
+                    source="asset-uri-ref",
+                    target="test_get_dependencies_with_asset_ref_example",
+                    label="test://no-such-asset/",
+                    dependency_type="asset-uri-ref",
+                    dependency_id="test://no-such-asset/",
+                ),
+            ]
+        }
+
+        db.clear_db_assets()
+
+    def test_get_dependencies_with_asset_alias(self, dag_maker, session):
+        db.clear_db_assets()
+
+        asset_name = "name"
+        asset_uri = "test://asset1"
+        asset_id = 1
+
+        asset_model = AssetModel(id=asset_id, uri=asset_uri, name=asset_name)
+        aam1 = AssetAliasModel(name="alias_1")  # resolve to asset
+        aam2 = AssetAliasModel(name="alias_2")  # resolve to nothing
+
+        session.add_all([aam1, aam2, asset_model, AssetActive.for_asset(asset_model)])
+        aam1.assets.append(asset_model)
+        session.commit()
+
+        with dag_maker(
+            dag_id="test_get_dependencies_with_asset_alias",
+            start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+            schedule=[AssetAlias(name="alias_1"), AssetAlias(name="alias_2")],
+        ) as dag:
+            BashOperator(task_id="any", bash_command="sleep 5")
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+
+        dependencies = SDM.get_dag_dependencies(session=session)
+        assert dependencies == {
+            "test_get_dependencies_with_asset_alias": [
+                DagDependency(
+                    source="asset",
+                    target="asset-alias:alias_1",
+                    label="name",
+                    dependency_type="asset",
+                    dependency_id="1",
+                ),
+                DagDependency(
+                    source="asset:1",
+                    target="test_get_dependencies_with_asset_alias",
+                    label="alias_1",
+                    dependency_type="asset-alias",
+                    dependency_id="alias_1",
+                ),
+                DagDependency(
+                    source="asset-alias",
+                    target="test_get_dependencies_with_asset_alias",
+                    label="alias_2",
+                    dependency_type="asset-alias",
+                    dependency_id="alias_2",
+                ),
             ]
         }
 

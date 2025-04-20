@@ -57,7 +57,7 @@ class BulkVariableService(BulkService[VariableBody]):
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"The variables with these keys: {matched_keys} already exist.",
                 )
-            elif action.action_on_existence == BulkActionOnExistence.SKIP:
+            if action.action_on_existence == BulkActionOnExistence.SKIP:
                 create_keys = not_found_keys
             else:
                 create_keys = to_create_keys
@@ -86,7 +86,7 @@ class BulkVariableService(BulkService[VariableBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The variables with these keys: {not_found_keys} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 update_keys = matched_keys
             else:
                 update_keys = to_update_keys
@@ -118,7 +118,7 @@ class BulkVariableService(BulkService[VariableBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The variables with these keys: {not_found_keys} were not found.",
                 )
-            elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
+            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
                 delete_keys = matched_keys
             else:
                 delete_keys = to_delete_keys

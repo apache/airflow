@@ -22,6 +22,7 @@ import functools
 import json
 import logging
 import os
+import platform
 import sys
 import warnings
 from importlib import metadata
@@ -40,7 +41,6 @@ from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
-from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
@@ -112,23 +112,6 @@ AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
-
-# Dictionary containing State and colors associated to each state to
-# display on the Webserver
-STATE_COLORS = {
-    "deferred": "mediumpurple",
-    "failed": "red",
-    "queued": "gray",
-    "removed": "lightgrey",
-    "restarting": "violet",
-    "running": "lime",
-    "scheduled": "tan",
-    "skipped": "hotpink",
-    "success": "green",
-    "up_for_reschedule": "turquoise",
-    "up_for_retry": "gold",
-    "upstream_failed": "orange",
-}
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
@@ -231,8 +214,7 @@ def _get_async_conn_uri_from_sync(sync_uri):
     aiolib = AIO_LIBS_MAPPING.get(scheme)
     if aiolib:
         return f"{scheme}+{aiolib}:{rest}"
-    else:
-        return sync_uri
+    return sync_uri
 
 
 def configure_vars():
@@ -403,15 +385,17 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
-    # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
-    def clean_in_fork():
-        _globals = globals()
-        if engine := _globals.get("engine"):
-            engine.dispose(close=False)
-        if async_engine := _globals.get("async_engine"):
-            async_engine.sync_engine.dispose(close=False)
+    if not platform.system() == "Windows":
+        # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
+        def clean_in_fork():
+            _globals = globals()
+            if engine := _globals.get("engine"):
+                engine.dispose(close=False)
+            if async_engine := _globals.get("async_engine"):
+                async_engine.sync_engine.dispose(close=False)
 
-    os.register_at_fork(after_in_child=clean_in_fork)
+        # Won't work on Windows
+        os.register_at_fork(after_in_child=clean_in_fork)
 
 
 DEFAULT_ENGINE_ARGS = {
@@ -634,7 +618,6 @@ def initialize():
     prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
-    State.state_color.update(STATE_COLORS)
 
     configure_adapters()
     # The webservers import this file from models.py with the default settings.

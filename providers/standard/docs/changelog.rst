@@ -35,6 +35,28 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
+.. note::
+  Stable release of the provider.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove dag_version as a create_dagrun argument (#49148)``
+* ``Fix ExternalTaskSensor task_group_id check condition (#49027)``
+* ``Ensure that TI.id is unique per try. (#48749)``
+* ``Conditionally add session related imports in standard provider (#49218)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.0
 .....
 
