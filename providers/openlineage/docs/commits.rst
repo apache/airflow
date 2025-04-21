@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2025-04-14
+
+==================================================================================================  ===========  ==================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================================
+`c447ad303b <https://github.com/apache/airflow/commit/c447ad303b9b206dd56062b837ac92e6b7ea30eb>`__  2025-04-14   ``gate import behind Airflow 2 path (#49209)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`b487617969 <https://github.com/apache/airflow/commit/b487617969679b81d6480ff3256f3b4d13c5700d>`__  2025-04-11   ``feat: Add support for task's manual state change notification in OpenLineage listener (#49040)``
+`6bd5354718 <https://github.com/apache/airflow/commit/6bd535471819074f74b0c3a3251a823be24c61b0>`__  2025-04-11   ``feat: Explicitly propagate airflow logging level to OL client (#49108)``
+`0936d76aa6 <https://github.com/apache/airflow/commit/0936d76aa6a09dd826ee4f0f3c095c9892a918ac>`__  2025-04-11   ``chore: Update requirement for openlineage client to >=1.31.0 (#49083)``
+`b7b25d6206 <https://github.com/apache/airflow/commit/b7b25d620621f1e8a93eed1bd137e7e50b867fca>`__  2025-04-10   ``feat: Add owner_links in DAG object in airflow facet (#49085)``
+==================================================================================================  ===========  ==================================================================================================
+
 2.1.3
 .....
 
-Latest change: 2025-04-09
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `e84c177f74 <https://github.com/apache/airflow/commit/e84c177f747f728ae52eeaa2c665ef6a4627c5af>`__  2025-04-09   ``Move ObjectStoragePath and attach to Task SDK (#48906)``
 `ad2e80d299 <https://github.com/apache/airflow/commit/ad2e80d2997dc46ca175a39a0a8b8c216361323f>`__  2025-04-08   ``tests: verify openlineage airflow models serialization (#47915)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``

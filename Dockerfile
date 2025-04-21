@@ -461,6 +461,9 @@ function common::get_packaging_tool() {
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
         export UV_CONCURRENT_DOWNLOADS
+        if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease allow"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -471,6 +474,9 @@ function common::get_packaging_tool() {
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
+        if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --pre"
+        fi
     fi
 }
 
@@ -1529,6 +1535,7 @@ ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 ARG UV_HTTP_TIMEOUT
+ARG INCLUDE_PRE_RELEASE="false"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
@@ -1554,6 +1561,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_IMAGE_TYPE=${AIRFLOW_IMAGE_TYPE} \
     AIRFLOW_UID=${AIRFLOW_UID} \
+    INCLUDE_PRE_RELEASE=${INCLUDE_PRE_RELEASE} \
     UPGRADE_RANDOM_INDICATOR_STRING=${UPGRADE_RANDOM_INDICATOR_STRING}
 
 

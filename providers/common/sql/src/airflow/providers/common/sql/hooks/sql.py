@@ -69,7 +69,9 @@ WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' 
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
+def return_single_query_results(
+    sql: str | Iterable[str], return_last: bool, split_statements: bool | None
+) -> bool:
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
     return handlers.return_single_query_results(sql, return_last, split_statements)
@@ -888,7 +890,14 @@ class DbApiHook(BaseHook):
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.executemany(sql, values)
+
+                        try:
+                            cur.executemany(sql, values)
+                        except Exception as e:
+                            self.log.error("Generated sql: %s", sql)
+                            self.log.error("Parameters: %s", values)
+                            raise e
+
                         conn.commit()
                         nb_rows += len(chunked_rows)
                         self.log.info("Loaded %s rows into %s so far", nb_rows, table)
@@ -897,7 +906,14 @@ class DbApiHook(BaseHook):
                         values = self._serialize_cells(row, conn)
                         sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.execute(sql, values)
+
+                        try:
+                            cur.execute(sql, values)
+                        except Exception as e:
+                            self.log.error("Generated sql: %s", sql)
+                            self.log.error("Parameters: %s", values)
+                            raise e
+
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)

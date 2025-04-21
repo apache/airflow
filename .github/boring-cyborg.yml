@@ -129,8 +129,8 @@ labelPRBasedOnFilePath:
   provider:docker:
     - providers/docker/**
 
-  provider:edgeexecutor:
-    - providers/edgeexecutor/**
+  provider:edge:
+    - providers/edge3/**
 
   provider:elasticsearch:
     - providers/elasticsearch/**

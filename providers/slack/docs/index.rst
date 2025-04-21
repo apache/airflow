@@ -81,7 +81,7 @@ apache-airflow-providers-slack package
   - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
 
 
-Release: 9.0.4
+Release: 9.0.5
 
 Provider package
 ----------------
@@ -136,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-slack 9.0.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-slack 9.0.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-slack 9.0.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-slack 9.0.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_slack-9.0.5-py3-none-any.whl.sha512>`__)

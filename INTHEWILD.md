@@ -127,6 +127,7 @@ Currently, **officially** using Airflow:
 1. [Checkr](https://checkr.com) [[@tongboh](https://github.com/tongboh)]
 1. [Children's Hospital of Philadelphia Division of Genomic Diagnostics](http://www.chop.edu/centers-programs/division-genomic-diagnostics) [[@genomics-geek](https://github.com/genomics-geek/)]
 1. [Cinimex DataLab](http://cinimex.ru) [[@kdubovikov](https://github.com/kdubovikov)]
+1. [City of Detroit](https://detroitmi.gov) [[@CityOfDetroit](https://github.com/CityOfDetroit), [@jmcbroom](https://github.com/jmcbroom)]
 1. [City of San Diego](http://sandiego.gov) [[@MrMaksimize](https://github.com/mrmaksimize), [@andrell81](https://github.com/andrell81) & [@arnaudvedy](https://github.com/arnaudvedy)]
 1. [City of Toronto](https://www.toronto.ca/) [[@CityofToronto](https://github.com/CityofToronto), [@radumas](https://github.com/radumas)]
 1. [ciValue](https://civalue.com/) [[@chencivalue](https://github.com/chencivalue), [@YoavGaudin](https://github.com/YoavGaudin), [@saleem-boshnak](https://github.com/saleem-boshnak)]

@@ -535,7 +535,7 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def parse(what: StartupDetails) -> RuntimeTaskInstance:
+def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
 
@@ -558,12 +558,28 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
-    dag = bag.dags[what.ti.dag_id]
+    try:
+        dag = bag.dags[what.ti.dag_id]
+    except KeyError:
+        log.error(
+            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+        )
+        exit(1)
 
     # install_loader()
 
-    # TODO: Handle task not found
-    task = dag.task_dict[what.ti.task_id]
+    try:
+        task = dag.task_dict[what.ti.task_id]
+    except KeyError:
+        log.error(
+            "Task not found in DAG during start up",
+            dag_id=dag.dag_id,
+            task_id=what.ti.task_id,
+            bundle=bundle_info,
+            path=what.dag_rel_path,
+        )
+        exit(1)
+
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
@@ -674,7 +690,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             setproctitle(f"airflow worker -- {msg.ti.id}")
 
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg)
+            ti = parse(msg, log)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")

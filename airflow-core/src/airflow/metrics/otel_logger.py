@@ -348,7 +348,7 @@ class MetricsMap:
         :param attributes: Counter attributes which were used to generate a unique key to store the counter.
         """
         key = _generate_key_name(name, attributes)
-        if key in self.map:
+        if key in self.map.keys():
             del self.map[key]
 
     def set_gauge_value(self, name: str, value: int | float, delta: bool, tags: Attributes):

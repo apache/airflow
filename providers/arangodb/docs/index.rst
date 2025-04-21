@@ -76,7 +76,7 @@ apache-airflow-providers-arangodb package
 `ArangoDB <https://www.arangodb.com/>`__
 
 
-Release: 2.7.3
+Release: 2.7.4
 
 Provider package
 ----------------

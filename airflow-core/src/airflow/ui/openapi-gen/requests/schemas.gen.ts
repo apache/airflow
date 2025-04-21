@@ -1439,6 +1439,17 @@ export const $DAGDetailsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -1737,6 +1748,7 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -1839,6 +1851,17 @@ export const $DAGResponse = {
         },
       ],
       title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
     },
     relative_fileloc: {
       anyOf: [
@@ -1993,6 +2016,7 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -3424,6 +3448,43 @@ export const $PluginCollectionResponse = {
   required: ["plugins", "total_entries"],
   title: "PluginCollectionResponse",
   description: "Plugin Collection serializer.",
+} as const;
+
+export const $PluginImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/PluginImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "PluginImportErrorCollectionResponse",
+  description: "Plugin Import Error Collection serializer.",
+} as const;
+
+export const $PluginImportErrorResponse = {
+  properties: {
+    source: {
+      type: "string",
+      title: "Source",
+    },
+    error: {
+      type: "string",
+      title: "Error",
+    },
+  },
+  type: "object",
+  required: ["source", "error"],
+  title: "PluginImportErrorResponse",
+  description: "Plugin Import Error serializer for responses.",
 } as const;
 
 export const $PluginResponse = {
@@ -5750,10 +5811,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Navbar Text Hover Color",
     },
-    navbar_logo_text_color: {
-      type: "string",
-      title: "Navbar Logo Text Color",
-    },
     page_size: {
       type: "integer",
       title: "Page Size",
@@ -5816,7 +5873,6 @@ export const $ConfigResponse = {
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",
-    "navbar_logo_text_color",
     "page_size",
     "auto_refresh_interval",
     "hide_paused_dags_by_default",
@@ -6075,6 +6131,17 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -6247,6 +6314,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",

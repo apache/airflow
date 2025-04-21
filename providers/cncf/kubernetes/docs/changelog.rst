@@ -28,6 +28,23 @@ Changelog
 ---------
 
 
+10.4.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'subdir' arg from CLI commands (#49317)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``remove superfluous else block (#49199)``
+* ``Remove unused db method in k8s provider (#49186)``
+
+
+
 10.4.2
 ......
 
