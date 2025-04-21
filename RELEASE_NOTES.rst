@@ -311,10 +311,23 @@ Several core components have been moved to more intuitive or stable locations:
 
 These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
 
-Asset Event URIs in ``inlet_events``
-""""""""""""""""""""""""""""""""""""
+Improved ``inlet_events``, ``outlet_events``, and ``triggering_asset_events``
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The internal representation of asset event triggers now includes an explicit ``uri`` field, simplifying traceability and
+Asset event accessors in the task context are improved to better support asset use cases, including new features introduced in AIP-74.
+
+Events of an asset or asset alias are now accessed directly by a concrete object to avoid ambiguity. Using a ``str`` to access events is
+no longer supported. Use an ``Asset`` or ``AssetAlias`` object, or ``Asset.ref`` to refer to an entity explicitly instead, such as::
+
+    outlet_events[Asset.ref(name="myasset")]  # Get events for asset named "myasset".
+    outlet_events[AssetAlias(name="myalias")]  # Get events for asset alias named "myalias".
+
+Alternatively, two helpers ``for_asset`` and ``for_asset_alias`` are added as shortcuts::
+
+    outlet_events.for_asset(name="myasset")  # Get events for asset named "myasset".
+    outlet_events.for_asset_alias(name="myalias")  # Get events for asset alias named "myalias".
+
+The internal representation of asset event triggers now also includes an explicit ``uri`` field, simplifying traceability and
 aligning with the broader asset-aware execution model introduced in Airflow 3.0. DAG authors interacting directly with
 ``inlet_events`` may need to update logic that assumes the previous structure.
 
