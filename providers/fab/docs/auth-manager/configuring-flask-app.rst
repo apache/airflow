@@ -30,9 +30,10 @@ You could also enhance / modify the underlying flask app directly,
 as the `app context <https://flask.palletsprojects.com/en/2.3.x/appcontext/>`_ is pushed to ``webserver_config.py``:
 
 .. code-block:: python
+
     from flask import current_app as app
 
 
-    @app.before_request
+    @app.before_requestq
     def print_custom_message() -> None:
         print("Executing before every request")
