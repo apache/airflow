@@ -48,42 +48,6 @@ If you want to check which executor is currently set, you can use the ``airflow 
     $ airflow config get-value core executor
     LocalExecutor
 
-
-Workloads
----------
-
-A workload in context of an Executor is the fundamental unit of execution for an executor. It represents a discrete
-operation or job that the executor runs on a worker. For example, it can run user code encapsulated in an Airflow task
-on a worker.
-
-Example:
-
-.. code-block:: python
-
-    ExecuteTask(
-        token="mock",
-        ti=TaskInstance(
-            id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
-            task_id="mock",
-            dag_id="mock",
-            run_id="mock",
-            try_number=1,
-            map_index=-1,
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
-            executor_config=None,
-            parent_context_carrier=None,
-            context_carrier=None,
-            queued_dttm=None,
-        ),
-        dag_rel_path=PurePosixPath("mock.py"),
-        bundle_info=BundleInfo(name="n/a", version="no matter"),
-        log_path="mock.log",
-        type="ExecuteTask",
-    )
-
-
 Executor Types
 --------------
 
@@ -265,6 +229,40 @@ Some reasons you may want to write a custom executor include:
 * An executor does not exist which fits your specific use case, such as a specific tool or service for compute.
 * You'd like to use an executor that leverages a compute service from your preferred cloud provider.
 * You have a private tool/service for task execution that is only available to you or your organization.
+
+Workloads
+^^^^^^^^^
+
+A workload in context of an Executor is the fundamental unit of execution for an executor. It represents a discrete
+operation or job that the executor runs on a worker. For example, it can run user code encapsulated in an Airflow task
+on a worker.
+
+Example:
+
+.. code-block:: python
+
+    ExecuteTask(
+        token="mock",
+        ti=TaskInstance(
+            id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+            task_id="mock",
+            dag_id="mock",
+            run_id="mock",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+            executor_config=None,
+            parent_context_carrier=None,
+            context_carrier=None,
+            queued_dttm=None,
+        ),
+        dag_rel_path=PurePosixPath("mock.py"),
+        bundle_info=BundleInfo(name="n/a", version="no matter"),
+        log_path="mock.log",
+        type="ExecuteTask",
+    )
 
 
 Important BaseExecutor Methods
