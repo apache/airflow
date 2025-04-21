@@ -554,6 +554,15 @@ class JobResponse(BaseModel):
     unixname: Annotated[str | None, Field(title="Unixname")] = None
 
 
+class PluginImportErrorResponse(BaseModel):
+    """
+    Plugin Import Error serializer for responses.
+    """
+
+    source: Annotated[str, Field(title="Source")]
+    error: Annotated[str, Field(title="Error")]
+
+
 class PluginResponse(BaseModel):
     """
     Plugin serializer.
@@ -1329,6 +1338,15 @@ class PluginCollectionResponse(BaseModel):
     """
 
     plugins: Annotated[list[PluginResponse], Field(title="Plugins")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class PluginImportErrorCollectionResponse(BaseModel):
+    """
+    Plugin Import Error Collection serializer.
+    """
+
+    import_errors: Annotated[list[PluginImportErrorResponse], Field(title="Import Errors")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
