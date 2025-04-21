@@ -43,7 +43,7 @@ There are three ways to declare a DAG - either you can use ``with`` statement (c
 which will add anything inside it to the DAG implicitly:
 
 .. code-block:: python
-   :emphasize-lines: 6-10
+    :emphasize-lines: 6-10
 
     import datetime
 
@@ -55,7 +55,7 @@ which will add anything inside it to the DAG implicitly:
         start_date=datetime.datetime(2021, 1, 1),
         schedule="@daily",
     ):
-    EmptyOperator(task_id="task")
+        EmptyOperator(task_id="task")
 
 
 Or, you can use a standard constructor, passing the DAG into any operators you use:
@@ -63,17 +63,17 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
 .. code-block:: python
    :emphasize-lines: 6-11
 
-    import datetime
+   import datetime
 
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.empty import EmptyOperator
+   from airflow.sdk import DAG
+   from airflow.providers.standard.operators.empty import EmptyOperator
 
-    my_dag = DAG(
-        dag_id="my_dag_name",
-        start_date=datetime.datetime(2021, 1, 1),
-        schedule="@daily",
-    )
-    EmptyOperator(task_id="task", dag=my_dag)
+   my_dag = DAG(
+       dag_id="my_dag_name",
+       start_date=datetime.datetime(2021, 1, 1),
+       schedule="@daily",
+   )
+   EmptyOperator(task_id="task", dag=my_dag)
 
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts-dag-decorator>`:
