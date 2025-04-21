@@ -420,7 +420,7 @@ class TestBaseChartTest:
             (f"{release_name}-cleanup-role", "Role", None),
             (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
             (f"{release_name}-create-user", "Job", "create-user-job"),
-            (f"{release_name}-fernet-key", "Secret", None),
+            (f"{release_name}-fernet-key", "Secret", "webserver"),
             (f"{release_name}-flower", "Deployment", "flower"),
             (f"{release_name}-flower", "Service", "flower"),
             (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
