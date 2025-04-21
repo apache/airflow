@@ -1706,7 +1706,7 @@ export const ensureUseTaskInstanceServiceGetLogData = (
  * @param data.taskId
  * @param data.tryNumber
  * @param data.mapIndex
- * @returns unknown External log URL
+ * @returns ExternalLogUrlResponse External log URL
  * @throws ApiError
  */
 export const ensureUseTaskInstanceServiceGetExternalLogUrlData = (

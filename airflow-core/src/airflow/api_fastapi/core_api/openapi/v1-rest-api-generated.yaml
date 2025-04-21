@@ -6465,6 +6465,7 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/ExternalLogUrlResponse'
                 type: object
                 properties:
                   url:
@@ -8877,6 +8878,16 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
+    ExternalLogUrlResponse:
+      properties:
+        url:
+          type: string
+          title: Url
+      type: object
+      required:
+      - url
+      title: ExternalLogUrlResponse
+      description: Response for the external log URL endpoint.
     ExtraLinkCollectionResponse:
       properties:
         extra_links:

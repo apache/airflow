@@ -793,6 +793,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Response for the external log URL endpoint.
+ */
+export type ExternalLogUrlResponse = {
+  url: string;
+};
+
+/**
  * Extra Links Response.
  */
 export type ExtraLinkCollectionResponse = {
@@ -2401,9 +2408,7 @@ export type GetExternalLogUrlData = {
   tryNumber: number;
 };
 
-export type GetExternalLogUrlResponse = {
-  url?: string;
-};
+export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
 export type GetImportErrorData = {
   importErrorId: number;
@@ -4669,9 +4674,7 @@ export type $OpenApiTs = {
         /**
          * External log URL
          */
-        200: {
-          url?: string;
-        };
+        200: ExternalLogUrlResponse;
         /**
          * Unauthorized
          */

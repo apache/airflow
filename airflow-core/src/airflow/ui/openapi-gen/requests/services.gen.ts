@@ -2560,7 +2560,7 @@ export class TaskInstanceService {
    * @param data.taskId
    * @param data.tryNumber
    * @param data.mapIndex
-   * @returns unknown External log URL
+   * @returns ExternalLogUrlResponse External log URL
    * @throws ApiError
    */
   public static getExternalLogUrl(data: GetExternalLogUrlData): CancelablePromise<GetExternalLogUrlResponse> {

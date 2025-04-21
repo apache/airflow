@@ -30,7 +30,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
-from airflow.api_fastapi.core_api.datamodels.log import TaskInstancesLogResponse
+from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
@@ -165,6 +165,7 @@ def get_log(
         },
     },
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
+    response_model=ExternalLogUrlResponse,
 )
 def get_external_log_url(
     dag_id: str,

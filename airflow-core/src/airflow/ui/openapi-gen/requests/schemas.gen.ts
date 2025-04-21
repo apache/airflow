@@ -3046,6 +3046,19 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
+export const $ExternalLogUrlResponse = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ExternalLogUrlResponse",
+  description: "Response for the external log URL endpoint.",
+} as const;
+
 export const $ExtraLinkCollectionResponse = {
   properties: {
     extra_links: {
