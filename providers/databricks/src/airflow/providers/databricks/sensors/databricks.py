@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -120,8 +121,9 @@ class DatabricksSQLStatementsSensor(DatabricksSqlStatementsMixin, BaseSensorOper
 
         if self.deferrable:
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
-        else:
-            self._handle_execution()  # type: ignore[misc]
+        # Shouldn't need to worry about this, it will default to the `poke` method
+        # else:
+        #     self._handle_execution()  # type: ignore[misc]
 
     def poke(self, context: Context):
         # This is going to very closely mirror the execute_complete
@@ -131,7 +133,7 @@ class DatabricksSQLStatementsSensor(DatabricksSqlStatementsMixin, BaseSensorOper
             self.log.info("SQL Statement with ID %s is running", self.statement_id)
             return False
         if statement_state.is_successful:
-            # execute_complete will take care of the logging
+            self.log.info("SQL Statement with ID %s completed successfully.", self.statement_id)
             return True
         raise AirflowException(
             f"SQL Statement with ID {statement_state} failed with error: {statement_state.error_message}"
