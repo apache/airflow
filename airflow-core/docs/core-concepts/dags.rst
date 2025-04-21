@@ -55,7 +55,7 @@ which will add anything inside it to the DAG implicitly:
         start_date=datetime.datetime(2021, 1, 1),
         schedule="@daily",
     ):
-        EmptyOperator(task_id="task")
+    EmptyOperator(task_id="task")
 
 
 Or, you can use a standard constructor, passing the DAG into any operators you use:
