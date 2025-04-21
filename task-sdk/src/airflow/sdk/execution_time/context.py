@@ -20,7 +20,7 @@ import collections
 import contextlib
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 import attrs
 import structlog
@@ -398,7 +398,7 @@ class _AssetRefResolutionMixin:
 @attrs.define
 class TriggeringAssetEventsAccessor(
     _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias, AssetRef], Sequence["AssetEventDagRunReferenceResult"]],
+    Mapping["Asset | AssetAlias | AssetRef", Sequence["AssetEventDagRunReferenceResult"]],
 ):
     """Lazy mapping of triggering asset events."""
 
@@ -467,6 +467,15 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
 
 
 class _AssetEventAccessorsMixin(Generic[T]):
+    @overload
+    def for_asset(self, *, name: str, uri: str) -> T: ...
+
+    @overload
+    def for_asset(self, *, name: str) -> T: ...
+
+    @overload
+    def for_asset(self, *, uri: str) -> T: ...
+
     def for_asset(self, *, name: str | None = None, uri: str | None = None) -> T:
         if name and uri:
             return self[Asset(name=name, uri=uri)]
@@ -486,8 +495,8 @@ class _AssetEventAccessorsMixin(Generic[T]):
 
 class OutletEventAccessors(
     _AssetRefResolutionMixin,
-    Mapping[Union[Asset, AssetAlias], OutletEventAccessor],
-    _AssetEventAccessorsMixin,
+    Mapping["Asset | AssetAlias", OutletEventAccessor],
+    _AssetEventAccessorsMixin[OutletEventAccessor],
 ):
     """Lazy mapping of outlet asset event accessors."""
 
@@ -522,7 +531,10 @@ class OutletEventAccessors(
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any], _AssetEventAccessorsMixin):
+class InletEventsAccessors(
+    Mapping["int | Asset | AssetAlias | AssetRef", Any],
+    _AssetEventAccessorsMixin[list["AssetEventResult"]],
+):
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
