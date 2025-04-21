@@ -25,6 +25,7 @@ import ast
 import getpass
 import inspect
 import os
+import textwrap
 from argparse import Namespace
 from collections.abc import Iterable
 from functools import partial
@@ -197,6 +198,42 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
+
+# Common arguments
+ARG_VERBOSE = Arg(flags=("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
+
+ARG_OUTPUT = Arg(
+    flags=("-o", "--output"),
+    type=str,
+    default="table",
+    choices=("table", "json", "yaml", "plain"),
+    metavar="(table, json, yaml, plain)",
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+)
+
+# Pool Commands Args
+ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
+ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
+ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_INCLUDE_DEFERRED = Arg(
+    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
+)
+ARG_POOL_IMPORT = Arg(
+    ("file",),
+    metavar="FILEPATH",
+    help="Import pools from JSON file. Example format::\n"
+    + textwrap.indent(
+        textwrap.dedent(
+            """
+            {
+                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
+            }"""
+        ),
+        " " * 4,
+    ),
+)
+ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 
 class ActionCommand(NamedTuple):
@@ -563,13 +600,30 @@ def merge_commands(
 
 command_factory = CommandFactory()
 
+AUTH_ARGS = (ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD)
+
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
-        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
+        args=AUTH_ARGS,
+    ),
+)
+
+POOL_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import"),
+        args=(ARG_POOL_IMPORT, ARG_VERBOSE, *AUTH_ARGS),
+    ),
+    ActionCommand(
+        name="export",
+        help="Export all pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
+        args=(ARG_POOL_EXPORT, ARG_VERBOSE, *AUTH_ARGS),
     ),
 )
 
@@ -580,6 +634,11 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. "
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
+    ),
+    GroupCommand(
+        name="pool",
+        help="Manage Airflow pools",
+        subcommands=POOL_COMMANDS,
     ),
 ]
 # Add generated group commands
