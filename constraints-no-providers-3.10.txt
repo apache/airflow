@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-21T02:24:12.240484
+# This constraints file was automatically generated on 2025-04-21T13:51:21.472258
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.11.17
+aiohttp==3.11.18
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -100,12 +100,12 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==12.0.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
-azure-mgmt-datafactory==9.1.0
+azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
-azure-mgmt-storage==22.1.1
+azure-mgmt-storage==22.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
 azure-storage-blob==12.25.1
