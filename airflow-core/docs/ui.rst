@@ -24,6 +24,20 @@ Here's a quick overview of some of the features and visualizations you
 can find in the Airflow UI.
 
 
+.. _ui:home:
+
+Home Page
+.........
+
+Gives an overview about recent running dags and tasks and basic system health.
+
+------------
+
+.. image:: img/ui-dark/home.png
+
+------------
+
+
 Dags View
 .........
 
@@ -42,21 +56,7 @@ For example:
 
 ------------
 
-.. image:: img/dags.png
-
-------------
-
-
-.. _ui:cluster-activity-view:
-
-Cluster Activity View
-.....................
-
-Native Airflow dashboard page into the UI to collect several useful metrics for monitoring your Airflow cluster.
-
-------------
-
-.. image:: img/cluster_activity.png
+.. image:: img/ui-dark/dags.png
 
 ------------
 
@@ -64,15 +64,19 @@ Native Airflow dashboard page into the UI to collect several useful metrics for 
 .. _ui:assets-view:
 
 Asset View
-.............
+..........
 
-A combined listing of the current assets and a graph illustrating how they are produced and consumed by dags.
+A combined listing of the current assets and details how they are produced and consumed by dags.
 
-Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
+Clicking on any asset detail in the list will show it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
 
 ------------
 
-.. image:: img/assets.png
+.. image:: img/ui-dark/assets.png
+
+------------
+
+.. image:: img/ui-dark/assets_graph.png
 
 ------------
 
@@ -86,36 +90,46 @@ and below, task instances. If a pipeline is late,
 you can quickly see where the different steps are and identify
 the blocking ones.
 
+The overview panel on the right provides fast access to recently failed tasks and logs.
+
+The overview includes the Dag runtime for the last execution to find outliers.
+
 ------------
 
-.. image:: img/grid.png
+.. image:: img/ui-dark/grid.png
 
 ------------
 
 The details panel will update when selecting a DAG Run by clicking on a duration bar:
 
-.. image:: img/grid_run_details.png
+.. image:: img/ui-dark/grid_run_details.png
 
 Or selecting a Task Instance by clicking on a status box:
 
-.. image:: img/grid_instance_details.png
+.. image:: img/ui-dark/grid_instance_details.png
 
-Or selecting a Task across all runs by click on the task_id:
+Or selecting a Task across all runs by click on the task_id.
 
-.. image:: img/grid_task_details.png
+This also plots the duration of your different tasks over the past N runs. This view lets
+you find outliers and quickly understand where the time is spent in your
+DAG over many runs.
+
+.. image:: img/ui-dark/grid_task_details.png
 
 Manual runs are indicated by a play icon (just like the Trigger DAG button).
-Asset triggered runs are indicated by a database icon:
+Asset triggered runs are indicated by a database icon.
+Normal scheduled runs have no indicator.
+If a backfill was used to create the DAG run, it will be indicated by a arrow icon:
 
-.. image:: img/run_types.png
+.. image:: img/ui-dark/run_types.png
 
 Task groups are indicated by a caret and can be opened or closed:
 
-.. image:: img/grid_task_group.png
+.. image:: img/ui-dark/grid_task_group.png
 
 Mapped Tasks are indicated by square brackets and will show a table of each mapped task instance in the Mapped Tasks panel:
 
-.. image:: img/grid_mapped_task.png
+.. image:: img/ui-dark/grid_mapped_task.png
 
 ------------
 
@@ -130,19 +144,15 @@ dependencies and their current status for a specific run.
 
 ------------
 
-.. image:: img/graph.png
+.. image:: img/ui-dark/graph.png
 
 ------------
 
-Calendar View
-.............
-
-The calendar view gives you an overview of your entire DAG's history over months or even years.
-Letting you quickly see trends of the overall success/failure rate of runs over time.
+If you use the options to display external dependencies, you can follow asset conditions and events.
 
 ------------
 
-.. image:: img/calendar.png
+.. image:: img/ui-dark/graph_dependencies.png
 
 ------------
 
@@ -160,49 +170,6 @@ by default, but can be configured to show in cleartext. See :ref:`security:mask-
 
 ------------
 
-Gantt Chart
-...........
-
-The Gantt chart lets you analyse task duration and overlap. You can quickly
-identify bottlenecks and where the bulk of the time is spent for specific
-DAG runs.
-
-------------
-
-.. image:: img/gantt.png
-
-------------
-
-.. _ui:task-duration:
-
-Task Duration
-.............
-
-The duration of your different tasks over the past N runs. This view lets
-you find outliers and quickly understand where the time is spent in your
-DAG over many runs.
-
-
-------------
-
-.. image:: img/duration.png
-
-------------
-
-.. _ui:landing-times:
-
-Landing Times
-.............
-
-The landing time for a task instance is the delta between the dag run's data interval end
-(typically this means when the dag "should" run) and the dag run completion time.
-
-------------
-
-.. image:: img/landing_times.png
-
-------------
-
 Code View
 .........
 
@@ -212,7 +179,17 @@ provide yet more context.
 
 ------------
 
-.. image:: img/code.png
+.. image:: img/ui-dark/code.png
+
+Backfill
+........
+
+If runs in your scheduled Dag are missing you can use the backfill option in the UI to re-run missing
+executions for a selective time interval.
+
+------------
+
+.. image:: img/ui-dark/backfill.png
 
 Trigger Form
 ............
@@ -222,16 +199,15 @@ The form display is based on the DAG Parameters as described in :doc:`core-conce
 
 ------------
 
-.. image:: img/trigger-dag-tutorial-form-1.png
+.. image:: img/ui-dark/trigger-dag-tutorial-form-1.png
 
-Audit Log
-.............
+Events
+......
 
-See all events related to a DAG. Filter events by changing the Task and DAG Run
-selection and by including/excluding different event names.
+See all events related to a DAG.
 
 ------------
 
-.. image:: img/audit_log.png
+.. image:: img/ui-dark/events.png
 
 ------------
