@@ -155,17 +155,8 @@ def get_log(
 
 @task_instances_log_router.get(
     "/{task_id}/externalLogUrl/{try_number}",
-    responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-        status.HTTP_200_OK: {
-            "description": "External log URL",
-            "content": {
-                "application/json": {"schema": {"type": "object", "properties": {"url": {"type": "string"}}}}
-            },
-        },
-    },
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
-    response_model=ExternalLogUrlResponse,
 )
 def get_external_log_url(
     dag_id: str,
@@ -174,7 +165,7 @@ def get_external_log_url(
     try_number: PositiveInt,
     session: SessionDep,
     map_index: int = -1,
-):
+) -> ExternalLogUrlResponse:
     """Get external log URL for a specific task instance."""
     task_log_reader = TaskLogReader()
 
@@ -193,6 +184,5 @@ def get_external_log_url(
     if ti is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
 
-    # Get the external log URL
     url = task_log_reader.log_handler.get_external_log_url(ti, try_number)
-    return {"url": url}
+    return ExternalLogUrlResponse(url=url)

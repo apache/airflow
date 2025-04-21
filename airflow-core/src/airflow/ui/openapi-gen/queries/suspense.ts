@@ -2004,7 +2004,7 @@ export const useTaskInstanceServiceGetLogSuspense = <
  * @param data.taskId
  * @param data.tryNumber
  * @param data.mapIndex
- * @returns ExternalLogUrlResponse External log URL
+ * @returns ExternalLogUrlResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServiceGetExternalLogUrlSuspense = <

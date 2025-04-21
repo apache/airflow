@@ -4672,7 +4672,7 @@ export type $OpenApiTs = {
       req: GetExternalLogUrlData;
       res: {
         /**
-         * External log URL
+         * Successful Response
          */
         200: ExternalLogUrlResponse;
         /**

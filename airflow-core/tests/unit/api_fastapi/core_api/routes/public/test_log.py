@@ -426,31 +426,26 @@ class TestTaskInstancesLog:
     def test_get_external_log_url(
         self, supports_external_link, task_id, expected_status, expected_response, mock_external_url
     ):
-        with mock.patch(
-            "airflow.utils.log.log_reader.TaskLogReader.supports_external_link",
-            new_callable=mock.PropertyMock,
-            return_value=supports_external_link,
+        with (
+            mock.patch(
+                "airflow.utils.log.log_reader.TaskLogReader.supports_external_link",
+                new_callable=mock.PropertyMock,
+                return_value=supports_external_link,
+            ),
+            mock.patch("airflow.utils.log.log_reader.TaskLogReader.log_handler") as mock_log_handler,
         ):
+            url = f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{task_id}/externalLogUrl/{self.TRY_NUMBER}"
             if mock_external_url:
-                with mock.patch("airflow.utils.log.log_reader.TaskLogReader.log_handler") as mock_log_handler:
-                    mock_log_handler.get_external_log_url.return_value = (
-                        "https://external-logs.example.com/log/123"
-                    )
-
-                    response = self.client.get(
-                        f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{task_id}/externalLogUrl/{self.TRY_NUMBER}",
-                        headers={"Accept": "application/json"},
-                    )
-
-                    assert response.status_code == expected_status
-                    assert response.json() == expected_response
-
-                    mock_log_handler.get_external_log_url.assert_called_once() if expected_status == 200 else mock_log_handler.get_external_log_url.assert_not_called()
-            else:
-                response = self.client.get(
-                    f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{task_id}/externalLogUrl/{self.TRY_NUMBER}",
-                    headers={"Accept": "application/json"},
+                mock_log_handler.get_external_log_url.return_value = (
+                    "https://external-logs.example.com/log/123"
                 )
 
-                assert response.status_code == expected_status
-                assert response.json() == expected_response
+            response = self.client.get(url)
+
+            if expected_status == 200:
+                mock_log_handler.get_external_log_url.assert_called_once()
+            else:
+                mock_log_handler.get_external_log_url.assert_not_called()
+
+            assert response.status_code == expected_status
+            assert response.json() == expected_response

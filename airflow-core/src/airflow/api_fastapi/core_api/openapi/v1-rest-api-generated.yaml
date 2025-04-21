@@ -6461,15 +6461,11 @@ paths:
           title: Map Index
       responses:
         '200':
-          description: External log URL
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExternalLogUrlResponse'
-                type: object
-                properties:
-                  url:
-                    type: string
         '401':
           content:
             application/json:
