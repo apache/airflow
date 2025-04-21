@@ -95,8 +95,8 @@ Setting up debugging
 
 1. Debugging an example DAG
 
-- In Visual Studio Code open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
-  machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
+- In Visual Studio Code open Airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
+  machine when breeze Airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
 - Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
