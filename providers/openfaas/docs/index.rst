@@ -61,7 +61,7 @@ apache-airflow-providers-openfaas package
 `OpenFaaS <https://www.openfaas.com/>`__
 
 
-Release: 3.7.1
+Release: 3.7.2
 
 Provider package
 ----------------

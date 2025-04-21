@@ -15,26 +15,64 @@
     specific language governing permissions and limitations
     under the License.
 
-Apache Hive Operators
-=====================
 
-The Apache Hive data warehouse software facilitates reading, writing,
-and managing large datasets residing in distributed storage using SQL.
-Structure can be projected onto data already in storage.
 
-HiveOperator
-------------
+.. _howto/operator:HiveOperator:
 
-This operator executes hql code or hive script in a specific Hive database.
+SQLExecuteQueryOperator to connect to Apache Hive
+====================================================
 
-.. exampleinclude:: /../tests/system/apache/hive/example_twitter_dag.py
+Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.sql>` to execute
+Hive commands in an `Apache Hive <https://cwiki.apache.org/confluence/display/Hive/Home>`__ database.
+
+.. note::
+    Previously, ``HiveOperator`` was used to perform this kind of operation.
+    After deprecation this has been removed. Please use ``SQLExecuteQueryOperator`` instead.
+
+.. note::
+    Make sure you have installed the ``apache-airflow-providers-apache-hive`` package
+    to enable Hive support.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+Use the ``conn_id`` argument to connect to your Apache Hive instance where
+the connection metadata is structured as follows:
+
+.. list-table:: Hive Airflow Connection Metadata
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Parameter
+     - Input
+   * - Host: string
+     - HiveServer2 hostname or IP address
+   * - Schema: string
+     - Default database name (optional)
+   * - Login: string
+     - Hive username (if applicable)
+   * - Password: string
+     - Hive password (if applicable)
+   * - Port: int
+     - HiveServer2 port (default: 10000)
+   * - Extra: JSON
+     - Additional connection configuration, such as the authentication method:
+       ``{"auth": "NOSASL"}``
+
+An example usage of the SQLExecuteQueryOperator to connect to Apache Hive is as follows:
+
+.. exampleinclude:: /../tests/system/apache/hive/example_hive.py
     :language: python
-    :dedent: 4
-    :start-after: [START create_hive]
-    :end-before: [END create_hive]
-
+    :start-after: [START howto_operator_hive]
+    :end-before: [END howto_operator_hive]
 
 Reference
 ^^^^^^^^^
+For further information, look at:
 
-For more information check `Apache Hive documentation <https://hive.apache.org/>`__.
+* `Apache Hive Documentation <https://cwiki.apache.org/confluence/display/Hive/Home>`__
+
+.. note::
+
+  Parameters provided directly via SQLExecuteQueryOperator() take precedence
+  over those specified in the Airflow connection metadata (such as ``schema``, ``login``, ``password``, etc).

@@ -850,9 +850,8 @@ class EmrModifyClusterOperator(BaseOperator):
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Modify cluster failed: {response}")
-        else:
-            self.log.info("Steps concurrency level %d", response["StepConcurrencyLevel"])
-            return response["StepConcurrencyLevel"]
+        self.log.info("Steps concurrency level %d", response["StepConcurrencyLevel"])
+        return response["StepConcurrencyLevel"]
 
 
 class EmrTerminateJobFlowOperator(BaseOperator):
@@ -1070,7 +1069,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
+        if event["status"] != "success":
             raise AirflowException(f"Application {event['application_id']} failed to create")
         self.log.info("Starting application %s", event["application_id"])
         self.hook.conn.start_application(applicationId=event["application_id"])
@@ -1533,7 +1532,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "success":
+        if event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(

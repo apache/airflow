@@ -364,7 +364,7 @@ class TestSnowflakeSqlApiHook:
         requests_post.return_value.status_code = 200
         mock_auth.return_value = BASIC_AUTH
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        hook.get_oauth_token()
+        hook.get_oauth_token(CONN_PARAMS_OAUTH)
         requests_post.assert_called_once_with(
             f"https://{CONN_PARAMS_OAUTH['account']}.{CONN_PARAMS_OAUTH['region']}.snowflakecomputing.com/oauth/token-request",
             data={

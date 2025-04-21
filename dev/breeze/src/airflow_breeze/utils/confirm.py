@@ -77,16 +77,14 @@ def user_confirm(
                 if user_status == "":
                     if default_answer:
                         return default_answer
-                    else:
-                        continue
+                    continue
             if user_status.upper() in ["Y", "YES"]:
                 return Answer.YES
-            elif user_status.upper() in ["N", "NO"]:
+            if user_status.upper() in ["N", "NO"]:
                 return Answer.NO
-            elif user_status.upper() in ["Q", "QUIT"] and quit_allowed:
+            if user_status.upper() in ["Q", "QUIT"] and quit_allowed:
                 return Answer.QUIT
-            else:
-                print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")
+            print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")
         except TimeoutOccurred:
             if default_answer:
                 return default_answer
@@ -107,7 +105,7 @@ def confirm_action(
     answer = user_confirm(message, timeout, default_answer, quit_allowed)
     if answer == Answer.YES:
         return True
-    elif abort:
+    if abort:
         sys.exit(1)
     elif answer == Answer.QUIT:
         sys.exit(1)

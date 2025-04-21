@@ -176,7 +176,7 @@ def serve_logs(port=None):
     else:
         from setproctitle import setproctitle
 
-    setproctitle("airflow serve-logs")
+        setproctitle("airflow serve-logs")
     wsgi_app = create_app()
 
     port = port or conf.getint("logging", "WORKER_LOG_SERVER_PORT")

@@ -45,13 +45,11 @@ def make_task(name, type_="classic"):
     if type_ == "classic":
         return BashOperator(task_id=name, bash_command="echo 1")
 
-    else:
+    @task_decorator
+    def my_task():
+        pass
 
-        @task_decorator
-        def my_task():
-            pass
-
-        return my_task.override(task_id=name)()
+    return my_task.override(task_id=name)()
 
 
 EXPECTED_JSON_LEGACY = {
@@ -1435,8 +1433,7 @@ def test_add_to_another_group():
 
 
 def test_task_group_edge_modifier_chain():
-    from airflow.sdk import chain
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label, chain
 
     with DAG(dag_id="test", schedule=None, start_date=pendulum.DateTime(2022, 5, 20)) as dag:
         start = EmptyOperator(task_id="sleep_3_seconds")

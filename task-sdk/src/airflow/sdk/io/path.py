@@ -135,8 +135,7 @@ class ObjectStoragePath(CloudPath):
     def bucket(self) -> str:
         if self._url:
             return self._url.netloc
-        else:
-            return ""
+        return ""
 
     @property
     def key(self) -> str:
@@ -144,8 +143,7 @@ class ObjectStoragePath(CloudPath):
             # per convention, we strip the leading slashes to ensure a relative key is returned
             # we keep the trailing slash to allow for directory-like semantics
             return self._url.path.lstrip(self.sep)
-        else:
-            return ""
+        return ""
 
     @property
     def namespace(self) -> str:
@@ -199,15 +197,13 @@ class ObjectStoragePath(CloudPath):
     def cwd(cls):
         if cls is ObjectStoragePath:
             return get_upath_class("").cwd()
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     @classmethod
     def home(cls):
         if cls is ObjectStoragePath:
             return get_upath_class("").home()
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     # EXTENDED OPERATIONS
 

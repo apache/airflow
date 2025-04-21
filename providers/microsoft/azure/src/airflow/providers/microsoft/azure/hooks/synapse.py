@@ -347,8 +347,7 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
 
         if self._conn is not None:
             return self._conn
-        else:
-            raise ValueError("Failed to create ArtifactsClient")
+        raise ValueError("Failed to create ArtifactsClient")
 
     @staticmethod
     def _create_client(credential: Credentials, endpoint: str) -> ArtifactsClient:

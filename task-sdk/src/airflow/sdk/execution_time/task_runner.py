@@ -56,6 +56,7 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
+    AssetEventDagRunReferenceResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
@@ -63,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     RescheduleTask,
     RetryTask,
@@ -72,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     ToSupervisor,
     ToTask,
@@ -170,7 +173,6 @@ class RuntimeTaskInstance(TaskInstance):
             "params": validated_params,
             # TODO: Make this go through Public API longer term.
             # "test_mode": task_instance.test_mode,
-            # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -182,7 +184,10 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "triggering_asset_events": TriggeringAssetEventsAccessor.build(dag_run.consumed_asset_events),
+                "triggering_asset_events": TriggeringAssetEventsAccessor.build(
+                    AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
+                    for event in dag_run.consumed_asset_events
+                ),
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
@@ -433,6 +438,35 @@ class RuntimeTaskInstance(TaskInstance):
         return response.count
 
     @staticmethod
+    def get_task_states(
+        dag_id: str,
+        task_ids: list[str] | None = None,
+        task_group_id: str | None = None,
+        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Return the task states matching the given criteria."""
+        log = structlog.get_logger(logger_name="task")
+
+        with SUPERVISOR_COMMS.lock:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=GetTaskStates(
+                    dag_id=dag_id,
+                    task_ids=task_ids,
+                    task_group_id=task_group_id,
+                    logical_dates=logical_dates,
+                    run_ids=run_ids,
+                ),
+            )
+            response = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(response, TaskStatesResult)
+
+        return response.task_states
+
+    @staticmethod
     def get_dr_count(
         dag_id: str,
         logical_dates: list[datetime] | None = None,
@@ -501,7 +535,7 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def parse(what: StartupDetails) -> RuntimeTaskInstance:
+def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
 
@@ -524,12 +558,28 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
-    dag = bag.dags[what.ti.dag_id]
+    try:
+        dag = bag.dags[what.ti.dag_id]
+    except KeyError:
+        log.error(
+            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+        )
+        exit(1)
 
     # install_loader()
 
-    # TODO: Handle task not found
-    task = dag.task_dict[what.ti.task_id]
+    try:
+        task = dag.task_dict[what.ti.task_id]
+    except KeyError:
+        log.error(
+            "Task not found in DAG during start up",
+            dag_id=dag.dag_id,
+            task_id=what.ti.task_id,
+            bundle=bundle_info,
+            path=what.dag_rel_path,
+        )
+        exit(1)
+
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
@@ -640,7 +690,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             setproctitle(f"airflow worker -- {msg.ti.id}")
 
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg)
+            ti = parse(msg, log)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -830,7 +880,7 @@ def run(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.exception("Task failed with exception")
+        log.error("Task exited", exit_code=e.code)
         msg, state = _handle_current_task_failed(ti)
         error = e
     except BaseException as e:
@@ -920,7 +970,7 @@ def _handle_trigger_dag_run(
             method_name="execute_complete",
         )
         return _defer_task(defer, ti, log)
-    elif drte.wait_for_completion:
+    if drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1110,9 +1160,7 @@ def finalize(
         if ti.task.template_fields:
             SUPERVISOR_COMMS.send_request(
                 log=log,
-                msg=SetRenderedFields(
-                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
-                ),
+                msg=SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)),
             )
 
     log.debug("Running finalizers", ti=ti)

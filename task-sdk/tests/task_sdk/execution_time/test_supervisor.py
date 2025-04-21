@@ -21,6 +21,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import selectors
 import signal
 import socket
@@ -28,7 +29,6 @@ import sys
 import time
 from io import BytesIO
 from operator import attrgetter
-from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -36,14 +36,11 @@ from unittest.mock import MagicMock, patch
 import httpx
 import psutil
 import pytest
-import tenacity
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.listeners import hookimpl
-from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -60,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DagRunStateResult,
     DeferTask,
+    DeleteVariable,
     DeleteXCom,
     DRCount,
     ErrorResponse,
@@ -72,6 +70,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPrevSuccessfulDagRun,
     GetTaskRescheduleStartDate,
+    GetTaskStates,
     GetTICount,
     GetVariable,
     GetXCom,
@@ -85,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStatesResult,
     TICount,
     TriggerDagRun,
     VariableResult,
@@ -499,19 +499,18 @@ class TestWatchedSubprocess:
                 if request_count["count"] == 1:
                     # First request succeeds
                     return httpx.Response(status_code=204)
-                else:
-                    # Second request returns a conflict status code
-                    return httpx.Response(
-                        409,
-                        json={
-                            "reason": "not_running",
-                            "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
-                            "current_state": "success",
-                        },
-                    )
-            elif request.url.path == f"/task-instances/{ti_id}/run":
+                # Second request returns a conflict status code
+                return httpx.Response(
+                    409,
+                    json={
+                        "reason": "not_running",
+                        "message": "TI is no longer in the 'running' state. Task state might be externally set and task should terminate",
+                        "current_state": "success",
+                    },
+                )
+            if request.url.path == f"/task-instances/{ti_id}/run":
                 return httpx.Response(200, json=make_ti_context_dict())
-            elif request.url.path == f"/task-instances/{ti_id}/state":
+            if request.url.path == f"/task-instances/{ti_id}/state":
                 pytest.fail("Should not have sent a state update request")
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
@@ -709,104 +708,56 @@ class TestWatchedSubprocess:
             mock_kill.assert_not_called()
             mock_logger.warning.assert_not_called()
 
-
-class TestListenerOvertime:
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
-    class TimeoutListener:
-        def __init__(self, timeout):
-            self.timeout = timeout
-
-        @hookimpl
-        def on_task_instance_success(self):
-            from time import sleep
-
-            sleep(self.timeout)
-
-        @hookimpl
-        def on_task_instance_failed(self):
-            from time import sleep
-
-            sleep(self.timeout)
-
     @pytest.mark.parametrize(
-        ["dag_id", "task_id", "overtime_threshold", "expected_timeout", "listener"],
-        [
+        ["signal_to_raise", "log_pattern"],
+        (
             pytest.param(
-                "super_basic_run",
-                "hello",
-                2.0,
-                True,
-                TimeoutListener(5.0),
+                signal.SIGKILL,
+                re.compile(r"Process terminated by signal. For more information, see"),
+                id="kill",
             ),
             pytest.param(
-                "super_basic_run",
-                "hello",
-                5.0,
-                False,
-                TimeoutListener(2.0),
+                signal.SIGSEGV,
+                re.compile(r".*SIGSEGV \(Segmentation Violation\) signal indicates", re.DOTALL),
+                id="segv",
             ),
-        ],
+        ),
     )
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(5),
-        retry=tenacity.retry_if_exception_type(AssertionError),
-        before=tenacity.before_log(log, logging.INFO),
-    )
-    def test_overtime_slow_listener_instance(
-        self,
-        dag_id,
-        task_id,
-        overtime_threshold,
-        expected_timeout,
-        listener,
-        monkeypatch,
-        test_dags_dir,
-        captured_logs,
-    ):
-        """Test handling of overtime under various conditions."""
-        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+    def test_exit_by_signal(self, monkeypatch, signal_to_raise, log_pattern, cap_structlog):
+        def subprocess_main():
+            import faulthandler
+            import os
 
-        """Test running a simple DAG in a subprocess and capturing the output."""
-        get_listener_manager().add_listener(listener)
-        ti = TaskInstance(
-            id=uuid7(),
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id="fd",
-            try_number=1,
+            # Disable pytest fault handler
+            if faulthandler.is_enabled():
+                faulthandler.disable()
+
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            sys.stdin.readline()
+
+            os.kill(os.getpid(), signal_to_raise)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+            ),
+            client=MagicMock(spec=sdk_client.Client),
+            target=subprocess_main,
         )
-        bundle_info = BundleInfo(name="my-bundle", version=None)
-        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-            exit_code = supervise(
-                ti=ti,
-                dag_rel_path=Path("super_basic_run.py"),
-                token="",
-                server="",
-                dry_run=True,
-                bundle_info=bundle_info,
-            )
-            assert captured_logs
-            print(json.dumps(captured_logs, indent=4, default=str))
-            assert exit_code == 0
 
-        if expected_timeout:
-            assert any(
-                event["event"] == "Workload success overtime reached; terminating process"
-                for event in captured_logs
-            )
-            assert any(
-                event["event"] == "Process exited" and event["signal"] == "SIGTERM" for event in captured_logs
-            )
-        else:
-            assert all(
-                event["event"] != "Workload success overtime reached; terminating process"
-                for event in captured_logs
-            )
+        rc = proc.wait()
+
+        assert {
+            "log_level": "critical",
+            "event": log_pattern,
+        } in cap_structlog
+        assert rc == -signal_to_raise
 
 
 class TestWatchedSubprocessKill:
@@ -892,7 +843,9 @@ class TestWatchedSubprocessKill:
                 print(f"Signal {sig} received", file=sys.stderr)
                 if exit_after == sig:
                     sleep(0.1)
-                    exit(sig)
+                    # We exit 0 as that's what task_runner.py tries hard to do. The only difference if we exit
+                    # with non-zero is extra logs
+                    exit(0)
                 sleep(5)
                 print("Should not get here")
 
@@ -954,8 +907,6 @@ class TestWatchedSubprocessKill:
                         "logger": "supervisor",
                     }
                 )
-            # expected_logs.push({"chan": "stderr", "event": "Signal 9 received", "logger": "task"})
-            ...
 
         expected_logs.extend(({"chan": None, "event": "Process exited", "logger": "supervisor"},))
         assert logs == expected_logs
@@ -1053,8 +1004,17 @@ class TestHandleRequest:
                 "variables.set",
                 ("test_key", "test_value", "test_description"),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_variable",
+            ),
+            pytest.param(
+                DeleteVariable(key="test_key"),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "variables.delete",
+                ("test_key",),
+                {},
+                OKResponse(ok=True),
+                id="delete_variable",
             ),
             pytest.param(
                 DeferTask(next_method="execute_callback", classpath="my-classpath"),
@@ -1147,7 +1107,7 @@ class TestHandleRequest:
                     None,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom",
             ),
             pytest.param(
@@ -1171,7 +1131,7 @@ class TestHandleRequest:
                     None,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom_with_map_index",
             ),
             pytest.param(
@@ -1196,7 +1156,7 @@ class TestHandleRequest:
                     3,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_xcom_with_map_index_and_mapped_length",
             ),
             pytest.param(
@@ -1217,7 +1177,7 @@ class TestHandleRequest:
                     2,
                 ),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="delete_xcom",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
@@ -1246,7 +1206,7 @@ class TestHandleRequest:
                 "task_instances.set_rtif",
                 (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
                 {},
-                {"ok": True},
+                OKResponse(ok=True),
                 id="set_rtif",
             ),
             pytest.param(
@@ -1459,6 +1419,21 @@ class TestHandleRequest:
                 DRCount(count=2),
                 id="get_dr_count",
             ),
+            pytest.param(
+                GetTaskStates(dag_id="test_dag", task_group_id="test_group"),
+                b'{"task_states":{"run_id":{"task1":"success","task2":"failed"}},"type":"TaskStatesResult"}\n',
+                "task_instances.get_task_states",
+                (),
+                {
+                    "dag_id": "test_dag",
+                    "task_ids": None,
+                    "logical_dates": None,
+                    "run_ids": None,
+                    "task_group_id": "test_group",
+                },
+                TaskStatesResult(task_states={"run_id": {"task1": "success", "task2": "failed"}}),
+                id="get_task_states",
+            ),
         ],
     )
     def test_handle_requests(
@@ -1525,6 +1500,9 @@ class TestHandleRequest:
         # and deserialize it to the correct message type
 
         # Only decode the buffer if it contains data. An empty buffer implies no response was written.
+        if not val and (mock_response and not isinstance(mock_response, OKResponse)):
+            pytest.fail("Expected a response, but got an empty buffer.")
+
         if val:
             # Using BytesIO to simulate a readable stream for CommsDecoder.
             input_stream = BytesIO(val)

@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
 
-API_VERSION: Final[str] = "2025-04-10"
+API_VERSION: Final[str] = "2025-04-11"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -281,6 +281,14 @@ class TITargetStatePayload(BaseModel):
         extra="forbid",
     )
     state: IntermediateTIState
+
+
+class TaskStatesResponse(BaseModel):
+    """
+    Response for task states with run_id, task and state.
+    """
+
+    task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
 class TerminalStateNonSuccess(str, Enum):

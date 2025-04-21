@@ -84,22 +84,28 @@ class ConfigChange:
 
     :param config: The configuration parameter being changed.
     :param default_change: If the change is a default value change.
+    :param old_default: The old default value (valid only if default_change is True).
     :param new_default: The new default value for the configuration parameter.
     :param suggestion: A suggestion for replacing or handling the removed configuration.
     :param renamed_to: The new section and option if the configuration is renamed.
     :param was_deprecated: If the config is removed, whether the old config was deprecated.
     :param was_removed: If the config is removed.
     :param is_invalid_if: If the current config value is invalid in the future.
+    :param breaking: Mark if this change is known to be breaking and causing errors/ warnings / deprecations.
+    :param remove_if_equals: For removal rules, remove the option only if its current value equals this value.
     """
 
     config: ConfigParameter
     default_change: bool = False
+    old_default: str | bool | int | float | None = None
     new_default: str | bool | int | float | None = None
     suggestion: str = ""
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
     was_removed: bool = True
     is_invalid_if: Any = None
+    breaking: bool = False
+    remove_if_equals: str | bool | int | float | None = None
 
     @property
     def message(self) -> str | None:
@@ -108,10 +114,9 @@ class ConfigChange:
             value = conf.get(self.config.section, self.config.option)
             if value != self.new_default:
                 return (
-                    f"Changed default value of `{self.config.option}` "
-                    f"configuration parameter in `{self.config.section}` to `{self.new_default}`. "
-                    f"You currently have `{value}` set. "
-                    f"{self.suggestion} "
+                    f"Changed default value of `{self.config.option}` in `{self.config.section}` "
+                    f"from `{self.old_default}` to `{self.new_default}`. "
+                    f"You currently have `{value}` set. {self.suggestion}"
                 )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
@@ -123,7 +128,7 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed:
+        if self.was_removed and not self.remove_if_equals:
             return (
                 f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
                 f"from `{self.config.section}` section. "
@@ -153,8 +158,15 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("core", "executor"),
         default_change=True,
+        old_default="SequentialExecutor",
         new_default="LocalExecutor",
         was_removed=False,
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "hostname"),
+        was_removed=True,
+        remove_if_equals=":",
     ),
     ConfigChange(
         config=ConfigParameter("core", "check_slas"),
@@ -290,6 +302,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("logging", "log_processor_filename_template"),
         was_deprecated=False,
     ),
+    ConfigChange(
+        config=ConfigParameter("logging", "log_filename_template"),
+        was_removed=True,
+        remove_if_equals="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("logging", "log_filename_template"),
+        was_removed=True,
+        remove_if_equals="dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log",
+        breaking=True,
+    ),
     # metrics
     ConfigChange(
         config=ConfigParameter("metrics", "metrics_use_pattern_match"),
@@ -362,14 +386,17 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_host"),
         renamed_to=ConfigParameter("api", "host"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_port"),
         renamed_to=ConfigParameter("api", "port"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "workers"),
         renamed_to=ConfigParameter("api", "workers"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_worker_timeout"),
@@ -378,14 +405,17 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_ssl_cert"),
         renamed_to=ConfigParameter("api", "ssl_cert"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "web_server_ssl_key"),
         renamed_to=ConfigParameter("api", "ssl_key"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "access_logfile"),
         renamed_to=ConfigParameter("api", "access_logfile"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "error_logfile"),
@@ -507,10 +537,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "max_form_parts"),
         was_deprecated=False,
     ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "default_ui_timezone"),
+        was_deprecated=False,
+    ),
     # policy
     ConfigChange(
         config=ConfigParameter("policy", "airflow_local_settings"),
         renamed_to=ConfigParameter("policy", "task_policy"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "navbar_logo_text_color"),
+        was_deprecated=False,
     ),
     # scheduler
     ConfigChange(
@@ -522,6 +560,7 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "catchup_by_default"),
         default_change=True,
+        old_default="True",
         was_removed=False,
         new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
@@ -530,6 +569,23 @@ CONFIGS_CHANGES = [
         "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "create_cron_data_intervals"),
+        default_change=True,
+        old_default="True",
+        new_default="False",
+        was_removed=False,
+        breaking=True,
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "create_delta_data_intervals"),
+        default_change=True,
+        old_default="True",
+        new_default="False",
+        was_removed=False,
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
@@ -609,6 +665,7 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "dag_dir_list_interval"),
         renamed_to=ConfigParameter("dag_processor", "refresh_interval"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "local_task_job_heartbeat_sec"),
@@ -621,6 +678,10 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("scheduler", "zombie_detection_interval"),
         renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_detection_interval"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "child_process_log_directory"),
+        renamed_to=ConfigParameter("logging", "dag_processor_child_process_log_directory"),
     ),
     # celery
     ConfigChange(
@@ -661,6 +722,20 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("triggerer", "default_capacity"),
         renamed_to=ConfigParameter("triggerer", "capacity"),
+        breaking=True,
+    ),
+    # email
+    ConfigChange(
+        config=ConfigParameter("email", "email_backend"),
+        was_removed=True,
+        remove_if_equals="airflow.contrib.utils.sendgrid.send_email",
+    ),
+    # elasticsearch
+    ConfigChange(
+        config=ConfigParameter("elasticsearch", "log_id_template"),
+        was_removed=True,
+        remove_if_equals="{dag_id}-{task_id}-{logical_date}-{try_number}",
+        breaking=True,
     ),
 ]
 
@@ -757,14 +832,23 @@ def update_config(args) -> None:
     """
     Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3.
 
-    This command scans the current configuration file for parameters that have been renamed,
-    removed, or had their default values changed in Airflow 3.0, and automatically updates
-    the configuration file. This command cleans up the existing comments in airflow.cfg
+    By default, this command will perform a dry-run (showing the changes only) and list only
+    the breaking configuration changes by scanning the current configuration file for parameters that have
+    been renamed, removed, or had their default values changed in Airflow 3.0. To see or fix all recommended
+    changes, use the --all-recommendations argument. To automatically update your airflow.cfg file, use
+    the --fix argument. This command cleans up the existing comments in airflow.cfg but creates a backup of
+    the old airflow.cfg file.
 
     CLI Arguments:
-        --dry-run: flag (optional)
-            Dry-run mode (print the changes without modifying airflow.cfg)
-            Example: --dry-run
+        --fix: flag (optional)
+            Automatically fix/apply the breaking changes (or all changes if --all-recommendations is also
+            specified)
+            Example: --fix
+
+        --all-recommendations: flag (optional)
+            Include non-breaking (recommended) changes as well as breaking ones.
+            Can be used with --fix.
+            Example: --all-recommendations
 
         --section: str (optional)
             Comma-separated list of configuration sections to update.
@@ -783,19 +867,25 @@ def update_config(args) -> None:
             Example: --ignore-option check_slas
 
     Examples:
-        1. Dry-run mode (print the changes in modified airflow.cfg):
-            airflow config update --dry-run
-
-        2. Update the entire configuration file:
+        1. Dry-run mode (print the changes in modified airflow.cfg) showing only breaking changes:
             airflow config update
 
-        3. Update only the 'core' and 'database' sections:
+        2. Dry-run mode showing all recommendations:
+            airflow config update --all-recommendations
+
+        3. Apply (fix) only breaking changes:
+            airflow config update --fix
+
+        4. Apply (fix) all recommended changes:
+            airflow config update --fix --all-recommendations
+
+        5. Show changes only the specific sections:
             airflow config update --section core,database
 
-        4. Update only specific options:
+        6.Show changes only the specific options:
             airflow config update --option sql_alchemy_conn,dag_concurrency
 
-        5. Ignore updates for a specific section:
+        7. Ignores the specific section:
             airflow config update --ignore-section webserver
 
     :param args: The CLI arguments for updating configuration.
@@ -804,6 +894,9 @@ def update_config(args) -> None:
     changes_applied: list[str] = []
     modifications = ConfigModifications()
 
+    include_all = args.all_recommendations if args.all_recommendations else False
+    apply_fix = args.fix if args.fix else False
+    dry_run = not apply_fix
     update_sections = args.section if args.section else None
     update_options = args.option if args.option else None
     ignore_sections = args.ignore_section if args.ignore_section else []
@@ -817,6 +910,8 @@ def update_config(args) -> None:
         display_sensitive=True,
     )
     for change in CONFIGS_CHANGES:
+        if not include_all and not change.breaking:
+            continue
         conf_section = change.config.section.lower()
         conf_option = change.config.option.lower()
         full_key = f"{conf_section}.{conf_option}"
@@ -837,11 +932,12 @@ def update_config(args) -> None:
             continue
 
         current_value = value_data[0]
+        prefix = "[[red]BREAKING[/red]]" if change.breaking else "[[yellow]Recommended[/yellow]]"
         if change.default_change:
             if str(current_value) != str(change.new_default):
                 modifications.add_default_update(conf_section, conf_option, str(change.new_default))
                 changes_applied.append(
-                    f"Updated default value of '{conf_section}/{conf_option}' from "
+                    f"{prefix} Updated default value of '{conf_section}/{conf_option}' from "
                     f"'{current_value}' to '{change.new_default}'."
                 )
         if change.renamed_to:
@@ -849,12 +945,19 @@ def update_config(args) -> None:
                 conf_section, conf_option, change.renamed_to.section, change.renamed_to.option
             )
             changes_applied.append(
-                f"Renamed '{conf_section}/{conf_option}' to "
+                f"{prefix} Renamed '{conf_section}/{conf_option}' to "
                 f"'{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
             )
         elif change.was_removed:
-            modifications.add_remove(conf_section, conf_option)
-            changes_applied.append(f"Removed '{conf_section}/{conf_option}' from configuration.")
+            if change.remove_if_equals is not None:
+                if str(current_value) == str(change.remove_if_equals):
+                    modifications.add_remove(conf_section, conf_option)
+                    changes_applied.append(
+                        f"{prefix} Removed '{conf_section}/{conf_option}' from configuration."
+                    )
+            else:
+                modifications.add_remove(conf_section, conf_option)
+                changes_applied.append(f"{prefix} Removed '{conf_section}/{conf_option}' from configuration.")
 
     backup_path = f"{AIRFLOW_CONFIG}.bak"
     try:
@@ -864,7 +967,7 @@ def update_config(args) -> None:
         console.print(f"Failed to create backup: {e}")
         raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
 
-    if args.dry_run:
+    if dry_run:
         console.print("[blue]Dry-run mode enabled. No changes will be written to airflow.cfg.[/blue]")
         with StringIO() as config_output:
             conf.write_custom_config(
@@ -885,9 +988,14 @@ def update_config(args) -> None:
             )
 
     if changes_applied:
-        console.print("[green]The following updates were applied:[/green]")
+        console.print("[green]The following are the changes in airflow config:[/green]")
         for change_msg in changes_applied:
             console.print(f"  - {change_msg}")
+        if dry_run:
+            console.print(
+                "[blue]Dry-run is mode enabled. To apply above airflow.cfg run the command "
+                "with `--fix`.[/blue]"
+            )
     else:
         console.print("[green]No updates needed. Your configuration is already up-to-date.[/green]")
 

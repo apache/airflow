@@ -84,12 +84,11 @@ class GlueJobSensor(BaseSensorOperator):
             if job_state in self.success_states:
                 self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
                 return True
-            elif job_state in self.errored_states:
+            if job_state in self.errored_states:
                 job_error_message = "Exiting Job %s Run State: %s", self.run_id, job_state
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)
-            else:
-                return False
+            return False
         finally:
             if self.verbose:
                 self.hook.print_job_logs(
@@ -212,7 +211,7 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
 
             return True
 
-        elif status in self.FAILURE_STATES:
+        if status in self.FAILURE_STATES:
             job_error_message = (
                 f"Error: AWS Glue data quality ruleset evaluation run RunId: {self.evaluation_run_id} Run "
                 f"Status: {status}"
@@ -220,8 +219,7 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
             )
             self.log.info(job_error_message)
             raise AirflowException(job_error_message)
-        else:
-            return False
+        return False
 
 
 class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHook]):
@@ -327,7 +325,7 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
 
             return True
 
-        elif status in self.FAILURE_STATES:
+        if status in self.FAILURE_STATES:
             job_error_message = (
                 f"Error: AWS Glue data quality recommendation run RunId: {self.recommendation_run_id} Run "
                 f"Status: {status}"
@@ -335,5 +333,4 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
             )
             self.log.info(job_error_message)
             raise AirflowException(job_error_message)
-        else:
-            return False
+        return False

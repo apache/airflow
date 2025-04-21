@@ -62,6 +62,7 @@ class DAGResponse(BaseModel):
     last_parsed_time: datetime | None
     last_expired: datetime | None
     bundle_name: str | None
+    bundle_version: str | None
     relative_fileloc: str | None
     fileloc: str
     description: str | None
@@ -88,7 +89,7 @@ class DAGResponse(BaseModel):
 
         if v is None:
             return []
-        elif isinstance(v, str):
+        if isinstance(v, str):
             return v.split(",")
         return v
 

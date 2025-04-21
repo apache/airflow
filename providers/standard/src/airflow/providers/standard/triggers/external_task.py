@@ -27,7 +27,6 @@ from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if typing.TYPE_CHECKING:
     from datetime import datetime
@@ -133,15 +132,27 @@ class WorkflowTrigger(BaseTrigger):
             await asyncio.sleep(self.poke_interval)
 
     async def _get_count_af_3(self, states):
+        from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        if self.external_task_ids or self.external_task_group_id:
+        params = {
+            "dag_id": self.external_dag_id,
+            "logical_dates": self.logical_dates,
+            "run_ids": self.run_ids,
+        }
+        if self.external_task_ids:
             count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
-                dag_id=self.external_dag_id,
-                task_ids=self.external_task_ids,
+                task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                states=states,
+                **params,
+            )
+        elif self.external_task_group_id:
+            run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
                 task_group_id=self.external_task_group_id,
-                logical_dates=self.logical_dates,
-                run_ids=self.run_ids,
+                **params,
+            )
+            count = await sync_to_async(_get_count_by_matched_states)(
+                run_id_task_state_map=run_id_task_state_map,
                 states=states,
             )
         else:
@@ -151,11 +162,9 @@ class WorkflowTrigger(BaseTrigger):
                 run_ids=self.run_ids,
                 states=states,
             )
-
         if self.external_task_ids:
             return count / len(self.external_task_ids)
-        else:
-            return count
+        return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:
@@ -255,22 +264,25 @@ class DagStateTrigger(BaseTrigger):
                         return cls_path, data
             await asyncio.sleep(self.poll_interval)
 
-    @sync_to_async
-    @provide_session
-    def count_dags(self, *, session: Session = NEW_SESSION) -> int:
-        """Count how many dag runs in the database match our criteria."""
-        _dag_run_date_condition = (
-            DagRun.run_id.in_(self.run_ids)
-            if AIRFLOW_V_3_0_PLUS
-            else DagRun.execution_date.in_(self.execution_dates)
-        )
-        count = (
-            session.query(func.count("*"))  # .count() is inefficient
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state.in_(self.states),
-                _dag_run_date_condition,
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
+
+        @sync_to_async
+        @provide_session
+        def count_dags(self, *, session: Session = NEW_SESSION) -> int:
+            """Count how many dag runs in the database match our criteria."""
+            _dag_run_date_condition = (
+                DagRun.run_id.in_(self.run_ids)
+                if AIRFLOW_V_3_0_PLUS
+                else DagRun.execution_date.in_(self.execution_dates)
             )
-            .scalar()
-        )
-        return typing.cast("int", count)
+            count = (
+                session.query(func.count("*"))  # .count() is inefficient
+                .filter(
+                    DagRun.dag_id == self.dag_id,
+                    DagRun.state.in_(self.states),
+                    _dag_run_date_condition,
+                )
+                .scalar()
+            )
+            return typing.cast("int", count)

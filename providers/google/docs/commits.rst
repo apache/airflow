@@ -41,14 +41,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+15.1.0
+......
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`c85dd5442d <https://github.com/apache/airflow/commit/c85dd5442de2d729abfb8e4c7117bca0cf0b9131>`__  2025-04-16   ``Fix xcom for system tests (#49337)``
+`098ed33b9a <https://github.com/apache/airflow/commit/098ed33b9a33ff4cbe897682d55716e65b4c0b58>`__  2025-04-16   ``type: annotate miss type in 'provider' (#49130)``
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`18c99df954 <https://github.com/apache/airflow/commit/18c99df9541811173f98a80d710dd6071c925f4b>`__  2025-04-14   ``Add ORC support to GCSToBigQueryOperator and test for external tables (#49188)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`e519ca76dd <https://github.com/apache/airflow/commit/e519ca76dddf258115c8fa6e2de5b166759886c5>`__  2025-04-14   ``Fix default value wait_for_operation_result (#49121)``
+`2379398366 <https://github.com/apache/airflow/commit/23793983669f92ffee3ea2646bea7550df228d94>`__  2025-04-14   ``Deprecate start_sql_job in DataflowHook (#48663)``
+`76a96086b6 <https://github.com/apache/airflow/commit/76a96086b6bedd99e8ebeec277fed0ddc436810c>`__  2025-04-14   ``Fix get_confluent_token callback for Managed Kafka service (#48926)``
+`c932dab6a2 <https://github.com/apache/airflow/commit/c932dab6a2232650e5e01e41be34c4b1de5e5583>`__  2025-04-11   ``Fix: BigQuery connection UI defaults 'Use Legacy SQL' to true on edit (#49038)``
+==================================================================================================  ===========  ===================================================================================================
+
 15.0.1
 ......
 
-Latest change: 2025-04-09
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `4b87d52184 <https://github.com/apache/airflow/commit/4b87d52184746c7d0c779b6b3ec496c067a7e36b>`__  2025-04-09   ``Add missing license comment in google docs (#48985)``
 `fa5a6c7e1a <https://github.com/apache/airflow/commit/fa5a6c7e1a9e8d064f4bc92267bd969ae6f1417f>`__  2025-04-08   ``Fix false friends in implicit string concatenation (#48871)``
 `d3073c243c <https://github.com/apache/airflow/commit/d3073c243cf8f8df3a4de66e5bf2238743d9f2d4>`__  2025-04-08   ``Deprecate Life Scrience service (#48862)``

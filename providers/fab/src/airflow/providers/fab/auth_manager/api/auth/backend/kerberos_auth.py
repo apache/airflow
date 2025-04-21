@@ -101,7 +101,7 @@ def _gssapi_authenticate(token) -> _KerberosAuth | None:
                 user=kerberos.authGSSServerUserName(state),
                 token=kerberos.authGSSServerResponse(state),
             )
-        elif return_code == kerberos.AUTH_GSS_CONTINUE:
+        if return_code == kerberos.AUTH_GSS_CONTINUE:
             return _KerberosAuth(return_code=return_code)
         return _KerberosAuth(return_code=return_code)
     except kerberos.GSSError:
@@ -139,7 +139,7 @@ def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | 
                 if auth.token is not None:
                     response.headers["WWW-Authenticate"] = f"negotiate {auth.token}"
                 return response
-            elif auth.return_code != kerberos.AUTH_GSS_CONTINUE:
+            if auth.return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
 

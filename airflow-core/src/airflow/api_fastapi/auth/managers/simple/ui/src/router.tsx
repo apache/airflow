@@ -32,12 +32,10 @@ export const routerConfig = [
   },
 ];
 
-const baseHref = document.querySelector("head>base")?.getAttribute("href");
-const baseUrl =
-  baseHref !== null && baseHref !== undefined && baseHref !== ""
-    ? baseHref
-    : `${globalThis.location.origin}/`;
+const baseHref = document.querySelector("head>base")?.getAttribute("href") ?? "";
 
-const basename = new URL(`${baseUrl}auth`).pathname;
+// Resolve the scheme-relative URL from the base relative to the current URL
+const baseUrl = new URL(baseHref, globalThis.location.origin);
+const basename = new URL("auth", baseUrl).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

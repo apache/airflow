@@ -147,10 +147,9 @@ class AirbyteHook(BaseHook):
                 break
             if state == JobStatusEnum.FAILED:
                 raise AirflowException(f"Job failed:\n{job}")
-            elif state == JobStatusEnum.CANCELLED:
+            if state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
-            else:
-                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
+            raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         try:
@@ -186,7 +185,6 @@ class AirbyteHook(BaseHook):
             health_check = self.airbyte_api.health.get_health_check()
             if health_check.status_code == 200:
                 return True, "Connection successfully tested"
-            else:
-                return False, str(health_check.raw_response)
+            return False, str(health_check.raw_response)
         except Exception as e:
             return False, str(e)

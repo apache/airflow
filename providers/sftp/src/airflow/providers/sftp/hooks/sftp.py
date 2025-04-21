@@ -244,16 +244,15 @@ class SFTPHook(SSHHook):
         if self.isdir(path):
             self.log.info("%s already exists", path)
             return
-        elif self.isfile(path):
+        if self.isfile(path):
             raise AirflowException(f"{path} already exists and is a file")
-        else:
-            dirname, basename = os.path.split(path)
-            if dirname and not self.isdir(dirname):
-                self.create_directory(dirname, mode)
-            if basename:
-                self.log.info("Creating %s", path)
-                with self.get_managed_conn() as conn:
-                    conn.mkdir(path, mode=mode)
+        dirname, basename = os.path.split(path)
+        if dirname and not self.isdir(dirname):
+            self.create_directory(dirname, mode)
+        if basename:
+            self.log.info("Creating %s", path)
+            with self.get_managed_conn() as conn:
+                conn.mkdir(path, mode=mode)
 
     def delete_directory(self, path: str, include_files: bool = False) -> None:
         """

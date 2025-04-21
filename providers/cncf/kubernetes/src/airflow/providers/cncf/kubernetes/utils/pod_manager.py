@@ -520,15 +520,14 @@ class PodManager(LoggingMixin):
                 return PodLoggingStatus(running=False, last_log_time=last_log_time)
             if not follow:
                 return PodLoggingStatus(running=True, last_log_time=last_log_time)
-            else:
-                # a timeout is a normal thing and we ignore it and resume following logs
-                if not isinstance(exc, TimeoutError):
-                    self.log.warning(
-                        "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
-                        pod.metadata.name,
-                        container_name,
-                    )
-                time.sleep(1)
+            # a timeout is a normal thing and we ignore it and resume following logs
+            if not isinstance(exc, TimeoutError):
+                self.log.warning(
+                    "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
+                    pod.metadata.name,
+                    container_name,
+                )
+            time.sleep(1)
 
     def _reconcile_requested_log_containers(
         self, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
