@@ -24,8 +24,6 @@ import logging
 import logging.config
 import os
 import re
-from collections.abc import Generator, Iterable
-from datetime import datetime
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
@@ -51,7 +49,6 @@ from airflow.utils.log.file_task_handler import (
     DEFAULT_SORT_DATETIME,
     FileTaskHandler,
     LogType,
-    ParsedLog,
     ParsedLogStream,
     StructuredLogMessage,
     _add_log_from_parsed_log_streams_to_heap,
@@ -70,6 +67,11 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import (
+    convert_list_to_stream,
+    events,
+    mock_parsed_logs_factory,
+)
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
@@ -77,50 +79,6 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
-
-
-def events(logs: Iterable[StructuredLogMessage], skip_source_info=True) -> list[str]:
-    """Helper function to return just the event (a.k.a message) from a list of StructuredLogMessage"""
-    logs = iter(logs)
-    if skip_source_info:
-
-        def is_source_group(log: StructuredLogMessage):
-            return not hasattr(log, "timestamp") or log.event == "::endgroup::" or hasattr(log, "sources")
-
-        logs = itertools.dropwhile(is_source_group, logs)
-
-    return [s.event for s in logs]
-
-
-def convert_list_to_stream(input_list: list[str]) -> Generator[str, None, None]:
-    """
-    Convert a list of strings to a stream-like object.
-    This function yields each string in the list one by one.
-    """
-    yield from input_list
-
-
-def mock_parsed_logs_factory(
-    event_prefix: str,
-    start_datetime: datetime,
-    count: int,
-) -> list[ParsedLog]:
-    """
-    Create a list of ParsedLog objects with the specified start datetime and count.
-    Each ParsedLog object contains a timestamp and a list of StructuredLogMessage objects.
-    """
-    parsed_logs: list[ParsedLog] = []
-    for i in range(count):
-        timestamp: datetime = start_datetime + pendulum.duration(seconds=i)
-        structured_log = StructuredLogMessage(timestamp=None, event=f"{event_prefix} Event {i}")
-        parsed_logs.append(
-            (
-                timestamp,
-                i,
-                structured_log,
-            )
-        )
-    return parsed_logs
 
 
 class TestFileTaskLogHandler:
