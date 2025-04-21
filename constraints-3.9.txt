@@ -125,6 +125,7 @@ apache-airflow-providers-cncf-kubernetes==10.4.2
 apache-airflow-providers-cohere==1.4.3
 apache-airflow-providers-common-compat==1.6.0
 apache-airflow-providers-common-io==1.5.3
+apache-airflow-providers-common-messaging==1.0.0
 apache-airflow-providers-common-sql==1.25.0
 apache-airflow-providers-databricks==7.3.1
 apache-airflow-providers-datadog==3.8.3
@@ -132,11 +133,13 @@ apache-airflow-providers-dbt-cloud==4.3.2
 apache-airflow-providers-dingding==3.7.3
 apache-airflow-providers-discord==3.9.5
 apache-airflow-providers-docker==4.3.1
-apache-airflow-providers-edge3==1.0.0rc1
+apache-airflow-providers-edge3==1.0.0
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.4
+apache-airflow-providers-fab==2.0.1
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
+apache-airflow-providers-git==0.0.2
 apache-airflow-providers-google==15.0.1
 apache-airflow-providers-grpc==3.7.3
 apache-airflow-providers-hashicorp==4.1.0
@@ -155,6 +158,7 @@ apache-airflow-providers-neo4j==3.8.2
 apache-airflow-providers-odbc==4.9.1
 apache-airflow-providers-openai==1.5.3
 apache-airflow-providers-openfaas==3.7.1
+apache-airflow-providers-openlineage==2.2.0
 apache-airflow-providers-opensearch==1.6.2
 apache-airflow-providers-opsgenie==5.8.3
 apache-airflow-providers-oracle==4.0.2
@@ -176,6 +180,7 @@ apache-airflow-providers-smtp==2.0.2
 apache-airflow-providers-snowflake==6.2.1
 apache-airflow-providers-sqlite==4.0.2
 apache-airflow-providers-ssh==4.0.1
+apache-airflow-providers-standard==1.0.0
 apache-airflow-providers-tableau==5.0.2
 apache-airflow-providers-telegram==4.7.2
 apache-airflow-providers-teradata==3.0.2
