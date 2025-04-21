@@ -9,10 +9,10 @@ already existing ``providers`` and the dependencies are isolated and simplified 
 packages.
 
 While the original installation methods via ``apache-airflow`` distribution package and extras still
-work as previously and it installs complete airflow installation ready to serve as scheduler, webserver, triggerer
+work as previously and it installs complete Airflow installation ready to serve as scheduler, webserver, triggerer
 and worker, the ``apache-airflow`` package is now a meta-package that cab install all the other distribution
 packages (mandatory of via optional extras), it's also possible to install only the distribution
-packages that are needed for a specific component you want to run airflow with.
+packages that are needed for a specific component you want to run Airflow with.
 
 One change vs. Airflow 2 is that neither ``apache-airflow`` nor ``apache-airflow-core`` distribution packages
 have ``leveldb`` extra that is an optional feature of ``apache-airflow-providers-google`` distribution package.

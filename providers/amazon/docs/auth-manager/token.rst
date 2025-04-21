@@ -15,34 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
-Authoring and Scheduling
-=========================
+Generate JWT token with AWS auth manager
+========================================
 
-Here you can find detailed documentation about advanced authoring and scheduling Airflow dags.
-It's recommended that you first review the pages in :doc:`core concepts </core-concepts/index>`
+.. note::
+    This guide only applies if your environment is configured with AWS auth manager.
 
-.. _authoring-section:
+In order to use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you need a JWT token for authentication.
+You can then include this token in your Airflow public API requests.
+To generate a JWT token, please follow the following steps.
 
-**Authoring**
+1. Go to ``${ENDPOINT_URL}/auth/login/token``, you'll be redirected to AWS IAM Identity Center login page
+2. Enter your AWS IAM Identity Center user credentials and submit
 
-.. toctree::
-    :maxdepth: 2
-
-    deferring
-    serializers
-    connections
-    dynamic-task-mapping
-    assets
-
-.. _scheduling-section:
-
-**Scheduling**
-
-.. toctree::
-    :maxdepth: 2
-
-    cron
-    timezone
-    Asset-Aware Scheduling <datasets>
-    timetable
-    Event-Driven Scheduling <event-scheduling>
+This process will return a token that you can use in the Airflow public API requests.

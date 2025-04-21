@@ -44,7 +44,7 @@ For permanent (but not global) airflow activation, use:
 
   register-python-argcomplete airflow >> ~/.bashrc
 
-For one-time activation of argcomplete for airflow only, use:
+For one-time activation of argcomplete for Airflow only, use:
 
 .. code-block:: bash
 
