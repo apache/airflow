@@ -5866,6 +5866,21 @@ export const $ConfigResponse = {
       type: "array",
       title: "Dashboard Alert",
     },
+    show_external_log_redirect: {
+      type: "boolean",
+      title: "Show External Log Redirect",
+    },
+    external_log_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Log Name",
+    },
   },
   type: "object",
   required: [
@@ -5886,6 +5901,7 @@ export const $ConfigResponse = {
     "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
+    "show_external_log_redirect",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",

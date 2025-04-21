@@ -151,3 +151,47 @@ def get_log(
             "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
         }
     return Response(media_type="application/x-ndjson", content=logs, headers=headers)
+
+
+@task_instances_log_router.get(
+    "/{task_id}/externalLogUrl/{try_number}",
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        status.HTTP_200_OK: {
+            "description": "External log URL",
+            "content": {
+                "application/json": {"schema": {"type": "object", "properties": {"url": {"type": "string"}}}}
+            },
+        },
+    },
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
+)
+def get_external_log_url(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    try_number: PositiveInt,
+    session: SessionDep,
+    map_index: int = -1,
+):
+    """Get external log URL for a specific task instance."""
+    task_log_reader = TaskLogReader()
+
+    if not task_log_reader.supports_external_link:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support external logs.")
+
+    # Fetch the task instance
+    query = select(TaskInstance).where(
+        TaskInstance.task_id == task_id,
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == dag_run_id,
+        TaskInstance.map_index == map_index,
+    )
+    ti = session.scalar(query)
+
+    if ti is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
+
+    # Get the external log URL
+    url = task_log_reader.log_handler.get_external_log_url(ti, try_number)
+    return {"url": url}

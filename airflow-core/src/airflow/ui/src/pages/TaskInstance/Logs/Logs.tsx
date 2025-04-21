@@ -21,11 +21,13 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
+import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
@@ -83,6 +85,9 @@ export const Logs = () => {
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
+  const externalLogName = useConfig("external_log_name") as string;
+  const showExternalLogRedirect = useConfig("show_external_log_redirect");
+
   return (
     <Box p={2}>
       <TaskLogHeader
@@ -94,6 +99,13 @@ export const Logs = () => {
         tryNumber={tryNumber}
         wrap={wrap}
       />
+      {Boolean(showExternalLogRedirect) && Boolean(externalLogName) ? (
+        <ExternalLogLink
+          externalLogName={externalLogName}
+          taskInstance={taskInstance as TaskInstanceResponse}
+          tryNumber={tryNumber as number}
+        />
+      ) : undefined}
       <TaskLogContent
         error={error}
         isLoading={isLoading || isLoadingLogs}
