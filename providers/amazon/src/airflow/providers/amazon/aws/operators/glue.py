@@ -295,7 +295,9 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = ("name", "ruleset", "description", "data_quality_ruleset_kwargs")
+    template_fields: Sequence[str] = aws_template_fields(
+        "name", "ruleset", "description", "data_quality_ruleset_kwargs"
+    )
 
     template_fields_renderers = {
         "data_quality_ruleset_kwargs": "json",
@@ -392,7 +394,7 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
 
     aws_hook_class = GlueDataQualityHook
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "datasource",
         "role",
         "rule_set_names",
@@ -558,7 +560,7 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "datasource",
         "role",
         "recommendation_run_kwargs",
