@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-19T08:10:20.966003
+# This constraints file was automatically generated on 2025-04-21T19:37:13.379207
 # via `uv sync --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.11.16
+aiohttp==3.11.18
 aioitertools==0.12.0
 aiologic==0.14.0
 aiomysql==0.2.0
@@ -100,12 +100,12 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==12.0.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
-azure-mgmt-datafactory==9.1.0
+azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
-azure-mgmt-storage==22.1.1
+azure-mgmt-storage==22.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
 azure-storage-blob==12.25.1
@@ -391,13 +391,13 @@ pathspec==0.12.1
 pbr==6.1.1
 pdbr==0.9.0
 pdpyras==5.4.0
-pendulum==3.0.0
+pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.0
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
-pipdeptree==2.26.0
+pipdeptree==2.26.1
 platformdirs==4.3.7
 pluggy==1.5.0
 ply==3.11
@@ -493,7 +493,7 @@ ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
 s3transfer==0.11.3
-sagemaker_studio==1.0.12
+sagemaker_studio==1.0.13
 scikit-learn==1.5.2
 scipy==1.15.2
 scramp==1.4.5
@@ -514,7 +514,7 @@ snowflake-connector-python==3.14.0
 snowflake-snowpark-python==1.30.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
-soupsieve==2.6
+soupsieve==2.7
 spython==0.3.14
 sqlalchemy-bigquery==1.13.0
 sqlalchemy-spanner==1.10.0
