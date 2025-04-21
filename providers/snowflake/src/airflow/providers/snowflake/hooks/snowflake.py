@@ -189,14 +189,23 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    @property
+    def account_identifier(self) -> str:
+        """Returns snowflake account identifier."""
+        conn_config = self._get_conn_params
+        account_identifier = f"https://{conn_config['account']}"
+
+        if conn_config["region"]:
+            account_identifier += f".{conn_config['region']}"
+
+        return account_identifier
+
     def get_oauth_token(self, conn_config: dict | None = None) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         if conn_config is None:
             conn_config = self._get_conn_params
 
-        def generate_url():
-            region = f"{conn_config['region']}" if conn_config.get("region") else ""
-            return f"https://{conn_config['account']}.{region}.snowflakecomputing.com/oauth/token-request"
+        url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": "refresh_token",
@@ -204,7 +213,7 @@ class SnowflakeHook(DbApiHook):
             "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
         }
         response = requests.post(
-            generate_url(),
+            url,
             data=data,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",

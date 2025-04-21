@@ -511,7 +511,11 @@ class TestPytestSnowflakeHook:
             SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
     @mock.patch("requests.post")
-    def test_get_conn_params_should_support_oauth(self, requests_post):
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_conn_params_should_support_oauth(self, mock_get_conn_params, requests_post):
         requests_post.return_value = Mock(
             status_code=200,
             json=lambda: {
@@ -533,17 +537,27 @@ class TestPytestSnowflakeHook:
                 "region": "af_region",
                 "role": "af_role",
                 "refresh_token": "secrettoken",
+                "authenticator": "oauth",
             },
         }
+        mock_get_conn_params.return_value = connection_kwargs
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn_params = hook._get_conn_params
 
-        assert "user" not in conn_params
-        assert "password" not in conn_params
-        assert "refresh_token" in conn_params
-        assert "token" in conn_params
-        assert conn_params["authenticator"] == "oauth"
+        conn_params_keys = conn_params.keys()
+        conn_params_extra = conn_params.get("extra", {})
+        conn_params_extra_keys = conn_params_extra.keys()
+
+        assert "authenticator" in conn_params_extra_keys
+        assert conn_params_extra["authenticator"] == "oauth"
+
+        assert "user" not in conn_params_keys
+        assert "password" in conn_params_keys
+        assert "refresh_token" in conn_params_extra_keys
+        # Mandatory fields to generate account_identifier `https://<account>.<region>`
+        assert "region" in conn_params_extra_keys
+        assert "account" in conn_params_extra_keys
 
     def test_should_add_partner_info(self):
         with mock.patch.dict(

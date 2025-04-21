@@ -84,17 +84,6 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
 
-    @property
-    def account_identifier(self) -> str:
-        """Returns snowflake account identifier."""
-        conn_config = self._get_conn_params
-        account_identifier = f"https://{conn_config['account']}"
-
-        if conn_config["region"]:
-            account_identifier += f".{conn_config['region']}"
-
-        return account_identifier
-
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
         conn = self.get_connection(self.snowflake_conn_id)
@@ -236,7 +225,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     def get_oauth_token(self, conn_config: dict[str, Any] | None = None) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         warnings.warn(
-            "This method is deprecated. Please use get_oauth_token() method from SnowflakeHook instead. "
+            "This method is deprecated. Please use `get_oauth_token` method from `SnowflakeHook` instead. "
             "It will be removed in apache-airflow-providers-snowflake:6.4.0.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
