@@ -121,7 +121,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         collapsible
         defaultValue={[flexibleFormDefaultSection]}
         mb={4}
-        mt={4}
+        mt={8}
         size="lg"
         variant="enclosed"
       >
@@ -132,7 +132,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
-            <Box p={5}>
+            <Box p={4}>
               <Controller
                 control={control}
                 name="logicalDate"
