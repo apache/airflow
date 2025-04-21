@@ -29,8 +29,8 @@ instances based on the task's ``run_as_user`` parameter, which takes a user's na
 **NOTE:** For impersonations to work, Airflow requires ``sudo`` as subtasks are run
 with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user
 needs to exist on the worker. Here is what a simple sudoers file entry could look
-like to achieve this, assuming airflow is running as the ``airflow`` user. This means
-the airflow user must be trusted and treated the same way as the root user.
+like to achieve this, assuming Airflow is running as the ``airflow`` user. This means
+the Airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none
 

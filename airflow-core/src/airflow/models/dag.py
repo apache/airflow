@@ -266,6 +266,7 @@ def _create_orm_dagrun(
         bundle_version = session.scalar(
             select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
         )
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -283,13 +284,13 @@ def _create_orm_dagrun(
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
@@ -1771,10 +1772,10 @@ class DAG(TaskSDKDag, LoggingMixin):
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
-                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+                    from airflow.jobs.scheduler_job_runner import SchedulerDagBag, SchedulerJobRunner
 
                     SchedulerJobRunner.process_executor_events(
-                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                        executor=executor, job_id=None, scheduler_dag_bag=SchedulerDagBag(), session=session
                     )
             if use_executor:
                 executor.end()
@@ -2541,8 +2542,12 @@ if STATICA_HACK:  # pragma: no cover
 
 def _run_inline_trigger(trigger):
     async def _run_inline_trigger_main():
-        async for event in trigger.run():
-            return event
+        # We can replace it with `return await anext(trigger.run(), default=None)`
+        # when we drop support for Python 3.9
+        try:
+            return await trigger.run().__anext__()
+        except StopAsyncIteration:
+            return None
 
     return asyncio.run(_run_inline_trigger_main())
 

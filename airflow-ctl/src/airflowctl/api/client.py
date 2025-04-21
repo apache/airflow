@@ -136,8 +136,9 @@ class Credentials:
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        if os.path.exists(default_config_dir):
-            with open(os.path.join(default_config_dir, self.input_cli_config_file)) as f:
+        credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
+        if os.path.exists(credential_path):
+            with open(credential_path) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
                 self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")

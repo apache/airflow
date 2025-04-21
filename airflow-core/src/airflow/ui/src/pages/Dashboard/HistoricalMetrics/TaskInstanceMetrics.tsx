@@ -19,13 +19,14 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { TaskInstanceState, TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 import { MdOutlineTask } from "react-icons/md";
+import { Link as RouterLink } from "react-router-dom";
 
 import { StateBadge } from "src/components/StateBadge";
 
 import { MetricSection } from "./MetricSection";
 
 type TaskInstanceMetricsProps = {
-  readonly endDate: string;
+  readonly endDate?: string;
   readonly startDate: string;
   readonly taskInstanceStates: TaskInstanceStateCount;
   readonly total: number;
@@ -54,10 +55,14 @@ export const TaskInstanceMetrics = ({
 }: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
-      <StateBadge colorPalette="blue" fontSize="md" variant="solid">
-        <MdOutlineTask />
-        {total}
-      </StateBadge>
+      <RouterLink
+        to={`/task_instances?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
+      >
+        <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+          <MdOutlineTask />
+          {total}
+        </StateBadge>
+      </RouterLink>
       <Heading size="md">Task Instances</Heading>
     </HStack>
     {TASK_STATES.sort((stateA, stateB) =>

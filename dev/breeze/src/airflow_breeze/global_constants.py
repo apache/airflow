@@ -343,7 +343,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64"}.get(machine, machine)
+    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
     return machine
 
 
@@ -605,6 +605,7 @@ DEFAULT_EXTRAS = [
     "celery",
     "cncf-kubernetes",
     "common-io",
+    "common-messaging",
     "docker",
     "elasticsearch",
     "fab",
@@ -634,14 +635,14 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["git", "common.messaging", "fab"])
+CHICKEN_EGG_PROVIDERS = " ".join(["git", "common.messaging", "fab", "standard", "openlineage"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant common.messaging fab edgeexecutor git",
+        "remove-providers": "cloudant common.messaging fab edge3 git",
         "run-tests": "true",
     },
     {

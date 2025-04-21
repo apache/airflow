@@ -240,7 +240,7 @@ in the Scheduler and API Server processes.
 Deploying and protecting Airflow installation
 .............................................
 
-Deployment Managers are also responsible for deploying airflow and make it accessible to the users
+Deployment Managers are also responsible for deploying Airflow and make it accessible to the users
 in the way that follows best practices of secure deployment applicable to the organization where
 Airflow is deployed. This includes but is not limited to:
 

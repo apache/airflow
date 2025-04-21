@@ -1,0 +1,1789 @@
+openapi: 3.1.0
+info:
+  title: Airflow API
+  description: Airflow API. All endpoints located under ``/api/v2`` can be used safely,
+    are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
+    to the UI and are subject to breaking change depending on the need of the frontend.
+    Users should not rely on those but use the public ones instead.
+  version: '2'
+paths:
+  /ui/auth/menus:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Auth Menus
+      operationId: get_auth_menus
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+  /ui/next_run_assets/{dag_id}:
+    get:
+      tags:
+      - Asset
+      summary: Next Run Assets
+      operationId: next_run_assets
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Next Run Assets
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/config:
+    get:
+      tags:
+      - Config
+      summary: Get Configs
+      description: Get configs for UI.
+      operationId: get_configs
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+  /ui/connections/hook_meta:
+    get:
+      tags:
+      - Connection
+      summary: Hook Meta Data
+      description: Retrieve information about available connection types (hook classes)
+        and their parameters.
+      operationId: hook_meta_data
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ConnectionHookMetaData'
+                type: array
+                title: Response Hook Meta Data
+      security:
+      - OAuth2PasswordBearer: []
+  /ui/dags/recent_dag_runs:
+    get:
+      tags:
+      - Dags
+      summary: Recent Dag Runs
+      description: Get recent DAG runs.
+      operationId: recent_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_runs_limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+          title: Dag Runs Limit
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Dag Ids
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name Pattern
+      - name: exclude_stale
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Exclude Stale
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dependencies:
+    get:
+      tags:
+      - Dependencies
+      summary: Get Dependencies
+      description: Dependencies graph.
+      operationId: get_dependencies
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: node_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseGraphResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dashboard/historical_metrics_data:
+    get:
+      tags:
+      - Dashboard
+      summary: Historical Metrics
+      description: Return cluster activity historical metrics.
+      operationId: historical_metrics
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: start_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Start Date
+      - name: end_date
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: End Date
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalMetricDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/structure/structure_data:
+    get:
+      tags:
+      - Structure
+      summary: Structure Data
+      description: Get Structure Data.
+      operationId: structure_data
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: external_dependencies
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: External Dependencies
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructureDataResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/backfills:
+    get:
+      tags:
+      - Backfill
+      summary: List Backfills
+      operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      - name: active
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Active
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackfillCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Grid Data
+      description: Return grid data.
+      operationId: grid_data
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    BackfillCollectionResponse:
+      properties:
+        backfills:
+          items:
+            $ref: '#/components/schemas/BackfillResponse'
+          type: array
+          title: Backfills
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfills
+      - total_entries
+      title: BackfillCollectionResponse
+      description: Backfill Collection serializer for responses.
+    BackfillResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          type: string
+          title: Dag Id
+        from_date:
+          type: string
+          format: date-time
+          title: From Date
+        to_date:
+          type: string
+          format: date-time
+          title: To Date
+        dag_run_conf:
+          additionalProperties: true
+          type: object
+          title: Dag Run Conf
+        is_paused:
+          type: boolean
+          title: Is Paused
+        reprocess_behavior:
+          $ref: '#/components/schemas/ReprocessBehavior'
+        max_active_runs:
+          type: integer
+          title: Max Active Runs
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - dag_id
+      - from_date
+      - to_date
+      - dag_run_conf
+      - is_paused
+      - reprocess_behavior
+      - max_active_runs
+      - created_at
+      - completed_at
+      - updated_at
+      title: BackfillResponse
+      description: Base serializer for Backfill.
+    BaseEdgeResponse:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: BaseEdgeResponse
+      description: Base Edge serializer for responses.
+    BaseGraphResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/BaseEdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/BaseNodeResponse'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - edges
+      - nodes
+      title: BaseGraphResponse
+      description: Base Graph serializer for responses.
+    BaseNodeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
+          - dag
+          - sensor
+          - trigger
+          title: Type
+      type: object
+      required:
+      - id
+      - label
+      - type
+      title: BaseNodeResponse
+      description: Base Node serializer for responses.
+    ConfigResponse:
+      properties:
+        navbar_color:
+          type: string
+          title: Navbar Color
+        navbar_text_color:
+          type: string
+          title: Navbar Text Color
+        navbar_hover_color:
+          type: string
+          title: Navbar Hover Color
+        navbar_text_hover_color:
+          type: string
+          title: Navbar Text Hover Color
+        page_size:
+          type: integer
+          title: Page Size
+        auto_refresh_interval:
+          type: integer
+          title: Auto Refresh Interval
+        hide_paused_dags_by_default:
+          type: boolean
+          title: Hide Paused Dags By Default
+        instance_name:
+          type: string
+          title: Instance Name
+        instance_name_has_markup:
+          type: boolean
+          title: Instance Name Has Markup
+        enable_swagger_ui:
+          type: boolean
+          title: Enable Swagger Ui
+        require_confirmation_dag_change:
+          type: boolean
+          title: Require Confirmation Dag Change
+        default_wrap:
+          type: boolean
+          title: Default Wrap
+        warn_deployment_exposure:
+          type: boolean
+          title: Warn Deployment Exposure
+        audit_view_excluded_events:
+          type: string
+          title: Audit View Excluded Events
+        audit_view_included_events:
+          type: string
+          title: Audit View Included Events
+        test_connection:
+          type: string
+          title: Test Connection
+        dashboard_alert:
+          items:
+            $ref: '#/components/schemas/UIAlert'
+          type: array
+          title: Dashboard Alert
+      type: object
+      required:
+      - navbar_color
+      - navbar_text_color
+      - navbar_hover_color
+      - navbar_text_hover_color
+      - page_size
+      - auto_refresh_interval
+      - hide_paused_dags_by_default
+      - instance_name
+      - instance_name_has_markup
+      - enable_swagger_ui
+      - require_confirmation_dag_change
+      - default_wrap
+      - warn_deployment_exposure
+      - audit_view_excluded_events
+      - audit_view_included_events
+      - test_connection
+      - dashboard_alert
+      title: ConfigResponse
+      description: configuration serializer.
+    ConnectionHookFieldBehavior:
+      properties:
+        hidden:
+          type: boolean
+          title: Hidden
+          description: Flag if the form field should be hidden.
+          default: false
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+          description: Label / title for the field that should be displayed, if re-labelling
+            is needed. Use `None` to display standard title.
+        placeholder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Placeholder
+          description: Placeholder text that should be populated to the form.
+      type: object
+      title: ConnectionHookFieldBehavior
+      description: A class to store the behavior of each standard field of a Hook.
+    ConnectionHookMetaData:
+      properties:
+        connection_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Type
+        hook_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hook Class Name
+        default_conn_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Default Conn Name
+        hook_name:
+          type: string
+          title: Hook Name
+        standard_fields:
+          anyOf:
+          - $ref: '#/components/schemas/StandardHookFields'
+          - type: 'null'
+        extra_fields:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Extra Fields
+      type: object
+      required:
+      - connection_type
+      - hook_class_name
+      - default_conn_name
+      - hook_name
+      - standard_fields
+      - extra_fields
+      title: ConnectionHookMetaData
+      description: 'Response model for Hook information == Connection type meta data.
+
+
+        It is used to transfer providers information loaded by providers_manager such
+        that
+
+        the API server/Web UI can use this data to render connection form UI.'
+    DAGRunResponse:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        last_scheduling_decision:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Scheduling Decision
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        triggered_by:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunTriggeredByType'
+          - type: 'null'
+        conf:
+          additionalProperties: true
+          type: object
+          title: Conf
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
+      type: object
+      required:
+      - dag_run_id
+      - dag_id
+      - logical_date
+      - queued_at
+      - start_date
+      - end_date
+      - data_interval_start
+      - data_interval_end
+      - run_after
+      - last_scheduling_decision
+      - run_type
+      - state
+      - triggered_by
+      - conf
+      - note
+      - dag_versions
+      title: DAGRunResponse
+      description: DAG Run serializer for responses.
+    DAGRunStates:
+      properties:
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        failed:
+          type: integer
+          title: Failed
+      type: object
+      required:
+      - queued
+      - running
+      - success
+      - failed
+      title: DAGRunStates
+      description: DAG Run States for responses.
+    DAGRunTypes:
+      properties:
+        backfill:
+          type: integer
+          title: Backfill
+        scheduled:
+          type: integer
+          title: Scheduled
+        manual:
+          type: integer
+          title: Manual
+        asset_triggered:
+          type: integer
+          title: Asset Triggered
+      type: object
+      required:
+      - backfill
+      - scheduled
+      - manual
+      - asset_triggered
+      title: DAGRunTypes
+      description: DAG Run Types for responses.
+    DAGWithLatestDagRunsCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        dags:
+          items:
+            $ref: '#/components/schemas/DAGWithLatestDagRunsResponse'
+          type: array
+          title: Dags
+      type: object
+      required:
+      - total_entries
+      - dags
+      title: DAGWithLatestDagRunsCollectionResponse
+      description: DAG with latest dag runs collection response serializer.
+    DAGWithLatestDagRunsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
+        is_paused:
+          type: boolean
+          title: Is Paused
+        is_stale:
+          type: boolean
+          title: Is Stale
+        last_parsed_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Parsed Time
+        last_expired:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Expired
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        relative_fileloc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Relative Fileloc
+        fileloc:
+          type: string
+          title: Fileloc
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        timetable_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timetable Summary
+        timetable_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timetable Description
+        tags:
+          items:
+            $ref: '#/components/schemas/DagTagResponse'
+          type: array
+          title: Tags
+        max_active_tasks:
+          type: integer
+          title: Max Active Tasks
+        max_active_runs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs
+        max_consecutive_failed_dag_runs:
+          type: integer
+          title: Max Consecutive Failed Dag Runs
+        has_task_concurrency_limits:
+          type: boolean
+          title: Has Task Concurrency Limits
+        has_import_errors:
+          type: boolean
+          title: Has Import Errors
+        next_dagrun_logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Logical Date
+        next_dagrun_data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Data Interval Start
+        next_dagrun_data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Data Interval End
+        next_dagrun_run_after:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Run After
+        owners:
+          items:
+            type: string
+          type: array
+          title: Owners
+        asset_expression:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Asset Expression
+        latest_dag_runs:
+          items:
+            $ref: '#/components/schemas/DAGRunResponse'
+          type: array
+          title: Latest Dag Runs
+        file_token:
+          type: string
+          title: File Token
+          description: Return file token.
+          readOnly: true
+      type: object
+      required:
+      - dag_id
+      - dag_display_name
+      - is_paused
+      - is_stale
+      - last_parsed_time
+      - last_expired
+      - bundle_name
+      - bundle_version
+      - relative_fileloc
+      - fileloc
+      - description
+      - timetable_summary
+      - timetable_description
+      - tags
+      - max_active_tasks
+      - max_active_runs
+      - max_consecutive_failed_dag_runs
+      - has_task_concurrency_limits
+      - has_import_errors
+      - next_dagrun_logical_date
+      - next_dagrun_data_interval_start
+      - next_dagrun_data_interval_end
+      - next_dagrun_run_after
+      - owners
+      - asset_expression
+      - latest_dag_runs
+      - file_token
+      title: DAGWithLatestDagRunsResponse
+      description: DAG with latest dag runs response serializer.
+    DagRunState:
+      type: string
+      enum:
+      - queued
+      - running
+      - success
+      - failed
+      title: DagRunState
+      description: 'All possible states that a DagRun can be in.
+
+
+        These are "shared" with TaskInstanceState in some parts of the code,
+
+        so please ensure that their values always match the ones with the
+
+        same name in TaskInstanceState.'
+    DagRunTriggeredByType:
+      type: string
+      enum:
+      - cli
+      - operator
+      - rest_api
+      - ui
+      - test
+      - timetable
+      - asset
+      - backfill
+      title: DagRunTriggeredByType
+      description: Class with TriggeredBy types for DagRun.
+    DagRunType:
+      type: string
+      enum:
+      - backfill
+      - scheduled
+      - manual
+      - asset_triggered
+      title: DagRunType
+      description: Class with DagRun types.
+    DagTagResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        dag_id:
+          type: string
+          title: Dag Id
+      type: object
+      required:
+      - name
+      - dag_id
+      title: DagTagResponse
+      description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version_number:
+          type: integer
+          title: Version Number
+        dag_id:
+          type: string
+          title: Dag Id
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          readOnly: true
+      type: object
+      required:
+      - id
+      - version_number
+      - dag_id
+      - bundle_name
+      - bundle_version
+      - created_at
+      - bundle_url
+      title: DagVersionResponse
+      description: Dag Version serializer for responses.
+    EdgeResponse:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+        is_setup_teardown:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Setup Teardown
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        is_source_asset:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Source Asset
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: EdgeResponse
+      description: Edge serializer for responses.
+    ExtraMenuItem:
+      properties:
+        text:
+          type: string
+          title: Text
+        href:
+          type: string
+          title: Href
+      type: object
+      required:
+      - text
+      - href
+      title: ExtraMenuItem
+    GridDAGRunwithTIs:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GridTaskInstanceSummary'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_run_id
+      - queued_at
+      - start_date
+      - end_date
+      - run_after
+      - state
+      - run_type
+      - logical_date
+      - data_interval_start
+      - data_interval_end
+      - note
+      - task_instances
+      title: GridDAGRunwithTIs
+      description: DAG Run model for the Grid UI.
+    GridResponse:
+      properties:
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/GridDAGRunwithTIs'
+          type: array
+          title: Dag Runs
+        structure:
+          $ref: '#/components/schemas/StructureDataResponse'
+      type: object
+      required:
+      - dag_runs
+      - structure
+      title: GridResponse
+      description: Response model for the Grid UI.
+    GridTaskInstanceSummary:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        try_number:
+          type: integer
+          title: Try Number
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
+        child_states:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Child States
+        task_count:
+          type: integer
+          title: Task Count
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - task_id
+      - try_number
+      - start_date
+      - end_date
+      - queued_dttm
+      - child_states
+      - task_count
+      - state
+      - note
+      title: GridTaskInstanceSummary
+      description: Task Instance Summary model for the Grid UI.
+    HTTPExceptionResponse:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - additionalProperties: true
+            type: object
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      description: HTTPException Model used for error response.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HistoricalMetricDataResponse:
+      properties:
+        dag_run_types:
+          $ref: '#/components/schemas/DAGRunTypes'
+        dag_run_states:
+          $ref: '#/components/schemas/DAGRunStates'
+        task_instance_states:
+          $ref: '#/components/schemas/TaskInstanceStateCount'
+      type: object
+      required:
+      - dag_run_types
+      - dag_run_states
+      - task_instance_states
+      title: HistoricalMetricDataResponse
+      description: Historical Metric Data serializer for responses.
+    MenuItem:
+      type: string
+      enum:
+      - Assets
+      - Audit Log
+      - Config
+      - Connections
+      - Dags
+      - Docs
+      - Plugins
+      - Pools
+      - Providers
+      - Variables
+      - XComs
+      title: MenuItem
+      description: Define all menu items defined in the menu.
+    MenuItemCollectionResponse:
+      properties:
+        authorized_menu_items:
+          items:
+            $ref: '#/components/schemas/MenuItem'
+          type: array
+          title: Authorized Menu Items
+        extra_menu_items:
+          items:
+            $ref: '#/components/schemas/ExtraMenuItem'
+          type: array
+          title: Extra Menu Items
+      type: object
+      required:
+      - authorized_menu_items
+      - extra_menu_items
+      title: MenuItemCollectionResponse
+      description: Menu Item Collection serializer for responses.
+    NodeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - asset-name-ref
+          - asset-uri-ref
+          - dag
+          - sensor
+          - trigger
+          title: Type
+        children:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NodeResponse'
+            type: array
+          - type: 'null'
+          title: Children
+        is_mapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Mapped
+        tooltip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tooltip
+        setup_teardown_type:
+          anyOf:
+          - type: string
+            enum:
+            - setup
+            - teardown
+          - type: 'null'
+          title: Setup Teardown Type
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
+      type: object
+      required:
+      - id
+      - label
+      - type
+      title: NodeResponse
+      description: Node serializer for responses.
+    ReprocessBehavior:
+      type: string
+      enum:
+      - failed
+      - completed
+      - none
+      title: ReprocessBehavior
+      description: 'Internal enum for setting reprocess behavior in a backfill.
+
+
+        :meta private:'
+    StandardHookFields:
+      properties:
+        description:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        url_schema:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        host:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        port:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        login:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        password:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+      type: object
+      required:
+      - description
+      - url_schema
+      - host
+      - port
+      - login
+      - password
+      title: StandardHookFields
+      description: Standard fields of a Hook that a form will render.
+    StructureDataResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/EdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeResponse'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - edges
+      - nodes
+      title: StructureDataResponse
+      description: Structure Data serializer for responses.
+    TaskInstanceState:
+      type: string
+      enum:
+      - removed
+      - scheduled
+      - queued
+      - running
+      - success
+      - restarting
+      - failed
+      - up_for_retry
+      - up_for_reschedule
+      - upstream_failed
+      - skipped
+      - deferred
+      title: TaskInstanceState
+      description: 'All possible states that a Task Instance can be in.
+
+
+        Note that None is also allowed, so always use this in a type hint with Optional.'
+    TaskInstanceStateCount:
+      properties:
+        no_status:
+          type: integer
+          title: No Status
+        removed:
+          type: integer
+          title: Removed
+        scheduled:
+          type: integer
+          title: Scheduled
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        restarting:
+          type: integer
+          title: Restarting
+        failed:
+          type: integer
+          title: Failed
+        up_for_retry:
+          type: integer
+          title: Up For Retry
+        up_for_reschedule:
+          type: integer
+          title: Up For Reschedule
+        upstream_failed:
+          type: integer
+          title: Upstream Failed
+        skipped:
+          type: integer
+          title: Skipped
+        deferred:
+          type: integer
+          title: Deferred
+      type: object
+      required:
+      - no_status
+      - removed
+      - scheduled
+      - queued
+      - running
+      - success
+      - restarting
+      - failed
+      - up_for_retry
+      - up_for_reschedule
+      - upstream_failed
+      - skipped
+      - deferred
+      title: TaskInstanceStateCount
+      description: TaskInstance serializer for responses.
+    UIAlert:
+      properties:
+        text:
+          type: string
+          title: Text
+        category:
+          type: string
+          enum:
+          - info
+          - warning
+          - error
+          title: Category
+      type: object
+      required:
+      - text
+      - category
+      title: UIAlert
+      description: Optional alert to be shown at the top of the page.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      description: To authenticate Airflow API requests, clients must include a JWT
+        (JSON Web Token) in the Authorization header of each request. This token is
+        used to verify the identity of the client and ensure that they have the appropriate
+        permissions to access the requested resources. You can use the endpoint ``POST
+        /auth/token`` in order to generate a JWT token. Upon successful authentication,
+        the server will issue a JWT token that contains the necessary information
+        (such as user identity and scope) to authenticate subsequent requests. To
+        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /auth/token

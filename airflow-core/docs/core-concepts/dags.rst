@@ -620,7 +620,7 @@ To add labels, you can use them directly inline with the ``>>`` and ``<<`` opera
 
 .. code-block:: python
 
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label
 
     my_task >> Label("When empty") >> other_task
 
@@ -628,7 +628,7 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
 .. code-block:: python
 
-    from airflow.utils.edgemodifier import Label
+    from airflow.sdk import Label
 
     my_task.set_downstream(other_task, Label("When empty"))
 
@@ -638,7 +638,7 @@ Here's an example DAG which illustrates labeling different branches:
 
 .. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
-    :start-after: from airflow.utils.edgemodifier import Label
+    :start-after: from airflow.sdk import DAG, Label
 
 
 DAG & Task Documentation

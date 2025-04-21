@@ -18,20 +18,22 @@
 Dag Bundles
 ===========
 
-Dag bundle are a collection of dags and other files (think the Airflow 2 dags folder). Unlike Airflow 2, where dags were required to be on local disk and getting
-the dags there was the sole responsibility of the deployment manager, Airflow 3 is now able to pull dags from external systems
-as well. And since dag bundles support versioning, it also allows Airflow to run a task using a specific version
-of the dag bundle, allowing for a dag run to use the same code for the whole run, even if the dag is updated mid way through the run.
+A dag bundle is a collection of one or more dags, files along with their associated files, such as other
+Python scripts, configuration files, or other resources. Dag bundles can source the dags from various
+locations, such as local directories, Git repositories, or other external systems. Deployment administrators
+can also write their own dag bundle classes to support custom sources. You can also define more than one dag
+bundle in an Airflow deployments, allowing for better organization of your dags. By keeping the bundle at a
+higher level, it allows for versioning everything the dag needs to run.
 
-What's in a dag bundle? One or more dag files along with their associated files, such as
-other Python scripts, configuration files, or other resources. By keeping the bundle at a higher level, it allows for versioning
-everything the dag needs to run.
+This is similar, but more powerful than the *dags folder* in Airflow 2 or earlier, where dags were required to
+be in one place on the local disk, and getting the dags there was solely the responsibility of the deployment
+manager.
 
-Dag bundles can source the dags from various locations, such as local directories, Git repositories, or other external systems.
-Deployment administrators can also write their own dag bundle classes to support custom sources.
-You can also define more than 1 dag bundle in an Airflow deployments, allowing for better organization of your dags.
+Since dag bundles support versioning, they also allow Airflow to run a task using a specific version of the
+dag bundle, allowing for a dag run to use the same code for the whole run, even if the dag is updated mid-way
+through the run.
 
-Why Are dag bundles important?
+Why are dag bundles important?
 ------------------------------
 
 - **Version Control**: By supporting versioning, dag bundles allow dag runs to use the same code for the whole run, even if the dag is updated mid way through the run.
@@ -61,17 +63,17 @@ For example, adding multiple dag bundles to your ``airflow.cfg`` file:
 
     [dag_processor]
     dag_bundle_config_list = [
-            {
-                "name": "my_git_repo",
-                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
-                "kwargs": {"tracking_ref": "main", "git_conn_id": "my_git_conn"}
-            }
-            {
-              "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-              "kwargs": {}
-            }
-        ]
+        {
+          "name": "my_git_repo",
+          "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+          "kwargs": {"tracking_ref": "main", "git_conn_id": "my_git_conn"}
+        },
+        {
+          "name": "dags-folder",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {}
+        }
+      ]
 
 .. note::
 

@@ -22,9 +22,10 @@ description: |
   `Apache Livy <https://livy.apache.org/>`__
 
 state: ready
-source-date-epoch: 1744281012
+source-date-epoch: 1744788852
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.3.2
   - 4.3.1
   - 4.3.0
   - 4.2.1

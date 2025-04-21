@@ -50,7 +50,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks, _update_rtif
+from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
@@ -130,6 +130,10 @@ def ti_run(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
+
+    # don't update start date when resuming from deferral
+    if ti.next_kwargs:
+        data.pop("start_date")
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -544,7 +548,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    _update_rtif(task_instance, put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
 

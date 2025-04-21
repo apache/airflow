@@ -4731,11 +4731,12 @@ class TestMappedTaskInstanceReceiveValue:
             show.expand(value=[1, 2, 3])
         # ensure that there is a dag_version record in the db
         dag_version = session.merge(DagVersion(dag_id="test", bundle_name="test"))
-        dag_maker.create_dagrun()
+        session.commit()
+        dag_maker.create_dagrun(session=session)
         task = dag.get_task("show")
         for ti in session.scalars(select(TI)):
             ti.refresh_from_task(task)
-            ti.run()
+            ti.run(session=session)
         # verify that we only saw the dag version we created
         assert known_versions == [dag_version.id] * 3
 
