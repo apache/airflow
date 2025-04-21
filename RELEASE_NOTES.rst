@@ -314,7 +314,7 @@ These changes simplify imports and reflect broader efforts to stabilize utility 
 Improved ``inlet_events``, ``outlet_events``, and ``triggering_asset_events``
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Asset event accessors in the task context are improved to better support asset use cases, including new features introduced in AIP-74.
+Asset event mappings in the task context are improved to better support asset use cases, including new features introduced in AIP-74.
 
 Events of an asset or asset alias are now accessed directly by a concrete object to avoid ambiguity. Using a ``str`` to access events is
 no longer supported. Use an ``Asset`` or ``AssetAlias`` object, or ``Asset.ref`` to refer to an entity explicitly instead, such as::
