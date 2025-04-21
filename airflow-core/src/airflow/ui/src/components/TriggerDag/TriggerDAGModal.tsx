@@ -16,12 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
-import React from "react";
+import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
+import React, { useState } from "react";
 
+import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog } from "src/components/ui";
+import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 
+import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
+
+enum RunMode {
+  BACKFILL = "backfill",
+  SINGLE = "single",
+}
 
 type TriggerDAGModalProps = {
   readonly dagDisplayName: string;
@@ -37,22 +45,85 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   isPaused,
   onClose,
   open,
-}) => (
-  <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
-    <Dialog.Content backdrop>
-      <Dialog.Header paddingBottom={0}>
-        <VStack align="start" gap={4}>
-          <Heading size="xl">Trigger Dag - {dagDisplayName}</Heading>
-        </VStack>
-      </Dialog.Header>
+}) => {
+  const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
+  const {
+    data: dag,
+    isError,
+    isLoading,
+  } = useDagServiceGetDag(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      enabled: open,
+    },
+  );
 
-      <Dialog.CloseTrigger />
+  const hasSchedule = dag?.timetable_summary !== null;
 
-      <Dialog.Body>
-        <TriggerDAGForm dagId={dagId} isPaused={isPaused} onClose={onClose} open={open} />
-      </Dialog.Body>
-    </Dialog.Content>
-  </Dialog.Root>
-);
+  return (
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
+      <Dialog.Content backdrop>
+        <Dialog.Header paddingBottom={0}>
+          <VStack align="start" gap={2} width="100%">
+            <Heading size="xl">
+              {runMode === RunMode.SINGLE ? "Trigger DAG" : "Run Backfill"} - {dagDisplayName}
+            </Heading>
+          </VStack>
+        </Dialog.Header>
+
+        <Dialog.CloseTrigger />
+
+        <Dialog.Body>
+          {isLoading ? (
+            <Center py={6}>
+              <VStack>
+                <Spinner size="lg" />
+                <Text mt={2}>Loading DAG information...</Text>
+              </VStack>
+            </Center>
+          ) : isError ? (
+            <Center py={6}>
+              <Text color="red.500">Failed to load DAG information. Please try again.</Text>
+            </Center>
+          ) : (
+            <>
+              {dag && hasSchedule ? (
+                <RadioCardRoot
+                  my={4}
+                  onChange={(event) => {
+                    setRunMode((event.target as HTMLInputElement).value as RunMode);
+                  }}
+                  value={runMode}
+                >
+                  <HStack align="stretch">
+                    <RadioCardItem
+                      description="Trigger a single run of this DAG"
+                      label="Single Run"
+                      value={RunMode.SINGLE}
+                    />
+                    <RadioCardItem
+                      description="Run this DAG for a range of dates"
+                      label="Backfill"
+                      value={RunMode.BACKFILL}
+                    />
+                  </HStack>
+                </RadioCardRoot>
+              ) : undefined}
+
+              {runMode === RunMode.SINGLE ? (
+                <TriggerDAGForm dagId={dagId} isPaused={isPaused} onClose={onClose} open={open} />
+              ) : (
+                hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
+              )}
+            </>
+          )}
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+};
 
 export default TriggerDAGModal;
