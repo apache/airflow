@@ -42,6 +42,7 @@ Latest change: 2025-04-16
 ==================================================================================================  ===========  ============================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================
+`2ae12c815b <https://github.com/apache/airflow/commit/2ae12c815bc704eff6890df56f7387da513d14f2>`__  2025-04-16   ``Update documentation for edge3 and git provider (#49365)``
 `dd0efe348b <https://github.com/apache/airflow/commit/dd0efe348b6ce94243ec7a727f9aa908eeafbc82>`__  2025-04-16   ``Use 'git_default' if the user defines nothing (#49359)``
 `ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
 `192b337c86 <https://github.com/apache/airflow/commit/192b337c86eede5636f802d6f354fa97fe0f9030>`__  2025-04-16   ``Don't log repo_url in git dag bundle (#48909)``
