@@ -250,6 +250,12 @@ class DagIsPaused(AirflowException):
     """Raise when a dag is paused and something tries to run it."""
 
     def __init__(self, dag_id: str) -> None:
+        warnings.warn(
+            "Importing 'DagIsPaused' from 'airflow.exceptions' is deprecated and will be removed in Airflow 4. "
+            "Please use it from airflow.providers.standard instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(dag_id)
         self.dag_id = dag_id
 
