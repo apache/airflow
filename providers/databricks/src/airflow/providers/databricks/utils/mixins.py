@@ -87,7 +87,7 @@ class OnKillHasFields(Protocol):
     task_id: str
 
 
-class DatabricksSqlStatementsMixin:
+class DatabricksSQLStatementsMixin:
     """
     Mixin class to be used by both the DatabricksSqlStatementsOperator, and the DatabricksSqlStatementSensor.
 

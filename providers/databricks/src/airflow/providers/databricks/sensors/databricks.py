@@ -26,7 +26,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
-from airflow.providers.databricks.utils.mixins import DatabricksSqlStatementsMixin
+from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.sdk import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 XCOM_STATEMENT_ID_KEY = "statement_id"
 
 
-class DatabricksSQLStatementsSensor(DatabricksSqlStatementsMixin, BaseSensorOperator):
+class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOperator):
     """DatabricksSQLStatementsSensor."""
 
     template_fields: Sequence[str] = (
@@ -121,11 +121,14 @@ class DatabricksSQLStatementsSensor(DatabricksSqlStatementsMixin, BaseSensorOper
 
         if self.deferrable:
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
-        # Shouldn't need to worry about this, it will default to the `poke` method
-        # else:
-        #     self._handle_execution()  # type: ignore[misc]
 
     def poke(self, context: Context):
+        """
+        Handle non-deferrable Sensor execution.
+
+        :param context: (Context)
+        :return: (bool)
+        """
         # This is going to very closely mirror the execute_complete
         statement_state: SQLStatementState = self._hook.get_sql_statement_state(self.statement_id)
 

@@ -47,7 +47,7 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
 )
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
-from airflow.providers.databricks.utils.mixins import DatabricksSqlStatementsMixin
+from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -977,7 +977,7 @@ class DatabricksRunNowOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
-class DatabricksSQLStatementsOperator(DatabricksSqlStatementsMixin, BaseOperator):
+class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator):
     """
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
 
