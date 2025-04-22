@@ -104,12 +104,11 @@ class S3DocsPublish:
         if self.dry_run:
             get_console().print(f"Dry run enabled, skipping sync operation {source} to {destination}")
             return (0, "")
-        else:
-            get_console().print(f"[info]Syncing {source} to {destination}\n")
-            result = subprocess.run(
-                ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
-            )
-            return (result.returncode, result.stderr)
+        get_console().print(f"[info]Syncing {source} to {destination}\n")
+        result = subprocess.run(
+            ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
+        )
+        return (result.returncode, result.stderr)
 
     def publish_stable_version_docs(self):
         """
