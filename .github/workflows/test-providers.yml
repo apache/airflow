@@ -72,10 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # for now we test only wheels, there is an issue with setuptools-scm 8.3.0 with building
-        # wheels with uv from sdist packages
-        # package-format: ["wheel", "sdist"]
-        package-format: ["wheel"]
+        package-format: ["wheel", "sdist"]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
