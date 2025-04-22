@@ -550,7 +550,7 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
-.. image:: /img/ui-light/task_group.mp4
+.. image:: /img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
