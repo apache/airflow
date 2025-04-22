@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-22T02:21:44.532633
+# This constraints file was automatically generated on 2025-04-22T13:53:14.845195
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -96,7 +96,7 @@ azure-identity==1.21.0
 azure-keyvault-secrets==4.9.0
 azure-kusto-data==5.0.2
 azure-mgmt-containerinstance==10.1.0
-azure-mgmt-containerregistry==12.0.0
+azure-mgmt-containerregistry==13.0.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
 azure-mgmt-datafactory==9.2.0
@@ -153,7 +153,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
-databricks-sql-connector==4.0.2
+databricks-sql-connector==4.0.3
 dataclasses-json==0.6.7
 datadog==0.51.0
 db-dtypes==1.4.2
@@ -564,7 +564,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250326
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250328
-types-setuptools==78.1.0.20250329
+types-setuptools==79.0.0.20250422
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -577,7 +577,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.4.0
 uuid6==2024.7.10
-uv==0.6.15
+uv==0.6.16
 uvicorn==0.34.2
 uvloop==0.21.0
 validators==0.34.0
@@ -599,7 +599,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0
 ydb-dbapi==0.1.11
-ydb==3.20.1
+ydb==3.21.0
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
