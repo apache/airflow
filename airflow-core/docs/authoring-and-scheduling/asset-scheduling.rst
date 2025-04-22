@@ -45,7 +45,7 @@ In addition to scheduling dags based on time, you can also schedule dags to run 
         ...
 
 
-.. image:: /img/asset-scheduled-dags.png
+.. image:: /img/ui-dark/asset_scheduled_dags.png
 
 .. seealso::
 
