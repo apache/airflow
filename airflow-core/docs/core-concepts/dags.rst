@@ -634,7 +634,7 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
 Here's an example DAG which illustrates labeling different branches:
 
-.. image:: /img/edge_label_example.png
+.. image:: /img/ui-light/edge_label_example.png
 
 .. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python

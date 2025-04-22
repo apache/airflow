@@ -22,7 +22,7 @@ Airflow is a platform that lets you build and run *workflows*. A workflow is rep
 :doc:`DAG <dags>` (a Directed Acyclic Graph), and contains individual pieces of work called
 :doc:`tasks`, arranged with dependencies and data flows taken into account.
 
-.. image:: ../img/edge_label_example.png
+.. image:: ../img/ui-light/edge_label_example.png
   :alt: An example Airflow DAG, rendered in Graph
 
 A DAG specifies the dependencies between tasks, which defines the order in which to execute the tasks.
