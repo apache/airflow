@@ -651,6 +651,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "cloudant common.messaging fab git",
         "run-tests": "true",
     },
+    {
+        "python-version": "3.9",
+        "airflow-version": "3.0.0",
+        "remove-providers": "cloudant",
+        "run-tests": "true",
+    },
 ]
 
 # Number of slices for low dep tests
