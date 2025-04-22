@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -124,17 +124,19 @@ export const Logs = () => {
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
         <Dialog.Content backdrop>
           <Dialog.Header>
-            <Heading size="xl">{taskId}</Heading>
-            <TaskLogHeader
-              downloadLog={downloadLog}
-              isFullscreen
-              onSelectTryNumber={onSelectTryNumber}
-              taskInstance={taskInstance}
-              toggleFullscreen={toggleFullscreen}
-              toggleWrap={toggleWrap}
-              tryNumber={tryNumber}
-              wrap={wrap}
-            />
+            <VStack gap={2}>
+              <Heading size="xl">{taskId}</Heading>
+              <TaskLogHeader
+                downloadLog={downloadLog}
+                isFullscreen
+                onSelectTryNumber={onSelectTryNumber}
+                taskInstance={taskInstance}
+                toggleFullscreen={toggleFullscreen}
+                toggleWrap={toggleWrap}
+                tryNumber={tryNumber}
+                wrap={wrap}
+              />
+            </VStack>
           </Dialog.Header>
 
           <Dialog.CloseTrigger />
