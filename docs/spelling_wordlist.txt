@@ -800,6 +800,7 @@ hdfscli
 hdp
 healthjump
 heartrate
+heatmap
 Highcharts
 hivecmd
 hiveconf
@@ -1083,6 +1084,7 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+materializations
 Matomo
 matomo
 Maxime
@@ -1477,6 +1479,7 @@ remoting
 renderer
 renderers
 renewer
+reparse
 replicaSet
 repo
 repos
@@ -1961,6 +1964,7 @@ volumeMounts
 VolumeSizeInGB
 vpc
 WaiterModel
+walkthrough
 wape
 warmup
 Wasb
