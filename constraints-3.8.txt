@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-13T10:06:34.861776
+# This constraints file was automatically generated on 2025-04-22T14:14:43.331293
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -76,14 +76,14 @@ aioresponses==0.7.8
 aiosignal==1.3.1
 airbyte-api==0.52.2
 alembic==1.14.1
-alibabacloud-adb20211201==2.2.1
+alibabacloud-adb20211201==3.0.3
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.0
+alibabacloud-credentials==1.0.1
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.13
+alibabacloud_tea_openapi==0.3.14
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
@@ -209,15 +209,15 @@ azure-identity==1.21.0
 azure-keyvault-secrets==4.9.0
 azure-kusto-data==5.0.2
 azure-mgmt-containerinstance==10.1.0
-azure-mgmt-containerregistry==12.0.0
+azure-mgmt-containerregistry==13.0.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
-azure-mgmt-datafactory==9.1.0
+azure-mgmt-datafactory==9.2.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
-azure-mgmt-storage==22.1.1
+azure-mgmt-storage==22.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.2
 azure-storage-blob==12.25.1
@@ -231,7 +231,7 @@ backoff==2.2.1
 backports.tarfile==1.2.0
 backports.zoneinfo==0.2.1
 bcrypt==4.3.0
-beautifulsoup4==4.13.3
+beautifulsoup4==4.13.4
 billiard==4.2.1
 bitarray==2.9.3
 black==24.8.0
@@ -262,7 +262,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.9.0
+confluent-kafka==2.10.0
 connexion==2.14.2
 coverage==7.6.1
 crcmod==1.7
@@ -289,7 +289,7 @@ docstring_parser==0.16
 docutils==0.20.1
 duckdb==1.2.2
 elastic-transport==8.17.1
-elasticsearch==8.17.2
+elasticsearch==8.18.0
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -316,57 +316,57 @@ geomet==0.2.1.post1
 gevent==24.2.1
 gitdb==4.0.12
 google-ads==25.2.0
-google-analytics-admin==0.23.6
+google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.166.0
+google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-auth==2.38.0
-google-cloud-aiplatform==1.88.0
+google-auth==2.39.0
+google-cloud-aiplatform==1.89.0
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
 google-cloud-bigquery==3.20.1
-google-cloud-bigtable==2.30.0
+google-cloud-bigtable==2.30.1
 google-cloud-build==3.31.1
-google-cloud-compute==1.29.0
+google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.26.0
+google-cloud-datacatalog==3.26.1
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
-google-cloud-dataplex==2.9.0
+google-cloud-dataplex==2.10.1
 google-cloud-dataproc-metastore==1.18.2
 google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
 google-cloud-kms==3.4.1
 google-cloud-language==2.17.1
-google-cloud-logging==3.11.4
+google-cloud-logging==3.12.0
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
-google-cloud-orchestration-airflow==1.17.3
+google-cloud-orchestration-airflow==1.17.5
 google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
-google-cloud-secret-manager==2.23.2
+google-cloud-secret-manager==2.23.3
 google-cloud-spanner==3.53.0
-google-cloud-speech==2.31.1
+google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
 google-cloud-tasks==2.19.2
-google-cloud-texttospeech==2.25.1
+google-cloud-texttospeech==2.26.0
 google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
-google-cloud-workflows==1.18.0
+google-cloud-workflows==1.18.1
 google-crc32c==1.5.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
-googleapis-common-protos==1.69.2
+googleapis-common-protos==1.70.0
 graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
@@ -433,7 +433,7 @@ jsonschema==4.23.0
 jupyter_client==8.6.3
 jupyter_core==5.7.2
 keyring==25.5.0
-kombu==5.5.2
+kombu==5.5.3
 krb5==0.7.1
 kubernetes==30.1.0
 kubernetes_asyncio==30.1.0
@@ -488,7 +488,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.73.0
+openai==1.75.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.31.0
@@ -542,7 +542,7 @@ pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
-prompt_toolkit==3.0.50
+prompt_toolkit==3.0.51
 propcache==0.2.0
 proto-plus==1.26.1
 protobuf==4.25.6
@@ -623,7 +623,7 @@ rich-argparse==1.7.0
 rich-click==1.8.8
 rich==13.9.4
 rpds-py==0.20.1
-rsa==4.9
+rsa==4.9.1
 ruff==0.5.5
 s3fs==2024.10.0
 s3transfer==0.11.3
@@ -632,7 +632,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.25.1
+sentry-sdk==2.26.1
 setproctitle==1.3.5
 shapely==2.0.7
 shellingham==1.5.4
@@ -645,7 +645,7 @@ sniffio==1.3.1
 snowflake-connector-python==3.14.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
-soupsieve==2.6
+soupsieve==2.7
 spython==0.3.14
 sqlalchemy-bigquery==1.13.0
 sqlalchemy-redshift==0.8.14
@@ -702,7 +702,7 @@ types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing-inspect==0.9.0
-typing_extensions==4.12.2
+typing_extensions==4.13.2
 tzdata==2025.2
 tzlocal==5.2
 uc-micro-py==1.0.3
@@ -727,7 +727,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.15.2
-ydb==3.20.1
+ydb==3.21.0
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.20.2
