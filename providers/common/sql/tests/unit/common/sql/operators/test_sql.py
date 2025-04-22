@@ -208,7 +208,7 @@ class TestSQLExecuteQueryOperator:
             )
             self._operator.hook_params = {"use_legacy_sql": True, "location": "us-east1"}
             assert self._operator._hook.conn_type == "gcpbigquery"
-            assert self._operator._hook.use_legacy_sql
+            assert self._operator._hook.use_legacy_sql is True
             assert self._operator._hook.location == "us-east1"
             assert self._operator._hook.priority == "INTERACTIVE"
 
