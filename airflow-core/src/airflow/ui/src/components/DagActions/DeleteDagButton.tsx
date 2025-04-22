@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Heading, HStack, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-import { Button, Dialog } from "src/components/ui";
+import DeleteDialog from "src/components/DeleteDialog";
 import ActionButton from "src/components/ui/ActionButton";
 import { useDeleteDag } from "src/queries/useDeleteDag";
 
@@ -54,32 +54,15 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         withText={withText}
       />
 
-      <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="lg">Delete DAG</Heading>
-          </Dialog.Header>
-          <Dialog.CloseTrigger />
-          <Dialog.Body>
-            <Text>
-              Are you sure you want to delete <strong>{dagDisplayName}</strong>? This action cannot be undone.
-            </Text>
-            <Text color="red.500" fontWeight="bold" mt={4}>
-              This will remove all metadata related to the DAG, including DAG Runs and Tasks.
-            </Text>
-          </Dialog.Body>
-          <Dialog.Footer>
-            <HStack justifyContent="flex-end" width="100%">
-              <Button onClick={onClose} variant="outline">
-                Cancel
-              </Button>
-              <Button colorPalette="red" loading={isPending} onClick={() => deleteDag({ dagId })}>
-                <FiTrash2 style={{ marginRight: "8px" }} /> Delete
-              </Button>
-            </HStack>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Root>
+      <DeleteDialog
+        isDeleting={isPending}
+        onClose={onClose}
+        onDelete={() => deleteDag({ dagId })}
+        open={open}
+        resourceName={dagDisplayName}
+        title="Delete DAG"
+        warningText="This will remove all metadata related to the DAG, including DAG Runs and Tasks."
+      />
     </>
   );
 };
