@@ -18,6 +18,7 @@
  */
 import { Box, Flex, Heading, SimpleGrid } from "@chakra-ui/react";
 import { FiClipboard } from "react-icons/fi";
+import { MdOutlineTask } from "react-icons/md";
 
 import { useDagServiceGetDags } from "openapi/queries";
 
@@ -33,7 +34,7 @@ export const Stats = () => {
     lastDagRunState: "failed",
   });
 
-  const { data: stalledDagsData, isLoading: isStalledDagsLoading } = useDagServiceGetDags({
+  const { data: queuedDagsData, isLoading: isQueuedDagsLoading } = useDagServiceGetDags({
     lastDagRunState: "queued",
   });
 
@@ -43,7 +44,7 @@ export const Stats = () => {
 
   const activeDagsCount = activeDagsData?.total_entries ?? 0;
   const failedDagsCount = failedDagsData?.total_entries ?? 0;
-  const stalledDagsCount = stalledDagsData?.total_entries ?? 0;
+  const queuedDagsCount = queuedDagsData?.total_entries ?? 0;
   const runningDagsCount = runningDagsData?.total_entries ?? 0;
 
   return (
@@ -57,38 +58,42 @@ export const Stats = () => {
 
       <SimpleGrid columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
         <StatsCard
-          colorScheme="red"
+          colorScheme="failed"
           count={failedDagsCount}
           isLoading={isFailedDagsLoading}
-          label="Failed DAGs"
+          label="Failed dags"
           link="dags?last_dag_run_state=failed"
+          state="failed"
         />
 
-        {failedDagsCount > 0 && <DAGImportErrors />}
+        <DAGImportErrors />
 
-        {stalledDagsCount > 0 && (
+        {queuedDagsCount > 0 ? (
           <StatsCard
-            colorScheme="orange"
-            count={stalledDagsCount}
-            isLoading={isStalledDagsLoading}
-            label="Stalled DAGs"
+            colorScheme="queued"
+            count={queuedDagsCount}
+            isLoading={isQueuedDagsLoading}
+            label="Queued dags"
             link="dags?last_dag_run_state=queued"
+            state="queued"
           />
-        )}
+        ) : undefined}
 
         <StatsCard
-          colorScheme="teal"
+          colorScheme="running"
           count={runningDagsCount}
           isLoading={isRunningDagsLoading}
-          label="Running DAGs"
+          label="Running dags"
           link="dags?last_dag_run_state=running"
+          state="running"
         />
 
         <StatsCard
           colorScheme="blue"
           count={activeDagsCount}
+          icon={<MdOutlineTask />}
           isLoading={isActiveDagsLoading}
-          label="Active DAGS"
+          label="Active dags"
           link="dags?paused=false"
         />
       </SimpleGrid>

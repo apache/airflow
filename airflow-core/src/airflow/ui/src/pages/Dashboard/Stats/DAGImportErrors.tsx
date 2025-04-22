@@ -19,7 +19,7 @@
 import { Box, Button, Skeleton, useDisclosure } from "@chakra-ui/react";
 import { LuFileWarning } from "react-icons/lu";
 
-import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { pluralize } from "src/utils";
@@ -31,7 +31,6 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
   const { onClose, onOpen, open } = useDisclosure();
 
   const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
-
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
 
@@ -39,34 +38,35 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
     return <Skeleton height="9" width="225px" />;
   }
 
+  if (importErrorsCount === 0) {
+    return undefined;
+  }
+
   return (
     <Box alignItems="center" display="flex">
       <ErrorAlert error={error} />
-      {importErrorsCount > 0 && (
-        <>
-          {iconOnly ? (
-            <StateBadge
-              as={Button}
-              colorPalette="failed"
-              height={7}
-              onClick={onOpen}
-              title={pluralize("Dag Import Error", importErrorsCount)}
-            >
-              <LuFileWarning size="0.5rem" />
-              {importErrorsCount}
-            </StateBadge>
-          ) : (
-            <StatsCard
-              colorScheme="red"
-              count={importErrorsCount}
-              isLoading={isLoading}
-              label="Dag Import Errors"
-              onClick={onOpen}
-            />
-          )}
-          <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
-        </>
+      {iconOnly ? (
+        <StateBadge
+          as={Button}
+          colorPalette="failed"
+          height={7}
+          onClick={onOpen}
+          title={pluralize("Dag Import Error", importErrorsCount)}
+        >
+          <LuFileWarning size="0.5rem" />
+          {importErrorsCount}
+        </StateBadge>
+      ) : (
+        <StatsCard
+          colorScheme="failed"
+          count={importErrorsCount}
+          isLoading={isLoading}
+          label="Dag Import Errors"
+          onClick={onOpen}
+          state="failed"
+        />
       )}
+      <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
     </Box>
   );
 };

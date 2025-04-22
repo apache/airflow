@@ -20,74 +20,68 @@ import { Box, Flex, HStack, Skeleton, Text } from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import { capitalize } from "src/utils";
 
 export const StatsCard = ({
   colorScheme,
   count,
+  icon,
   isLoading = false,
   label,
   link,
   onClick,
+  state,
 }: {
   readonly colorScheme: string;
   readonly count: number;
+  readonly icon?: React.ReactNode;
   readonly isLoading?: boolean;
   readonly label: string;
   readonly link?: string;
   readonly onClick?: () => void;
+  readonly state?: TaskInstanceState | null;
 }) => {
   const content = (
-    <Box as="button" textAlign="left" width="100%">
+    <Box textAlign="left" width="100%">
       {isLoading ? (
         <Skeleton>
           <Flex
             alignItems="center"
             bg="bg.surface"
-            borderColor={`${colorScheme}.100`}
+            borderColor={`${colorScheme}.border`}
             borderRadius="lg"
             borderWidth={1}
             height="60px"
             overflow="hidden"
-            p={3}
-            pl={4}
+            px={2}
+            py={1}
           />
         </Skeleton>
       ) : (
         <Flex
           _hover={{
-            borderColor: `${colorScheme}.500`,
             boxShadow: "sm",
             transform: "translateY(-0.5px)",
             transition: "all 0.1s",
           }}
           alignItems="center"
           bg="bg.surface"
-          borderColor={`${colorScheme}.100`}
+          borderColor={`${colorScheme}.border`}
           borderRadius="lg"
           borderWidth={1}
           cursor="pointer"
           height="60px"
           overflow="hidden"
-          p={3}
-          pl={4}
+          px={2}
+          py={1}
           width="100%"
         >
-          <Flex
-            alignItems="center"
-            bg={`${colorScheme}.500`}
-            borderRadius="full"
-            boxSize={8}
-            color="white"
-            fontWeight="bold"
-            justifyContent="center"
-            minWidth={8}
-            mr={3}
-          >
-            <Text fontSize="sm" fontWeight="bold">
-              {count}
-            </Text>
-          </Flex>
+          <StateBadge colorPalette={colorScheme} fontSize="md" mr={2} state={state} variant="solid">
+            {icon}
+            {count}
+          </StateBadge>
           <Box flex={1}>
             <HStack alignItems="center" gap={2}>
               <Text
@@ -102,7 +96,7 @@ export const StatsCard = ({
               </Text>
             </HStack>
           </Box>
-          <Box color="gray.400" pr={1}>
+          <Box color="gray.emphasized" px={1}>
             <FiChevronRight size={16} />
           </Box>
         </Flex>
