@@ -1157,6 +1157,29 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 id="Run only ui tests for PR with new UI only changes.",
             )
         ),
+        pytest.param(
+            ("RELEASE_NOTES.rst",),
+            {
+                "selected-providers-list-as-string": None,
+                "all-python-versions": "['3.9']",
+                "all-python-versions-list-as-string": "3.9",
+                "python-versions": "['3.9']",
+                "python-versions-list-as-string": "3.9",
+                "ci-image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "false",
+                "run-amazon-tests": "false",
+                "docs-build": "true",
+                "skip-pre-commits": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
+                "upgrade-to-newer-dependencies": "false",
+                "core-test-types-list-as-strings-in-json": None,
+                "providers-test-types-list-as-strings-in-json": None,
+                "individual-providers-test-types-list-as-strings-in-json": None,
+                "needs-mypy": "false",
+                "mypy-checks": "[]",
+            },
+            id="Run docs-build for RELEASE_NOTES.rst",
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
