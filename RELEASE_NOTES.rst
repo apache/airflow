@@ -335,11 +335,11 @@ aligning with the broader asset-aware execution model introduced in Airflow 3.0.
 Predictable Behaviour of ``xcom_pull``
 """"""""""""""""""""""""""""""""""""""
 
-In Airflow 2, the xcom_pull() method allowed pulling XComs by key without specifying task_ids, despite the fact that the underlying
+In Airflow 2, the ``xcom_pull()`` method allowed pulling XComs by key without specifying task_ids, despite the fact that the underlying
 DB model defines task_id as part of the XCom primary key. This created ambiguity: if two tasks pushed XComs with the same key,
-xcom_pull() would pull whichever one happened to be first, leading to unpredictable behavior.
+``xcom_pull()`` would pull whichever one happened to be first, leading to unpredictable behavior.
 
-Airflow 3 resolves im inconsistency by requiring task_ids when pulling by key. This change aligns with the task-scoped nature of
+Airflow 3 resolves im inconsistency by requiring ``task_ids`` when pulling by key. This change aligns with the task-scoped nature of
 XComs as defined by the schema, ensuring predictable and consistent behavior.
 
 DAG Authors should update their dags to use ``task_ids`` if their dags used ``xcom_pull`` without ``task_ids`` such as::
