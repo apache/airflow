@@ -207,6 +207,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
+            r"^RELEASE_NOTES\.rst",
         ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
