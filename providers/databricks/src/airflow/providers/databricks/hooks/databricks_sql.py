@@ -243,6 +243,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         conn = None
         results = []
         for sql_statement in sql_list:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
             with closing(conn.cursor()) as cur:

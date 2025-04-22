@@ -502,6 +502,7 @@ class SnowflakeHook(DbApiHook):
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
 
                     if handler is not None:
