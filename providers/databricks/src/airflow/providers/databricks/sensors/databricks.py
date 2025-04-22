@@ -27,7 +27,12 @@ from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
-from airflow.sdk import BaseSensorOperator
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
