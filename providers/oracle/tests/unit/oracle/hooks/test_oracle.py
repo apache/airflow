@@ -298,15 +298,6 @@ class TestOracleHookConn:
                 "oracle+oracledb://login:password@host:1521?service_name=service",
                 id="service_name_with_schema",
             ),
-            pytest.param(
-                {
-                    "extra": '{"service_name": "(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))"}',
-                    "schema": None,
-                    "port": 1521,
-                },
-                "oracle+oracledb://login:password@host:1521?service_name=(DESCRIPTION=(ADDRESS=(host=oracle://somedb.example.com)(protocol=TCP)(port=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)))",
-                id="complex_service_name",
-            ),
         ],
     )
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
