@@ -115,8 +115,12 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         if self.do_xcom_push and context is not None:
             context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=self.statement_id)
 
-        # If we're not waiting for the query to complete execution, then we'll go ahead and return
+        # If we're not waiting for the query to complete execution, then we'll go ahead and return. However, a
+        # recommendation to use the DatabricksSQLStatementOperator is made in this case
         if not self.wait_for_termination:
+            self.log.info(
+                "If setting wait_for_termination = False, consider using the DatabricksSQLStatementsOperator instead."
+            )
             return
 
         if self.deferrable:

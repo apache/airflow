@@ -71,12 +71,13 @@ with DAG(
     # [END howto_sensor_databricks_sql]
 
     # [START howto_sensor_databricks_sql_statement]
-    # Example of using the DatabricksSQLStatementSensor to kick off and wait for a query to run.
+    # Example of using the DatabricksSQLStatementSensor to wait for a query
+    # to successfully run.
     sql_statement_sensor = DatabricksSQLStatementsSensor(
         task_id="sql_statement_sensor_task",
         databricks_conn_id=connection_id,
         warehouse_id=WAREHOUSE_ID,
-        statement="select * from default.my_airflow_table",
+        statement_id="statement_id",
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_sensor_databricks_sql_statement]
