@@ -130,8 +130,6 @@ def build_airflow_packages(distribution_format: str):
                             tmpdir,
                             "--no-deps",
                             "--no-cache",
-                            "--no-binary",
-                            ":all:",
                             sdist_distribution_file.as_posix(),
                         ],
                         check=False,
