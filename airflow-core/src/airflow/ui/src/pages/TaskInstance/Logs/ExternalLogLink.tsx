@@ -56,7 +56,7 @@ export const ExternalLogLink = ({ externalLogName, taskInstance, tryNumber }: Pr
 
   return (
     <Button asChild colorScheme="blue" variant="outline">
-      <a href={externalLogData.url} rel="noreferrer" target="_blank">
+      <a href={externalLogData.url} rel="noopener noreferrer" target="_blank">
         View logs in {externalLogName} (attempt {tryNumber})
       </a>
     </Button>

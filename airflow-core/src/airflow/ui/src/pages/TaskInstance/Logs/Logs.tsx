@@ -85,7 +85,7 @@ export const Logs = () => {
   });
 
   const externalLogName = useConfig("external_log_name") as string;
-  const showExternalLogRedirect = useConfig("show_external_log_redirect") as boolean;
+  const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
 
   return (
     <Box p={2}>
