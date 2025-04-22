@@ -36,7 +36,7 @@ import rich
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
-from airflowctl.exceptions import AirflowCtlNotFoundException
+from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlNotFoundException
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -58,6 +58,8 @@ def lazy_load_command(import_path: str) -> Callable:
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     try:
         function(args)
+    except AirflowCtlCredentialNotFoundException as e:
+        rich.print(f"command failed due to {e}")
     except AirflowCtlNotFoundException as e:
         rich.print(f"command failed due to {e}")
 
