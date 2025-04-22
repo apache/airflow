@@ -316,8 +316,8 @@ and ``data_interval_end`` (and the legacy ``execution_date``) are the same; the 
 triggered.
 
 For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` (and legacy
-``execution_date``) are different. ``data_interval_start`` is the time when a DAG run is triggered and
-``data_interval_end`` is the end of the interval.
+``execution_date``) are different. ``data_interval_end`` is the time when a DAG run is triggered, while
+``data_interval_start`` and ``execution_date`` are the start of the interval.
 
 *Catchup* behavior
 ^^^^^^^^^^^^^^^^^^
