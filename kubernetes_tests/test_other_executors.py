@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
@@ -58,7 +56,13 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
 
         self._delete_airflow_pod("scheduler")
 
-        time.sleep(10)  # give time for pod to restart
+        if EXECUTOR == "CeleryExecutor":
+            scheduler_resource_type = "deployment"
+        elif EXECUTOR == "LocalExecutor":
+            scheduler_resource_type = "statefulset"
+        else:
+            raise ValueError(f"Unknown executor {EXECUTOR}")
+        self.ensure_resource_health("airflow-scheduler", resource_type=scheduler_resource_type)
 
         # Wait some time for the operator to complete
         self.monitor_task(
