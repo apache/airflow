@@ -25,7 +25,7 @@ predefined time-based schedules.
 This is particularly useful in modern data architectures where workflows need to react to real-time data changes,
 messages, or system signals.
 
-By using assets, as described in :doc:`datasets`, you can configure dags to start execution when specific external events
+By using assets, as described in :doc:`asset-scheduling`, you can configure dags to start execution when specific external events
 occur. Assets provide a mechanism to establish dependencies between external events and DAG execution, ensuring that
 workflows react dynamically to changes in the external environment.
 
