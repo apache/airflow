@@ -88,7 +88,7 @@ class KafkaBaseHook(BaseHook):
         """Test Connectivity from the UI."""
         try:
             config = self.get_connection(self.kafka_config_id).extra_dejson
-            t = AdminClient(config, timeout=10).list_topics()
+            t = AdminClient(config).list_topics(timeout=10)
             if t:
                 return True, "Connection successful."
         except Exception as e:

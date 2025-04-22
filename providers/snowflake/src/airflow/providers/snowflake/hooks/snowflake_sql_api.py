@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -120,7 +121,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if private_key_file:
             private_key_pem = Path(private_key_file).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            private_key_pem = base64.b64decode(private_key_content)
 
         if private_key_pem:
             passphrase = None
@@ -201,7 +202,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if all(
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
-            oauth_token = self.get_oauth_token()
+            oauth_token = self.get_oauth_token(conn_config=conn_config)
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
@@ -232,9 +233,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
-    def get_oauth_token(self) -> str:
+    def get_oauth_token(self, conn_config: dict[str, Any]) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
-        conn_config = self._get_conn_params
         url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
         data = {
             "grant_type": "refresh_token",
