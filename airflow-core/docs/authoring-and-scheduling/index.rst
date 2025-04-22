@@ -43,6 +43,6 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
     cron
     timezone
-    Asset-Aware Scheduling <datasets>
+    Asset-Aware Scheduling <asset-scheduling>
     timetable
     Event-Driven Scheduling <event-scheduling>
