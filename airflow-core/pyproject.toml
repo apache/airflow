@@ -59,7 +59,7 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0"
+version = "3.1.0.dev0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
@@ -86,7 +86,6 @@ dependencies = [
     "fastapi[standard]>=0.115.0,!=0.115.10",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "flask>=2.1.1",
-    "gitpython>=3.1.40",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
@@ -98,7 +97,6 @@ dependencies = [
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
-    "marshmallow-oneofschema>=2.0.1",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-exporter-otlp>=1.24.0",

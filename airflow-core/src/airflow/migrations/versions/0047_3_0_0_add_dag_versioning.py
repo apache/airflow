@@ -66,6 +66,9 @@ def _airflow_2_fileloc_hash(fileloc):
 def upgrade():
     """Apply add dag versioning."""
     conn = op.get_bind()
+
+    op.execute("DELETE FROM dag_code WHERE fileloc_hash NOT IN (SELECT fileloc_hash FROM serialized_dag)")
+
     op.create_table(
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),

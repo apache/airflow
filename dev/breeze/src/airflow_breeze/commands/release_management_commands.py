@@ -789,7 +789,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_hatch(
@@ -811,7 +811,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_docker(
@@ -1577,7 +1577,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 

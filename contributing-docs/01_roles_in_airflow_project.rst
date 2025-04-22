@@ -113,7 +113,7 @@ There are certain expectations from the members of the security team:
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
   is solving the problem or in order to assess its applicability to be applied by 3rd parties, as soon
-  as a PR solving the issue is opened in the public airflow repository.
+  as a PR solving the issue is opened in the public Airflow repository.
 
 * In case of critical security issues, the members of the security team might iterate on a fix in a
   private repository and only open the PR in the public repository once the fix is ready to be released,

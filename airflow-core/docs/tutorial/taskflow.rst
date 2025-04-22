@@ -423,6 +423,6 @@ What's Next
 
 Now that you've seen how to build clean, maintainable DAGs using the TaskFlow API, here are some good next steps:
 
-- Explore asset-aware workflows in :doc:`/authoring-and-scheduling/datasets`
+- Explore asset-aware workflows in :doc:`/authoring-and-scheduling/asset-scheduling`
 - Dive into scheduling patterns in :ref:`Scheduling Options <scheduling-section>`
 - Move to the next tutorial: :doc:`/tutorial/pipeline`
