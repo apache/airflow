@@ -424,6 +424,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
+    :param disallowed_trigger_types: List of trigger types that are not allowed for this DAG.
+        For example, [DagRunTriggeredByType.UI, DagRunTriggeredByType.REST_API] would disallow
+        triggering this DAG from the UI and the REST API. Defaults to an empty list (all triggers allowed).
     """
 
     partial: bool = False
@@ -435,10 +438,28 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     # Override the default from parent class to use config
     max_consecutive_failed_dag_runs: int = attrs.field(
-        default=0,
-        converter=_convert_max_consecutive_failed_dag_runs,
+        default=_convert_max_consecutive_failed_dag_runs(
+            airflow_conf.getint(
+                "core",
+                "max_consecutive_failed_dag_runs",
+                fallback=0,
+            )
+        ),
         validator=attrs.validators.instance_of(int),
     )
+    dagrun_timeout: timedelta | None = None
+    on_failure_callback: DagStateChangeCallback | list[DagStateChangeCallback] | None = None
+    on_success_callback: DagStateChangeCallback | list[DagStateChangeCallback] | None = None
+    log_handler: logging.handlers.RotatingFileHandler | None = None
+    _owner: str | None = attrs.field(default=None)
+    access_control: dict | None = None
+    is_paused_upon_creation: bool | None = None
+    auto_register: bool = True
+    fail_fast: bool = False
+    disable_bundle_versioning: bool = False
+    _dag_display_property_value: str | None = attrs.field(default=None)
+    # List of disallowed trigger types for this DAG
+    disallowed_trigger_types: list[DagRunTriggeredByType] = attrs.field(factory=list)
 
     @property
     def safe_dag_id(self):
@@ -1799,77 +1820,86 @@ class DAG(TaskSDKDag, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
-        Create a run for this DAG to run its tasks.
+        Create a DAG run from this DAG. Returns the dag run.
 
-        :param start_date: the date this dag run should be evaluated
+        :param run_id: defines the run id for this dag run
+        :param logical_date: the time that will be set as execution_date for this dag run
+        :param data_interval: the source interval of input data for this run. Should be consistent with the
+            logical date
+        :param run_after: the datetime after which the dag run should schedule. This is used
+            mainly in backfill jobs for when a task is cleared and is queued for execution
         :param conf: Dict containing configuration/parameters to pass to the DAG
-        :param creating_job_id: ID of the job creating this DagRun
-        :param backfill_id: ID of the backfill run if one exists
-        :return: The created DAG run.
-
-        :meta private:
+        :param run_type: from DagRunType
+        :param triggered_by: from DagRunTriggeredByType
+        :param state: State of the DagRun
+        :param start_date: defines the start date for this dag run
+        :param creating_job_id: id of the job creating this DagRun
+        :param backfill_id: id of the backfill creating this DagRun
+        :param session: database session
+        :return: dag run reference
         """
-        logical_date = timezone.coerce_datetime(logical_date)
-        # For manual runs where logical_date is None, ensure no data_interval is set.
-        if logical_date is None and data_interval is not None:
-            raise ValueError("data_interval must be None when logical_date is None")
+        import json
+        from airflow.api.common.trigger_dag import DagRunTriggerDisallowedError
 
-        if data_interval and not isinstance(data_interval, DataInterval):
-            data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
+        # Check if the trigger type is disallowed for this DAG
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == self.dag_id))
+        if dag_model and dag_model.disallowed_trigger_types:
+            disallowed_types = dag_model.disallowed_trigger_types
+            if isinstance(disallowed_types, list) and triggered_by.value in disallowed_types:
+                raise DagRunTriggerDisallowedError(self.dag_id, triggered_by)
 
-        if isinstance(run_type, DagRunType):
-            pass
-        elif isinstance(run_type, str):  # Ensure the input value is valid.
-            run_type = DagRunType(run_type)
+        store_params_context = get_listener_manager().hooks.is_registered("on_store_dagrun_params")
+        if run_type == DagRunType.BACKFILL_JOB:
+            # get dag_run stream_dags attribute, which shows whether we need a data stream;
+            if creating_job_id is not None:
+                dr = session.scalars(
+                    select(DagModel)
+                    .where(DagModel.dag_id == self.dag_id)
+                    .where(~DagModel.is_stale)
+                    .limit(1)
+                ).first()
+                if dr and dr.has_import_errors:
+                    raise ImportError(
+                        f"Cannot create backfill DAG run for DAG {self.dag_id} "
+                        f"because it has import errors"
+                    )
+
+            start_date = start_date or run_after
         else:
-            raise ValueError(f"run_type should be a DagRunType, not {type(run_type)}")
+            start_date = start_date or timezone.utcnow()
 
-        if not isinstance(run_id, str):
-            raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
-
-        # This is also done on the DagRun model class, but SQLAlchemy column
-        # validator does not work well for some reason.
-        if not re.match(RUN_ID_REGEX, run_id):
-            regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-            if not regex or not re.match(regex, run_id):
-                raise ValueError(
-                    f"The run_id provided '{run_id}' does not match regex pattern "
-                    f"'{regex}' or '{RUN_ID_REGEX}'"
-                )
-
-        # Prevent a manual run from using an ID that looks like a scheduled run.
-        if run_type == DagRunType.MANUAL:
-            if (inferred_run_type := DagRunType.from_run_id(run_id)) != DagRunType.MANUAL:
-                raise ValueError(
-                    f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
-                    f"is reserved for {inferred_run_type.value} runs"
-                )
-
-        # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-
-        if TYPE_CHECKING:
-            # TODO: Task-SDK: remove this assert
-            assert self.params
-        # create a copy of params before validating
-        copied_params = copy.deepcopy(self.params)
-        if conf:
-            copied_params.update(conf)
-        copied_params.validate()
-        return _create_orm_dagrun(
-            dag=self,
+        bundle_version = None
+        if not self.disable_bundle_versioning:
+            bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == self.dag_id),
+            )
+        dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+        run = DagRun(
+            dag_id=self.dag_id,
             run_id=run_id,
             logical_date=logical_date,
-            data_interval=data_interval,
-            run_after=timezone.coerce_datetime(run_after),
-            start_date=timezone.coerce_datetime(start_date),
+            start_date=start_date,
+            run_after=run_after,
             conf=conf,
             state=state,
             run_type=run_type,
             creating_job_id=creating_job_id,
-            backfill_id=backfill_id,
+            data_interval=data_interval,
             triggered_by=triggered_by,
-            session=session,
+            backfill_id=backfill_id,
+            bundle_version=bundle_version,
         )
+        # Load defaults into the following two fields to ensure result can be serialized detached
+        run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+        run.created_dag_version = dag_version
+        run.consumed_asset_events = []
+        session.add(run)
+        session.flush()
+        run.dag = self
+        # create the associated task instances
+        # state is None at the moment of creation
+        run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
+        return run
 
     @classmethod
     @provide_session
@@ -2184,6 +2214,8 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
     # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    # Disallowed trigger types for this DAG
+    disallowed_trigger_types = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view

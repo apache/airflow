@@ -74,6 +74,10 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.api.common.trigger_dag import (
+    DagRunTriggerDisallowedError,
+    trigger_dag,
+)
 
 log = structlog.get_logger(__name__)
 
@@ -372,6 +376,7 @@ def get_dag_runs(
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
+            status.HTTP_403_FORBIDDEN,
         ]
     ),
     dependencies=[
@@ -417,6 +422,8 @@ def trigger_dag_run(
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
+    except DagRunTriggerDisallowedError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e))
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     except ParamValidationError as e:

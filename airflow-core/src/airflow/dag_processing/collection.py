@@ -496,6 +496,13 @@ class DagModelOperation(NamedTuple):
             else:  # Optimization: no references at all, just clear everything.
                 dm.dag_owner_links = []
 
+            # Save disallowed trigger types if present
+            if hasattr(dag, "disallowed_trigger_types") and dag.disallowed_trigger_types:
+                # Convert enum values to strings for JSON serialization
+                dm.disallowed_trigger_types = [trigger_type.value for trigger_type in dag.disallowed_trigger_types]
+            else:
+                dm.disallowed_trigger_types = None
+
     def update_dag_asset_expression(
         self,
         *,

@@ -145,6 +145,7 @@ class DAGDetailsResponse(DAGResponse):
     catchup: bool
     dag_run_timeout: timedelta | None
     asset_expression: dict | None
+    disallowed_trigger_types: list[str] | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None
