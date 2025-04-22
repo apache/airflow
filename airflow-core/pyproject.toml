@@ -86,7 +86,6 @@ dependencies = [
     "fastapi[standard]>=0.115.0,!=0.115.10",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "flask>=2.1.1",
-    "gitpython>=3.1.40",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
