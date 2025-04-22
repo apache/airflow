@@ -506,6 +506,21 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     return val
 
 
+def get_compatible_output_log_stream(
+    input_logs: list[StructuredLogMessage],
+) -> Generator[StructuredLogMessage, None, None]:
+    """
+    Convert a list of structured log messages into a generator.
+
+    This helper ensures compatibility with `os_task_handler` and `es_task_handler`,
+    and is intended to be removed after the log handler refactor in providers.
+
+    :param input_logs: List of structured log messages.
+    :return: A generator yielding structured log messages.
+    """
+    yield from input_logs
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.

@@ -37,7 +37,10 @@ from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFor
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import (
+    FileTaskHandler,
+    get_compatible_output_log_stream,
+)
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
@@ -47,11 +50,9 @@ if TYPE_CHECKING:
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from typing import Union
+    from airflow.utils.log.file_task_handler import LogHandlerOutputStream
 
-    from airflow.utils.log.file_task_handler import StructuredLogMessage
-
-    OsLogMsgType = Union[list[StructuredLogMessage], str]
+    OsLogMsgType = LogHandlerOutputStream
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 
@@ -385,7 +386,17 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
-                return [("", missing_log_message)], metadata  # type: ignore[list-item]
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    return get_compatible_output_log_stream(
+                        [
+                            StructuredLogMessage(
+                                event=missing_log_message,
+                            )
+                        ]
+                    ), metadata
+                return [("", missing_log_message)], metadata  # type: ignore[return-value]
             if (
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
@@ -418,11 +429,12 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]
+                message = get_compatible_output_log_stream(message)  # type: ignore[assignment]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
         else:
             message = []
-        return message, metadata
+        return message, metadata  # type: ignore[return-value]
 
     def _os_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> OpensearchResponse | None:
         """
