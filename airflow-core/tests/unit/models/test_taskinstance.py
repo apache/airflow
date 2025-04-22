@@ -127,14 +127,6 @@ def task_reschedules_for_ti():
     return wrapper
 
 
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
-
-
 class CallbackWrapper:
     task_id: str | None = None
     dag_id: str | None = None
