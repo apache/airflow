@@ -127,7 +127,7 @@ breeze and I'll run unit tests for my Hook.
 Adding chicken-egg providers
 ----------------------------
 
-Sometimes we want to release provider that depends on the version of airflow that has not yet been released
+Sometimes we want to release provider that depends on the version of Airflow that has not yet been released
 - for example when we released ``common.io`` provider it had ``apache-airflow>=2.8.0`` dependency.
 
 Add chicken-egg-provider to compatibility checks
@@ -147,7 +147,7 @@ The short ``provider id`` (``common.io`` for example) for such a provider should
 to ``CHICKEN_EGG_PROVIDERS`` list in ``src/airflow_breeze/utils/selective_checks.py``:
 
 This list will be kept here until the official version of Airflow the chicken-egg-providers depend on
-is released and the version of airflow is updated in the ``main`` and ``v2-X-Y`` branch to ``2.X+1.0.dev0``
+is released and the version of Airflow is updated in the ``main`` and ``v2-X-Y`` branch to ``2.X+1.0.dev0``
 and ``2.X.1.dev0`` respectively. After that the chicken-egg providers will be correctly installed because
 both ``2.X.1.dev0`` and ``2.X+1.0.dev0`` are considered by ``pip`` as ``>2.X.0`` (unlike ``2.X.0.dev0``).
 
@@ -163,7 +163,7 @@ pre-release versions of Airflow - because ``pip`` does not recognize the ``.dev0
 suffixes of those packages as valid in the ``>=X.Y.Z`` comparison.
 
 When you want to install a provider package with ``apache-airflow>=2.8.0`` requirement and you have
-``2.9.0.dev0`` airflow package, ``pip`` will not install the package, because it does not recognize
+``2.9.0.dev0`` Airflow package, ``pip`` will not install the package, because it does not recognize
 ``2.9.0.dev0`` as a valid version for ``>=2.8.0`` dependency. This is because ``pip``
 currently implements the minimum version selection algorithm requirement specified in packaging as
 described in the packaging version specification
@@ -211,7 +211,7 @@ An important part of building a new provider is the documentation.
 Some steps for documentation occurs automatically by ``pre-commit`` see
 `Installing pre-commit guide </contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
 
-Those are important files in the airflow source tree that affect providers. The ``pyproject.toml`` in root
+Those are important files in the Airflow source tree that affect providers. The ``pyproject.toml`` in root
 Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
 when ``pre-commit`` is run. Files such as ``extra-packages-ref.rst`` should be manually updated because
 they are manually formatted for better layout and ``pre-commit`` will just verify if the information
@@ -422,13 +422,13 @@ The fix for that is to turn the feature into an optional provider feature (in th
   Those tests should be adjusted (but this is not very likely to happen, because the tests are using only
   the most common providers that we will not be likely to suspend).
 
-Bumping min airflow version
+Bumping min Airflow version
 ===========================
 
-We regularly bump min airflow version for all providers we release. This bump is done according to our
+We regularly bump min Airflow version for all providers we release. This bump is done according to our
 `Provider policies <https://github.com/apache/airflow/blob/main/PROVIDERS.rst>`_ and it is only applied
 to non-suspended/removed providers. We are running basic import compatibility checks in our CI and
-the compatibility checks should be updated when min airflow version is updated.
+the compatibility checks should be updated when min Airflow version is updated.
 
 Details on how this should be done are described in
 `Provider policies <https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md>`_
@@ -463,7 +463,7 @@ Releasing pre-installed providers for the first time
 
 When releasing providers for the first time, you need to release them in state ``not-ready``.
 This will make it available for release management commands, but it will not be added to airflow's
-preinstalled providers list - allowing airflow in main ``CI`` builds to be built without expecting the
+preinstalled providers list - allowing Airflow in main ``CI`` builds to be built without expecting the
 provider to be available in PyPI.
 
 You need to add ``--include-not-ready-providers`` if you want to add them to the list of providers

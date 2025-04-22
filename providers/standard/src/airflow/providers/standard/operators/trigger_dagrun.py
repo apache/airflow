@@ -60,12 +60,22 @@ if TYPE_CHECKING:
         from airflow.utils.context import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DagIsPaused
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
     from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+
+
+class DagIsPaused(AirflowException):
+    """Raise when a dag is paused and something tries to run it."""
+
+    def __init__(self, dag_id: str) -> None:
+        super().__init__(dag_id)
+        self.dag_id = dag_id
+
+    def __str__(self) -> str:
+        return f"Dag {self.dag_id} is paused"
 
 
 class TriggerDagRunLink(BaseOperatorLink):
