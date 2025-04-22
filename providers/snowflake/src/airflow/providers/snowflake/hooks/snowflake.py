@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import os
 from collections.abc import Iterable, Mapping
 from contextlib import closing, contextmanager
@@ -36,7 +37,8 @@ from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
 
@@ -288,7 +290,7 @@ class SnowflakeHook(DbApiHook):
                 raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
             private_key_pem = Path(private_key_file_path).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            private_key_pem = base64.b64decode(private_key_content)
 
         if private_key_pem:
             passphrase = None
@@ -501,6 +503,7 @@ class SnowflakeHook(DbApiHook):
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
 
                     if handler is not None:
