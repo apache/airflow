@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -120,7 +121,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if private_key_file:
             private_key_pem = Path(private_key_file).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            private_key_pem = base64.b64decode(private_key_content)
 
         if private_key_pem:
             passphrase = None
