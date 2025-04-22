@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 import sys
 from copy import deepcopy
@@ -69,7 +70,7 @@ CONN_PARAMS_OAUTH = {
 
 
 @pytest.fixture
-def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
+def unencrypted_temporary_private_key(tmp_path: Path) -> Path:
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
@@ -77,6 +78,11 @@ def non_encrypted_temporary_private_key(tmp_path: Path) -> Path:
     test_key_file = tmp_path / "test_key.pem"
     test_key_file.write_bytes(private_key)
     return test_key_file
+
+
+@pytest.fixture
+def base64_encoded_unencrypted_private_key(self, unencrypted_temporary_private_key: Path) -> str:
+    return base64.b64encode(unencrypted_temporary_private_key.read_bytes()).decode("utf-8")
 
 
 @pytest.fixture
@@ -90,6 +96,11 @@ def encrypted_temporary_private_key(tmp_path: Path) -> Path:
     test_key_file: Path = tmp_path / "test_key.p8"
     test_key_file.write_bytes(private_key)
     return test_key_file
+
+
+@pytest.fixture
+def base64_encoded_encrypted_private_key(encrypted_temporary_private_key: Path) -> str:
+    return base64.b64encode(encrypted_temporary_private_key.read_bytes()).decode("utf-8")
 
 
 class TestPytestSnowflakeHook:
@@ -358,7 +369,7 @@ class TestPytestSnowflakeHook:
             assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params == expected_conn_params
 
     def test_get_conn_params_should_support_private_auth_in_connection(
-        self, encrypted_temporary_private_key: Path
+        self, base64_encoded_encrypted_private_key: Path
     ):
         connection_kwargs: Any = {
             **BASE_CONNECTION_KWARGS,
@@ -369,7 +380,7 @@ class TestPytestSnowflakeHook:
                 "warehouse": "af_wh",
                 "region": "af_region",
                 "role": "af_role",
-                "private_key_content": str(encrypted_temporary_private_key.read_text()),
+                "private_key_content": base64_encoded_encrypted_private_key,
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
@@ -454,7 +465,7 @@ class TestPytestSnowflakeHook:
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
 
     def test_get_conn_params_should_support_private_auth_with_unencrypted_key(
-        self, non_encrypted_temporary_private_key
+        self, unencrypted_temporary_private_key
     ):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,
@@ -465,7 +476,7 @@ class TestPytestSnowflakeHook:
                 "warehouse": "af_wh",
                 "region": "af_region",
                 "role": "af_role",
-                "private_key_file": str(non_encrypted_temporary_private_key),
+                "private_key_file": str(unencrypted_temporary_private_key),
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
@@ -620,10 +631,10 @@ class TestPytestSnowflakeHook:
             )
             assert mock_create_engine.return_value == conn
 
-    def test_get_sqlalchemy_engine_should_support_private_key_auth(self, non_encrypted_temporary_private_key):
+    def test_get_sqlalchemy_engine_should_support_private_key_auth(self, unencrypted_temporary_private_key):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["password"] = ""
-        connection_kwargs["extra"]["private_key_file"] = str(non_encrypted_temporary_private_key)
+        connection_kwargs["extra"]["private_key_file"] = str(unencrypted_temporary_private_key)
 
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
