@@ -683,14 +683,6 @@ class TestOpenLineageListenerAirflow2:
         listener.log.warning.assert_called_once()
 
 
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
-
-
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
