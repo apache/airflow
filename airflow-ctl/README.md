@@ -16,3 +16,32 @@
  specific language governing permissions and limitations
  under the License.
  -->
+
+# airflowctl
+
+A command-line tool for interacting with Apache Airflow instances through the Airflow REST API. It offers a convenient interface for performing common operations remotely without direct access to the Airflow scheduler or webserver.
+
+## Features
+
+- Communicates with Airflow instances through the REST API
+- Supports authentication using Airflow API tokens
+- Executes commands against remote Airflow deployments
+- Provides intuitive command organization with group-based structure
+- Includes detailed help documentation for all commands
+
+## Requirements
+
+- Python 3.9 or later (compatible with Python >= 3.9 and < 3.13)
+- Network access to an Apache Airflow instance with REST API enabled
+
+## Usage
+
+Access the tool from your terminal:
+
+```bash
+airflowctl --help
+```
+
+## Contributing
+
+Want to help improve Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
