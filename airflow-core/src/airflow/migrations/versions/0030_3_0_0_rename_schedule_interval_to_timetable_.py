@@ -58,3 +58,4 @@ def downgrade():
             type_=sa.Text,
             nullable=True,
         )
+    op.execute("UPDATE dag SET schedule_interval=NULL;")
