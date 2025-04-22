@@ -131,6 +131,15 @@ class TestOracleHookConn:
             assert kwargs["purity"] == purity.get(pur)
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_expire_time(self, mock_connect):
+        self.connection.extra = json.dumps({"expire_time": 10})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["expire_time"] == 10
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({"service_name": "service_name"})

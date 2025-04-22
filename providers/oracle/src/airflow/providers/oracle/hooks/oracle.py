@@ -226,6 +226,10 @@ class OracleHook(DbApiHook):
         elif purity == "default":
             conn_config["purity"] = oracledb.PURITY_DEFAULT
 
+        expire_time = conn.extra_dejson.get("expire_time")
+        if expire_time:
+            conn_config["expire_time"] = expire_time
+
         conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
             conn.module = mod
