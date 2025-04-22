@@ -145,7 +145,7 @@ jobs:
       - name: "Create airflow_cache builder"
         run: docker buildx create --name airflow_cache
       - name: "Prepare chicken-eggs provider distributions"
-        # In case of provider distributions which use latest r00 version of providers, we should prepare them
+        # In case of provider distributions which use latest rc1 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.rc0
         shell: bash
@@ -154,7 +154,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-distributions
           --distribution-format wheel
-          --version-suffix-for-pypi rc0 ${CHICKEN_EGG_PROVIDERS}
+          --version-suffix-for-pypi rc1 ${CHICKEN_EGG_PROVIDERS}
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "Copy dist packages to docker-context files"
         shell: bash
