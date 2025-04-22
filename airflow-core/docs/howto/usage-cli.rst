@@ -76,7 +76,7 @@ For example, to print the ``example_complex`` DAG to the terminal:
 
   airflow dags show example_complex
 
-This will print the rendered DAG structure (similar to :ref:`Graph <ui:graph-view>`) to the screen in DOT format.
+This will print the rendered DAG structure to the screen in DOT format.
 
 Multiple file formats are supported. To use them, add the argument ``--save [filename].[format]``.
 
