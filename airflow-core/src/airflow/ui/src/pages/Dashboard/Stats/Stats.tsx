@@ -16,33 +16,82 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
-import { FiClipboard, FiZap } from "react-icons/fi";
+import { Box, Flex, Heading, SimpleGrid } from "@chakra-ui/react";
+import { FiClipboard } from "react-icons/fi";
 
-import { StateIcon } from "src/components/StateIcon";
+import { useDagServiceGetDags } from "openapi/queries";
 
 import { DAGImportErrors } from "./DAGImportErrors";
-import { DagFilterButton } from "./DagFilterButton";
+import { StatsCard } from "./StatsCard";
 
-export const Stats = () => (
-  <Box>
-    <Flex color="fg.muted" my={2}>
-      <FiClipboard />
-      <Heading ml={1} size="xs">
-        Links
-      </Heading>
-    </Flex>
-    <HStack>
-      <DagFilterButton colorPalette="failed" filter="failed" link="dags?last_dag_run_state=failed">
-        <StateIcon state="failed" />
-      </DagFilterButton>
-      <DAGImportErrors />
-      <DagFilterButton colorPalette="running" filter="running" link="dags?last_dag_run_state=running">
-        <StateIcon state="running" />
-      </DagFilterButton>
-      <DagFilterButton colorPalette="blue" filter="active" link="dags?paused=false">
-        <FiZap />
-      </DagFilterButton>
-    </HStack>
-  </Box>
-);
+export const Stats = () => {
+  const { data: activeDagsData, isLoading: isActiveDagsLoading } = useDagServiceGetDags({
+    paused: false,
+  });
+
+  const { data: failedDagsData, isLoading: isFailedDagsLoading } = useDagServiceGetDags({
+    lastDagRunState: "failed",
+  });
+
+  const { data: stalledDagsData, isLoading: isStalledDagsLoading } = useDagServiceGetDags({
+    lastDagRunState: "queued",
+  });
+
+  const { data: runningDagsData, isLoading: isRunningDagsLoading } = useDagServiceGetDags({
+    lastDagRunState: "running",
+  });
+
+  const activeDagsCount = activeDagsData?.total_entries ?? 0;
+  const failedDagsCount = failedDagsData?.total_entries ?? 0;
+  const stalledDagsCount = stalledDagsData?.total_entries ?? 0;
+  const runningDagsCount = runningDagsData?.total_entries ?? 0;
+
+  return (
+    <Box>
+      <Flex alignItems="center" color="fg.muted" my={2}>
+        <FiClipboard />
+        <Heading ml={1} size="xs">
+          Stats
+        </Heading>
+      </Flex>
+
+      <SimpleGrid columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
+        <StatsCard
+          colorScheme="red"
+          count={failedDagsCount}
+          isLoading={isFailedDagsLoading}
+          label="Failed DAGs"
+          link="dags?last_dag_run_state=failed"
+        />
+
+        {failedDagsCount > 0 && <DAGImportErrors />}
+
+        {stalledDagsCount > 0 && (
+          <StatsCard
+            colorScheme="orange"
+            count={stalledDagsCount}
+            isLoading={isStalledDagsLoading}
+            label="Stalled DAGs"
+            link="dags?last_dag_run_state=queued"
+          />
+        )}
+
+        <StatsCard
+          colorScheme="teal"
+          count={runningDagsCount}
+          isLoading={isRunningDagsLoading}
+          label="Running DAGs"
+          link="dags?last_dag_run_state=running"
+        />
+
+        <StatsCard
+          colorScheme="blue"
+          count={activeDagsCount}
+          isLoading={isActiveDagsLoading}
+          label="Active DAGS"
+          link="dags?paused=false"
+        />
+      </SimpleGrid>
+    </Box>
+  );
+};

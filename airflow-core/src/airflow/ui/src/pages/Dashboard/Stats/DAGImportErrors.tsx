@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, Button, useDisclosure, Skeleton } from "@chakra-ui/react";
-import { FiChevronRight } from "react-icons/fi";
+import { Box, Button, Skeleton, useDisclosure } from "@chakra-ui/react";
 import { LuFileWarning } from "react-icons/lu";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
@@ -26,6 +25,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { pluralize } from "src/utils";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
+import { StatsCard } from "./StatsCard";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
@@ -40,7 +40,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
   }
 
   return (
-    <Box alignItems="center" display="flex" maxH="10px">
+    <Box alignItems="center" display="flex">
       <ErrorAlert error={error} />
       {importErrorsCount > 0 && (
         <>
@@ -56,23 +56,13 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
               {importErrorsCount}
             </StateBadge>
           ) : (
-            <Button
-              alignItems="center"
-              borderRadius="md"
-              display="flex"
-              gap={2}
+            <StatsCard
+              colorScheme="red"
+              count={importErrorsCount}
+              isLoading={isLoading}
+              label="Dag Import Errors"
               onClick={onOpen}
-              variant="outline"
-            >
-              <StateBadge colorPalette="failed">
-                <LuFileWarning />
-                {importErrorsCount}
-              </StateBadge>
-              <Box alignItems="center" display="flex" gap={1}>
-                <Text fontWeight="bold">Dag Import Errors</Text>
-                <FiChevronRight />
-              </Box>
-            </Button>
+            />
           )}
           <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
         </>
