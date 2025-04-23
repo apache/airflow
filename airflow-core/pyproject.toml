@@ -216,7 +216,7 @@ dependencies = [
     "statsd>=3.3.0",
 ]
 "uv" = [
-    "uv>=0.6.13",
+    "uv>=0.6.16",
 ]
 "all" = [
     "apache-airflow-core[aiobotocore,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
