@@ -375,7 +375,7 @@ const customConfig = defineConfig({
         restarting: generateSemanticTokens("violet"),
         deferred: generateSemanticTokens("purple"),
         scheduled: generateSemanticTokens("zinc"),
-        none: generateSemanticTokens("sky"),
+        none: generateSemanticTokens("gray"),
         removed: generateSemanticTokens("slate"),
       },
     },
