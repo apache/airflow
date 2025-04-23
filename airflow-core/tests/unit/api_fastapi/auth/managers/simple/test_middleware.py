@@ -24,7 +24,7 @@ from airflow.api_fastapi.app import create_app
 from tests_common.test_utils.config import conf_vars
 
 
-def test_invoking_without_auth_header():
+def test_invoke_api_without_auth_header():
     with conf_vars(
         {
             (
