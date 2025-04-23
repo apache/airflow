@@ -45,7 +45,7 @@ In addition to scheduling dags based on time, you can also schedule dags to run 
         ...
 
 
-.. image:: /img/asset-scheduled-dags.png
+.. image:: /img/ui-dark/asset_scheduled_dags.png
 
 .. seealso::
 
@@ -67,8 +67,7 @@ You can use assets to specify data dependencies in your dags. The following exam
         ...
 
 
-You can find a listing of the relationships between assets and dags in the
-:ref:`Assets View<ui:assets-view>`
+You can find a listing of the relationships between assets and dags in the :ref:`Asset Views <ui-asset-views>`.
 
 Multiple assets
 -----------------

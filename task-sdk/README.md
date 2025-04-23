@@ -19,9 +19,9 @@
 
 # Apache Airflow Task SDK
 
-[![PyPI version](https://badge.fury.io/py/apache-airflow-task-sdk.svg)](https://badge.fury.io/py/apache-airflow)
+[![PyPI version](https://badge.fury.io/py/apache-airflow-task-sdk.svg)](https://badge.fury.io/py/apache-airflow-task-sdk)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow-task-sdk.svg)](https://pypi.org/project/apache-airflow/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow-task-sdk.svg)](https://pypi.org/project/apache-airflow-task-sdk/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow-task-sdk)](https://pypi.org/project/apache-airflow-task-sdk/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
