@@ -31,7 +31,7 @@ export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
 
   return (
-    <Box>
+    <Box px={4}>
       <VStack alignItems="start">
         {alerts.length > 0 ? (
           <Accordion.Root collapsible defaultValue={["ui_alerts"]}>
@@ -54,15 +54,17 @@ export const Dashboard = () => {
             </Accordion.Item>
           </Accordion.Root>
         ) : undefined}
-        <Heading mb={4}>Welcome</Heading>
+        <Heading mb={2} size="2xl">
+          Welcome,
+        </Heading>
       </VStack>
       <Box>
-        <Health />
-      </Box>
-      <Box mt={5}>
         <Stats />
       </Box>
-      <Box mt={5}>
+      <Box mt={8}>
+        <Health />
+      </Box>
+      <Box mt={8}>
         <HistoricalMetrics />
       </Box>
     </Box>
