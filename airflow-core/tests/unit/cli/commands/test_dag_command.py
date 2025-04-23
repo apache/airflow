@@ -235,10 +235,8 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        dag_detail_fields = dag_command.DAGSchema().fields.keys()
-
         # Check if DAG Details field are present
-        for field in dag_detail_fields:
+        for field in dag_command.DAG_DETAIL_FIELDS:
             assert field in out
 
         # Check if identifying values are present
@@ -257,6 +255,42 @@ class TestCliDags:
         for key in ["dag_id", "fileloc", "owners", "is_paused"]:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_list_local_dags(self):
+        # Clear the database
+        clear_db_dags()
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--local"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+            dag_list = json.loads(out)
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+            assert key in dag_list[0]
+        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
+        # Rebuild Test DB for other tests
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_local_dags_with_bundle_name(self, configure_testing_dag_bundle):
+        # Clear the database
+        clear_db_dags()
+        path_to_parse = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "testing"]
+        )
+        with configure_testing_dag_bundle(path_to_parse):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                dag_command.dag_list_dags(args)
+                out = temp_stdout.getvalue()
+                dag_list = json.loads(out)
+            for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+                assert key in dag_list[0]
+            assert any(
+                str(TEST_DAGS_FOLDER / "test_example_bash_operator.py") in d["fileloc"] for d in dag_list
+            )
+        # Rebuild Test DB for other tests
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_custom_cols(self):
@@ -294,6 +328,26 @@ class TestCliDags:
 
         assert "Failed to load all files." in out
 
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_dags_prints_local_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+        # Clear the database
+        clear_db_dags()
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "yaml", "--bundle-name", "testing", "--local"]
+        )
+
+        with configure_testing_dag_bundle(path_to_parse):
+            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+                dag_command.dag_list_dags(args)
+                out = temp_stderr.getvalue()
+
+        assert "Failed to load all files." in out
+        # Rebuild Test DB for other tests
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     @mock.patch("airflow.models.DagModel.get_dagmodel")
     def test_list_dags_none_get_dagmodel(self, mock_get_dagmodel):
@@ -309,10 +363,9 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
-        valid_cols = [c for c in dag_command.DAGSchema().fields]
         dagbag = DagBag(include_examples=True, read_dags_from_db=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
-        assert list(dag_details.keys()) == valid_cols
+        assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):

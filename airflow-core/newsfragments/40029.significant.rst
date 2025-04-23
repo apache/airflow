@@ -1,4 +1,4 @@
-Removed deprecated airflow configuration ``webserver.allow_raw_html_descriptions`` from UI Trigger forms.
+Removed deprecated Airflow configuration ``webserver.allow_raw_html_descriptions`` from UI Trigger forms.
 
 * Types of change
 

@@ -17,16 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
+from common_precommit_utils import AIRFLOW_ROOT_PATH
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
-
-
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 
 
 def stable_sort(x):
@@ -38,7 +35,7 @@ def sort_uniq(sequence):
 
 
 if __name__ == "__main__":
-    spelling_wordlist_path = Path(AIRFLOW_SOURCES) / "docs" / "spelling_wordlist.txt"
+    spelling_wordlist_path = AIRFLOW_ROOT_PATH / "docs" / "spelling_wordlist.txt"
     content = spelling_wordlist_path.read_text().splitlines(keepends=True)
     sorted_content = sort_uniq(content)
     spelling_wordlist_path.write_text("".join(sorted_content))

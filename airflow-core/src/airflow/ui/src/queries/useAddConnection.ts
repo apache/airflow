@@ -37,6 +37,8 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
       title: "Connection Add Request Submitted",
       type: "success",
     });
+
+    setError(undefined);
     onSuccessConfirm();
   };
 

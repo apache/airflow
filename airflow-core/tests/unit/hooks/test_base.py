@@ -29,14 +29,6 @@ from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, Ge
 from tests_common.test_utils.config import conf_vars
 
 
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
-
-
 class TestBaseHook:
     def test_hook_has_default_logger_name(self):
         hook = BaseHook()

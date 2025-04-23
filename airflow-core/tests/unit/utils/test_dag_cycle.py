@@ -21,8 +21,8 @@ import pytest
 from airflow.exceptions import AirflowDagCycleException
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import Label
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 
 from unit.models import DEFAULT_DATE

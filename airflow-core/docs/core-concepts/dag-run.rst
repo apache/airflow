@@ -199,7 +199,7 @@ Task Instance History
 ---------------------
 When a task instance retries or is cleared, the task instance history is preserved. You can see this history by clicking on the task instance in the Grid view.
 
-.. image:: ../img/task_instance_history.png
+.. image:: ../img/ui-dark/task_instance_history.png
 
 .. note::
     The try selector shown above is only available for tasks that have been retried or cleared.
@@ -207,7 +207,7 @@ When a task instance retries or is cleared, the task instance history is preserv
 The history shows the value of the task instance attributes at the end of the particular run. On the log page, you can also see the logs for each of the task instance tries.
 This can be useful for debugging.
 
-.. image:: ../img/task_instance_history_log.png
+.. image:: ../img/ui-dark/task_instance_history_log.png
 
 .. note::
     Related task instance objects like the XComs, rendered template fields, etc., are not preserved in the history. Only the task instance attributes, including the logs, are preserved.

@@ -1041,6 +1041,11 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
         relative_fileloc:
           anyOf:
           - type: string
@@ -1140,6 +1145,7 @@ components:
       - last_parsed_time
       - last_expired
       - bundle_name
+      - bundle_version
       - relative_fileloc
       - fileloc
       - description

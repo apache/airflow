@@ -185,7 +185,7 @@ are: Airflow Core and Airflow Providers, which are referenced by ``area:core``
 and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
-There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
+There are more detailed areas of the Core Airflow project such as Scheduler, API Server,
 API, UI, Logging, and Metrics, which are all conceptually under the
 "Airflow Core" area of the project.
 

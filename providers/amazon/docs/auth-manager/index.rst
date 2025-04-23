@@ -45,3 +45,10 @@ The AWS auth manager is an auth manager powered by AWS. It uses two services:
     :maxdepth: 2
 
     manage/index
+
+**Generate a JWT token to use Airflow public API**
+
+.. toctree::
+    :maxdepth: 2
+
+    token

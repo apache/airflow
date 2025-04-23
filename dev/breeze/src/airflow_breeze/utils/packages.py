@@ -471,6 +471,11 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
     return "apache_airflow_providers_" + provider_id.replace(".", "_")
 
 
+def floor_version_suffix(version_suffix: str) -> str:
+    # always use `pre-release`+ `0` as the version suffix
+    return version_suffix.rstrip("0123456789") + "0"
+
+
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
     pypi_version_suffix = remove_local_version_suffix(version_suffix)
@@ -492,10 +497,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         from packaging.version import Version
 
         base_version = Version(version).base_version
-        # always use `pre-release`+ `0` as the version suffix
-        pypi_version_suffix = pypi_version_suffix.rstrip("0123456789") + "0"
-
-        target_version = Version(str(base_version) + "." + pypi_version_suffix)
+        target_version = Version(str(base_version) + "." + floor_version_suffix(pypi_version_suffix))
         return prefix + ">=" + str(target_version)
     return install_clause
 

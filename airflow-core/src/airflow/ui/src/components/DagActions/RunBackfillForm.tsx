@@ -116,7 +116,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   return (
     <>
-      <VStack alignItems="stretch" gap={2} p={10}>
+      <VStack alignItems="stretch" gap={2} pt={4}>
         <Box>
           <Text fontSize="md" fontWeight="medium" mb={1}>
             Date Range

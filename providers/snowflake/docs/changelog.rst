@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+main
+.....
+
+Bug fixes
+~~~~~~~~~
+
+.. note::
+   ``private_key_content`` in Snowflake connection should now be base64 encoded. To encode your private key, you can use the following Python snippet:
+
+   .. code-block:: python
+
+         import base64
+
+         with open("path/to/your/private_key.pem", "rb") as key_file:
+             encoded_key = base64.b64encode(key_file.read()).decode("utf-8")
+             print(encoded_key)
+
+
 6.2.2
 .....
 

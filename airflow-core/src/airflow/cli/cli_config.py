@@ -233,6 +233,13 @@ ARG_SKIP_SERVE_LOGS = Arg(
     action="store_true",
 )
 
+# list_dags
+ARG_LIST_LOCAL = Arg(
+    ("-l", "--local"),
+    action="store_true",
+    help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
+)
+
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
@@ -959,13 +966,13 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
-        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="report",

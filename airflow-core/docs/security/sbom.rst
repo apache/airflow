@@ -25,7 +25,7 @@ of the software dependencies.
 The general use case for such files is to help assess and manage risks. For instance a quick lookup against your SBOM files can help identify if a CVE (Common Vulnerabilities and Exposures) in a
 library is affecting you.
 
-By default, Apache Airflow SBOM files are generated for airflow core with all providers. In the near future we aim at generating SBOM files per provider and also provide them for docker standard images.
+By default, Apache Airflow SBOM files are generated for Airflow core with all providers. In the near future we aim at generating SBOM files per provider and also provide them for docker standard images.
 
-Each airflow version has its own SBOM files, one for each supported python version.
+Each Airflow version has its own SBOM files, one for each supported python version.
 You can find them `here <https://airflow.apache.org/docs/apache-airflow/stable/sbom>`_.

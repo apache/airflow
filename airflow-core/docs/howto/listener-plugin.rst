@@ -44,14 +44,14 @@ Using this plugin, following events can be listened:
     * dag run is in running state.
     * dag run is in success state.
     * dag run is in failure state.
-    * on start before event like airflow job, scheduler
-    * before stop for event like airflow job, scheduler
+    * on start before event like Airflow job, scheduler
+    * before stop for event like Airflow job, scheduler
 
 Listener Registration
 ---------------------
 
 A listener plugin with object reference to listener object is registered
-as part of airflow plugin. The following is a
+as part of Airflow plugin. The following is a
 skeleton for us to implement a new listener:
 
 .. code-block:: python

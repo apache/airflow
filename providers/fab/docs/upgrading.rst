@@ -28,6 +28,10 @@ must run ``airflow fab-db migrate`` to migrate your database with the schema cha
 upgrading to. If ``FABDBManager`` is included in the ``[core] external_db_managers`` configuration, the migrations will
 be run automatically as part of the ``airflow db migrate`` command.
 
+.. note::
+    If FAB auth manager is configured as auth manager in your environment, ``FABDBManager`` is automatically added in the
+    ``[core] external_db_managers`` configuration.
+
 How to upgrade
 ==============
 To upgrade the FAB provider, you need to install the new version of the package. You can do this using ``pip``.

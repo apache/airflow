@@ -20,7 +20,7 @@ Backfill
 
 Backfill is when you create runs for past dates of a dag.  Airflow provides a mechanism
 to do this through the CLI and REST API.  You provide a dag, a start date, and an end date,
-and airflow will create runs in the range according to the dag's schedule.
+and Airflow will create runs in the range according to the dag's schedule.
 
 Backfill does not make sense for dags that don't have a time-based schedule.
 

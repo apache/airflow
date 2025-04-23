@@ -94,6 +94,7 @@ from airflow_breeze.global_constants import (
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MULTI_PLATFORM,
+    UV_VERSION,
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.prepare_providers.provider_distributions import (
@@ -127,6 +128,7 @@ from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     expand_all_provider_distributions,
     find_matching_long_package_names,
+    floor_version_suffix,
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
@@ -244,7 +246,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.13"
+AIRFLOW_UV_VERSION = "0.6.16"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -252,7 +254,6 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.13"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -421,8 +422,9 @@ def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_
             if not line.endswith(
                 f'.{version_suffix}"',
             ):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{version_suffix}",'
+                floored_version_suffix = floor_version_suffix(version_suffix)
+                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
+                line = line.rstrip('",') + f'.{floored_version_suffix}",'
             else:
                 get_console().print(
                     f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
@@ -787,7 +789,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_hatch(
@@ -809,7 +811,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_docker(
@@ -1575,7 +1577,7 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}")
+    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -2469,14 +2471,23 @@ def generate_issue_content_providers(
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
+                pr_or_issue = None
                 try:
-                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                    pr_or_issue = repo.get_pull(pr_number)
+                    if pr_or_issue.user.login == "dependabot[bot]":
+                        get_console().print(
+                            f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]"
+                        )
+                        continue
+                    pull_requests[pr_number] = pr_or_issue
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                        pr_or_issue = repo.get_issue(pr_number)  # type: ignore[assignment]
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                pull_requests[pr_number] = pr_or_issue  # type: ignore[assignment]
+
                 # Retrieve linked issues
                 if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())

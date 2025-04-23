@@ -38,7 +38,7 @@ A Hook is a high-level interface to an external platform that lets you quickly a
 
 They integrate with Connections to gather credentials, and many have a default ``conn_id``; for example, the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` automatically looks for the Connection with a ``conn_id`` of ``postgres_default`` if you don't pass one in.
 
-You can view a :ref:`full list of airflow hooks <pythonapi:hooks>` in our API documentation.
+You can view a :ref:`full list of Airflow hooks <pythonapi:hooks>` in our API documentation.
 
 Custom connections
 ------------------

@@ -78,6 +78,7 @@ GCE_INSTANCE_BODY = {
     "disks": [
         {
             "boot": True,
+            "auto_delete": True,
             "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",

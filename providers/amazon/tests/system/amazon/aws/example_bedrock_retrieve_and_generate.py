@@ -58,7 +58,7 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
+from airflow.sdk import Label
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.amazon.aws.utils import SystemTestContextBuilder

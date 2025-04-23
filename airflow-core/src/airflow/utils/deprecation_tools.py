@@ -72,6 +72,8 @@ def add_deprecated_classes(
     """
     Add deprecated class PEP-563 imports and warnings modules to the package.
 
+    Side note: It also works for methods, not just classes.
+
     :param module_imports: imports to use
     :param package: package name
     :param override_deprecated_classes: override target classes with deprecated ones. If module +

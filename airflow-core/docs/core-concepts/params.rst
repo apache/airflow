@@ -386,19 +386,19 @@ For examples, please take a look at the two example dags provided: :ref:`Params 
 The Params UI Tutorial is rendered in 4 sections with the most common examples. The first section shows the basic usage without
 ``Param`` class.
 
-.. image:: ../img/trigger-dag-tutorial-form-1.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-1.png
 
 The second section shows how to use the ``Param`` class to define more attributes.
 
-.. image:: ../img/trigger-dag-tutorial-form-2.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-2.png
 
 The third section shows how to model selection lists and drop-downs.
 
-.. image:: ../img/trigger-dag-tutorial-form-3.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-3.png
 
 Finally the fourth section shows advanced form elements.
 
-.. image:: ../img/trigger-dag-tutorial-form-4.png
+.. image:: ../img/ui-dark/trigger-dag-tutorial-form-4.png
 
 .. versionchanged:: 3.0.0
     By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named

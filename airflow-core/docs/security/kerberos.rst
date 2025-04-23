@@ -45,10 +45,10 @@ To enable Kerberos you will need to generate a (service) key tab.
     # in the kadmin.local or kadmin shell, create the airflow principal
     kadmin:  addprinc -randkey airflow/fully.qualified.domain.name@YOUR-REALM.COM
 
-    # Create the airflow keytab file that will contain the airflow principal
+    # Create the Airflow keytab file that will contain the Airflow principal
     kadmin:  xst -norandkey -k airflow.keytab airflow/fully.qualified.domain.name
 
-Now store this file in a location where the airflow user can read it (chmod 600). And then add the following to
+Now store this file in a location where the Airflow user can read it (chmod 600). And then add the following to
 your ``airflow.cfg``
 
 .. code-block:: ini
@@ -103,9 +103,9 @@ Launch the ticket renewer by
 To support more advanced deployment models for using kerberos in standard or one-time fashion,
 you can specify the mode while running the ``airflow kerberos`` by using the ``--one-time`` flag.
 
-a) standard: The airflow kerberos command will run endlessly. The ticket renewer process runs continuously every few seconds
+a) standard: The Airflow kerberos command will run endlessly. The ticket renewer process runs continuously every few seconds
 and refreshes the ticket if it has expired.
-b) one-time: The airflow kerberos will run once and exit. In case of failure the main task won't spin up.
+b) one-time: The Airflow kerberos will run once and exit. In case of failure the main task won't spin up.
 
 The default mode is standard.
 

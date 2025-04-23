@@ -62,7 +62,7 @@
 
 
 apache-airflow-providers-edge3 package
---------------------------------------
+------------------------------------------------------
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
@@ -72,7 +72,7 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This package is for the ``edge`` provider.
+This package is for the ``edge3`` provider.
 All classes for this package are included in the ``airflow.providers.edge3`` python package.
 
 Installation
@@ -120,5 +120,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-edge3 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-edge3 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge-1.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-edge3 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-edge3 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-1.0.0-py3-none-any.whl.sha512>`__)

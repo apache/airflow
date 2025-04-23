@@ -35,7 +35,8 @@ from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.types import Row
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
@@ -242,6 +243,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         conn = None
         results = []
         for sql_statement in sql_list:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
             with closing(conn.cursor()) as cur:

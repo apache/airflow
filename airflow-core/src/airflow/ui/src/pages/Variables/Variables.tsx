@@ -52,6 +52,7 @@ const getColumns = ({
     accessorKey: "select",
     cell: ({ row }) => (
       <Checkbox
+        borderWidth={1}
         checked={selectedRows.get(row.original.key)}
         colorPalette="blue"
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
@@ -60,6 +61,7 @@ const getColumns = ({
     enableSorting: false,
     header: () => (
       <Checkbox
+        borderWidth={1}
         checked={allRowsSelected}
         colorPalette="blue"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
@@ -107,6 +109,7 @@ const getColumns = ({
 export const Variables = () => {
   const { setTableURLState, tableURLState } = useTableURLState({
     pagination: { pageIndex: 0, pageSize: 30 },
+    sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
@@ -211,7 +214,6 @@ export const Variables = () => {
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          {/* TODO: Implement the export selected */}
           <Tooltip content="Delete selected variables">
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>

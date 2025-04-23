@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Replace pdpyras with pagerduty library in PagerDuty integration (#48919)``
+
+In the PagerDutyHook the get_session method has been renamed with the client method to
+align with standard naming conventions.
+Update any references to PagerDutyHook.get_session in your code to use PagerDutyHook.client.
+
 4.0.3
 .....
 

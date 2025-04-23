@@ -41,3 +41,6 @@ for i in $(seq 1 "$NUMBER_OF_ATTEMPT") ; do
     set -e
     sudo service docker restart
 done
+
+echo "{COLOR_RED} Tried ${NUMBER_OF_ATTEMPT} times but breeze command failed. Exiting... ${COLOR_RESET}"
+exit 1

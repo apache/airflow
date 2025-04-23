@@ -137,7 +137,7 @@ concepts/scheduler.rst administration-and-deployment/scheduler.rst
 concepts/pools.rst administration-and-deployment/pools.rst
 concepts/priority-weight.rst administration-and-deployment/priority-weight.rst
 concepts/deferring.rst authoring-and-scheduling/deferring.rst
-concepts/datasets.rst authoring-and-scheduling/datasets.rst
+concepts/datasets.rst authoring-and-scheduling/asset-scheduling.rst
 concepts/cluster-policies.rst administration-and-deployment/cluster-policies.rst
 concepts/dags.rst core-concepts/dags.rst
 executor/local_kubernetes.rst core-concepts/executor/local_kubernetes.rst
@@ -151,6 +151,7 @@ core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 core-concepts/executor/debug.rst core-concepts/debug.rst
 concepts/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
 authoring-and-scheduling/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
+authoring-and-scheduling/datasets.rst authoring-and-scheduling/asset-scheduling.rst
 
 # Moving provider executor docs to providers
 ## The ``../`` indicates that it will move to the root of the docs directory, unlike the rest of

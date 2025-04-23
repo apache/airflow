@@ -20,6 +20,7 @@ import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -52,8 +53,14 @@ export const DagCard = ({ dag }: Props) => {
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <TogglePause
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+            isPaused={dag.is_paused}
+            pr={2}
+          />
           <TriggerDAGButton dag={dag} withText={false} />
+          <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3}>

@@ -94,7 +94,7 @@ Deploy Airflow to Kubernetes Cluster
 
 Then Airflow (by using Helm Chart) can be deployed to the cluster via ``deploy-airflow`` command.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag. You can
-pass extra options when deploying airflow to configure your deployment.
+pass extra options when deploying Airflow to configure your deployment.
 
 You can check the status, dump logs and finally delete cluster via ``status``, ``logs``, ``delete-cluster``
 commands. This can also be done for all created clusters in parallel via ``--all`` flag.
@@ -374,7 +374,7 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    Building the K8S image for Python 3.9 using airflow base image: ghcr.io/apache/airflow/main/prod/python3.9:latest
+    Building the K8S image for Python 3.9 using Airflow base image: ghcr.io/apache/airflow/main/prod/python3.9:latest
 
     [+] Building 0.1s (8/8) FINISHED
      => [internal] load build definition from Dockerfile                                                                                                                                                                                                                                           0.0s
@@ -414,7 +414,7 @@ Should show the status of current KinD cluster.
     Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-worker", loading...
     Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-control-plane", loading...
 
-    NEXT STEP: You might now deploy airflow by:
+    NEXT STEP: You might now deploy Airflow by:
 
     breeze k8s deploy-airflow
 
@@ -428,7 +428,7 @@ Should show the status of current KinD cluster.
 .. code-block:: text
 
     Deploying Airflow for cluster airflow-python-3.9-v1.24.2
-    Deploying kind-airflow-python-3.9-v1.24.2 with airflow Helm Chart.
+    Deploying kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
     Copied chart sources to /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     Deploying Airflow from /private/var/folders/v3/gvj4_mw152q556w2rrh7m46w0000gn/T/chart_edu__kir/chart
     NAME: airflow
@@ -470,7 +470,7 @@ Should show the status of current KinD cluster.
 
     Information on how to set a static webserver secret key can be found here:
     https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
-    Deployed kind-airflow-python-3.9-v1.24.2 with airflow Helm Chart.
+    Deployed kind-airflow-python-3.9-v1.24.2 with Airflow Helm Chart.
 
     Airflow for Python 3.9 and K8S version v1.24.2 has been successfully deployed.
 
@@ -483,7 +483,7 @@ Should show the status of current KinD cluster.
     Established connection to webserver at http://localhost:18150/health and it is healthy.
     Airflow Web server URL: http://localhost:18150 (admin/admin)
 
-    NEXT STEP: You might now run tests or interact with airflow via shell (kubectl, pytest etc.) or k9s commands:
+    NEXT STEP: You might now run tests or interact with Airflow via shell (kubectl, pytest etc.) or k9s commands:
 
 
     breeze k8s tests
@@ -498,7 +498,7 @@ Should show the status of current KinD cluster.
 Note that the tests are executed in production container not in the CI container.
 There is no need for the tests to run inside the Airflow CI container image as they only
 communicate with the Kubernetes-run Airflow deployed via the production image.
-Those Kubernetes tests require virtualenv to be created locally with airflow installed.
+Those Kubernetes tests require virtualenv to be created locally with Airflow installed.
 The virtualenv required will be created automatically when the scripts are run.
 
 8a) You can run all the tests
@@ -685,7 +685,7 @@ You can also run complete k8s tests with
 
     breeze k8s run-complete-tests
 
-This will create cluster, build images, deploy airflow run tests and finally delete clusters as single
+This will create cluster, build images, deploy Airflow run tests and finally delete clusters as single
 command. It is the way it is run in our CI, you can also run such complete tests in parallel.
 
 -----

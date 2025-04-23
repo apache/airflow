@@ -1846,6 +1846,16 @@ export const prefetchUsePluginServiceGetPlugins = (
     queryFn: () => PluginService.getPlugins({ limit, offset }),
   });
 /**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceImportErrors = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(),
+    queryFn: () => PluginService.importErrors(),
+  });
+/**
  * Get Pool
  * Get a pool.
  * @param data The data for the request.
