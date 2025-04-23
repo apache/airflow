@@ -117,13 +117,14 @@ class TestWasbTaskHandler:
         logs, metadata = self.wasb_task_handler.read(ti)
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["https://wasb-container.blob.core.windows.net/abc/hello.log"]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "Log line"
             assert metadata == {
                 "end_of_log": True,
-                "log_pos": 1,
+                "first_time_read": False,
             }
         else:
             assert logs[0][0][0] == "localhost"
