@@ -192,6 +192,20 @@ ARG_AUTH_PASSWORD = Arg(
     nargs="?",
 )
 
+# Config arguments
+ARG_CONFIG_SECTION = Arg(
+    flags=("--section",),
+    type=str,
+    dest="section",
+    help="The section of the configuration",
+)
+ARG_CONFIG_OPTION = Arg(
+    flags=("--option",),
+    type=str,
+    dest="option",
+    help="The option of the configuration",
+)
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -540,6 +554,13 @@ AUTH_COMMANDS = (
     ),
 )
 
+CONFIG_COMMANDS = ActionCommand(
+    name="get-value",
+    help="Get a configuration value",
+    func=lazy_load_command("airflowctl.ctl.commands.config_command.get_value"),
+    args=(ARG_CONFIG_SECTION, ARG_CONFIG_OPTION),
+)
+
 
 core_commands: list[CLICommand] = [
     GroupCommand(
@@ -547,6 +568,11 @@ core_commands: list[CLICommand] = [
         help="Manage authentication for CLI. "
         "Either pass token from environment variable/parameter or pass username and password.",
         subcommands=AUTH_COMMANDS,
+    ),
+    GroupCommand(
+        name="config",
+        help="Perform Config operations",
+        subcommands=CONFIG_COMMANDS,
     ),
 ]
 # Add generated group commands

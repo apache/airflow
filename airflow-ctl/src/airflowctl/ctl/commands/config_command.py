@@ -32,7 +32,7 @@ def show_config(args):
 def get_value(args, cli_api_client: Client):
     """Get one value from configuration."""
     try:
-        response = cli_api_client.configs.get_value(section=args.section, option=args.option)
+        response = cli_api_client.configs.get(section=args.section, option=args.option)
         if response and "value" in response:
             print(response["value"])
     except AirflowConfigException:
