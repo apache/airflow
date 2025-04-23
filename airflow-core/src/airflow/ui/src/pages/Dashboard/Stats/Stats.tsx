@@ -91,7 +91,7 @@ export const Stats = () => {
         <StatsCard
           colorScheme="blue"
           count={activeDagsCount}
-          icon={<MdOutlineTask />}
+          icon={<FiZap />}
           isLoading={isActiveDagsLoading}
           label="Active dags"
           link="dags?paused=false"

@@ -43,69 +43,37 @@ export const StatsCard = ({
   readonly onClick?: () => void;
   readonly state?: TaskInstanceState | null;
 }) => {
+  if (isLoading) {
+    return <Skeleton borderRadius="lg" height="42px" width="175px" />;
+  }
+
   const content = (
-    <Box textAlign="left" width="100%">
-      {isLoading ? (
-        <Skeleton>
-          <Flex
-            alignItems="center"
-            bg="bg.surface"
-            borderColor={`${colorScheme}.border`}
-            borderRadius="lg"
-            borderWidth={1}
-            height="60px"
-            overflow="hidden"
-            px={2}
-            py={1}
-          />
-        </Skeleton>
-      ) : (
-        <Flex
-          _hover={{
-            boxShadow: "sm",
-            transform: "translateY(-0.5px)",
-            transition: "all 0.1s",
-          }}
-          alignItems="center"
-          bg="bg.surface"
-          borderColor={`${colorScheme}.border`}
-          borderRadius="lg"
-          borderWidth={1}
-          cursor="pointer"
-          height="60px"
-          overflow="hidden"
-          px={2}
-          py={1}
-          width="100%"
-        >
-          <StateBadge colorPalette={colorScheme} fontSize="md" mr={2} state={state} variant="solid">
-            {icon}
-            {count}
-          </StateBadge>
-          <Box flex={1}>
-            <HStack alignItems="center" gap={2}>
-              <Text
-                fontSize="sm"
-                fontWeight="bold"
-                maxWidth="100%"
-                overflow="hidden"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
-              >
-                {capitalize(label)}
-              </Text>
-            </HStack>
-          </Box>
-          <Box color="gray.emphasized" px={1}>
-            <FiChevronRight size={16} />
-          </Box>
-        </Flex>
-      )}
-    </Box>
+    <HStack
+      alignItems="center"
+      borderRadius="lg"
+      borderWidth={1}
+      color="fg.emphasized"
+      cursor="pointer"
+      p={2}
+    >
+      <StateBadge colorPalette={colorScheme} mr={2} state={state}>
+        {icon}
+        {count}
+      </StateBadge>
+
+      <Text color="fg" fontSize="sm" fontWeight="bold">
+        {capitalize(label)}
+      </Text>
+      <FiChevronRight size={16} />
+    </HStack>
   );
 
   if (onClick) {
-    return <Box onClick={onClick}>{content}</Box>;
+    return (
+      <Box as="button" onClick={onClick}>
+        {content}
+      </Box>
+    );
   }
 
   return <RouterLink to={link ?? "#"}>{content}</RouterLink>;
