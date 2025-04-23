@@ -69,6 +69,7 @@ from airflow.providers.fab.www.extensions.init_views import (
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     RESOURCE_AUDIT_LOG,
+    RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
@@ -97,7 +98,6 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -116,7 +116,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
 else:
-    from airflow.providers.common.compat.security.permissions import (
+    from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )

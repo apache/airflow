@@ -16,25 +16,26 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from providers.common.compat.src.airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 
-if TYPE_CHECKING:
-    from airflow.security.permissions import (
-        RESOURCE_ASSET,
-        RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
-        RESOURCE_DAG_VERSION,
-    )
+# This module is probably only needed for the combination of fab provider 1.5 and airflow 2.x
+# It was used during the small window of time when fab provider was based off of main
+# after main was version 3 dev and so it was sorta straddling the two versions.
+# At that time datasets were renamed assets, but fab provider was still trying to be
+# compatible with Airflow 2.x.
+# Probably we should not have put this stuff in here but hey.
+
+if AIRFLOW_V_3_0_PLUS:
+    # it is not expected that this block would ever be reached
+    # because only fab provider 2+ is compatible with airflow 3+
+    # and fab provider 2+ should use the permissions module in the fab provider
+    # but we throw it in here just in case.
+    RESOURCE_ASSET = "Datasets"
 else:
-    try:
-        from airflow.security.permissions import (
-            RESOURCE_ASSET,
-            RESOURCE_ASSET_ALIAS,
-            RESOURCE_BACKFILL,
-            RESOURCE_DAG_VERSION,
-        )
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+    RESOURCE_ASSET = "Assets"
+RESOURCE_ASSET_ALIAS = "Asset Aliases"
+RESOURCE_BACKFILL = "Backfills"
+RESOURCE_DAG_VERSION = "DAG Versions"
 
 
 __all__ = ["RESOURCE_ASSET", "RESOURCE_ASSET_ALIAS", "RESOURCE_BACKFILL", "RESOURCE_DAG_VERSION"]

@@ -39,7 +39,6 @@ from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
 
@@ -323,6 +322,11 @@ def clear_dag_specific_permissions():
             )
         else:
             raise
+    try:
+        from airflow.providers.fab.www.security.permissions import RESOURCE_DAG_PREFIX
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DAG_PREFIX
+
     with create_session() as session:
         dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
         dag_resource_ids = [d.id for d in dag_resources]
