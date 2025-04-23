@@ -35,6 +35,19 @@ const customConfig = defineConfig({
     tokens: {
       colors: {
         black: { value: "#1C202A"},
+        navbar: { // This is a 20/80 blend between "blue" and "slate"
+          "50":  { value: "oklch(98.0% 0.006 248.717)" },
+          "100": { value: "oklch(96.2% 0.012 249.460)" },
+          "200": { value: "oklch(92.3% 0.023 255.082)" },
+          "300": { value: "oklch(86.5% 0.039 252.420)" },
+          "400": { value: "oklch(70.5% 0.066 256.378)" },
+          "500": { value: "oklch(57.5% 0.080 257.759)" },
+          "600": { value: "oklch(46.9% 0.084 257.657)" },
+          "700": { value: "oklch(39.9% 0.084 257.850)" },
+          "800": { value: "oklch(32.4% 0.072 260.329)" },
+          "900": { value: "oklch(25.9% 0.062 265.566)" },
+          "950": { value: "oklch(17.9% 0.050 265.487)" },
+        },
         // TAILWIND 4.0 COLORS
         red: {
           "50":  { value: "oklch(97.1% .013 17.38)"},
@@ -326,7 +339,7 @@ const customConfig = defineConfig({
     },
     semanticTokens: {
       colors: {
-        navbar: generateSemanticTokens("gray"),
+        navbar: generateSemanticTokens("navbar"),
         // TAILWIND 4.0 COLORS
         red: generateSemanticTokens("red"),
         orange: generateSemanticTokens("orange"),
@@ -355,15 +368,15 @@ const customConfig = defineConfig({
         failed: generateSemanticTokens("red"),
         queued: generateSemanticTokens("stone"),
         skipped: generateSemanticTokens("pink"),
-        up_for_reschedule: generateSemanticTokens("cyan"),
+        up_for_reschedule: generateSemanticTokens("sky"),
         up_for_retry: generateSemanticTokens("yellow"),
         upstream_failed: generateSemanticTokens("orange"),
-        running: generateSemanticTokens("emerald"),
+        running: generateSemanticTokens("cyan"),
         restarting: generateSemanticTokens("violet"),
         deferred: generateSemanticTokens("purple"),
         scheduled: generateSemanticTokens("zinc"),
         none: generateSemanticTokens("sky"),
-        removed: generateSemanticTokens("neutral"),
+        removed: generateSemanticTokens("slate"),
       },
     },
   },
