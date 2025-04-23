@@ -48,7 +48,7 @@ from airflowctl.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflowctl.exceptions import AirflowCtlNotFoundException
+from airflowctl.exceptions import AirflowCtlCredentialNotFoundException, AirflowCtlNotFoundException
 from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
@@ -143,7 +143,7 @@ class Credentials:
                 self.api_url = credentials["api_url"]
                 self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
             return self
-        raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
+        raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
 
 
 class BearerAuth(httpx.Auth):

@@ -18,15 +18,12 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import yaml
-
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-
+from common_precommit_utils import AIRFLOW_ROOT_PATH
 
 if __name__ == "__main__":
-    PRE_COMMIT_CONFIG_FILE = AIRFLOW_SOURCES / ".pre-commit-config.yaml"
+    PRE_COMMIT_CONFIG_FILE = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml"
     pre_commit_content = yaml.safe_load(PRE_COMMIT_CONFIG_FILE.read_text())
     for repo in pre_commit_content["repos"]:
         if repo["repo"] == "https://github.com/psf/black":

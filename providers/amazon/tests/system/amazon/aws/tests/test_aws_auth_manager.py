@@ -206,7 +206,7 @@ class TestAwsAuthManager:
         token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert response.headers["location"] == "http://localhost:28080"
+        assert response.headers["location"] == "/"
         assert token is not None
 
     def test_login_admin_token(self, client_admin_permissions):
