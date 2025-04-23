@@ -26,6 +26,7 @@ import re
 import sys
 from pathlib import Path
 
+from common_precommit_utils import AIRFLOW_ROOT_PATH
 from tabulate import tabulate
 
 try:
@@ -34,7 +35,6 @@ except ImportError:
     import tomli as tomllib
 
 
-AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
 EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
