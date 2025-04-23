@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-22T15:12:38.305938
+# This constraints file was automatically generated on 2025-04-23T12:15:30.806319
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -324,9 +324,9 @@ google-analytics-admin==0.24.0
 google-api-core==2.24.2
 google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
+google-auth-oauthlib==1.2.2
 google-auth==2.39.0
-google-cloud-aiplatform==1.89.0
+google-cloud-aiplatform==1.90.0
 google-cloud-alloydb==0.4.5
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
@@ -348,7 +348,7 @@ google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
 google-cloud-kms==3.4.1
 google-cloud-language==2.17.1
-google-cloud-logging==3.12.0
+google-cloud-logging==3.12.1
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
@@ -455,7 +455,7 @@ limits==5.0.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
-lxml==5.3.2
+lxml==5.4.0
 lz4==4.4.4
 markdown-it-py==3.0.0
 marshmallow-sqlalchemy==0.28.2
@@ -483,10 +483,10 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.4.3
-mypy-boto3-appflow==1.37.0
-mypy-boto3-rds==1.37.21
-mypy-boto3-redshift-data==1.37.8
-mypy-boto3-s3==1.37.24
+mypy-boto3-appflow==1.38.0
+mypy-boto3-rds==1.38.0
+mypy-boto3-redshift-data==1.38.0
+mypy-boto3-s3==1.38.0
 mypy==1.9.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.3.0
@@ -617,7 +617,7 @@ python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==26.4.0
-qdrant-client==1.13.3
+qdrant-client==1.14.1
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -708,7 +708,7 @@ sympy==1.13.3
 tableauserverclient==0.37
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.28
+teradatasql==20.0.0.29
 teradatasqlalchemy==20.0.0.4
 termcolor==3.0.1
 text-unidecode==1.3
