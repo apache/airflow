@@ -189,7 +189,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
-            r"^\.github/SECURITY\.rst$",
+            r"^\.github/SECURITY\.md",
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
@@ -204,7 +204,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-ctl/docs",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
-            r"^chart/RELEASE_NOTES\.txt",
+            r"^chart/RELEASE_NOTES\.rst",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
             r"^RELEASE_NOTES\.rst",
