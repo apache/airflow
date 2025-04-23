@@ -35,7 +35,7 @@ __deprecated_classes = {
         "ExternalPythonOperator": "airflow.providers.standard.operators.python.ExternalPythonOperator",
         "BranchExternalPythonOperator": "airflow.providers.standard.operators.python.BranchExternalPythonOperator",
         "BranchPythonVirtualenvOperator": "airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator",
-        "get_current_context": "airflow.providers.standard.operators.python.get_current_context",
+        "get_current_context": "airflow.sdk.get_current_context",
     },
     "bash":{
         "BashOperator": "airflow.providers.standard.operators.bash.BashOperator",
