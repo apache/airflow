@@ -96,7 +96,7 @@ export const DagBreadcrumb = () => {
   }
 
   if (runId === undefined && taskId !== undefined) {
-    links.push({ label: "All Runs", title: "Dag Run", value: `/dags/${dagId}/runs/` });
+    links.push({ label: "All Runs", title: "Dag Run", value: `/dags/${dagId}/runs` });
     links.push({ label: task?.task_display_name ?? taskId, title: "Task" });
   }
 
