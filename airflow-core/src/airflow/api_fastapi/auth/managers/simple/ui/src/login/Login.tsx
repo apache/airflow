@@ -79,7 +79,7 @@ export const Login = () => {
         </Heading>
       </Flex>
 
-      {error === null && <ErrorAlert error={error} />}
+      {Boolean(error) && <ErrorAlert error={error} />}
 
       <Text mb={4}>Enter your username and password below:</Text>
       <LoginForm isPending={isPending} onLogin={onLogin} />

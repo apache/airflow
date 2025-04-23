@@ -41,6 +41,10 @@ Step 2: Clean and back up your existing Airflow Instance
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
+- Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
+  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
+  (and all errors gone) before you proceed with upgrade.
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
@@ -102,8 +106,9 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
     airflow db migrate
 
 
-You should now be able to start up your Airflow 3 instance.
-
+If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
+them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
+Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
 Step 6: Changes to your startup scripts
 ---------------------------------------
@@ -120,6 +125,7 @@ The dag processor must now be started independently, even for local or developme
 
     airflow dag-processor
 
+You should now be able to start up your Airflow 3 instance.
 
 .. _breaking-changes:
 
@@ -129,7 +135,7 @@ Breaking Changes
 Some capabilities which were deprecated in Airflow 2.x are not available in Airflow 3.
 These include:
 
-- **SubDAGs**: Replaced by TaskGroups, Datasets, and Data Aware Scheduling.
+- **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.

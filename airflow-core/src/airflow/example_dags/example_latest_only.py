@@ -32,7 +32,9 @@ with DAG(
     catchup=False,
     tags=["example2", "example3"],
 ) as dag:
+    # [START howto_operator_latest_only]
     latest_only = LatestOnlyOperator(task_id="latest_only")
+    # [END howto_operator_latest_only]
     task1 = EmptyOperator(task_id="task1")
 
     latest_only >> task1

@@ -32,13 +32,12 @@ if res_setup.returncode != 0:
     console.print("[red]\nError while setting up k8s environment.")
     sys.exit(res_setup.returncode)
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 HELM_BIN_PATH = AIRFLOW_ROOT_PATH / ".venv" / "bin" / "helm"
 
 result = subprocess.run(
     [os.fspath(HELM_BIN_PATH), "lint", ".", "-f", "values.yaml"],
     check=False,
-    cwd=AIRFLOW_SOURCES_DIR / "chart",
+    cwd=AIRFLOW_ROOT_PATH / "chart",
 )
 if res_setup.returncode != 0:
     console.print("[red]\nError while linting charts.")
