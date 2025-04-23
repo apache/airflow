@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-22T14:06:27.575258
+# This constraints file was automatically generated on 2025-04-23T19:53:19.911794
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -205,9 +205,9 @@ google-analytics-admin==0.24.0
 google-api-core==2.24.2
 google-api-python-client==2.167.0
 google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
+google-auth-oauthlib==1.2.2
 google-auth==2.39.0
-google-cloud-aiplatform==1.89.0
+google-cloud-aiplatform==1.90.0
 google-cloud-appengine-logging==1.6.1
 google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
@@ -228,7 +228,7 @@ google-cloud-dataproc==5.18.1
 google-cloud-dlp==3.29.0
 google-cloud-kms==3.4.1
 google-cloud-language==2.17.1
-google-cloud-logging==3.12.0
+google-cloud-logging==3.12.1
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
 google-cloud-orchestration-airflow==1.17.5
@@ -327,7 +327,7 @@ limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
-lxml==5.3.2
+lxml==5.4.0
 lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
@@ -353,12 +353,12 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.37.0
-mypy-boto3-rds==1.37.21
-mypy-boto3-redshift-data==1.37.8
-mypy-boto3-s3==1.37.24
-mypy-extensions==1.0.0
+mypy-boto3-appflow==1.38.0
+mypy-boto3-rds==1.38.0
+mypy-boto3-redshift-data==1.38.0
+mypy-boto3-s3==1.38.0
 mypy==1.9.0
+mypy_extensions==1.1.0
 mysql-connector-python==9.0.0
 mysqlclient==2.2.7
 nbclient==0.10.1
@@ -371,7 +371,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.75.0
+openai==1.76.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.31.0
@@ -544,7 +544,7 @@ sympy==1.13.3
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.28
+teradatasql==20.0.0.29
 teradatasqlalchemy==20.0.0.4
 termcolor==2.4.0
 text-unidecode==1.3

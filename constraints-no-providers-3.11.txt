@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-22T14:11:20.710904
+# This constraints file was automatically generated on 2025-04-23T19:58:30.158861
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -80,7 +80,7 @@ gevent==25.4.1
 google-re2==1.1.20240702
 googleapis-common-protos==1.70.0
 graphviz==0.20.3
-greenlet==3.2.0
+greenlet==3.2.1
 grpcio==1.71.0
 gssapi==1.9.0
 gunicorn==23.0.0
@@ -94,15 +94,15 @@ inflection==0.5.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jmespath==1.0.1
-jsonschema-specifications==2024.10.1
+jsonschema-specifications==2025.4.1
 jsonschema==4.23.0
 krb5==0.7.1
 lazy-object-proxy==1.11.0
 ldap3==2.9.1
-limits==5.0.0
+limits==5.1.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-lxml==5.3.2
+lxml==5.4.0
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
@@ -110,7 +110,7 @@ marshmallow==3.26.1
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
-more-itertools==10.6.0
+more-itertools==10.7.0
 multidict==6.4.3
 numpy==1.26.4
 opentelemetry-api==1.32.1
@@ -123,7 +123,7 @@ opentelemetry-proto==1.32.1
 opentelemetry-sdk==1.32.1
 opentelemetry-semantic-conventions==0.53b1
 ordered-set==4.1.0
-packaging==24.2
+packaging==25.0
 pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.1.0
