@@ -192,8 +192,9 @@ export GH_AUTH={token}
 
 Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
 Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
-menu after you get the conflict. But you can also resolve the conflicts manually (git adds `<<<<<<<`, `=======` and
-`>>>>>>>` markers to the files with conflicts).
+menu after you get the conflict. But you can also resolve the conflicts manually; see [How conflicts are
+are presented](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented) and
+[How to resolve conflicts](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) for more details.
 
 ```bash
 cherry_picker --status  # Should show if all conflicts are resolved
