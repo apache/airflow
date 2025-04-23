@@ -746,9 +746,9 @@ class TestScheduler:
             {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
         ],
     )
-    def test_dags_gitsync_sidecar_and_init_container(self, dags_values):
+    def test_dags_gitsync_sidecar_and_init_container_with_airflow_2(self, dags_values):
         docs = render_chart(
-            values={"dags": dags_values},
+            values={"dags": dags_values, "airflowVersion": "2.10.4"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 

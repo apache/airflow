@@ -17,25 +17,46 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
-def test_should_add_airflow_home():
+@pytest.mark.parametrize(
+    ["airflow_version", "template_yaml"],
+    [
+        ("2.10.0", "templates/webserver/webserver-deployment.yaml"),
+        ("3.0.0", "templates/api-server/api-server-deployment.yaml"),
+        ("default", "templates/api-server/api-server-deployment.yaml"),
+    ],
+)
+def test_should_add_airflow_home(airflow_version, template_yaml):
     exp_path = "/not/even/a/real/path"
-    docs = render_chart(
-        values={"airflowHome": exp_path},
-        show_only=["templates/webserver/webserver-deployment.yaml"],
-    )
+    values = {"airflowHome": exp_path}
+
+    if airflow_version != "default":
+        values["airflowVersion"] = airflow_version
+
+    docs = render_chart(values=values, show_only=[template_yaml])
+
     assert {"name": "AIRFLOW_HOME", "value": exp_path} in jmespath.search(
         "spec.template.spec.containers[0].env", docs[0]
     )
 
 
-def test_should_add_airflow_home_notset():
-    docs = render_chart(
-        values={},
-        show_only=["templates/webserver/webserver-deployment.yaml"],
-    )
+@pytest.mark.parametrize(
+    ["airflow_version", "template_yaml"],
+    [
+        ("2.10.0", "templates/webserver/webserver-deployment.yaml"),
+        ("3.0.0", "templates/api-server/api-server-deployment.yaml"),
+        ("default", "templates/api-server/api-server-deployment.yaml"),
+    ],
+)
+def test_should_add_airflow_home_notset(airflow_version, template_yaml):
+    values = {}
+    if airflow_version != "default":
+        values["airflowVersion"] = airflow_version
+
+    docs = render_chart(values=values, show_only=[template_yaml])
     assert {"name": "AIRFLOW_HOME", "value": "/opt/airflow"} in jmespath.search(
         "spec.template.spec.containers[0].env", docs[0]
     )
