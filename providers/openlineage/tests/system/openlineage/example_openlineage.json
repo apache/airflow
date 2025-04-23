@@ -54,7 +54,6 @@
                         "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
                         "wait_for_downstream": false,
                         "retry_exponential_backoff": false,
-                        "ignore_first_depends_on_past": false,
                         "wait_for_past_depends_before_skipping": false
                     },
                     "taskUuid": "{{ is_uuid(result) }}"
@@ -144,7 +143,6 @@
                         "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
                         "wait_for_downstream": false,
                         "retry_exponential_backoff": false,
-                        "ignore_first_depends_on_past": false,
                         "wait_for_past_depends_before_skipping": false
                     },
                     "taskUuid": "{{ is_uuid(result) }}"
