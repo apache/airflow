@@ -131,10 +131,13 @@ export const Code = () => {
       {/* We want to show an empty state on 404 instead of an error */}
       <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
       <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
-      <div
-        style={{
-          fontSize: "14px",
+      <Box
+        css={{
+          "& *::selection": {
+            bg: "gray.emphasized",
+          },
         }}
+        fontSize="14px"
       >
         <SyntaxHighlighter
           language="python"
@@ -179,7 +182,7 @@ export const Code = () => {
         >
           {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
         </SyntaxHighlighter>
-      </div>
+      </Box>
     </Box>
   );
 };
