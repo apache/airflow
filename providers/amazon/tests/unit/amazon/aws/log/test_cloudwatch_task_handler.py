@@ -273,7 +273,11 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-        monkeypatch.setattr(self.cloudwatch_task_handler, "_read_from_logs_server", lambda a, b: ([], []))
+        monkeypatch.setattr(
+                self.cloudwatch_task_handler,
+                "_read_from_logs_server",
+                lambda ti, worker_log_rel_path, log_metadata: ([], []),
+            )
         msg_template = textwrap.dedent("""
              INFO - ::group::Log message source details
             *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
@@ -285,6 +289,7 @@ class TestCloudwatchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.log.file_task_handler import StructuredLogMessage
 
+            logs = list(logs)
             results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
             assert results[-4:] == [
                 {"event": "::endgroup::", "timestamp": None},
@@ -292,7 +297,7 @@ class TestCloudwatchTaskHandler:
                 {"event": "Second", "timestamp": datetime(2025, 3, 27, 21, 58, 0)},
                 {"event": "Third", "timestamp": datetime(2025, 3, 27, 21, 58, 1)},
             ]
-            assert metadata["log_pos"] == 3
+            assert not metadata["first_time_read"]
         else:
             events = "\n".join(
                 [
