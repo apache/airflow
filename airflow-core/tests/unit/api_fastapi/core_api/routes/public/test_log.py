@@ -36,6 +36,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -304,11 +305,22 @@ class TestTaskInstancesLog:
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_with_metadata_as_download_large_file(self, try_number):
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (["", "1st line"], {})
-            second_return = (["", "2nd line"], {"end_of_log": False})
-            third_return = (["", "3rd line"], {"end_of_log": True})
-            fourth_return = (["", "should never be read"], {"end_of_log": True})
+            first_return = (convert_list_to_stream([StructuredLogMessage(event="", message="1st line")]), {})
+            second_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="2nd line")]),
+                {"end_of_log": False},
+            )
+            third_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="3rd line")]),
+                {"end_of_log": True},
+            )
+            fourth_return = (
+                convert_list_to_stream([StructuredLogMessage(event="", message="should never be read")]),
+                {"end_of_log": True},
+            )
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
