@@ -49,7 +49,6 @@ class TestGremlinHook:
         """
         conn = Connection(conn_id="gremlin_default", host=host, port=port)
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GREMLIN_DEFAULT=conn.get_uri()):
-            gremlin_hook = GremlinHook()
             uri = gremlin_hook.get_uri(conn)
 
             assert uri == expected_uri
