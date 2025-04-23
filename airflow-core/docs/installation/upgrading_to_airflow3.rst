@@ -46,7 +46,7 @@ Step 2: Clean and back up your existing Airflow Instance
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-- Ensure we have converted all existing Airflow 2 plugins to Airflow 3.
+- Ensure that you have converted all existing Airflow 2 plugins to Airflow 3.
 
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
