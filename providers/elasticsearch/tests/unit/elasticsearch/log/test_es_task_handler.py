@@ -209,6 +209,7 @@ class TestElasticsearchTaskHandler:
         )
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -235,6 +236,7 @@ class TestElasticsearchTaskHandler:
             )
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -301,10 +303,11 @@ class TestElasticsearchTaskHandler:
         ts = pendulum.now().add(seconds=-seconds)
         logs, metadatas = self.es_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             if seconds > 5:
                 # we expect a log not found message when checking began more than 5 seconds ago
                 expected_pattern = r"^\*\*\* Log .* not found in Elasticsearch.*"
-                assert re.match(expected_pattern, logs) is not None
+                assert re.match(expected_pattern, logs[0].event) is not None
                 assert metadatas["end_of_log"] is True
             else:
                 # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
@@ -356,6 +359,7 @@ class TestElasticsearchTaskHandler:
             },
         )
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -377,6 +381,7 @@ class TestElasticsearchTaskHandler:
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.es_task_handler.read(ti, 1)
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -424,6 +429,7 @@ class TestElasticsearchTaskHandler:
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -511,6 +517,7 @@ class TestElasticsearchTaskHandler:
             },
         )
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -588,6 +595,7 @@ class TestElasticsearchTaskHandler:
         )
         expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[2].event == expected_message
         else:
             assert logs[0][0][1] == expected_message
@@ -620,6 +628,7 @@ class TestElasticsearchTaskHandler:
         )
         expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[2].event == expected_message
         else:
             assert logs[0][0][1] == expected_message
