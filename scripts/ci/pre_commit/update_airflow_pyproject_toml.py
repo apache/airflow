@@ -30,9 +30,8 @@ from pathlib import Path
 from packaging.version import Version, parse as parse_version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import console, get_all_provider_ids, insert_documentation
+from common_precommit_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, insert_documentation
 
-AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_PYPROJECT_TOML_FILE = AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
