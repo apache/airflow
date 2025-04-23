@@ -26,6 +26,7 @@ import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { pluralize } from "src/utils";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
@@ -114,32 +115,25 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     total_entries: 0,
   };
 
-  const renderInlineMessage = () => {
-    if (!Boolean(values.from_date) || !Boolean(values.to_date)) {
-      return undefined;
-    }
-
-    if (isPendingDryRun) {
-      return <Skeleton height="20px" width="100px" />;
-    }
-
-    return affectedTasks.total_entries > 0 ? (
+  const inlineMessage =
+    !Boolean(values.from_date) || !Boolean(values.to_date) ? undefined : isPendingDryRun ? (
+      <Skeleton height="20px" width="100px" />
+    ) : affectedTasks.total_entries > 0 ? (
       <Text color="fg.success" fontSize="sm">
-        {affectedTasks.total_entries} runs will be triggered
+        {pluralize("run", affectedTasks.total_entries)} will be triggered
       </Text>
     ) : (
       <Text color="fg.error" fontSize="sm" fontWeight="medium">
         No runs matching selected criteria.
       </Text>
     );
-  };
 
   return (
     <>
       <ErrorAlert error={errors.date ?? error} />
       <VStack alignItems="stretch" gap={2} pt={4}>
         <Box>
-          <Text fontSize="md" fontWeight="semibold" mb={2}>
+          <Text fontSize="md" fontWeight="semibold" mb={3}>
             Date Range
           </Text>
           <HStack w="full">
@@ -148,6 +142,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="from_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
+                  <Field.Label>From</Field.Label>
                   <Input
                     {...field}
                     max={dataIntervalEnd || today}
@@ -163,6 +158,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="to_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
+                  <Field.Label>To</Field.Label>
                   <Input
                     {...field}
                     max={today}
@@ -176,7 +172,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             />
           </HStack>
         </Box>
-        <Box>{renderInlineMessage()}</Box>
+        <Box>{inlineMessage}</Box>
         <Spacer />
         <Controller
           control={control}
@@ -188,7 +184,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 field.onChange(event);
               }}
             >
-              <RadioCardLabel fontSize="md" fontWeight="semibold" mb={2}>
+              <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
                 Reprocess Behaviour
               </RadioCardLabel>
               <HStack>
