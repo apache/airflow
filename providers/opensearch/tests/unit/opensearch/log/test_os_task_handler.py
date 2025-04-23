@@ -204,6 +204,7 @@ class TestOpensearchTaskHandler:
             "on 2023-07-09 07:47:32+00:00"
         )
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -234,6 +235,7 @@ class TestOpensearchTaskHandler:
             "on 2023-07-09 07:47:32+00:00"
         )
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
@@ -328,10 +330,11 @@ class TestOpensearchTaskHandler:
         ):
             logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             if seconds > 5:
                 # we expect a log not found message when checking began more than 5 seconds ago
-                assert len(logs[0]) == 2
-                actual_message = logs[0][1]
+                assert len(logs) == 1
+                actual_message = logs[0].event
                 expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
                 assert re.match(expected_pattern, actual_message) is not None
                 assert metadatas["end_of_log"] is True
@@ -369,6 +372,7 @@ class TestOpensearchTaskHandler:
             "on 2023-07-09 07:47:32+00:00"
         )
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == ["default_host"]
             assert logs[1].event == "::endgroup::"
