@@ -412,57 +412,11 @@ def _get_compatible_log_stream(
     """
     Convert legacy log message blobs into a generator that yields log lines.
 
-    Instead of yielding each log message sequentially, this function interleaves log lines
-    from multiple sources in parallel. This is important to maintain the correct chronological
-    order when consumed by `_interleave_logs`.
-
-    Example:
-    ```
-    log_messages[0]:     a1a2a3a4a5
-    log_messages[1]:   b1b2
-    log_messages[2]:    c1c2c3c4
-
-    Parallel yielding: start from the beginning of each stream
-    output_log_stream -> a1b1c1a2b2c2...
-
-    Sequential yielding: exhaust one stream before moving to the next
-    output_log_stream -> a1a2a3a4a5b1b2c1c2c3c4
-    ```
-
     :param log_messages: List of legacy log message strings.
     :param log_pos_identifier_prefix: Prefix for log position identifiers.
     :param metadata: Metadata dictionary to store log positions.
     :return: A generator that yields interleaved log lines.
     """
-
-    def _parallel_yield_log_streams(log_streams: list[RawLogStream]) -> RawLogStream:
-        """
-        Parallel yield log lines from multiple streams.
-
-        :param log_streams: List of log line generators.
-        :return: A generator that yields lines from each stream in round-robin fashion.
-        """
-        lines_to_yield = []
-        while True:
-            if not log_streams:
-                break
-            # Add line from each stream
-            for stream in log_streams:
-                line: str | None = next(stream, None)
-                if line is None:
-                    log_streams.remove(stream)
-                    continue
-                lines_to_yield.append(line)
-
-            if len(lines_to_yield) >= PARALLEL_YIELD_SIZE:
-                yield from lines_to_yield
-                lines_to_yield.clear()
-
-        # Yield any remaining lines
-        if lines_to_yield:
-            yield from lines_to_yield
-        del lines_to_yield
-
     log_streams: list[RawLogStream] = []
     for idx, log_message in enumerate(log_messages):
         # Skip log messages that already read
@@ -477,7 +431,8 @@ def _get_compatible_log_stream(
             _stream_lines_by_chunk(io.StringIO(log_message), last_end_log_pos, current_end_log_pos)
         )
 
-    return _parallel_yield_log_streams(log_streams)
+    for log_stream in log_streams:
+        yield from log_stream
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
