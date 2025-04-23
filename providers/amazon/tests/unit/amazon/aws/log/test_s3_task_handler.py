@@ -248,6 +248,7 @@ class TestS3TaskHandler:
         expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
 
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert expected_s3_uri in log[0].sources
             assert log[1].event == "::endgroup::"
@@ -255,12 +256,12 @@ class TestS3TaskHandler:
             assert log[3].event == "Line 2"
             assert log[4].event == "Log line 3"
             assert log[5].event == "Line 4"
-            assert metadata == {"end_of_log": True, "log_pos": 4}
+            assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             actual = log[0][0][-1]
             assert f"*** Found logs in s3:\n***   * {expected_s3_uri}\n" in actual
             assert actual.endswith("Line 4")
-            assert metadata == [{"end_of_log": True, "log_pos": 33}]
+            assert metadata == [{"end_of_log": True, "first_time_read": 33}]
 
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)
@@ -268,8 +269,9 @@ class TestS3TaskHandler:
         self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert len(log) == 2
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert len(log) == 1
             assert len(log) == len(metadata)
