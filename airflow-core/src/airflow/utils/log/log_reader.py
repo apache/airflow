@@ -112,11 +112,11 @@ class TaskLogReader:
                 buffer.append(log.model_dump_json() + "\n")
                 counter += 1
                 if counter >= READ_BATCH_SIZE:
-                    yield "".join(buffer)
+                    yield from buffer
                     buffer.clear()
                     counter = 0
             if buffer:
-                yield "".join(buffer)
+                yield from buffer
                 buffer.clear()
 
             if not out_metadata.get("end_of_log", False) and ti.state not in (
