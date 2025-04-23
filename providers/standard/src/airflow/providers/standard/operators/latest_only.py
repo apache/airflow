@@ -31,7 +31,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
-    from airflow.utils.timezone import DateTime
+    from pendulum.datetime import DateTime
 
     try:
         from airflow.sdk.definitions.context import Context
@@ -96,7 +96,6 @@ class LatestOnlyOperator(BaseBranchOperator):
         else:
             dagrun_date = dag_run.logical_date
 
-        # breakpoint()
         from airflow.timetables.base import DataInterval, TimeRestriction
 
         current_interval = DataInterval(
