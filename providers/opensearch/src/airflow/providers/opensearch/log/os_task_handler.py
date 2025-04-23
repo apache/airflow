@@ -39,7 +39,7 @@ from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
-    get_compatible_output_log_stream,
+    convert_list_to_stream,
 )
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -389,7 +389,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-                    return get_compatible_output_log_stream(
+                    return convert_list_to_stream(
                         [
                             StructuredLogMessage(
                                 event=missing_log_message,
@@ -429,7 +429,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]
-                message = get_compatible_output_log_stream(message)  # type: ignore[assignment]
+                message = convert_list_to_stream(message)  # type: ignore[assignment]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
         else:
