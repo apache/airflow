@@ -207,6 +207,9 @@ dependencies = [
 "trino" = [
     "apache-airflow-providers-trino"
 ]
+"http" = [
+    "apache-airflow-providers-http"
+]
 
 [dependency-groups]
 dev = [
@@ -220,6 +223,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-facebook",
+    "apache-airflow-providers-http",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-mysql",
