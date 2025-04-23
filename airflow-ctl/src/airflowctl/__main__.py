@@ -24,13 +24,14 @@ from __future__ import annotations
 import argcomplete
 
 from airflowctl.ctl import cli_parser
+from airflowctl.ctl.cli_config import safe_call_command
 
 
 def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
-    args.func(args)
+    safe_call_command(args.func, args=args)
 
 
 if __name__ == "__main__":

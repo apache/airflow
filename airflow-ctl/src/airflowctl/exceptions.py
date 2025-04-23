@@ -32,3 +32,7 @@ class AirflowCtlException(Exception):
 
 class AirflowCtlNotFoundException(AirflowCtlException):
     """Raise when the requested object/resource is not available in the system."""
+
+
+class AirflowCtlCredentialNotFoundException(AirflowCtlNotFoundException):
+    """Raise when a credential couldn't be found while performing an operation."""
