@@ -31,8 +31,12 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (
   <ConfirmationModal
     header="Logout"
     onConfirm={() => {
+      const baseHref = document.querySelector("head>base")?.getAttribute("href") ?? "";
+      const baseUrl = new URL(baseHref, globalThis.location.origin);
+      const logoutPath = new URL("api/v2/auth/logout", baseUrl).pathname;
+
       localStorage.removeItem(TOKEN_STORAGE_KEY);
-      globalThis.location.replace(`/api/v2/auth/logout`);
+      globalThis.location.replace(logoutPath);
     }}
     onOpenChange={onClose}
     open={isOpen}
