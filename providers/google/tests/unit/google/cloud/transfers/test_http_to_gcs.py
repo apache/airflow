@@ -22,11 +22,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Import the operator to be tested
-from http_to_gcs import HttpToGCSOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSHook
+
+# Import the operator to be tested
+from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperator
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.utils.context import Context
 
