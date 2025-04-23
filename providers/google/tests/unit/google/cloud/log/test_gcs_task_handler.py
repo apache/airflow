@@ -114,11 +114,12 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
 
         if AIRFLOW_V_3_0_PLUS:
+            logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
             assert logs[0].sources == [expected_gs_uri]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "CONTENT"
-            assert metadata == {"end_of_log": True, "log_pos": 1}
+            assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert f"*** Found remote logs:\n***   * {expected_gs_uri}\n" in logs
             assert logs.endswith("CONTENT")
@@ -143,13 +144,14 @@ class TestGCSTaskHandler:
         expected_gs_uri = f"gs://bucket/{mock_obj.name}"
 
         if AIRFLOW_V_3_0_PLUS:
+            log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert log[0].sources == [
                 expected_gs_uri,
                 f"{self.gcs_task_handler.local_base}/1.log",
             ]
             assert log[1].event == "::endgroup::"
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert (
                 "*** Found remote logs:\n"
