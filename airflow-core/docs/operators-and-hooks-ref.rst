@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -50,20 +51,26 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Operators
      - Guides
 
-   * - :mod:`airflow.operators.branch`
-     -
+   * - :mod:`airflow.provider.standard.operators.bash`
+     - :doc:`How to use <apache-airflow-providers-standard:operators/bash>`
+
+   * - :mod:`airflow.provider.standard.operators.python`
+     - :doc:`How to use <apache-airflow-providers-standard:operators/python>`
+
+   * - :mod:`airflow.provider.standard.operators.datetime`
+     - :doc:`How to use <apache-airflow-providers-standard:operators/datetime>`
 
    * - :mod:`airflow.providers.standard.operators.empty`
      -
 
-   * - :mod:`airflow.operators.generic_transfer`
-     -
+   * - :mod:`airflow.providers.common.sql.operators.generic_transfer.GenericTransfer`
+     - :doc:`How to use <apache-airflow-providers-common-sql:operators>`
 
    * - :mod:`airflow.providers.standard.operators.latest_only`
-     -
+     - :doc:`How to use <apache-airflow-providers-standard:operators/latest_only>`
 
    * - :mod:`airflow.providers.standard.operators.trigger_dagrun`
-     -
+     - :doc:`How to use <apache-airflow-providers-standard:operators/trigger_dag_run>`
 
 **Sensors:**
 
@@ -73,8 +80,23 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.base`
-     -
+   * - :mod:`airflow.providers.standard.sensors.bash`
+     - :doc:`How to use <apache-airflow-providers-standard:sensors/bash>`
+
+   * - :mod:`airflow.providers.standard.sensors.python`
+     - :doc:`How to use <apache-airflow-providers-standard:sensors/python>`
+
+   * - :mod:`airflow.providers.standard.sensors.filesystem`
+     - :doc:`How to use <apache-airflow-providers-standard:sensors/file>`
+
+   * - :mod:`airflow.providers.standard.sensors.date_time`
+     - :doc:`How to use <apache-airflow-providers-standard:sensors/datetime>`
+
+   * - :mod:`airflow.providers.standard.sensors.external_task`
+     - :doc:`How to use <apache-airflow-providers-standard:sensors/external_task_sensor>`
+
+
+
 
 **Hooks:**
 
