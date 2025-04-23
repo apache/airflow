@@ -40,12 +40,10 @@ def test_invoking_without_auth_header():
         app = create_app()
         client = TestClient(app)
 
-        # Fetch all routes from the FastAPI app
         for route in app.routes:
             if hasattr(route, "path") and hasattr(route, "methods"):
                 for method in route.methods:
-                    if method in {"GET", "POST", "PUT", "DELETE", "PATCH"}:  # Common HTTP methods
-                        response = client.request(method, route.path)
-                        assert response.status_code not in {401, 403}, (
-                            f"Unexpected status code {response.status_code} for {method} {route.path}"
-                        )
+                    response = client.request(method, route.path)
+                    assert response.status_code not in {401, 403}, (
+                        f"Unexpected status code {response.status_code} for {method} {route.path}"
+                    )
