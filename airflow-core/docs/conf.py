@@ -263,6 +263,13 @@ jinja_contexts = {
     },
 }
 
+# Use for generate rst_epilog and other post-generation substitutions
+global_substitutions = {
+    "version": PACKAGE_VERSION,
+    "airflow-version": airflow.__version__,
+    "experimental": "This is an :ref:`experimental feature <experimental>`.",
+}
+
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 
