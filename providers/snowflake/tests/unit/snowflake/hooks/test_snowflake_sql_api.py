@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from responses import RequestsMock
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake_sql_api import (
     SnowflakeSqlApiHook,
@@ -352,7 +352,7 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS_OAUTH
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.HTTPBasicAuth")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
@@ -360,12 +360,13 @@ class TestSnowflakeSqlApiHook:
     )
     def test_get_oauth_token(self, mock_conn_param, requests_post, mock_auth):
         """Test get_oauth_token method makes the right http request"""
-        BASIC_AUTH = {"Authorization": "Basic usernamepassword"}
+        basic_auth = {"Authorization": "Basic usernamepassword"}
         mock_conn_param.return_value = CONN_PARAMS_OAUTH
         requests_post.return_value.status_code = 200
-        mock_auth.return_value = BASIC_AUTH
+        mock_auth.return_value = basic_auth
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        hook.get_oauth_token(CONN_PARAMS_OAUTH)
+        with pytest.warns(expected_warning=AirflowProviderDeprecationWarning):
+            hook.get_oauth_token(CONN_PARAMS_OAUTH)
         requests_post.assert_called_once_with(
             f"https://{CONN_PARAMS_OAUTH['account']}.{CONN_PARAMS_OAUTH['region']}.snowflakecomputing.com/oauth/token-request",
             data={
@@ -374,7 +375,7 @@ class TestSnowflakeSqlApiHook:
                 "redirect_uri": "https://localhost.com",
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
-            auth=BASIC_AUTH,
+            auth=basic_auth,
         )
 
     @pytest.fixture
