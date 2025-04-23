@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
@@ -24,7 +25,7 @@ type Props = {
   readonly id: string;
 } & TaskNameProps;
 
-export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
+export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
   const { dagId = "", runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -35,6 +36,7 @@ export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
 
   return (
     <RouterLink
+      ref={ref}
       to={{
         // Do not include runId if there is no selected run, clicking a second time will deselect a task id
         pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
@@ -44,4 +46,4 @@ export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
       <TaskName isMapped={isMapped} {...rest} />
     </RouterLink>
   );
-};
+});
