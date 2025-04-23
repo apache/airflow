@@ -204,7 +204,7 @@ class ConfigOperations(BaseOperations):
     def get(self, section: str, option: str) -> Config | ServerResponseError:
         """Get a config from the API server."""
         try:
-            self.response = self.client.get(f"/section/{section}/option/{option}")
+            self.response = self.client.get(f"/config/section/{section}/option/{option}")
             return Config.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
