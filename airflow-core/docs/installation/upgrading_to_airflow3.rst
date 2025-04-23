@@ -46,8 +46,6 @@ Step 2: Clean and back up your existing Airflow Instance
   ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
   (and all errors gone) before you proceed with upgrade.
 
-- Ensure that all existing Airflow 2 plugins have been converted to Airflow 3. In some cases where conversion isn't possible, a workaround is to install the FAB provider.
-
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
 
@@ -108,8 +106,9 @@ The biggest part of an Airflow upgrade is the database upgrade. The database upg
     airflow db migrate
 
 
-You should now be able to start up your Airflow 3 instance.
-
+If you have plugins that use Flask-AppBuilder views ( ``appbuilder_views`` ), Flask-AppBuilder menu items ( ``appbuilder_menu_items`` ), or Flask blueprints ( ``flask_blueprints`` ), you will either need to convert
+them to FastAPI apps or ensure you install the FAB provider which provides a backwards compatibility layer for Airflow 3.
+Ideally, you should convert your plugins to FastAPI apps ( ``fastapi_apps`` ), as the compatibility layer in the FAB provider is deprecated.
 
 Step 6: Changes to your startup scripts
 ---------------------------------------
@@ -126,6 +125,7 @@ The dag processor must now be started independently, even for local or developme
 
     airflow dag-processor
 
+You should now be able to start up your Airflow 3 instance.
 
 .. _breaking-changes:
 
