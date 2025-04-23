@@ -30,8 +30,9 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
-    from airflow.models import DagRun
     from pendulum.datetime import DateTime
+    
+    from airflow.models import DagRun
 
     try:
         from airflow.sdk.definitions.context import Context
