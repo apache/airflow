@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Skeleton, Text } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 

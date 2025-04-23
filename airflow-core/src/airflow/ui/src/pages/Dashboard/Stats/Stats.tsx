@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, SimpleGrid } from "@chakra-ui/react";
-import { FiClipboard } from "react-icons/fi";
-import { MdOutlineTask } from "react-icons/md";
+import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDagServiceGetDags } from "openapi/queries";
 
@@ -56,7 +55,7 @@ export const Stats = () => {
         </Heading>
       </Flex>
 
-      <SimpleGrid columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
+      <HStack columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
@@ -96,7 +95,7 @@ export const Stats = () => {
           label="Active dags"
           link="dags?paused=false"
         />
-      </SimpleGrid>
+      </HStack>
     </Box>
   );
 };
