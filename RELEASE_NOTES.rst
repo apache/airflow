@@ -311,12 +311,76 @@ Several core components have been moved to more intuitive or stable locations:
 
 These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
 
-Asset Event URIs in ``inlet_events``
-""""""""""""""""""""""""""""""""""""
+Improved ``inlet_events``, ``outlet_events``, and ``triggering_asset_events``
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The internal representation of asset event triggers now includes an explicit ``uri`` field, simplifying traceability and
+Asset event mappings in the task context are improved to better support asset use cases, including new features introduced in AIP-74.
+
+Events of an asset or asset alias are now accessed directly by a concrete object to avoid ambiguity. Using a ``str`` to access events is
+no longer supported. Use an ``Asset`` or ``AssetAlias`` object, or ``Asset.ref`` to refer to an entity explicitly instead, such as::
+
+    outlet_events[Asset.ref(name="myasset")]  # Get events for asset named "myasset".
+    outlet_events[AssetAlias(name="myalias")]  # Get events for asset alias named "myalias".
+
+Alternatively, two helpers ``for_asset`` and ``for_asset_alias`` are added as shortcuts::
+
+    outlet_events.for_asset(name="myasset")  # Get events for asset named "myasset".
+    outlet_events.for_asset_alias(name="myalias")  # Get events for asset alias named "myalias".
+
+The internal representation of asset event triggers now also includes an explicit ``uri`` field, simplifying traceability and
 aligning with the broader asset-aware execution model introduced in Airflow 3.0. DAG authors interacting directly with
 ``inlet_events`` may need to update logic that assumes the previous structure.
+
+
+
+Behaviour change in ``xcom_pull``
+"""""""""""""""""""""""""""""""""
+
+**Pulling without setting ``task_ids``**:
+
+In Airflow 2, the ``xcom_pull()`` method allowed pulling XComs by key without specifying task_ids, despite the fact that the underlying
+DB model defines task_id as part of the XCom primary key. This created ambiguity: if two tasks pushed XComs with the same key,
+``xcom_pull()`` would pull whichever one happened to be first, leading to unpredictable behavior.
+
+Airflow 3 resolves this inconsistency by requiring ``task_ids`` when pulling by key. This change aligns with the task-scoped nature of
+XComs as defined by the schema, ensuring predictable and consistent behavior.
+
+DAG Authors should update their dags to use ``task_ids`` if their dags used ``xcom_pull`` without ``task_ids`` such as::
+
+  kwargs["ti"].xcom_pull(key="key")
+
+Should be updated to::
+
+  kwargs["ti"].xcom_pull(task_ids="task1", key="key")
+
+
+**Return Type Change for Single Task ID**:
+
+In Airflow 2, when using ``xcom_pull()`` with a single task ID in a list (e.g., ``task_ids=["task1"]``), it would return a ``LazyXComSelectSequence``
+object containing one value. In Airflow 3.0.0, this behavior was changed to return the value directly.
+
+So, if you previously used:
+
+.. code-block:: python
+
+    xcom_values = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
+    xcom_value = xcom_values[0]  # Access the first value
+
+You would now get the value directly, rather than a sequence containing one value.
+
+.. code-block:: python
+
+    xcom_value = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
+
+The previous behaviour (returning list when passed a list) will be restored in Airflow 3.0.1 to maintain backward compatibility.
+
+However, it is recommended to be explicit about your intentions when using ``task_ids`` (after the fix in 3.0.1):
+
+- If you want a single value, use ``task_ids="task1"``
+- If you want a sequence, use ``task_ids=["task1"]``
+
+This makes the code more explicit and easier to understand.
+
 
 Removed Configuration Keys
 """""""""""""""""""""""""""

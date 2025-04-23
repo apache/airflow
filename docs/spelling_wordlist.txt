@@ -768,6 +768,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+Grafana
 graphviz
 greenlet
 Groupalia
@@ -799,6 +800,7 @@ hdfscli
 hdp
 healthjump
 heartrate
+heatmap
 Highcharts
 hivecmd
 hiveconf
@@ -1082,6 +1084,7 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+materializations
 Matomo
 matomo
 Maxime
@@ -1466,6 +1469,7 @@ RefreshError
 regexes
 reidentify
 ReidentifyContentResponse
+reimagined
 reinit
 Reinitialising
 reinitialization
@@ -1475,6 +1479,7 @@ remoting
 renderer
 renderers
 renewer
+reparse
 replicaSet
 repo
 repos
@@ -1959,6 +1964,7 @@ volumeMounts
 VolumeSizeInGB
 vpc
 WaiterModel
+walkthrough
 wape
 warmup
 Wasb

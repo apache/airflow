@@ -41,6 +41,12 @@ Step 2: Clean and back up your existing Airflow Instance
   upgrade process. These schema changes can take a long time if the database is large. For a faster, safer migration, we recommend that you clean up your Airflow meta-database before the upgrade.
   You can use the ``airflow db clean`` :ref:`Airflow CLI command<cli-db-clean>` to trim your Airflow database.
 
+- Ensure that there are no errors related to dag processing, such as ``AirflowDagDuplicatedIdException``.  You should
+  be able to run ``airflow dags reserialize`` with no errors.  If you have have to resolve errors from dag processing,
+  ensure you deploy your changes to your old instance prior to upgrade, and wait until your dags have all been reprocessed
+  (and all errors gone) before you proceed with upgrade.
+
+- Ensure that all existing Airflow 2 plugins have been converted to Airflow 3. In some cases where conversion isn't possible, a workaround is to install the FAB provider.
 
 Step 3: DAG Authors - Check your Airflow DAGs for compatibility
 ----------------------------------------------------------------
@@ -129,7 +135,7 @@ Breaking Changes
 Some capabilities which were deprecated in Airflow 2.x are not available in Airflow 3.
 These include:
 
-- **SubDAGs**: Replaced by TaskGroups, Datasets, and Data Aware Scheduling.
+- **SubDAGs**: Replaced by TaskGroups, Assets, and Data Aware Scheduling.
 - **Sequential Executor**: Replaced by LocalExecutor, which can be used with SQLite for local development use cases.
 - **SLAs**: Deprecated and removed; Will be replaced by forthcoming `Deadline Alerts <https://cwiki.apache.org/confluence/x/tglIEw>`_.
 - **Subdir**: Used as an argument on many CLI commands, ``--subdir`` or ``-S`` has been superseded by :doc:`DAG bundles </administration-and-deployment/dag-bundles>`.

@@ -26,7 +26,7 @@ Dags
 
 Here's a basic example DAG:
 
-.. image:: /img/basic-dag.png
+.. image:: /img/ui-light/basic_dag.png
 
 It defines four Tasks - A, B, C, and D - and dictates the order in which they have to run, and which tasks depend on what others. It will also say how often to run the DAG - maybe "every 5 minutes starting tomorrow", or "every day since January 1st, 2020".
 
@@ -331,7 +331,7 @@ The task_id returned by the Python function has to reference a task directly dow
 .. note::
     When a Task is downstream of both the branching operator *and* downstream of one or more of the selected tasks, it will not be skipped:
 
-    .. image:: /img/branch_note.png
+    .. image:: /img/ui-light/branch_note.png
 
     The paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since ``join`` is a downstream task of ``branch_a``, it will still be run, even though it was not returned as part of the branch decision.
 
@@ -491,11 +491,11 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     ``join`` is downstream of ``follow_branch_a`` and ``branch_false``. The ``join`` task will show up as skipped because its ``trigger_rule`` is set to ``all_success`` by default, and the skip caused by the branching operation cascades down to skip a task marked as ``all_success``.
 
-    .. image:: /img/branch_without_trigger.png
+    .. image:: /img/ui-light/branch_without_trigger.png
 
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
-    .. image:: /img/branch_with_trigger.png
+    .. image:: /img/ui-light/branch_with_trigger.png
 
 
 Setup and teardown
@@ -550,7 +550,7 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
-.. image:: /img/task_group.gif
+.. image:: /img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
@@ -634,7 +634,7 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
 Here's an example DAG which illustrates labeling different branches:
 
-.. image:: /img/edge_label_example.png
+.. image:: /img/ui-light/edge_label_example.png
 
 .. exampleinclude:: /../src/airflow/example_dags/example_branch_labels.py
     :language: python
