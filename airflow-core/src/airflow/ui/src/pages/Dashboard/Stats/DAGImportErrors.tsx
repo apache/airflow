@@ -60,10 +60,10 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
         <StatsCard
           colorScheme="failed"
           count={importErrorsCount}
+          icon={<LuFileWarning />}
           isLoading={isLoading}
           label="Dag Import Errors"
           onClick={onOpen}
-          state="failed"
         />
       )}
       <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
