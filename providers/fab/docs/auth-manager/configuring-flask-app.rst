@@ -18,10 +18,9 @@
 Configuring Flask Application for Airflow Webserver
 ===================================================
 
-Airflow uses Flask to render the web UI. When you initialize the Airflow webserver, predefined configuration
+``FabAuthManager`` and Airflow 2 plugins uses Flask to render the web UI.When initialized, predefined configuration
 is used, based on the ``webserver`` section of the ``airflow.cfg`` file. You can override these settings
-and add any extra settings however by adding flask configuration to ``webserver_config.py`` file in your
-``$AIRFLOW_HOME`` directory. This file is automatically loaded by the webserver.
+and add any extra settings by adding flask configuration to ``webserver_config.py`` file specified in ``[fab] config_file`` (by default it is ``$AIRFLOW_HOME/webserver_config.py``). This file is automatically loaded by the webserver.
 
 For example if you would like to change rate limit strategy to "moving window", you can set the
 ``RATELIMIT_STRATEGY`` to ``moving-window``.
