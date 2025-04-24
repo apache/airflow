@@ -21,7 +21,7 @@ import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceImportErrors } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
+import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { pluralize } from "src/utils";
 
@@ -37,6 +37,10 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
 
   if (isLoading) {
     return <Skeleton height="9" width="225px" />;
+  }
+
+  if ((error as ExpandedApiError).status === 403) {
+    return undefined;
   }
 
   return (
