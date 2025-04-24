@@ -162,7 +162,7 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     @pytest.mark.parametrize("state", ["Terminated", "Unhealthy"])
-    def test_execute_with_failures_without_removal(self, aci_mock, state: str):
+    def test_execute_with_failures_without_removal(self, aci_mock, state):
         expected_cg = make_mock_container(state=state, exit_code=1, detail_status="test")
         aci_mock.return_value.get_state.return_value = expected_cg
 
