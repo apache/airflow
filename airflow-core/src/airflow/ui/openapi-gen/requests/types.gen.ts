@@ -793,6 +793,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Response for the external log URL endpoint.
+ */
+export type ExternalLogUrlResponse = {
+  url: string;
+};
+
+/**
  * Extra Links Response.
  */
 export type ExtraLinkCollectionResponse = {
@@ -1476,6 +1483,8 @@ export type ConfigResponse = {
   audit_view_included_events: string;
   test_connection: string;
   dashboard_alert: Array<UIAlert>;
+  show_external_log_redirect: boolean;
+  external_log_name?: string | null;
 };
 
 /**
@@ -2390,6 +2399,16 @@ export type GetLogData = {
 };
 
 export type GetLogResponse = TaskInstancesLogResponse;
+
+export type GetExternalLogUrlData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  tryNumber: number;
+};
+
+export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
 
 export type GetImportErrorData = {
   importErrorId: number;
@@ -4629,6 +4648,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstancesLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}": {
+    get: {
+      req: GetExternalLogUrlData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ExternalLogUrlResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

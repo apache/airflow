@@ -26,6 +26,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs, useLogDownload } from "src/queries/useLogs";
 
+import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
@@ -102,6 +103,9 @@ export const Logs = () => {
     setFullscreen(false);
   };
 
+  const externalLogName = useConfig("external_log_name") as string;
+  const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
+
   return (
     <Box p={2}>
       <TaskLogHeader
@@ -114,6 +118,17 @@ export const Logs = () => {
         tryNumber={tryNumber}
         wrap={wrap}
       />
+      {showExternalLogRedirect && externalLogName && taskInstance ? (
+        tryNumber === undefined ? (
+          <p>No try number</p>
+        ) : (
+          <ExternalLogLink
+            externalLogName={externalLogName}
+            taskInstance={taskInstance}
+            tryNumber={tryNumber}
+          />
+        )
+      ) : undefined}
       <TaskLogContent
         error={error}
         isLoading={isLoading || isLoadingLogs}

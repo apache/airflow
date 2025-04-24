@@ -42,3 +42,9 @@ class TaskInstancesLogResponse(BaseModel):
     content: list[StructuredLogMessage] | list[str]
     """Either a list of parsed events, or a list of lines on parse error"""
     continuation_token: str | None
+
+
+class ExternalLogUrlResponse(BaseModel):
+    """Response for the external log URL endpoint."""
+
+    url: str
