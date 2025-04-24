@@ -31,6 +31,7 @@ import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
@@ -126,6 +127,18 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "trigger",
     cell: ({ row }) => <TriggerDAGButton dag={row.original} withText={false} />,
+    enableSorting: false,
+    header: "",
+  },
+  {
+    accessorKey: "delete",
+    cell: ({ row }) => (
+      <DeleteDagButton
+        dagDisplayName={row.original.dag_display_name}
+        dagId={row.original.dag_id}
+        withText={false}
+      />
+    ),
     enableSorting: false,
     header: "",
   },

@@ -232,7 +232,7 @@ class TestPythonVirtualenvDecorator:
         ],
     )
     def test_fail(self, serializer, dag_maker):
-        @task.virtualenv()
+        @task.virtualenv(serializer=serializer)
         def f():
             raise Exception
 

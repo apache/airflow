@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
+import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text, Skeleton } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
-import { Alert, Button } from "src/components/ui";
+import { Button } from "src/components/ui";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { pluralize } from "src/utils";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
@@ -47,7 +48,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       dag_run_conf: {},
       from_date: "",
       max_active_runs: 1,
-      reprocess_behavior: "failed",
+      reprocess_behavior: "none",
       run_backwards: false,
       to_date: "",
     },
@@ -114,11 +115,25 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     total_entries: 0,
   };
 
+  const inlineMessage =
+    !Boolean(values.from_date) || !Boolean(values.to_date) ? undefined : isPendingDryRun ? (
+      <Skeleton height="20px" width="100px" />
+    ) : affectedTasks.total_entries > 0 ? (
+      <Text color="fg.success" fontSize="sm">
+        {pluralize("run", affectedTasks.total_entries)} will be triggered
+      </Text>
+    ) : (
+      <Text color="fg.error" fontSize="sm" fontWeight="medium">
+        No runs matching selected criteria.
+      </Text>
+    );
+
   return (
     <>
-      <VStack alignItems="stretch" gap={2} p={10}>
+      <ErrorAlert error={errors.date ?? error} />
+      <VStack alignItems="stretch" gap={2} pt={4}>
         <Box>
-          <Text fontSize="md" fontWeight="medium" mb={1}>
+          <Text fontSize="md" fontWeight="semibold" mb={3}>
             Date Range
           </Text>
           <HStack w="full">
@@ -127,6 +142,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="from_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
+                  <Field.Label>From</Field.Label>
                   <Input
                     {...field}
                     max={dataIntervalEnd || today}
@@ -142,6 +158,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               name="to_date"
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
+                  <Field.Label>To</Field.Label>
                   <Input
                     {...field}
                     max={today}
@@ -155,6 +172,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             />
           </HStack>
         </Box>
+        <Box>{inlineMessage}</Box>
         <Spacer />
         <Controller
           control={control}
@@ -166,7 +184,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 field.onChange(event);
               }}
             >
-              <RadioCardLabel fontSize="md">Reprocess Behaviour</RadioCardLabel>
+              <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
+                Reprocess Behaviour
+              </RadioCardLabel>
               <HStack>
                 {reprocessBehaviors.map((item) => (
                   <RadioCardItem
@@ -179,16 +199,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 ))}
               </HStack>
             </RadioCardRoot>
-          )}
-        />
-        <Spacer />
-        <Controller
-          control={control}
-          name="run_backwards"
-          render={({ field }) => (
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange}>
-              Run Backwards
-            </Checkbox>
           )}
         />
         <Spacer />
@@ -210,18 +220,25 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           )}
         />
         <Spacer />
-        {affectedTasks.total_entries > 0 ? (
-          <Alert>{affectedTasks.total_entries} runs will be triggered</Alert>
-        ) : (
-          <Alert>No runs matching selected criteria.</Alert>
-        )}
+        <Controller
+          control={control}
+          name="run_backwards"
+          render={({ field }) => (
+            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange}>
+              Run Backwards
+            </Checkbox>
+          )}
+        />
+        <Spacer />
+        {dag.is_paused ? (
+          <>
+            <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+              Unpause {dag.dag_display_name} on trigger
+            </Checkbox>
+            <Spacer />
+          </>
+        ) : undefined}
       </VStack>
-      {dag.is_paused ? (
-        <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
-          Unpause {dag.dag_display_name} on trigger
-        </Checkbox>
-      ) : undefined}
-      <ErrorAlert error={errors.date ?? error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />

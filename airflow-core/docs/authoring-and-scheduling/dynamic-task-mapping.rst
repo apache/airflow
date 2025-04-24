@@ -41,11 +41,11 @@ This will show ``Total was 9`` in the task logs when executed.
 
 This is the resulting DAG structure:
 
-.. image:: /img/mapping-simple-graph.png
+.. image:: /img/ui-light/mapping_simple_graph.png
 
 The grid view also provides visibility into your mapped tasks in the details panel:
 
-.. image:: /img/mapping-simple-grid.png
+.. image:: /img/ui-dark/grid_mapped_task.png
 
 .. note:: Only keyword arguments are allowed to be passed to ``expand()``.
 
@@ -203,7 +203,7 @@ Since the template is rendered after the main execution block, it is possible to
 
 .. code-block:: python
 
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
 
     @task(map_index_template="{{ my_variable }}")
