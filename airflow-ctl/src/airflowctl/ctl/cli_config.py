@@ -199,9 +199,6 @@ ARG_AUTH_PASSWORD = Arg(
     nargs="?",
 )
 
-# Common arguments
-ARG_VERBOSE = Arg(flags=("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
-
 ARG_OUTPUT = Arg(
     flags=("-o", "--output"),
     type=str,
@@ -617,16 +614,15 @@ POOL_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.import"),
-        args=(ARG_POOL_IMPORT, ARG_VERBOSE, *AUTH_ARGS),
+        args=(ARG_POOL_IMPORT, *AUTH_ARGS),
     ),
     ActionCommand(
         name="export",
         help="Export all pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
-        args=(ARG_POOL_EXPORT, ARG_VERBOSE, *AUTH_ARGS),
+        args=(ARG_POOL_EXPORT, *AUTH_ARGS),
     ),
 )
-
 
 core_commands: list[CLICommand] = [
     GroupCommand(

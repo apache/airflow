@@ -50,21 +50,24 @@ def import_(api_client: Client, file: str | Path, **kwargs):
 @provide_api_client(kind=ClientKind.CLI)
 def export(api_client: Client, file: str | Path, **kwargs):
     """Export all pools to file."""
-    pools = api_client.pools.list()
-    pools_dict = {
-        pool["name"]: {
-            "slots": pool["slots"],
-            "description": pool["description"],
-            "include_deferred": pool["include_deferred"],
+    try:
+        pools = api_client.pools.list()
+        pools_dict = {
+            pool["name"]: {
+                "slots": pool["slots"],
+                "description": pool["description"],
+                "include_deferred": pool["include_deferred"],
+            }
+            for pool in pools
         }
-        for pool in pools
-    }
 
-    file_path = Path(file)
-    with open(file_path, "w") as f:
-        json.dump(pools_dict, f, indent=4, sort_keys=True)
+        file_path = Path(file)
+        with open(file_path, "w") as f:
+            json.dump(pools_dict, f, indent=4, sort_keys=True)
 
-    rich.print(f"Exported {len(pools)} pool(s) to {file}")
+        rich.print(f"Exported {len(pools)} pool(s) to {file}")
+    except Exception as e:
+        raise SystemExit(f"Failed to export pools: {e}")
 
 
 def _import_helper(api_client: Client, filepath: Path):
