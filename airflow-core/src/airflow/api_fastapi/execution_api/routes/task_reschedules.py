@@ -17,18 +17,16 @@
 
 from __future__ import annotations
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import Query, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.models.taskreschedule import TaskReschedule
 
-router = AirflowRouter(
+router = APIRouter(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -37,18 +35,12 @@ router = AirflowRouter(
 
 
 @router.get("/{task_instance_id}/start_date")
-def get_start_date(
-    task_instance_id: UUID, session: SessionDep, try_number: Annotated[int, Query()] = 1
-) -> UtcDateTime | None:
+def get_start_date(task_instance_id: UUID, session: SessionDep) -> UtcDateTime | None:
     """Get the first reschedule date if found, None if no records exist."""
     start_date = session.scalar(
-        select(TaskReschedule)
-        .where(
-            TaskReschedule.ti_id == str(task_instance_id),
-            TaskReschedule.try_number >= try_number,
-        )
+        select(TaskReschedule.start_date)
+        .where(TaskReschedule.ti_id == str(task_instance_id))
         .order_by(TaskReschedule.id.asc())
-        .with_only_columns(TaskReschedule.start_date)
         .limit(1)
     )
 

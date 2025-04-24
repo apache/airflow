@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from flask_appbuilder.models.filters import BaseFilter
@@ -28,6 +29,7 @@ from sqlalchemy import types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.configuration import conf
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -51,6 +53,20 @@ _MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
     "DELETE": ACTION_CAN_DELETE,
     "MENU": ACTION_CAN_ACCESS_MENU,
 }
+log = logging.getLogger(__name__)
+
+
+def get_session_lifetime_config():
+    """Get session timeout configs and handle outdated configs gracefully."""
+    session_lifetime_minutes = conf.get("fab", "session_lifetime_minutes", fallback=None)
+    minutes_per_day = 24 * 60
+    if not session_lifetime_minutes:
+        session_lifetime_days = 30
+        session_lifetime_minutes = minutes_per_day * session_lifetime_days
+
+    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
+
+    return int(session_lifetime_minutes)
 
 
 def get_fab_auth_manager() -> FabAuthManager:

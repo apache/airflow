@@ -37,11 +37,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.0.0
 .....
 
-Latest change: 2025-04-02
+Latest change: 2025-04-08
 
-==================================================================================================  ===========  ========================================================================
+==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ========================================================================
+==================================================================================================  ===========  ==================================================================================
+`c68f31d3db <https://github.com/apache/airflow/commit/c68f31d3db6b957b4aeede7a257cc0ba59f12ce1>`__  2025-04-08   ``Remove dev0 suffix from Airlfow version (#48934)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
 `96c3563c57 <https://github.com/apache/airflow/commit/96c3563c5757e22cc450fea5ce09a9b4dac508ff>`__  2025-03-28   ``Fix checking if we have proper provider's __init__.py files (#48489)``
 `c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
@@ -55,4 +60,4 @@ Commit                                                                          
 `cc2c4ce0c9 <https://github.com/apache/airflow/commit/cc2c4ce0c961cba2e3982529208c9f450e0b36b9>`__  2025-03-01   ``Regenerate common.messaging generated documentation/files (#47253)``
 `ccd02336bf <https://github.com/apache/airflow/commit/ccd02336bfcaa33681cc25bc6281e839110da3e9>`__  2025-03-01   ``Fix broken generated provider.toml on main (#47250)``
 `ca4f094c76 <https://github.com/apache/airflow/commit/ca4f094c76cfc5970fe2451b2d3919d6d78bc693>`__  2025-03-01   ``Common Message Queue (#46694)``
-==================================================================================================  ===========  ========================================================================
+==================================================================================================  ===========  ==================================================================================

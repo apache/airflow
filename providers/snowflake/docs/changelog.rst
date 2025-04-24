@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+main
+.....
+
+Bug fixes
+~~~~~~~~~
+
+.. note::
+   ``private_key_content`` in Snowflake connection should now be base64 encoded. To encode your private key, you can use the following Python snippet:
+
+   .. code-block:: python
+
+         import base64
+
+         with open("path/to/your/private_key.pem", "rb") as key_file:
+             encoded_key = base64.b64encode(key_file.read()).decode("utf-8")
+             print(encoded_key)
+
+
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 6.2.0
 .....
 

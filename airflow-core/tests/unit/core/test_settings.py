@@ -28,8 +28,6 @@ import pytest
 
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 
-from tests_common.test_utils.config import conf_vars
-
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
     task_instance.run_as_user = "myself"
@@ -207,30 +205,6 @@ class TestLocalSettings:
             task_instance.owner = "airflow"
             with pytest.raises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)
-
-
-class TestUpdatedConfigNames:
-    @conf_vars({("webserver", "session_lifetime_minutes"): "43200"})
-    def test_config_val_is_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        assert session_lifetime_config == 43200
-
-    @conf_vars({("webserver", "session_lifetime_minutes"): "43201"})
-    def test_config_val_is_not_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        assert session_lifetime_config == 43201
-
-    @conf_vars({("webserver", "session_lifetime_days"): ""})
-    def test_uses_updated_session_timeout_config_by_default(self):
-        from airflow import settings
-
-        session_lifetime_config = settings.get_session_lifetime_config()
-        default_timeout_minutes = 30 * 24 * 60
-        assert session_lifetime_config == default_timeout_minutes
 
 
 _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")

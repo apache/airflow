@@ -2385,8 +2385,9 @@ class TestDatabricksNotebookOperator:
         operator.task_id = "test_task"
         operator.upstream_task_ids = ["upstream_task"]
         relevant_upstreams = [MagicMock(task_id="upstream_task")]
+        task_dict = {"upstream_task": MagicMock(task_id="upstream_task")}
 
-        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams)
+        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
 
         task_key = hashlib.md5(b"example_dag__test_task").hexdigest()
         expected_json = {
@@ -2423,12 +2424,13 @@ class TestDatabricksNotebookOperator:
         )
         operator.task_group = None
         relevant_upstreams = [MagicMock(task_id="upstream_task")]
+        task_dict = {"upstream_task": MagicMock(task_id="upstream_task")}
 
         with pytest.raises(
             AirflowException,
             match="Calling `_convert_to_databricks_workflow_task` without a parent TaskGroup.",
         ):
-            operator._convert_to_databricks_workflow_task(relevant_upstreams)
+            operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
 
     def test_convert_to_databricks_workflow_task_cluster_conflict(self):
         """Test that an error is raised if both `existing_cluster_id` and `job_cluster_key` are set."""
@@ -2446,12 +2448,13 @@ class TestDatabricksNotebookOperator:
         operator.job_cluster_key = "job-cluster-key"
         operator.task_group = databricks_workflow_task_group
         relevant_upstreams = [MagicMock(task_id="upstream_task")]
+        task_dict = {"upstream_task": MagicMock(task_id="upstream_task")}
 
         with pytest.raises(
             ValueError,
             match="Both existing_cluster_id and job_cluster_key are set. Only one can be set per task.",
         ):
-            operator._convert_to_databricks_workflow_task(relevant_upstreams)
+            operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
 
 
 class TestDatabricksTaskOperator:

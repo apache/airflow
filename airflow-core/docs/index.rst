@@ -70,25 +70,25 @@ Here you see:
 Airflow parses the script, schedules the tasks, and executes them in the defined order. The status of the ``"demo"`` dag
 is displayed in the web interface:
 
-.. image:: /img/demo_graph_and_code_view.png
-  :alt: Demo DAG in the Graph View, showing the status of one DAG run along with DAG code.
+.. image:: /img/ui-dark/demo_graph_and_code_view.png
+  :alt: Demo dag in the Graph View, showing the status of one dag run along with dag code.
 
 |
 
-This examples uses a simple Bash command and Python function, but Airflow tasks can run virtually any code. You might use
+This example uses a simple Bash command and Python function, but Airflow tasks can run virtually any code. You might use
 tasks to run a Spark job, move files between storage buckets, or send a notification email. Here's what that same dag looks
 like over time, with multiple runs:
 
-.. image:: /img/demo_grid_view_with_task_logs.png
-  :alt: Demo DAG in the Grid View, showing the status of all DAG runs, as well as logs for a task instance
+.. image:: /img/ui-dark/demo_grid_view_with_task_logs.png
+  :alt: Demo dag in the Grid View, showing the status of all dag runs, as well as logs for a task instance
 
 |
 
 Each column in the grid represents a single dag run. While the graph and grid views are most commonly used, Airflow provides
 several other views to help you monitor and troubleshoot workflows — such as the ``DAG Overview`` view:
 
-.. image:: /img/demo_dag_overview_with_failed_tasks.png
-  :alt: Overview of a complex DAG in the Grid View, showing the status of all DAG runs, as well as quick links to recently failed task logs
+.. image:: /img/ui-dark/demo_dag_overview_with_failed_tasks.png
+  :alt: Overview of a complex dag in the Grid View, showing the status of all dag runs, as well as quick links to recently failed task logs
 
 |
 
@@ -101,7 +101,7 @@ Why Airflow®?
 Airflow is a platform for orchestrating batch workflows. It offers a flexible framework with a wide range of built-in operators
 and makes it easy to integrate with new technologies.
 
-If your workflows have a clear start and end and run on a schedule, they're a great fit for Airflow DAGs.
+If your workflows have a clear start and end and run on a schedule, they're a great fit for Airflow dags.
 
 If you prefer coding over clicking, Airflow is built for you. Defining workflows as Python code provides several key benefits:
 
@@ -111,7 +111,7 @@ If you prefer coding over clicking, Airflow is built for you. Defining workflows
 - **Extensibility**: Customize workflows using a large ecosystem of existing components — or build your own.
 
 Airflow's rich scheduling and execution semantics make it easy to define complex, recurring pipelines. From the web interface,
-you can manually trigger DAGs, inspect logs, and monitor task status. You can also backfill DAG runs to process historical
+you can manually trigger dags, inspect logs, and monitor task status. You can also backfill dag runs to process historical
 data, or rerun only failed tasks to minimize cost and time.
 
 The Airflow platform is highly customizable. With the :doc:`public-airflow-interface` you can extend and adapt nearly
@@ -124,7 +124,7 @@ others via the `community <https://airflow.apache.org/community>`_, `Slack <http
 Why not Airflow®?
 =================
 
-Airflow® is designed for finite, batch-oriented workflows. While you can trigger DAGs using the CLI or REST API, Airflow is not
+Airflow® is designed for finite, batch-oriented workflows. While you can trigger dags using the CLI or REST API, Airflow is not
 intended for continuously running, event-driven, or streaming workloads. That said, Airflow often complements streaming systems like Apache Kafka.
 Kafka handles real-time ingestion, writing data to storage. Airflow can then periodically pick up that data and process it in batch.
 

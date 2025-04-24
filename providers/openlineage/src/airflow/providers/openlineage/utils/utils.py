@@ -54,7 +54,9 @@ from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AI
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import NEW_SESSION, provide_session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 try:
     from airflow.sdk import BaseOperator as SdkBaseOperator
@@ -195,40 +197,41 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkB
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
+    if isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
         return is_task_lineage_enabled(obj)
-    else:
-        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
+    raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
-@provide_session
-def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-    from sqlalchemy import exists
+if not AIRFLOW_V_3_0_PLUS:
 
-    if not isinstance(ti.task, BaseSensorOperator):
-        return False
+    @provide_session
+    def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+        from sqlalchemy import exists
 
-    if not ti.task.reschedule:
-        return False
-    if AIRFLOW_V_3_0_PLUS:
+        if not isinstance(ti.task, BaseSensorOperator):
+            return False
+
+        if not ti.task.reschedule:
+            return False
+        if AIRFLOW_V_3_0_PLUS:
+            return (
+                session.query(
+                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+                ).scalar()
+                is True
+            )
         return (
             session.query(
-                exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
+                exists().where(
+                    TaskReschedule.dag_id == ti.dag_id,
+                    TaskReschedule.task_id == ti.task_id,
+                    TaskReschedule.run_id == ti.run_id,
+                    TaskReschedule.map_index == ti.map_index,
+                    TaskReschedule.try_number == ti.try_number,
+                )
             ).scalar()
             is True
         )
-    return (
-        session.query(
-            exists().where(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti.task_id,
-                TaskReschedule.run_id == ti.run_id,
-                TaskReschedule.map_index == ti.map_index,
-                TaskReschedule.try_number == ti.try_number,
-            )
-        ).scalar()
-        is True
-    )
 
 
 class InfoJsonEncodable(dict):
@@ -322,6 +325,7 @@ class DagInfo(InfoJsonEncodable):
         "description",
         "fileloc",
         "owner",
+        "owner_links",
         "schedule_interval",  # For Airflow 2.
         "timetable_summary",  # For Airflow 3.
         "start_date",
@@ -372,13 +376,21 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "logical_date",  # Airflow 3
+        "run_after",  # Airflow 3
         "run_id",
         "run_type",
         "start_date",
         "end_date",
     ]
 
-    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+    casts = {
+        "duration": lambda dagrun: DagRunInfo.duration(dagrun),
+        "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
+        "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
+        "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
+        "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+    }
 
     @classmethod
     def duration(cls, dagrun: DagRun) -> float | None:
@@ -388,15 +400,33 @@ class DagRunInfo(InfoJsonEncodable):
             return None
         return (dagrun.end_date - dagrun.start_date).total_seconds()
 
+    @classmethod
+    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+        if not getattr(dagrun, "dag_versions", []):
+            return None
+        current_version = dagrun.dag_versions[-1]
+        if key == "bundle_name":
+            return current_version.bundle_name
+        if key == "bundle_version":
+            return current_version.bundle_version
+        if key == "version_id":
+            return str(current_version.id)
+        if key == "version_number":
+            return current_version.version_number
+        raise ValueError(f"Unsupported key: {key}`")
+
 
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
-        "map_index": lambda ti: (
-            ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
-        )
+        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
+        "dag_bundle_version": lambda ti: (
+            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        ),
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
 
@@ -442,7 +472,6 @@ class TaskInfo(InfoJsonEncodable):
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
-        "weight_rule",
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -712,7 +741,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                if is_json_serializable(item) and hasattr(item, "__dict__"):
                     for dict_key, subval in item.__dict__.items():
                         if type(subval).__name__ == "Proxy":
                             return "<<non-redactable: Proxy>>"
@@ -728,8 +757,7 @@ class OpenLineageRedactor(SecretsMasker):
                                 ),
                             )
                     return item
-                else:
-                    return super()._redact(item, name, depth, max_depth)
+                return super()._redact(item, name, depth, max_depth)
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item

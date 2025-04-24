@@ -34,14 +34,71 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2025-04-24
+
+==================================================================================================  ===========  =======================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =======================================================================================
+`78615a35f0 <https://github.com/apache/airflow/commit/78615a35f04b6d7a0bf2dbb1787260ba5f4356dc>`__  2025-04-24   ``Make LatestOnlyOperator work for default data-interval-less DAGs (#49554)``
+`2e3e714f6d <https://github.com/apache/airflow/commit/2e3e714f6d9ffe3e7c7d06d1e2f50e9561f2b808>`__  2025-04-23   ``Fix wrong link in standard provider yaml file (#49660)``
+`f73f895c28 <https://github.com/apache/airflow/commit/f73f895c28bc773efb614ef80f9b95b3b9c62838>`__  2025-04-23   ``Update standard provider doc operators in core operators-and-hooks-ref.rst (#49401)``
+`8480c78602 <https://github.com/apache/airflow/commit/8480c78602d00a095d8200fc3000b3be7460ee31>`__  2025-04-21   ``Move DagIsPaused exception to standard provider (#49500)``
+`6d73ae8ab6 <https://github.com/apache/airflow/commit/6d73ae8ab6aecbf6c00ea4cb6a8d73af9bdcb0b6>`__  2025-04-19   ``Add extra-links section to standard provider (#49447)``
+`bfc567f4e6 <https://github.com/apache/airflow/commit/bfc567f4e6c0bd3cd0868f75149d4420293016d7>`__  2025-04-18   ``Use unused pytest params in standard provider tests (#49422)``
+`ddf371aa9c <https://github.com/apache/airflow/commit/ddf371aa9ccc3fc426135496aafacd3a732c1af4>`__  2025-04-18   ``Move test_sensor_helper.py to standard provider tests (#49396)``
+`863702f020 <https://github.com/apache/airflow/commit/863702f0205c276a38d106172ebff10afbe758c8>`__  2025-04-17   ``Fix static check re removing unnecessary else condition (#49415)``
+`96c6daa97c <https://github.com/apache/airflow/commit/96c6daa97c94b20b14ec5fa7f39de26b3f2d2559>`__  2025-04-18   ``feat: Add fail_when_dag_is_paused param to TriggerDagRunOperator (#48214)``
+`04dabf45a6 <https://github.com/apache/airflow/commit/04dabf45a60ec55fe715c41bbd8594d0390adf3b>`__  2025-04-17   ``Update standard provider docs with correct imports (#49395)``
+==================================================================================================  ===========  =======================================================================================
+
+1.0.0
+.....
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ===========================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===========================================================================
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
+`074294d5d7 <https://github.com/apache/airflow/commit/074294d5d7e928327927ab559988c67e6670b5ce>`__  2025-04-16   ``Conditionally add session related imports in standard provider (#49218)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`0c883c5be7 <https://github.com/apache/airflow/commit/0c883c5be7c6d24768b4f54904e582b4262da4b6>`__  2025-04-13   ``Remove dag_version as a create_dagrun argument (#49148)``
+`ef80791fba <https://github.com/apache/airflow/commit/ef80791fbae6a48059cf2870b7e175a61cf7c361>`__  2025-04-11   ``Fix ExternalTaskSensor task_group_id check condition (#49027)``
+`d112830cd9 <https://github.com/apache/airflow/commit/d112830cd935375ced2bee186ff55f9b3887550b>`__  2025-04-10   ``Ensure that TI.id is unique per try. (#48749)``
+==================================================================================================  ===========  ===========================================================================
+
+0.4.0
+.....
+
+Latest change: 2025-04-10
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
+`636224df61 <https://github.com/apache/airflow/commit/636224df611109e1cb008e83b094899ea2d36322>`__  2025-04-09   ``Fix WorkflowTrigger to work with TaskSDK (#48819)``
+`57cda9ec70 <https://github.com/apache/airflow/commit/57cda9ec70148ee23a667b423b9f9308a9db2341>`__  2025-04-09   ``Make default as time.now() for TriggerDagRunOperator (#48969)``
+`c31cb5f19e <https://github.com/apache/airflow/commit/c31cb5f19ec77cbd1c40899c187ca83757c3fe20>`__  2025-04-08   ``Get 'LatestOnlyOperator' working with Task SDK (#48945)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`294594c06c <https://github.com/apache/airflow/commit/294594c06c21247547d83d4c1c996d86b49d9a35>`__  2025-04-08   ``Fix dagstate trigger to work with TaskSDK (#48747)``
+`86d5b27f92 <https://github.com/apache/airflow/commit/86d5b27f92207571ebe0c29a42c42abbf6f8cb8c>`__  2025-04-08   ``Make '@task' import from airflow.sdk (#48896)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+==================================================================================================  ===========  ==================================================================================
+
 0.3.0
 .....
 
-Latest change: 2025-04-04
+Latest change: 2025-04-06
 
 ==================================================================================================  ===========  =========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =========================================================================================
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
 `f01e5e2f64 <https://github.com/apache/airflow/commit/f01e5e2f64ddbb6251d1356fdd2b3b3059726191>`__  2025-04-04   ``Migrate standard decorators to standard provider (#48683)``
 `adf19b77ad <https://github.com/apache/airflow/commit/adf19b77ad60c28513c751f785cca21175b80e12>`__  2025-04-04   ``Bump standard provider to 0.3.0 (#48763)``
 `6775bf7bae <https://github.com/apache/airflow/commit/6775bf7bae13f4291e18d4118179c14e4444de0d>`__  2025-04-03   ``Make 'ExternalTaskSensor' work with Task SDK (#48651)``

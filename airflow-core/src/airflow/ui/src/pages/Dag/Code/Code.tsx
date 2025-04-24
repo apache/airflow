@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests/core/ApiError";
 import type { DAGSourceResponse } from "openapi/requests/types.gen";
-import DagVersionSelect from "src/components/DagVersionSelect";
+import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardButton } from "src/components/ui";
@@ -131,10 +131,13 @@ export const Code = () => {
       {/* We want to show an empty state on 404 instead of an error */}
       <ErrorAlert error={error ?? (codeError?.status === 404 ? undefined : codeError)} />
       <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
-      <div
-        style={{
-          fontSize: "14px",
+      <Box
+        css={{
+          "& *::selection": {
+            bg: "gray.emphasized",
+          },
         }}
+        fontSize="14px"
       >
         <SyntaxHighlighter
           language="python"
@@ -179,7 +182,7 @@ export const Code = () => {
         >
           {codeError?.status === 404 && !Boolean(code?.content) ? "No Code Found" : (code?.content ?? "")}
         </SyntaxHighlighter>
-      </div>
+      </Box>
     </Box>
   );
 };

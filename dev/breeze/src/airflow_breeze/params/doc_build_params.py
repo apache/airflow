@@ -19,8 +19,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-
 providers_prefix = "apache-airflow-providers-"
 
 
@@ -42,8 +40,6 @@ class DocBuildParams:
             doc_args.append("--spellcheck-only")
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
-        if AIRFLOW_BRANCH != "main":
-            doc_args.append("--disable-provider-checks")
         if self.package_filter:
             for filter in self.package_filter:
                 doc_args.extend(["--package-filter", filter])

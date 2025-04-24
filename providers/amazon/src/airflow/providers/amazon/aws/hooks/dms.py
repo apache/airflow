@@ -108,9 +108,8 @@ class DmsHook(AwsBaseHook):
             status = replication_tasks[0]["Status"]
             self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
             return status
-        else:
-            self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
-            return None
+        self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
+        return None
 
     def create_replication_task(
         self,

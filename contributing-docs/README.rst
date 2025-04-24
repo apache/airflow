@@ -34,7 +34,7 @@ New Contributor
 If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
 guide for a step-by-step introduction to setting up the development environment and making your
 first contribution.
-We also suggest you to check out `Contribution Workflow <16_contribution_workflow.rst>`__ in order to get an overview of how to
+We also suggest you to check out `Contribution Workflow <18_contribution_workflow.rst>`__ in order to get an overview of how to
 contribute to Airflow.
 
 If you are new to the project, you might need some help in understanding how the dynamics
@@ -92,7 +92,7 @@ Advanced Topics
 Developing Providers
 .....................
 
-You can learn how Airflow repository is a monorepo split into airflow and providers,
+You can learn how Airflow repository is a monorepo split into Airflow and providers,
 and how to contribute to the providers:
 
 * `Provider distributions <12_provider_distributions.rst>`__ describes the providers and how they

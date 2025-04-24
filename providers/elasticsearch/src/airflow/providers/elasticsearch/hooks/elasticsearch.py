@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
@@ -128,13 +129,15 @@ class ESConnection:
         self.user = user
         self.password = password
         self.scheme = scheme
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
+        kwargs.pop("fetch_size", None)
+        kwargs.pop("field_multi_value_leniency", None)
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
+            self.es = Elasticsearch(self.url, http_auth=(user, password), **kwargs)
         else:
-            self.es = Elasticsearch(self.url, **self.kwargs)
+            self.es = Elasticsearch(self.url, **kwargs)
 
     def cursor(self) -> ElasticsearchSQLCursor:
         return ElasticsearchSQLCursor(self.es, **self.kwargs)

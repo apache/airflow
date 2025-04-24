@@ -57,7 +57,6 @@ from airflow.models.dag import (
     ExecutorLoader,
     get_asset_triggered_next_run_info,
 )
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -947,7 +946,6 @@ class TestDag:
 
     def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
-            dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id="run_id_" + id,
@@ -955,7 +953,6 @@ class TestDag:
                 state=State.FAILED,
                 data_interval=(logical_date, logical_date),
                 run_after=logical_date,
-                dag_version=dag_v,
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )
@@ -992,7 +989,7 @@ class TestDag:
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
-        assert orm_dag.is_active
+        assert not orm_dag.is_stale
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
@@ -1000,7 +997,7 @@ class TestDag:
         )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
-        assert not orm_dag.is_active
+        assert orm_dag.is_stale
 
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
@@ -2091,7 +2088,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2234,7 +2231,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=None,
             next_dagrun_create_after=None,
-            is_active=True,
+            is_stale=False,
         )
         # assert max_active_runs updated
         assert orm_dag.max_active_runs == 16
@@ -2258,7 +2255,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         session.add(orm_dag)
         session.flush()
@@ -2290,7 +2287,7 @@ class TestDagModel:
             has_task_concurrency_limits=False,
             next_dagrun=DEFAULT_DATE,
             next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
-            is_active=True,
+            is_stale=False,
         )
         assert not orm_dag.has_import_errors
         session.add(orm_dag)

@@ -72,6 +72,9 @@ labelPRBasedOnFilePath:
   provider:apache-spark:
     - providers/apache/spark/**
 
+  provider:apache-tinkerpop:
+    - providers/apache/tinkerpop/**
+
   provider:apprise:
     - providers/apprise/**
 
@@ -130,7 +133,7 @@ labelPRBasedOnFilePath:
     - providers/docker/**
 
   provider:edge:
-    - providers/edge/**
+    - providers/edge3/**
 
   provider:elasticsearch:
     - providers/elasticsearch/**
@@ -146,6 +149,9 @@ labelPRBasedOnFilePath:
 
   provider:ftp:
     - providers/ftp/**
+
+  provider:git:
+    - providers/git/**
 
   provider:github:
     - providers/github/**

@@ -25,13 +25,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common_precommit_utils import AIRFLOW_ROOT_PATH
+
 # NOTE!. This script is executed from node environment created by pre-commit and this environment
 # Cannot have additional Python dependencies installed. We should not import any of the libraries
 # here that are not available in stdlib! You should not import common_precommit_utils.py here because
 # They are importing rich library which is not available in the node environment.
 
-AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"
+WWW_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "www" / "hash.txt"
 
 
 def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
@@ -58,7 +59,7 @@ INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 def compile_assets(www_directory: Path, www_hash_file_name: str):
     node_modules_directory = www_directory / "node_modules"
     dist_directory = www_directory / "static" / "dist"
-    www_hash_file = AIRFLOW_SOURCES_PATH / ".build" / "www" / www_hash_file_name
+    www_hash_file = AIRFLOW_ROOT_PATH / ".build" / "www" / www_hash_file_name
     www_hash_file.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
         old_hash = www_hash_file.read_text() if www_hash_file.exists() else ""
@@ -93,6 +94,6 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
 if __name__ == "__main__":
     # Compile assets for fab provider
     fab_provider_www_directory = (
-        AIRFLOW_SOURCES_PATH / "providers" / "fab" / "src" / "airflow" / "providers" / "fab" / "www"
+        AIRFLOW_ROOT_PATH / "providers" / "fab" / "src" / "airflow" / "providers" / "fab" / "www"
     )
     compile_assets(fab_provider_www_directory, "hash_fab.txt")

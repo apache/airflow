@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import os
 from collections.abc import Iterable, Mapping
 from contextlib import closing, contextmanager
@@ -26,15 +27,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 from urllib.parse import urlparse
 
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from requests.auth import HTTPBasicAuth
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
 
@@ -185,6 +189,45 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    @property
+    def account_identifier(self) -> str:
+        """Returns snowflake account identifier."""
+        conn_config = self._get_conn_params
+        account_identifier = f"https://{conn_config['account']}"
+
+        if conn_config["region"]:
+            account_identifier += f".{conn_config['region']}"
+
+        return account_identifier
+
+    def get_oauth_token(self, conn_config: dict | None = None) -> str:
+        """Generate temporary OAuth access token using refresh token in connection details."""
+        if conn_config is None:
+            conn_config = self._get_conn_params
+
+        url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
+
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": conn_config["refresh_token"],
+            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
+        }
+        response = requests.post(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:  # pragma: no cover
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+        return response.json()["access_token"]
+
     @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """
@@ -254,7 +297,7 @@ class SnowflakeHook(DbApiHook):
                 "The private_key_file and private_key_content extra fields are mutually exclusive. "
                 "Please remove one."
             )
-        elif private_key_file:
+        if private_key_file:
             private_key_file_path = Path(private_key_file)
             if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
                 raise ValueError("The private_key_file path points to an empty or invalid file.")
@@ -262,7 +305,7 @@ class SnowflakeHook(DbApiHook):
                 raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
             private_key_pem = Path(private_key_file_path).read_bytes()
         elif private_key_content:
-            private_key_pem = private_key_content.encode()
+            private_key_pem = base64.b64decode(private_key_content)
 
         if private_key_pem:
             passphrase = None
@@ -289,7 +332,10 @@ class SnowflakeHook(DbApiHook):
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
             conn_config.pop("login", None)
+            conn_config.pop("user", None)
             conn_config.pop("password", None)
+
+            conn_config["token"] = self.get_oauth_token(conn_config=conn_config)
 
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")
@@ -472,6 +518,7 @@ class SnowflakeHook(DbApiHook):
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
 
                     if handler is not None:
@@ -497,8 +544,7 @@ class SnowflakeHook(DbApiHook):
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
-        else:
-            return results
+        return results
 
     @contextmanager
     def _get_cursor(self, conn: Any, return_dictionaries: bool):

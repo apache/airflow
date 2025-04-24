@@ -55,7 +55,7 @@ def _assert_jobs(ti):
     job_names = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
     job_names_str = ""
     if job_names and len(job_names) > 0:
-        for job in job_names[0]:
+        for job in job_names:
             job_names_str += job["name"].split("/")[-1] + " "
     assert job1_name in job_names_str
     assert job2_name in job_names_str
@@ -63,9 +63,9 @@ def _assert_jobs(ti):
 
 def _assert_tasks(ti):
     tasks_names = ti.xcom_pull(task_ids=[list_tasks_task_name], key="return_value")
-    assert len(tasks_names[0]) == 2
-    assert "tasks/0" in tasks_names[0][0]["name"]
-    assert "tasks/1" in tasks_names[0][1]["name"]
+    assert len(tasks_names) == 2
+    assert "tasks/0" in tasks_names[0]["name"]
+    assert "tasks/1" in tasks_names[1]["name"]
 
 
 # [START howto_operator_batch_job_creation]

@@ -1,0 +1,25 @@
+Renamed FAB related configuration.
+
+  * Rename configuration ``webserver.config_file`` as ``fab.config_file``
+  * Rename configuration ``webserver.session_backend`` as ``fab.session_backend``
+  * Rename configuration ``webserver.base_url`` as ``api.base_url``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+
+  * ``airflow config lint``
+
+    * [x] ``webserver.config_file`` → ``fab.config_file``
+    * [x] ``webserver.session_backend`` → ``fab.session_backend``
+    * [x] ``webserver.base_url`` → ``api.base_url``

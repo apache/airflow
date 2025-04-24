@@ -31,7 +31,7 @@ class DagVersionResponse(BaseModel):
     id: UUID
     version_number: int
     dag_id: str
-    bundle_name: str
+    bundle_name: str | None
     bundle_version: str | None
     created_at: datetime
 
@@ -39,7 +39,9 @@ class DagVersionResponse(BaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def bundle_url(self) -> str | None:
-        return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+        if self.bundle_name:
+            return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+        return None
 
 
 class DAGVersionCollectionResponse(BaseModel):

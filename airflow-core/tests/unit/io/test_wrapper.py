@@ -19,8 +19,7 @@ from __future__ import annotations
 import uuid
 from unittest.mock import patch
 
-from airflow.io.path import ObjectStoragePath
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk import Asset, ObjectStoragePath
 
 
 @patch("airflow.providers_manager.ProvidersManager")

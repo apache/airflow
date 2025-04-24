@@ -22,8 +22,8 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 
 import {
   useBackfillServiceCancelBackfill,
-  useBackfillServiceListBackfills,
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfills1,
+  useBackfillServiceListBackfills1Key,
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
@@ -47,12 +47,12 @@ const buttonProps = {
 
 const onSuccess = async () => {
   await queryClient.invalidateQueries({
-    queryKey: [useBackfillServiceListBackfillsKey],
+    queryKey: [useBackfillServiceListBackfills1Key],
   });
 };
 
 const BackfillBanner = ({ dagId }: Props) => {
-  const { data, isLoading } = useBackfillServiceListBackfills({
+  const { data, isLoading } = useBackfillServiceListBackfills1({
     dagId,
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
@@ -65,15 +65,21 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
   const togglePause = () => {
-    if (backfill?.is_paused) {
+    if (backfill === undefined) {
+      return;
+    }
+    if (backfill.is_paused) {
       unpauseMutate({ backfillId: backfill.id });
     } else {
-      pauseMutate({ backfillId: backfill?.id });
+      pauseMutate({ backfillId: backfill.id });
     }
   };
 
   const cancel = () => {
-    stopPending({ backfillId: backfill?.id });
+    if (backfill === undefined) {
+      return;
+    }
+    stopPending({ backfillId: backfill.id });
   };
 
   if (isLoading || backfill === undefined) {

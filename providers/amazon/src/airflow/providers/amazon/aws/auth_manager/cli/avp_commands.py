@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""User sub-commands."""
-
 from __future__ import annotations
 
 import logging
@@ -71,6 +69,8 @@ def init_avp(args):
 @providers_configuration_loaded
 def update_schema(args):
     """Update Amazon Verified Permissions policy store schema."""
+    if not args.policy_store_id:
+        raise ValueError("Parameter '--policy-store-id' is required.")
     client = _get_client()
     _set_schema(client, args.policy_store_id, args)
 
@@ -98,35 +98,30 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
         if policy_store.get("description") == args.policy_store_description
     ]
 
-    if args.verbose:
-        log.debug("Policy stores found: %s", policy_stores)
-        log.debug("Existing policy stores found: %s", existing_policy_stores)
+    log.debug("Policy stores found: %s", policy_stores)
+    log.debug("Existing policy stores found: %s", existing_policy_stores)
 
     if len(existing_policy_stores) > 0:
         print(
             f"There is already a policy store with description '{args.policy_store_description}' in Amazon Verified Permissions: '{existing_policy_stores[0]['policyStoreId']}'."
         )
         return existing_policy_stores[0]["policyStoreId"], False
-    else:
-        print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
-        if args.dry_run:
-            print(
-                f"Dry run, not creating the policy store with description '{args.policy_store_description}'."
-            )
-            return None, True
+    print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
+    if args.dry_run:
+        print(f"Dry run, not creating the policy store with description '{args.policy_store_description}'.")
+        return None, True
 
-        response = client.create_policy_store(
-            validationSettings={
-                "mode": "STRICT",
-            },
-            description=args.policy_store_description,
-        )
-        if args.verbose:
-            log.debug("Response from create_policy_store: %s", response)
+    response = client.create_policy_store(
+        validationSettings={
+            "mode": "STRICT",
+        },
+        description=args.policy_store_description,
+    )
+    log.debug("Response from create_policy_store: %s", response)
 
-        print(f"Policy store created: '{response['policyStoreId']}'")
+    print(f"Policy store created: '{response['policyStoreId']}'")
 
-        return response["policyStoreId"], True
+    return response["policyStoreId"], True
 
 
 def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
@@ -144,7 +139,6 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
             },
         )
 
-        if args.verbose:
-            log.debug("Response from put_schema: %s", response)
+        log.debug("Response from put_schema: %s", response)
 
     print("Policy store schema updated.")

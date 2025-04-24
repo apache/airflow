@@ -40,7 +40,7 @@ class _TrivialTimetable(Timetable):
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         return cls()
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         As long as *other* is of the same type.
 

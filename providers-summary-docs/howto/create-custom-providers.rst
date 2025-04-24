@@ -24,7 +24,7 @@ Custom providers
 ''''''''''''''''
 
 You can develop and release your own providers. Your custom operators, hooks, sensors, transfer operators
-can be packaged together in a standard airflow package and installed using the same mechanisms.
+can be packaged together in a standard Airflow package and installed using the same mechanisms.
 Moreover they can also use the same mechanisms to extend the Airflow Core with auth backends,
 custom connections, logging, secret backends and extra operator links as described in the previous chapter.
 
@@ -155,7 +155,7 @@ they define the extensions properly. See :doc:`apache-airflow:cli-and-env-variab
 sub-commands.
 
 When you write your own provider, consider following the
-`Naming conventions for providers <https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_distributions.rst#naming-conventions-for-provider-distributions>`_
+`Naming conventions for providers <https://github.com/apache/airflow/blob/main/contributing-docs/12_provider_distributions.rst#naming-conventions-for-provider-distributions>`_
 
 Special considerations
 ''''''''''''''''''''''
@@ -225,7 +225,7 @@ You do not need to do anything special besides creating the ``apache_airflow_pro
 returning properly formatted meta-data  - dictionary with ``extra-links`` and ``connection-types`` fields
 (and deprecated ``hook-class-names`` field if you are also targeting versions of Airflow before 2.2.0).
 
-Anyone who runs airflow in an environment that has your Python package installed will be able to use the
+Anyone who runs Airflow in an environment that has your Python package installed will be able to use the
 package as a provider package.
 
 

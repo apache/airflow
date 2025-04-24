@@ -162,10 +162,9 @@ class PodGenerator:
 
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
-        else:
-            raise TypeError(
-                "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
-            )
+        raise TypeError(
+            "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
+        )
 
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
@@ -203,7 +202,7 @@ class PodGenerator:
             return base_meta
         if not base_meta and client_meta:
             return client_meta
-        elif client_meta and base_meta:
+        if client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
             extend_object_field(base_meta, client_meta, "managed_fields")
@@ -229,7 +228,7 @@ class PodGenerator:
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        if client_spec and base_spec:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )

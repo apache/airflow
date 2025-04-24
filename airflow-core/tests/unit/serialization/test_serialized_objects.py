@@ -44,6 +44,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -448,12 +449,64 @@ def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_mak
     assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()
 
 
+@pytest.mark.parametrize(
+    "concurrency_parameter",
+    [
+        "max_active_tis_per_dag",
+        "max_active_tis_per_dagrun",
+    ],
+)
 @pytest.mark.db_test
-def test_serialized_dag_has_task_concurrency_limits(dag_maker):
+def test_serialized_dag_has_task_concurrency_limits(dag_maker, concurrency_parameter):
     with dag_maker() as dag:
-        BashOperator(task_id="task1", bash_command="echo 1", max_active_tis_per_dag=1)
+        BashOperator(task_id="task1", bash_command="echo 1", **{concurrency_parameter: 1})
 
     ser_dict = SerializedDAG.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
+
+
+@pytest.mark.parametrize(
+    "concurrency_parameter",
+    [
+        "max_active_tis_per_dag",
+        "max_active_tis_per_dagrun",
+    ],
+)
+@pytest.mark.db_test
+def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concurrency_parameter):
+    with dag_maker() as dag:
+
+        @task
+        def my_task():
+            return [1, 2, 3, 4, 5, 6, 7]
+
+        @task(**{concurrency_parameter: 1})
+        def map_me_but_slowly(a):
+            pass
+
+        map_me_but_slowly.expand(a=my_task())
+
+    ser_dict = SerializedDAG.to_dict(dag)
+    lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
+
+    assert lazy_serialized_dag.has_task_concurrency_limits
+
+
+def test_get_task_assets():
+    asset1 = Asset("1")
+    with DAG("testdag") as source_dag:
+        a = BashOperator(task_id="a", outlets=[asset1], bash_command="echo u")
+        b = BashOperator(task_id="b", inlets=[asset1], bash_command="echo v")
+        c = BashOperator.partial(task_id="c", inlets=[asset1]).expand(bash_command=["echo w", "echo x"])
+        d = BashOperator.partial(task_id="d", outlets=[asset1]).expand(bash_command=["echo y", "echo z"])
+        a >> b >> c >> d
+
+    deser_dag = LazyDeserializedDAG(data=SerializedDAG.to_dict(source_dag))
+    assert sorted(deser_dag.get_task_assets()) == [
+        ("a", asset1),
+        ("b", asset1),
+        ("c", asset1),
+        ("d", asset1),
+    ]

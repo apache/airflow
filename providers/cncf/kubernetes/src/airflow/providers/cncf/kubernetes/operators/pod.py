@@ -857,7 +857,7 @@ class KubernetesPodOperator(BaseOperator):
                 message = event.get("stack_trace", event["message"])
                 raise AirflowException(message)
 
-            elif event["status"] == "running":
+            if event["status"] == "running":
                 if self.get_logs:
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
@@ -1297,7 +1297,7 @@ class _optionally_suppress(AbstractContextManager):
         matching_error = error and issubclass(exctype, self._exceptions)
         if (error and not matching_error) or (matching_error and self.reraise):
             return False
-        elif matching_error:
+        if matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)

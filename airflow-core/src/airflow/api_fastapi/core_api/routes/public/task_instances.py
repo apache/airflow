@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
+import structlog
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -64,6 +65,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import Base, DagRun
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
@@ -72,6 +74,8 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import DagRunState, TaskInstanceState
+
+log = structlog.get_logger(__name__)
 
 task_instances_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
 task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
@@ -216,11 +220,13 @@ def get_mapped_task_instances(
     task_instances_prefix + "/{task_id}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies",
 )
 @task_instances_router.get(
     task_instances_prefix + "/{task_id}/{map_index}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies_by_map_index",
 )
 def get_task_instance_dependencies(
     dag_id: str,
@@ -771,6 +777,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
@@ -778,6 +785,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run_by_map_index",
 )
 def patch_task_instance_dry_run(
     dag_id: str,
@@ -836,6 +844,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
@@ -846,6 +855,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance_by_map_index",
 )
 def patch_task_instance(
     dag_id: str,
@@ -882,6 +892,20 @@ def patch_task_instance(
                     status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
                 )
             ti = tis[0] if isinstance(tis, list) else tis
+            try:
+                if data["new_state"] == TaskInstanceState.SUCCESS:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=None, task_instance=ti
+                    )
+                elif data["new_state"] == TaskInstanceState.FAILED:
+                    get_listener_manager().hook.on_task_instance_failed(
+                        previous_state=None,
+                        task_instance=ti,
+                        error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    )
+            except Exception:
+                log.exception("error calling listener")
+
         elif key == "note":
             if update_mask or body.note is not None:
                 if ti.task_instance_note is None:

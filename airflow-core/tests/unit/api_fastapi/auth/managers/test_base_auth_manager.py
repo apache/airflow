@@ -354,8 +354,7 @@ class TestBaseAuthManager:
         ):
             if not details:
                 return False
-            else:
-                return access_per_dag.get(details.id, False)
+            return access_per_dag.get(details.id, False)
 
         auth_manager.is_authorized_dag = MagicMock(side_effect=side_effect_func)
         user = Mock()

@@ -131,7 +131,7 @@ class TestHelpers:
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
     def test_build_airflow_dagrun_url(self):
-        expected_url = "http://localhost:8080/dags/somedag/runs/abc123"
+        expected_url = "/dags/somedag/runs/abc123"
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
 
     @pytest.mark.parametrize(
@@ -180,7 +180,7 @@ class TestHelpers:
                 if num:
                     sample.extend([truth_value] * num)
             if sample:
-                expected = True if true + truthy == 1 else False
+                expected = true + truthy == 1
                 assert exactly_one(*sample) is expected
 
         for row in itertools.product(range(4), repeat=4):
@@ -211,7 +211,7 @@ class TestHelpers:
                 if num:
                     sample.extend([truth_value] * num)
             if sample:
-                expected = True if true + truthy in (0, 1) else False
+                expected = true + truthy in (0, 1)
                 assert at_most_one(*sample) is expected
 
         for row in itertools.product(range(4), repeat=4):

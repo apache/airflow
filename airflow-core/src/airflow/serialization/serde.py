@@ -285,8 +285,7 @@ def _convert(old: dict) -> dict:
         # Return old style dicts directly as they do not need wrapping
         if old[OLD_TYPE] == OLD_DICT:
             return old[OLD_DATA]
-        else:
-            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 

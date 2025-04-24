@@ -238,6 +238,7 @@ cdc
 Celect
 celeryd
 celltags
+centric
 cfg
 cgi
 Cgroups
@@ -466,6 +467,7 @@ decrypted
 Decrypts
 dedented
 deduplicate
+deduplicated
 deduplication
 deepcopy
 deepcopying
@@ -575,6 +577,7 @@ ecb
 ECR
 ecs
 EdDSA
+edgeexecutor
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -647,6 +650,7 @@ faas
 facebook
 Failover
 failover
+fallbacks
 falsy
 faq
 Fargate
@@ -764,6 +768,7 @@ googleapiclient
 GoogleDisplayVideo
 gpu
 gpus
+Grafana
 graphviz
 greenlet
 Groupalia
@@ -795,6 +800,7 @@ hdfscli
 hdp
 healthjump
 heartrate
+heatmap
 Highcharts
 hivecmd
 hiveconf
@@ -842,6 +848,7 @@ idempotency
 IdP
 ie
 iframe
+iframes
 IGM
 igm
 ignorable
@@ -1077,6 +1084,7 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+materializations
 Matomo
 matomo
 Maxime
@@ -1105,6 +1113,7 @@ microservice
 microservices
 microsoft
 middleware
+middlewares
 Midnights
 midnights
 milli
@@ -1119,6 +1128,7 @@ mkdir
 mkdirs
 mkdtemp
 mlengine
+modularity
 moinmoin
 Mongo
 mongo
@@ -1211,6 +1221,7 @@ ok
 Okta
 okta
 onboarded
+onboarding
 OnFailure
 onkill
 Oozie
@@ -1303,6 +1314,7 @@ podName
 PodSpec
 podSpec
 podspec
+polars
 poller
 polyfill
 pooler
@@ -1457,6 +1469,7 @@ RefreshError
 regexes
 reidentify
 ReidentifyContentResponse
+reimagined
 reinit
 Reinitialising
 reinitialization
@@ -1466,6 +1479,7 @@ remoting
 renderer
 renderers
 renewer
+reparse
 replicaSet
 repo
 repos
@@ -1484,6 +1498,7 @@ reStructuredText
 resultset
 resumable
 retransmits
+Reusability
 rfc
 ricard
 rideable
@@ -1491,6 +1506,7 @@ rmse
 rmsle
 rmspe
 Roadmap
+roadmap
 Robinhood
 roc
 RoleBinding
@@ -1512,6 +1528,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runtimes
 SaaS
 sade
 Sagemaker
@@ -1779,6 +1796,7 @@ teradata
 TeradataConnection
 teradatasql
 Terraform
+testability
 testdata
 testdruid
 textarea
@@ -1795,6 +1813,9 @@ timedeltas
 timeframe
 timespan
 timezones
+TinkerPop
+Tinkerpop
+tinkerpop
 tis
 TLS
 tls
@@ -1919,6 +1940,7 @@ utils
 uuid
 V1JobList
 validator
+validators
 vals
 vCPU
 ve
@@ -1945,6 +1967,7 @@ volumeMounts
 VolumeSizeInGB
 vpc
 WaiterModel
+walkthrough
 wape
 warmup
 Wasb
@@ -1990,6 +2013,7 @@ XComs
 Xero
 Xiaodong
 xml
+xmltodict
 xpath
 xyz
 yaml
