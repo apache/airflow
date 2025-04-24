@@ -46,10 +46,7 @@ from airflow.providers.elasticsearch.log.es_json_formatter import (
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.log.file_task_handler import (
-    FileTaskHandler,
-    convert_list_to_stream,
-)
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
@@ -355,9 +352,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+                    from airflow.utils.log.file_task_handler import (
+                        StructuredLogMessage,
+                        get_compatible_output_log_stream,
+                    )
 
-                    return convert_list_to_stream(
+                    return get_compatible_output_log_stream(
                         [
                             StructuredLogMessage(
                                 event=missing_log_message,
@@ -384,7 +384,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         if logs_by_host:
             if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.log.file_task_handler import StructuredLogMessage
+                from airflow.utils.log.file_task_handler import (
+                    StructuredLogMessage,
+                    get_compatible_output_log_stream,
+                )
 
                 header = [
                     StructuredLogMessage(
@@ -397,7 +400,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 message = header + [
                     StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]  # type: ignore[misc]
-                message = convert_list_to_stream(message)  # type: ignore[assignment]
+                message = get_compatible_output_log_stream(message)  # type: ignore[assignment]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]
