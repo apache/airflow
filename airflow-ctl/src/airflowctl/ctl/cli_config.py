@@ -554,11 +554,14 @@ AUTH_COMMANDS = (
     ),
 )
 
-CONFIG_COMMANDS = ActionCommand(
-    name="get-value",
-    help="Get a configuration value",
-    func=lazy_load_command("airflowctl.ctl.commands.config_command.get_value"),
-    args=(ARG_CONFIG_SECTION, ARG_CONFIG_OPTION),
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name="get-value",
+        help="Print the value of the configuration",
+        description="Print the value of the configuration",
+        func=lazy_load_command("airflowctl.ctl.commands.config_command.get_value"),
+        args=(ARG_CONFIG_SECTION, ARG_CONFIG_OPTION),
+    ),
 )
 
 
