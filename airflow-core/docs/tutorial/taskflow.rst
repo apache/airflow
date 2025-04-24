@@ -388,7 +388,7 @@ method.
 
 .. code-block:: python
 
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
 
     def some_function_in_your_library():
