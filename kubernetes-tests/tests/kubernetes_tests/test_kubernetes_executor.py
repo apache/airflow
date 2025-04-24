@@ -81,7 +81,7 @@ class TestKubernetesExecutor(BaseK8STest):
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
-        self.ensure_deployment_health("airflow-scheduler")
+        self.ensure_resource_health("airflow-scheduler")
 
         # Wait some time for the operator to complete
         self.monitor_task(
