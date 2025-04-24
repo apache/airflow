@@ -536,11 +536,12 @@ core:
       default: "4096"
     execution_api_server_url:
       description: |
-        The url of the execution api server.
+        The url of the execution api server. Default is ``{BASE_URL}/execution/``
+        where ``{BASE_URL}`` is the base url of the API Server.
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:8080/execution/"
+      default: ~
 database:
   description: ~
   options:
