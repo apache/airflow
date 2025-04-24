@@ -116,6 +116,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -257,7 +258,7 @@ def _create_orm_dagrun(
     state: DagRunState | None,
     run_type: DagRunType,
     creating_job_id: int | None,
-    backfill_id: int | None,
+    backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
@@ -1795,7 +1796,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
-        backfill_id: int | None = None,
+        backfill_id: NonNegativeInt | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """

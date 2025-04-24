@@ -1882,25 +1882,25 @@ export type CreateBackfillData = {
 export type CreateBackfillResponse = BackfillResponse;
 
 export type GetBackfillData = {
-  backfillId: string;
+  backfillId: number;
 };
 
 export type GetBackfillResponse = BackfillResponse;
 
 export type PauseBackfillData = {
-  backfillId: unknown;
+  backfillId: number;
 };
 
 export type PauseBackfillResponse = BackfillResponse;
 
 export type UnpauseBackfillData = {
-  backfillId: unknown;
+  backfillId: number;
 };
 
 export type UnpauseBackfillResponse = BackfillResponse;
 
 export type CancelBackfillData = {
-  backfillId: unknown;
+  backfillId: number;
 };
 
 export type CancelBackfillResponse = BackfillResponse;

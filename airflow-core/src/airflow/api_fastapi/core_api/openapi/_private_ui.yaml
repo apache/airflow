@@ -595,6 +595,7 @@ components:
       properties:
         id:
           type: integer
+          minimum: 0.0
           title: Id
         dag_id:
           type: string

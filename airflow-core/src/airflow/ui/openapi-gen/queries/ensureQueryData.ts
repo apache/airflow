@@ -354,7 +354,7 @@ export const ensureUseBackfillServiceGetBackfillData = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
 ) =>
   queryClient.ensureQueryData({

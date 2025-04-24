@@ -22,6 +22,7 @@ import json
 import uuid
 from contextlib import redirect_stdout
 from io import StringIO
+from typing import TYPE_CHECKING
 
 import httpx
 import pytest
@@ -73,6 +74,9 @@ from airflowctl.api.datamodels.generated import (
     VariableResponse,
     VersionInfo,
 )
+
+if TYPE_CHECKING:
+    from pydantic import NonNegativeInt
 
 
 def make_api_client(
@@ -165,7 +169,7 @@ class TestAssetsOperations:
 
 
 class TestBackfillOperations:
-    backfill_id: int = 1
+    backfill_id: NonNegativeInt = 1
 
     def test_create(self):
         backfill_body = BackfillPostBody(

@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from opentelemetry.sdk.trace import Span
+    from pydantic import NonNegativeInt
     from sqlalchemy.orm import Query, Session
 
     from airflow.models.baseoperator import BaseOperator
@@ -290,7 +291,7 @@ class DagRun(Base, LoggingMixin):
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
-        backfill_id: int | None = None,
+        backfill_id: NonNegativeInt | None = None,
         bundle_version: str | None = None,
     ):
         # For manual runs where logical_date is None, ensure no data_interval is set.

@@ -20,6 +20,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
+from pydantic import NonNegativeInt
 from sqlalchemy import select, update
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -98,7 +99,7 @@ def list_backfills(
     ],
 )
 def get_backfill(
-    backfill_id: str,
+    backfill_id: NonNegativeInt,
     session: SessionDep,
 ) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
@@ -121,7 +122,7 @@ def get_backfill(
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
     ],
 )
-def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
+def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -147,7 +148,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
     ],
 )
-def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
+def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -172,7 +173,7 @@ def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
         Depends(requires_access_backfill(method="PUT")),
     ],
 )
-def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
+def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
     b: Backfill = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
