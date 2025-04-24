@@ -17,28 +17,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from fastapi import APIRouter
-from fastapi.types import DecoratedCallable
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 
 
-class AirflowRouter(APIRouter):
-    """Extends the FastAPI default router."""
+class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
+    """Middleware that automatically generates and includes auth header for simple auth manager."""
 
-    def api_route(
-        self,
-        path: str,
-        operation_id: str | None = None,
-        **kwargs: Any,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
-            self.add_api_route(
-                path,
-                func,
-                operation_id=operation_id or func.__name__,
-                **kwargs,
-            )
-            return func
-
-        return decorator
+    async def dispatch(self, request: Request, call_next):
+        # Starlette Request is expected to be immutable, but we modify it to add the auth header
+        # https://github.com/fastapi/fastapi/issues/2727#issuecomment-770202019
+        token = SimpleAuthManagerLogin.create_token_all_admins()
+        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
+        return await call_next(request)

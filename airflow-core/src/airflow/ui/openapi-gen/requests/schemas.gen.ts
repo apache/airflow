@@ -427,6 +427,7 @@ export const $BackfillResponse = {
   properties: {
     id: {
       type: "integer",
+      minimum: 0,
       title: "Id",
     },
     dag_id: {
