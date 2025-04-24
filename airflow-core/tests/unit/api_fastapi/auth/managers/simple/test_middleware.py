@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
@@ -24,26 +25,29 @@ from airflow.api_fastapi.app import create_app
 from tests_common.test_utils.config import conf_vars
 
 
-def test_invoke_api_without_auth_header():
+@pytest.fixture
+def all_access_test_client():
     with conf_vars(
         {
-            (
-                "core",
-                "simple_auth_manager_all_admins",
-            ): "true",
-            (
-                "webserver",
-                "expose_config",
-            ): "true",
+            ("core", "simple_auth_manager_all_admins"): "true",
+            ("webserver", "expose_config"): "true",
         }
     ):
         app = create_app()
-        client = TestClient(app)
+        yield TestClient(app)
 
-        for route in app.routes:
-            if hasattr(route, "path") and hasattr(route, "methods"):
-                for method in route.methods:
-                    response = client.request(method, route.path)
-                    assert response.status_code not in {401, 403}, (
-                        f"Unexpected status code {response.status_code} for {method} {route.path}"
-                    )
+
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        (method, route.path)
+        for route in create_app().routes
+        if hasattr(route, "path") and hasattr(route, "methods")
+        for method in route.methods
+    ],
+)
+def test_all_endpoints_without_auth_header(all_access_test_client, method, path):
+    response = all_access_test_client.request(method, path)
+    assert response.status_code not in {401, 403}, (
+        f"Unexpected status code {response.status_code} for {method} {path}"
+    )
