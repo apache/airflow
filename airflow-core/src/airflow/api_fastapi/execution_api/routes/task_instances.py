@@ -590,7 +590,7 @@ def get_previous_successful_dagrun(
 
 
 @router.get("/count", status_code=status.HTTP_200_OK)
-def get_count(
+def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -640,7 +640,7 @@ def get_count(
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
-def get_task_states(
+def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -648,7 +648,7 @@ def get_task_states(
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> TaskStatesResponse:
-    """Get the task states for the given criteria."""
+    """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     query = select(TI).where(TI.dag_id == dag_id)

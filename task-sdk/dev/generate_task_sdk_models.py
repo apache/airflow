@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -29,6 +30,7 @@ from datamodel_code_generator import (
     PythonVersion,
     generate as generate_models,
 )
+from openapi_spec_validator import validate_spec
 
 os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
 
@@ -83,6 +85,8 @@ def generate_file():
     openapi_schema = (
         client.get(f"http://localhost/openapi.json?version={latest_version}").raise_for_status().text
     )
+
+    validate_spec(json.loads(openapi_schema))
 
     os.chdir(AIRFLOW_TASK_SDK_ROOT_PATH)
 
