@@ -61,8 +61,6 @@ class Connection:
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
-        from urllib.parse import parse_qsl, quote, urlencode
-
         if self.conn_type and "_" in self.conn_type:
             log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
@@ -166,7 +164,7 @@ class Connection:
     def _parse_netloc_to_hostname(uri_parts) -> str:
         """
         Parse a URI string to get the correct Hostname.
-        
+
         Returns hostname from netloc, handling special cases.
         """
         hostname = unquote(uri_parts.hostname or "")
@@ -191,7 +189,7 @@ class Connection:
     def parse_from_uri(self, uri: str) -> None:
         """
         Parse connection parameters from a URI string.
-        
+
         :param uri: The URI string to parse.
         """
         schemes_count_in_uri = uri.count("://")
@@ -200,7 +198,9 @@ class Connection:
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
-        self.conn_type = self._normalize_conn_type(conn_type)
+        normalized_conn_type = self._normalize_conn_type(conn_type)
+        # Ensure we have a string value for conn_type (not None)
+        self.conn_type = normalized_conn_type or ""
         rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
@@ -226,7 +226,7 @@ class Connection:
     def from_json(cls, value: str, conn_id: str | None = None) -> Connection:
         """
         Create a Connection object from a JSON string.
-        
+
         :param value: The JSON string containing connection parameters
         :param conn_id: Optional connection ID
         :return: A Connection instance
@@ -237,19 +237,20 @@ class Connection:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
         conn_type = kwargs.pop("conn_type", None)
         if conn_type:
-            kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
+            kwargs["conn_type"] = cls._normalize_conn_type(conn_type) or ""
         port = kwargs.pop("port", None)
         if port:
             try:
                 kwargs["port"] = int(port)
             except ValueError:
                 raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
-        return Connection(conn_id=conn_id, **kwargs)
+        # Ensure conn_id is not None before passing to Connection constructor
+        return Connection(conn_id=conn_id or "unknown", **kwargs)
 
     def as_json(self) -> str:
         """
         Convert Connection to a JSON string.
-        
+
         :return: A JSON representation of the connection
         """
         conn_dict = attrs.asdict(self)
