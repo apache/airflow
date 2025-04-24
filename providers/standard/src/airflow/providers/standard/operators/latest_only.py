@@ -31,7 +31,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
-    
+
     from airflow.models import DagRun
 
     try:
