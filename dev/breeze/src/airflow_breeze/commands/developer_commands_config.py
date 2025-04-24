@@ -304,15 +304,28 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze build-docs": [
         {
-            "name": "Doc flags",
+            "name": "Build scope (default is to build docs and spellcheck)",
+            "options": ["--docs-only", "--spellcheck-only"],
+        },
+        {
+            "name": "Type of build",
+            "options": ["--one-pass-only"],
+        },
+        {
+            "name": "Cleaning inventories",
+            "options": ["--clean-build", "--refresh-airflow-inventories"],
+        },
+        {
+            "name": "Filtering options",
             "options": [
-                "--docs-only",
-                "--spellcheck-only",
-                "--clean-build",
-                "--one-pass-only",
                 "--package-filter",
                 "--include-not-ready-providers",
                 "--include-removed-providers",
+            ],
+        },
+        {
+            "name": "Misc options",
+            "options": [
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
