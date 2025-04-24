@@ -163,7 +163,7 @@ def all_access_test_client():
         ("GET", "/ui/structure/structure_data"),
     ],
 )
-def test_all_endpoints_without_auth_header(all_access_test_client, method, path):
+def test_all_endpoints_without_auth_header(all_access_test_client, method, path, session):
     response = all_access_test_client.request(method, path)
     assert response.status_code not in {401, 403}, (
         f"Unexpected status code {response.status_code} for {method} {path}"
