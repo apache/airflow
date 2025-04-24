@@ -667,9 +667,13 @@ def start_airflow(
 @option_builder
 @click.option(
     "--clean-build",
-    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
-    "before the build - useful for a clean build.",
     is_flag=True,
+    help="Cleans the build directory before building the documentation and removes inventory cache.",
+)
+@click.option(
+    "--refresh-airflow-inventories",
+    is_flag=True,
+    help="When set, airflow package inventories will be refreshed, regardless if they are already downloaded.",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @option_dry_run
@@ -704,6 +708,7 @@ def start_airflow(
 def build_docs(
     builder: str,
     clean_build: bool,
+    refresh_airflow_inventories: bool,
     docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
@@ -730,9 +735,17 @@ def build_docs(
         directories_to_clean = ["apis"]
     generated_path = AIRFLOW_ROOT_PATH / "generated"
     for dir_name in directories_to_clean:
+        get_console().print("Removing all generated dirs.")
         for directory in generated_path.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
+    if refresh_airflow_inventories and not clean_build:
+        get_console().print("Removing airflow inventories.")
+        package_globs = ["helm-chart", "docker-stack", "apache-airflow*"]
+        for package_glob in package_globs:
+            for directory in (generated_path / "_inventory_cache").rglob(package_glob):
+                get_console().print(f"[info]Removing {directory}")
+                shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
     if distributions_list and len(distributions_list):
