@@ -32,3 +32,10 @@ export const getTaskInstanceLinkFromObj = ({
   mapIndex: number;
   taskId: string;
 }) => `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+
+export const getRedirectPath = (targetPath: string): string => {
+  const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
+  const baseUrl = new URL(baseHref, globalThis.location.origin);
+
+  return new URL(targetPath, baseUrl).pathname;
+};
