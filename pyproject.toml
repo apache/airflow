@@ -62,7 +62,7 @@ classifiers = [
 version = "3.1.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.1.0,>=1.0.0",
+    "apache-airflow-task-sdk<1.2.0,>=1.0.0",
     "apache-airflow-core==3.1.0",
 ]
 
