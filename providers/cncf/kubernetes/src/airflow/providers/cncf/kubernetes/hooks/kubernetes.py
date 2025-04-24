@@ -716,7 +716,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return False, str(e)
 
 
-
 def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
