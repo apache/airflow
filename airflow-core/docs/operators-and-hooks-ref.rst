@@ -61,7 +61,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
      - :doc:`How to use <apache-airflow-providers-standard:operators/datetime>`
 
    * - :mod:`airflow.providers.standard.operators.empty`
-     -
+     - :doc:`How to use <apache-airflow-providers-standard:operators/empty>`
 
    * - :mod:`airflow.providers.common.sql.operators.generic_transfer.GenericTransfer`
      - :doc:`How to use <apache-airflow-providers-common-sql:operators>`
