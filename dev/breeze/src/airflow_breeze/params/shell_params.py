@@ -46,6 +46,7 @@ from airflow_breeze.global_constants import (
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
+    GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -581,6 +582,7 @@ class ShellParams:
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)

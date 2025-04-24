@@ -354,6 +354,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="gremlin_default",
+            conn_type="gremlin",
+            host="gremlin",
+            port=8182,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="hive_cli_default",
             conn_type="hive_cli",
             port=10000,

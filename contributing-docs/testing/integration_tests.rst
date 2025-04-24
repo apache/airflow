@@ -64,6 +64,8 @@ core or provider type of test.
 +--------------+-------------------------------------------------------+
 | drill        | Integration required for drill operator and hook.     |
 +--------------+-------------------------------------------------------+
+| gremlin      | Integration required for gremlin operator and hook.   |
++--------------+-------------------------------------------------------+
 | kafka        | Integration required for Kafka hooks.                 |
 +--------------+-------------------------------------------------------+
 | kerberos     | Integration that provides Kerberos authentication.    |

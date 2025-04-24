@@ -198,6 +198,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-spark        | ``pip install 'apache-airflow[apache-spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-tinkerpop    | ``pip install apache-airflow[apache-tinkerpop]``    | Apache-tinkerpop hooks and operators           |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-webhdfs      | ``pip install 'apache-airflow[apache-webhdfs]'``    | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 

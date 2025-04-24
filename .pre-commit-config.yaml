@@ -246,6 +246,9 @@ repos:
         name: Check that executables have shebang
       - id: check-xml
         name: Check XML files with xmllint
+        exclude: >
+          (?x)
+          ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
         exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
@@ -970,6 +973,7 @@ repos:
         exclude: >
           (?x)
           ^scripts/ci/docker-compose/grafana/.|
+          ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
