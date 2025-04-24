@@ -28,6 +28,7 @@ import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
 import { PoolSummary } from "./PoolSummary";
 import { Stats } from "./Stats";
+import { FavoriteDags } from "./FavoriteDags";
 
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
@@ -63,6 +64,9 @@ export const Dashboard = () => {
       </VStack>
       <Box>
         <Stats />
+      </Box>
+      <Box mt={5}>
+        <FavoriteDags />
       </Box>
       <Box display="flex" gap={8} mt={8}>
         <Health />
