@@ -25,6 +25,7 @@ from unittest import mock
 from unittest.mock import ANY, call
 
 import boto3
+import pendulum
 import pytest
 import time_machine
 from moto import mock_aws
@@ -49,7 +50,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 def get_time_str(time_in_milliseconds):
     dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=timezone.utc)
-    return dt_time.strftime("%Y-%m-%d %H:%M:%S,000")
+    return dt_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @pytest.fixture(autouse=True)
@@ -293,9 +294,18 @@ class TestCloudwatchTaskHandler:
             results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
             assert results[-4:] == [
                 {"event": "::endgroup::", "timestamp": None},
-                {"event": "First", "timestamp": datetime(2025, 3, 27, 21, 57, 59)},
-                {"event": "Second", "timestamp": datetime(2025, 3, 27, 21, 58, 0)},
-                {"event": "Third", "timestamp": datetime(2025, 3, 27, 21, 58, 1)},
+                {
+                    "event": "[2025-03-27T21:57:59Z] First",
+                    "timestamp": pendulum.datetime(2025, 3, 27, 21, 57, 59),
+                },
+                {
+                    "event": "[2025-03-27T21:58:00Z] Second",
+                    "timestamp": pendulum.datetime(2025, 3, 27, 21, 58, 0),
+                },
+                {
+                    "event": "[2025-03-27T21:58:01Z] Third",
+                    "timestamp": pendulum.datetime(2025, 3, 27, 21, 58, 1),
+                },
             ]
             assert not metadata["first_time_read"]
         else:
