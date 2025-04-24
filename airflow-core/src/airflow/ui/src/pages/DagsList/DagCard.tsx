@@ -32,6 +32,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
@@ -62,6 +63,7 @@ export const DagCard = ({ dag }: Props) => {
             pr={2}
           />
           <TriggerDAGButton dag={dag} withText={false} />
+          <FavoriteDagButton dagId={dag.dag_id} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
