@@ -67,8 +67,6 @@ PACKAGE_VERSION = airflow.__version__
 SYSTEM_TESTS_DIR: pathlib.Path | None
 SYSTEM_TESTS_DIR = AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "system" / "core"
 
-conf_py_path = f"/docs/{PACKAGE_NAME}/"
-
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
 # Hack to allow changing for piece of the code to behave differently while
@@ -238,6 +236,7 @@ html_show_copyright = False
 # html theme options
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+conf_py_path = "/airflow-core/docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
