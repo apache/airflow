@@ -155,9 +155,10 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
 
     @property
     def _hook_parameters(self):
+        # Upload script to S3 before creating the hook.
         if self.script_location is None:
             self.s3_script_location = None
-
+        # location provided, but it's not in S3 yet.
         elif self.script_location and self.s3_script_location is None:
             if not self.script_location.startswith(self.s3_protocol):
                 self.upload_etl_script_to_s3()
@@ -183,16 +184,16 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         }
 
     def upload_etl_script_to_s3(self):
-        if not self.script_location.startswith(self.s3_protocol):
-            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-            script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(
-                self.script_location,
-                self.s3_artifacts_prefix + script_name,
-                bucket_name=self.s3_bucket,
-                replace=self.replace_script_file,
-            )
-            self.s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+        """Upload the ETL script to S3."""
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        script_name = os.path.basename(self.script_location)
+        s3_hook.load_file(
+            self.script_location,
+            self.s3_artifacts_prefix + script_name,
+            bucket_name=self.s3_bucket,
+            replace=self.replace_script_file,
+        )
+        self.s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
 
     def execute(self, context: Context):
         """
