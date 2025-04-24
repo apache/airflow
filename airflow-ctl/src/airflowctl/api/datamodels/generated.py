@@ -483,6 +483,14 @@ class EventLogResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class ExternalLogUrlResponse(BaseModel):
+    """
+    Response for the external log URL endpoint.
+    """
+
+    url: Annotated[str, Field(title="Url")]
+
+
 class ExtraLinkCollectionResponse(BaseModel):
     """
     Extra Links Response.
