@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-24T16:43:21.592106
+# This constraints file was automatically generated on 2025-04-24T20:35:41.377094
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -327,7 +327,7 @@ gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.167.0
+google-api-python-client==2.168.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.39.0
@@ -480,7 +480,7 @@ more-itertools==10.7.0
 moto==5.1.4
 mpmath==1.3.0
 msal-extensions==1.3.1
-msal==1.32.0
+msal==1.32.1
 msgraph-core==1.3.3
 msgspec==0.19.0
 msrest==0.7.1
@@ -488,7 +488,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.4.3
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.0
+mypy-boto3-rds==1.38.2
 mypy-boto3-redshift-data==1.38.0
 mypy-boto3-s3==1.38.0
 mypy==1.9.0
@@ -672,7 +672,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.14.1
-snowflake-snowpark-python==1.30.0
+snowflake-snowpark-python==1.31.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
