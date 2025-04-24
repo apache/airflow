@@ -17,17 +17,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from enum import Enum
 from typing import Any, Callable
 
-from fastapi import APIRouter, params
-from fastapi.datastructures import Default
-from fastapi.routing import APIRoute
-from fastapi.types import DecoratedCallable, IncEx
-from fastapi.utils import generate_unique_id
-from starlette.responses import JSONResponse, Response
-from starlette.routing import BaseRoute
+from fastapi import APIRouter
+from fastapi.types import DecoratedCallable
 
 
 class AirflowRouter(APIRouter):
@@ -36,58 +29,15 @@ class AirflowRouter(APIRouter):
     def api_route(
         self,
         path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: int | None = None,
-        tags: list[str | Enum] | None = None,
-        dependencies: Sequence[params.Depends] | None = None,
-        summary: str | None = None,
-        description: str | None = None,
-        response_description: str = "Successful Response",
-        responses: dict[int | str, dict[str, Any]] | None = None,
-        deprecated: bool | None = None,
-        methods: list[str] | None = None,
         operation_id: str | None = None,
-        response_model_include: IncEx | None = None,
-        response_model_exclude: IncEx | None = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: type[Response] = Default(JSONResponse),
-        name: str | None = None,
-        callbacks: list[BaseRoute] | None = None,
-        openapi_extra: dict[str, Any] | None = None,
-        generate_unique_id_function: Callable[[APIRoute], str] = Default(generate_unique_id),
+        **kwargs: Any,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_route(
                 path,
                 func,
-                response_model=response_model,
-                status_code=status_code,
-                tags=tags,
-                dependencies=dependencies,
-                summary=summary,
-                description=description,
-                response_description=response_description,
-                responses=responses,
-                deprecated=deprecated,
-                methods=methods,
                 operation_id=operation_id or func.__name__,
-                response_model_include=response_model_include,
-                response_model_exclude=response_model_exclude,
-                response_model_by_alias=response_model_by_alias,
-                response_model_exclude_unset=response_model_exclude_unset,
-                response_model_exclude_defaults=response_model_exclude_defaults,
-                response_model_exclude_none=response_model_exclude_none,
-                include_in_schema=include_in_schema,
-                response_class=response_class,
-                name=name,
-                callbacks=callbacks,
-                openapi_extra=openapi_extra,
-                generate_unique_id_function=generate_unique_id_function,
+                **kwargs,
             )
             return func
 
