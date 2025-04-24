@@ -153,8 +153,7 @@ jobs:
           CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-distributions
-          --distribution-format wheel
-          --version-suffix-for-pypi rc1 ${CHICKEN_EGG_PROVIDERS}
+          --distribution-format wheel ${CHICKEN_EGG_PROVIDERS}
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "Copy dist packages to docker-context files"
         shell: bash

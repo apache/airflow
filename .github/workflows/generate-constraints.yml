@@ -59,7 +59,6 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "true"
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -107,19 +106,16 @@ jobs:
           CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --distribution-format wheel --version-suffix-for-pypi dev0
-          ${CHICKEN_EGG_PROVIDERS}
+          --distribution-format wheel ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
       - name: "Prepare airflow distributions"
         shell: bash
         run: >
-          breeze release-management prepare-airflow-distributions
-          --distribution-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-distributions --distribution-format wheel
       - name: "Prepare task-sdk distribution"
         shell: bash
         run: >
-          breeze release-management prepare-task-sdk-distributions
-          --distribution-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25

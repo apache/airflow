@@ -429,7 +429,7 @@ jobs:
       - name: "Generate airflow python client"
         run: >
           breeze release-management prepare-python-client --distribution-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          --python-client-repo ./airflow-client-python
       - name: "Show diff"
         run: git diff --color HEAD
         working-directory: ./airflow-client-python

@@ -1175,7 +1175,7 @@ Herr id how to reproduce it.
 
    rm dist/*
    breeze release-management prepare-provider-distributions --include-not-ready-providers \
-      --version-suffix-for-pypi dev0 --distribution-format wheel
+      --skip-tag-check --distribution-format wheel
 
 3. Prepare provider constraints
 
@@ -1225,7 +1225,7 @@ Rebuilding single provider package can be done using this command:
 .. code-block:: bash
 
   breeze release-management prepare-provider-distributions \
-    --version-suffix-for-pypi dev0 --distribution-format wheel <provider>
+    --skip-tag-check --distribution-format wheel <provider>
 
 Lowest direct dependency resolution tests
 -----------------------------------------
