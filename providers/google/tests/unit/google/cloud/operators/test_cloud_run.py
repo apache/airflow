@@ -101,6 +101,8 @@ class TestCloudRunExecuteJobOperator:
         _assert_common_template_fields(operator.template_fields)
         assert "job_name" in operator.template_fields
         assert "overrides" in operator.template_fields
+        assert "polling_period_seconds" in operator.template_fields
+        assert "timeout_seconds" in operator.template_fields
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
