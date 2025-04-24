@@ -235,23 +235,21 @@ class DagBag(LoggingMixin):
 
         # If asking for a known subdag, we want to refresh the parent
         dag = None
-        root_dag_id = dag_id
         if dag_id in self.dags:
             dag = self.dags[dag_id]
 
         # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
-        orm_dag = DagModel.get_current(root_dag_id, session=session)
+        orm_dag = DagModel.get_current(dag_id, session=session)
         if not orm_dag:
             return self.dags.get(dag_id)
 
-        # If the dag corresponding to root_dag_id is absent or expired
-        is_missing = root_dag_id not in self.dags
+        is_missing = dag_id not in self.dags
         is_expired = (
             orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
         )
         if is_expired:
             # Remove associated dags so we can re-add them.
-            self.dags = {key: dag for key, dag in self.dags.items()}
+            self.dags.pop(dag_id, None)
         if is_missing or is_expired:
             # Reprocess source file.
             found_dags = self.process_file(
