@@ -18,6 +18,7 @@
  */
 
 /* eslint-disable perfectionist/sort-objects */
+/* eslint-disable max-lines */
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
 
 const generateSemanticTokens = (color: string, darkContrast: string = "white") => ({
