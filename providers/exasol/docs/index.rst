@@ -42,7 +42,6 @@
     :caption: References
 
     Python API <_api/airflow/providers/exasol/index>
-    Tests API  <_api/tests/system/exasol/index>
 
 .. toctree::
     :hidden:
