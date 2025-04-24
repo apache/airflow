@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class AppBuilderMenuItemResponse(BaseModel):
@@ -997,7 +997,7 @@ class BackfillResponse(BaseModel):
     Base serializer for Backfill.
     """
 
-    id: Annotated[NonNegativeInt, Field(title="Id")]
+    id: Annotated[int, Field(ge=0, title="Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     from_date: Annotated[datetime, Field(title="From Date")]
     to_date: Annotated[datetime, Field(title="To Date")]
