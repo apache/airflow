@@ -39,7 +39,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
     return <Skeleton height="9" width="225px" />;
   }
 
-  if ((error as ExpandedApiError).status === 403) {
+  if (Boolean(error) && (error as ExpandedApiError).status === 403) {
     return undefined;
   }
 
