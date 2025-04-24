@@ -202,8 +202,7 @@ def update_issue_status(
         f"{len(completed_closed_issues) / num_issues:.2%}"
     )
     console.print(
-        f"   Completed files {total_count_done}/{total_count_all} = "
-        f"{total_count_done / total_count_all:.2%}"
+        f"   Completed files {total_count_done}/{total_count_all} = {total_count_done / total_count_all:.2%}"
     )
     console.print()
     if not_completed_closed_issues:

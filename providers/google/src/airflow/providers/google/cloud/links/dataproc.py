@@ -126,7 +126,6 @@ class DataprocLink(BaseOperatorLink):
 
     def __attrs_post_init__(self):
         # This link is still used into the selected operators
-        # - airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator
         # - airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator
         # As soon as we remove reference to this link we might deprecate it by add warning message
         # with `stacklevel=3` below in this method.

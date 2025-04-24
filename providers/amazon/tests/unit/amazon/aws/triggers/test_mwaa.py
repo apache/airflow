@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import DagRunState
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.mwaa."

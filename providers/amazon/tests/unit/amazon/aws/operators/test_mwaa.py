@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 OP_KWARGS = {

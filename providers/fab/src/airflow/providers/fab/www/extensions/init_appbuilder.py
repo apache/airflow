@@ -198,7 +198,8 @@ class AirflowAppBuilder:
         self.session = session
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
-        auth_manager.init()
+        if hasattr(auth_manager, "init_flask_resources"):
+            auth_manager.init_flask_resources()
         if hasattr(auth_manager, "security_manager"):
             self.sm = auth_manager.security_manager
         else:
@@ -235,8 +236,7 @@ class AirflowAppBuilder:
         """
         if self.app:
             return self.app
-        else:
-            return current_app
+        return current_app
 
     @property
     def get_session(self):
@@ -531,6 +531,10 @@ class AirflowAppBuilder:
 
     def get_url_for_login_with(self, next_url: str | None = None) -> str:
         return get_auth_manager().get_url_login(next_url=next_url)
+
+    @property
+    def get_url_for_login(self):
+        return get_auth_manager().get_url_login()
 
     def get_url_for_locale(self, lang):
         return url_for(

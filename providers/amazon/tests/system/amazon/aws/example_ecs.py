@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.sensors.ecs import (
     EcsTaskDefinitionStateSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_ecs"

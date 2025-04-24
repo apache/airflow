@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.glue import (
     GlueJobCompleteTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."

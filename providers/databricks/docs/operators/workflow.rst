@@ -45,7 +45,7 @@ Examples
 
 Example of what a DAG looks like with a DatabricksWorkflowTaskGroup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks_workflow.py
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_workflow.py
     :language: python
     :start-after: [START howto_databricks_workflow_notebook]
     :end-before: [END howto_databricks_workflow_notebook]

@@ -45,6 +45,11 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = "/dev/null"
 TEST_DAG_ID = "unit_tests"
 
+if AIRFLOW_V_3_0_PLUS:
+    DEFER_PATH = "airflow.sdk.BaseOperator.defer"
+else:
+    DEFER_PATH = "airflow.models.baseoperator.BaseOperator.defer"
+
 
 @pytest.fixture(autouse=True)
 def clear_db():
@@ -54,13 +59,12 @@ def clear_db():
 
 class TestTimedeltaSensor:
     def setup_method(self):
-        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
-        self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
+        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
     def test_timedelta_sensor(self):
         op = TimeDeltaSensor(task_id="timedelta_sensor_check", delta=timedelta(seconds=2), dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute({"dag_run": mock.MagicMock(run_after=DEFAULT_DATE), "data_interval_end": DEFAULT_DATE})
 
 
 @pytest.mark.parametrize(
@@ -111,7 +115,7 @@ class TestTimeDeltaSensorAsync:
         "should_defer",
         [False, True],
     )
-    @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
+    @mock.patch(DEFER_PATH)
     def test_timedelta_sensor(self, defer_mock, should_defer):
         delta = timedelta(hours=1)
         op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
@@ -129,7 +133,7 @@ class TestTimeDeltaSensorAsync:
         "should_defer",
         [False, True],
     )
-    @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
+    @mock.patch(DEFER_PATH)
     @mock.patch("airflow.providers.standard.sensors.time_delta.sleep")
     def test_wait_sensor(self, sleep_mock, defer_mock, should_defer):
         wait_time = timedelta(seconds=30)

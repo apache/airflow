@@ -259,16 +259,16 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
-        else:  # endpoint_id defined
-            return PredictionServiceHook(
-                gcp_conn_id=self.gcp_conn_id,
-                impersonation_chain=self.impersonation_chain,
-            )
+        # endpoint_id defined
+        return PredictionServiceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
     @cached_property
     def model(self) -> Model | None:
         if self.model_id:
-            hook = cast(CloudAutoMLHook, self.hook)
+            hook = cast("CloudAutoMLHook", self.hook)
             return hook.get_model(
                 model_id=self.model_id,
                 location=self.location,

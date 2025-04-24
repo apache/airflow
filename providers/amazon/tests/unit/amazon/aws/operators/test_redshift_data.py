@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CONN_ID = "aws_conn_test"

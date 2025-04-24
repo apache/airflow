@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -70,6 +70,23 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[pandas]",
+]
+
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+# To enable auto-refreshing build with server:
+#
+#    uv run --group docs build-docs --autobuild
+#
+# To see more options:
+#
+#    uv run --group docs build-docs --help
+#
+docs = [
+    "apache-airflow-devel-common[docs]"
 ]
 
 [tool.uv.sources]
@@ -79,7 +96,6 @@ apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
-apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]

@@ -95,12 +95,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.9.0``
 ``influxdb-client``  ``>=1.19.0``
-``requests``         ``>=2.27.0,<3``
+``requests``         ``>=2.31.0,<3``
 ===================  ==================

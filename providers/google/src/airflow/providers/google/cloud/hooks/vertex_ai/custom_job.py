@@ -42,9 +42,8 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
@@ -54,10 +53,9 @@ if TYPE_CHECKING:
     from google.auth.credentials import Credentials
     from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
-        ListPipelineJobsPager,
         ListTrainingPipelinesPager,
     )
-    from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
+    from google.cloud.aiplatform_v1.types import CustomJob, TrainingPipeline
 
 
 class CustomJobHook(GoogleBaseHook, OperationHelper):
@@ -369,54 +367,6 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="PipelineJobHook.cancel_pipeline_job",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cancel_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> None:
-        """
-        Cancel a PipelineJob.
-
-        Starts asynchronous cancellation on the PipelineJob. The server makes the best
-        effort to cancel the pipeline, but success is not guaranteed. Clients can use
-        [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
-        methods to check whether the cancellation succeeded or whether the pipeline completed despite
-        cancellation. On successful cancellation, the PipelineJob is not deleted; instead it becomes a
-        pipeline with a [PipelineJob.error][google.cloud.aiplatform.v1.PipelineJob.error] value with a
-        [google.rpc.Status.code][google.rpc.Status.code] of 1, corresponding to ``Code.CANCELLED``, and
-        [PipelineJob.state][google.cloud.aiplatform.v1.PipelineJob.state] is set to ``CANCELLED``.
-
-        This method is deprecated, please use `PipelineJobHook.cancel_pipeline_job` method.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param pipeline_job: The name of the PipelineJob to cancel.
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        client.cancel_pipeline_job(
-            request={
-                "name": name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-
-    @GoogleBaseHook.fallback_to_default_project_id
     def cancel_training_pipeline(
         self,
         project_id: str,
@@ -497,53 +447,6 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             timeout=timeout,
             metadata=metadata,
         )
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="PipelineJobHook.create_pipeline_job",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def create_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: PipelineJob,
-        pipeline_job_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> PipelineJob:
-        """
-        Create a PipelineJob. A PipelineJob will run immediately when created.
-
-        This method is deprecated, please use `PipelineJobHook.create_pipeline_job` method.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param pipeline_job:  Required. The PipelineJob to create.
-        :param pipeline_job_id:  The ID to use for the PipelineJob, which will become the final component of
-            the PipelineJob name. If not provided, an ID will be automatically generated.
-
-            This value should be less than 128 characters, and valid characters are /[a-z][0-9]-/.
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
-        """
-        client = self.get_pipeline_service_client(region)
-        parent = client.common_location_path(project_id, region)
-
-        result = client.create_pipeline_job(
-            request={
-                "parent": parent,
-                "pipeline_job": pipeline_job,
-                "pipeline_job_id": pipeline_job_id,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_training_pipeline(
@@ -2971,46 +2874,6 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="PipelineJobHook.get_pipeline_job",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> PipelineJob:
-        """
-        Get a PipelineJob.
-
-        This method is deprecated, please use `PipelineJobHook.get_pipeline_job` method.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param pipeline_job: Required. The name of the PipelineJob resource.
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        result = client.get_pipeline_job(
-            request={
-                "name": name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
     def get_training_pipeline(
         self,
         project_id: str,
@@ -3069,101 +2932,6 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         result = client.get_custom_job(
             request={
                 "name": name,
-            },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="PipelineJobHook.list_pipeline_jobs",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def list_pipeline_jobs(
-        self,
-        project_id: str,
-        region: str,
-        page_size: int | None = None,
-        page_token: str | None = None,
-        filter: str | None = None,
-        order_by: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> ListPipelineJobsPager:
-        """
-        List PipelineJobs in a Location.
-
-        This method is deprecated, please use `PipelineJobHook.list_pipeline_jobs` method.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param filter: Optional. Lists the PipelineJobs that match the filter expression. The
-            following fields are supported:
-
-            -  ``pipeline_name``: Supports ``=`` and ``!=`` comparisons.
-            -  ``display_name``: Supports ``=``, ``!=`` comparisons, and
-               ``:`` wildcard.
-            -  ``pipeline_job_user_id``: Supports ``=``, ``!=``
-               comparisons, and ``:`` wildcard. for example, can check
-               if pipeline's display_name contains *step* by doing
-               display_name:"*step*"
-            -  ``create_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``update_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``end_time``: Supports ``=``, ``!=``, ``<``, ``>``,
-               ``<=``, and ``>=`` comparisons. Values must be in RFC
-               3339 format.
-            -  ``labels``: Supports key-value equality and key presence.
-
-            Filter expressions can be combined together using logical
-            operators (``AND`` & ``OR``). For example:
-            ``pipeline_name="test" AND create_time>"2020-05-18T13:30:00Z"``.
-
-            The syntax to define filter expression is based on
-            https://google.aip.dev/160.
-        :param page_size: Optional. The standard list page size.
-        :param page_token: Optional. The standard list page token. Typically obtained via
-            [ListPipelineJobsResponse.next_page_token][google.cloud.aiplatform.v1.ListPipelineJobsResponse.next_page_token]
-            of the previous
-            [PipelineService.ListPipelineJobs][google.cloud.aiplatform.v1.PipelineService.ListPipelineJobs]
-            call.
-        :param order_by: Optional. A comma-separated list of fields to order by. The default
-            sort order is in ascending order. Use "desc" after a field
-            name for descending. You can have multiple order_by fields
-            provided e.g. "create_time desc, end_time", "end_time,
-            start_time, update_time" For example, using "create_time
-            desc, end_time" will order results by create time in
-            descending order, and if there are multiple jobs having the
-            same create time, order them by the end time in ascending
-            order. if order_by is not specified, it will order by
-            default order is create time in descending order. Supported
-            fields:
-
-            -  ``create_time``
-            -  ``update_time``
-            -  ``end_time``
-            -  ``start_time``
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
-        """
-        client = self.get_pipeline_service_client(region)
-        parent = client.common_location_path(project_id, region)
-
-        result = client.list_pipeline_jobs(
-            request={
-                "parent": parent,
-                "page_size": page_size,
-                "page_token": page_token,
-                "filter": filter,
-                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -3287,44 +3055,6 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
                 "filter": filter,
                 "read_mask": read_mask,
             },
-            retry=retry,
-            timeout=timeout,
-            metadata=metadata,
-        )
-        return result
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="PipelineJobHook.delete_pipeline_job",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def delete_pipeline_job(
-        self,
-        project_id: str,
-        region: str,
-        pipeline_job: str,
-        retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | None = None,
-        metadata: Sequence[tuple[str, str]] = (),
-    ) -> Operation:
-        """
-        Delete a PipelineJob.
-
-        This method is deprecated, please use `PipelineJobHook.delete_pipeline_job` method.
-
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param pipeline_job: Required. The name of the PipelineJob resource to be deleted.
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
-        """
-        client = self.get_pipeline_service_client(region)
-        name = client.pipeline_job_path(project_id, region, pipeline_job)
-
-        result = client.delete_pipeline_job(
-            request={"name": name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

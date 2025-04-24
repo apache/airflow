@@ -36,14 +36,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.3
+.....
+
+Latest change: 2025-03-25
+
+==================================================================================================  ===========  ================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+==================================================================================================  ===========  ================================================================
+
 4.0.2
 .....
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  =====================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `077984c4a2 <https://github.com/apache/airflow/commit/077984c4a29416247882c0742d8f286a869f8d92>`__  2025-03-03   ``Remove yandexcloud exclusions (#47309)``

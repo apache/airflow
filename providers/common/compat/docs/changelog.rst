@@ -25,6 +25,53 @@
 Changelog
 ---------
 
+1.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add backwards compatibility provider tests for Airflow 3.0.0 (#49562)``
+   * ``Prepare docs for Apr 3rd wave of providers (#49338)``
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Fix common-io and common-compat provider description format (#48864)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare documentation to release common.compat 1.6.1 (#49624)``
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add helper for any provider version check (#47909)``
+* ``feat: Add helper for OpenLineage version check (#47897)``
+
+Misc
+~~~~
+
+* ``Move BaseNotifier to Task SDK (#48008)``
+* ``AIP-84 Add Auth for DAG Versioning (#47553)``
+* ``AIP-84 Add Auth for backfill (#47482)``
+* ``AIP 84 Add auth for asset alias (#47241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``serialize http transports contained in composite transport (#47444)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``fix: compat test test_provider_not_installed failing on main (#48012)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.5.1
 .....
 

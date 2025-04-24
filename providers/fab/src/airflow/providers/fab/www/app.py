@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from os.path import isabs
 
 from flask import Flask
@@ -40,6 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
 
@@ -56,11 +58,17 @@ def create_app(enable_plugins: bool):
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
+
+    webserver_config = conf.get_mandatory_value("fab", "config_file")
+    # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+    with flask_app.app_context():
+        flask_app.config.from_pyfile(webserver_config, silent=True)
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
-            f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+            f"Cannot use relative path: `{conf.get('database', 'SQL_ALCHEMY_CONN')}` to connect to sqlite. "
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 

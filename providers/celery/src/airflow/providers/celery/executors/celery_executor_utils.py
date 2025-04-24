@@ -265,6 +265,8 @@ def send_task_to_executor(
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
+    else:
+        args = [args]  # type: ignore[list-item]
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)

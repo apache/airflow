@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -96,7 +97,7 @@ with DAG(
 
     # [START howto_operator_gke_xcom_result_async]
     pod_task_xcom_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom_async')[0] }}\"",
+        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom_async') }}\"",
         task_id="pod_task_xcom_result",
     )
     # [END howto_operator_gke_xcom_result_async]

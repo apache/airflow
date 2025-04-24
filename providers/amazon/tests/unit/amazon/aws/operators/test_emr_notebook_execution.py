@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 

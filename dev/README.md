@@ -22,7 +22,7 @@
 
 - [Apache Airflow source releases](#apache-airflow-source-releases)
   - [Apache Airflow Package](#apache-airflow-package)
-  - [Provider packages](#provider-packages)
+  - [Provider distributions](#provider-distributions)
 - [Preinstalled providers](#preinstalled-providers)
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
@@ -48,7 +48,7 @@ They contain sources for:
  * Dockerfile and corresponding scripts that build and use an official DockerImage
  * Breeze development environment that helps with building images and testing locally
    apache airflow built from sources
- * Provider packages - containing Airflow's providers - separate package per each service Airflow integrates
+ * Provider distributions - containing Airflow's providers - separate package per each service Airflow integrates
    with.
 
 We also plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
@@ -67,13 +67,14 @@ cannot or do not want to build the packages themselves can use them as a conveni
 Apache Airflow, however they are not considered as "official source releases". You can read more
 details about it in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html).
 
-Detailed instruction of releasing Provider Packages can be found in the
+Detailed instruction of releasing provider distributions can be found in the
 [README_RELEASE_AIRFLOW.md](README_RELEASE_AIRFLOW.md)
 
-## Provider packages
+## Provider distributions
 
-The Provider packages are packages (per provider) that make it possible to easily install Hooks,
-Operators, Sensors, and Secrets for different providers (external services used by Airflow).
+The Provider distributions are distributions (separate one per provider) that make it possible to
+easily install Hooks,  Operators, Sensors, and Secrets for different providers
+(external services used by Airflow).
 
 Once you release the packages, you can simply install them with:
 
@@ -82,16 +83,16 @@ pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
 ```
 
 Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages to install.
-You can find the provider packages dependencies and extras in the README.md files in each provider
+You can find the provider distributions dependencies and extras in the README.md files in each provider
 package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
 
-The sources released in SVN allow to build all the provider packages by the user, following the
+The sources released in SVN allow to build all the provider distributions by the user, following the
 instructions and scripts provided. Those are also "official_source releases" as described in the
 [ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
 via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/).
 
 The full provider's list can be found here:
-[Provider Packages Reference](https://s.apache.org/airflow-docs)
+[Provider distributions reference](https://s.apache.org/airflow-docs)
 
 There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
 [PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
@@ -102,8 +103,8 @@ And available in PyPI:
 Note that Backport Providers for Airflow 1.10.* series are not released any more. The last release
 of Backport Providers was done  on March 17, 2021.
 
-Detailed instruction of releasing Provider Packages can be found in the
-[README_RELEASE_PROVIDER_PACKAGES.md](README_RELEASE_PROVIDER_PACKAGES.md)
+Detailed instruction of releasing provider distributions can be found in the
+[README_RELEASE_PROVIDERS.md](README_RELEASE_PROVIDERS.md)
 
 # Preinstalled providers
 
@@ -112,7 +113,7 @@ Those providers are dynamically added to generated standard wheel packages that 
 Those packages are not present in pyproject.toml as dependencies, and
 they are not installed when you install Airflow for editable installation for development.
 This way, when you develop Airflow you can work on Airflow and Providers together from the same
-Source tree - without polluting your editable installation with installed provider packages.
+Source tree - without polluting your editable installation with installed provider distributions.
 
 # Prerequisites for the release manager preparing the release
 
@@ -186,11 +187,10 @@ Set proper permissions for the pypirc file:
 chmod 600 ~/.pypirc
 ```
 
-- Install [twine](https://pypi.org/project/twine/) if you do not have it already (it can be done
-  in a separate virtual environment).
+- Install [twine](https://pypi.org/project/twine/) if you do not have it already
 
 ```shell script
-pip install twine
+uv tool install twine
 ```
 
 

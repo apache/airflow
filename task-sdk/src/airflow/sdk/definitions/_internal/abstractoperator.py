@@ -25,7 +25,6 @@ from collections.abc import (
     Collection,
     Iterable,
     Iterator,
-    Mapping,
 )
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -34,6 +33,7 @@ import methodtools
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
+from airflow.sdk.definitions.context import Context
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -41,15 +41,14 @@ from airflow.utils.weight_rule import WeightRule
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.sdk.definitions.baseoperator import BaseOperator
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import Operator
 
-TaskStateChangeCallback = Callable[[Mapping[str, Any]], None]
+TaskStateChangeCallback = Callable[[Context], None]
 
 DEFAULT_OWNER: str = "airflow"
 DEFAULT_POOL_SLOTS: int = 1

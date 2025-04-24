@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:
@@ -44,8 +45,7 @@ class TestBatchJobDefinitionLink(BaseAwsLinksTestCase):
             )
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/batch/home"
-                "?region=eu-west-1#job-definition/detail/arn:fake:jd"
+                "https://console.aws.amazon.com/batch/home?region=eu-west-1#job-definition/detail/arn:fake:jd"
             ),
             region_name="eu-west-1",
             aws_partition="aws",

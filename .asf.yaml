@@ -134,6 +134,11 @@ github:
       required_linear_history: true
       required_conversation_resolution: true
       required_signatures: false
+    v3-0-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
     providers-fab/v1-5:
       required_pull_request_reviews:
         required_approving_review_count: 1
@@ -143,14 +148,13 @@ github:
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
+    # Procedure for adding new member is listed in
+    # https://github.com/apache/airflow/blob/main/ISSUE_TRIAGE_PROCESS.rst#L97
     - aritra24
     - omkar-foss
-    - rawwar
     - nathadfield
     - sunank200
-    - vatsrahul1001
     - cmarteepants
-    - bugraoz93
     - karenbraganz
     - gyli
 
@@ -160,6 +164,3 @@ notifications:
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org
   discussions: commits@airflow.apache.org
-
-meta:
-  prevgen: true

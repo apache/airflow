@@ -21,8 +21,6 @@ import copy
 import datetime
 import itertools
 import logging
-import os
-import random
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
@@ -218,6 +216,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
@@ -260,7 +259,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_op_perms]
     OP_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
@@ -707,6 +705,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
 
     @property
+    def auth_user_registration_role_jmespath(self) -> str:
+        """The JMESPATH role to use for user registration."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
+
+    @property
     def auth_username_ci(self):
         """Get the auth username for CI."""
         return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
@@ -731,6 +734,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Get the admin role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
+    @property
+    def oauth_whitelists(self):
+        return self.oauth_allow_list
+
     def create_builtin_roles(self):
         """Return FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
@@ -739,43 +746,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def builtin_roles(self):
         """Get the builtin roles."""
         return self._builtin_roles
-
-    def create_admin_standalone(self) -> tuple[str | None, str | None]:
-        """Create an Admin user with a random password so that users can access airflow."""
-        from airflow.configuration import AIRFLOW_HOME, make_group_other_inaccessible
-
-        user_name = "admin"
-
-        # We want a streamlined first-run experience, but we do not want to
-        # use a preset password as people will inevitably run this on a public
-        # server. Thus, we make a random password and store it in AIRFLOW_HOME,
-        # with the reasoning that if you can read that directory, you can see
-        # the database credentials anyway.
-        password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
-
-        user_exists = self.find_user(user_name) is not None
-        we_know_password = os.path.isfile(password_path)
-
-        # If the user does not exist, make a random password and make it
-        if not user_exists:
-            print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            if (role := self.find_role("Admin")) is None:
-                raise AirflowException("Unable to find role 'Admin'")
-            # password does not contain visually similar characters: ijlIJL1oO0
-            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
-            with open(password_path, "w") as file:
-                file.write(password)
-            make_group_other_inaccessible(password_path)
-            self.add_user(user_name, "Admin", "User", "admin@example.com", role, password)
-            print(f"FlaskAppBuilder Authentication Manager: Created {user_name} user")
-        # If the user does exist, and we know its password, read the password
-        elif user_exists and we_know_password:
-            with open(password_path) as file:
-                password = file.read().strip()
-        # Otherwise we don't know the password
-        else:
-            password = None
-        return user_name, password
 
     def _init_config(self):
         """
@@ -1431,12 +1401,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                         .filter(func.lower(self.user_model.username) == func.lower(username))
                         .one_or_none()
                     )
-                else:
-                    return (
-                        self.get_session.query(self.user_model)
-                        .filter(func.lower(self.user_model.username) == func.lower(username))
-                        .one_or_none()
-                    )
+                return (
+                    self.get_session.query(self.user_model)
+                    .filter(func.lower(self.user_model.username) == func.lower(username))
+                    .one_or_none()
+                )
             except MultipleResultsFound:
                 log.error("Multiple results found for user %s", username)
                 return None
@@ -1913,8 +1882,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self._rotate_session_id()
                 self.update_user_auth_stat(user)
                 return user
-            else:
-                return None
+            return None
 
         except ldap.LDAPError as e:
             msg = None
@@ -1923,9 +1891,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if (msg is not None) and ("desc" in msg):
                 log.error(LOGMSG_ERR_SEC_AUTH_LDAP, e.message["desc"])
                 return None
-            else:
-                log.error(e)
-                return None
+            log.error(e)
+            return None
 
     def check_password(self, username, password) -> bool:
         """
@@ -1963,14 +1930,106 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
-        elif check_password_hash(user.password, password):
+        if check_password_hash(user.password, password):
             self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
+        self.update_user_auth_stat(user, False)
+        log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+        return None
+
+    def set_oauth_session(self, provider, oauth_response):
+        """Set the current session with OAuth user secrets."""
+        # Get this provider key names for token_key and token_secret
+        token_key = self.get_oauth_token_key_name(provider)
+        token_secret = self.get_oauth_token_secret_name(provider)
+        # Save users token on encrypted session cookie
+        session["oauth"] = (
+            oauth_response[token_key],
+            oauth_response.get(token_secret, ""),
+        )
+        session["oauth_provider"] = provider
+
+    def get_oauth_token_key_name(self, provider):
+        """
+        Return the token_key name for the oauth provider.
+
+        If none is configured defaults to oauth_token
+        this is configured using OAUTH_PROVIDERS and token_key key.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_key", "oauth_token")
+
+    def get_oauth_token_secret_name(self, provider):
+        """
+        Get the ``token_secret`` name for the oauth provider.
+
+        If none is configured, defaults to ``oauth_secret``. This is configured
+        using ``OAUTH_PROVIDERS`` and ``token_secret``.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_secret", "oauth_token_secret")
+
+    def auth_user_oauth(self, userinfo):
+        """
+        Authenticate user with OAuth.
+
+        :userinfo: dict with user information
+                   (keys are the same as User model columns)
+        """
+        # extract the username from `userinfo`
+        if "username" in userinfo:
+            username = userinfo["username"]
+        elif "email" in userinfo:
+            username = userinfo["email"]
         else:
-            self.update_user_auth_stat(user, False)
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            log.error("OAUTH userinfo does not have username or email %s", userinfo)
             return None
+
+        # If username is empty, go away
+        if (username is None) or username == "":
+            return None
+
+        # Search the DB for this user
+        user = self.find_user(username=username)
+
+        # If user is not active, go away
+        if user and (not user.is_active):
+            return None
+
+        # If user is not registered, and not self-registration, go away
+        if (not user) and (not self.auth_user_registration):
+            return None
+
+        # Sync the user's roles
+        if user and self.auth_roles_sync_at_login:
+            user.roles = self._oauth_calculate_user_roles(userinfo)
+            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
+
+        # If the user is new, register them
+        if (not user) and self.auth_user_registration:
+            user = self.add_user(
+                username=username,
+                first_name=userinfo.get("first_name", ""),
+                last_name=userinfo.get("last_name", ""),
+                email=userinfo.get("email", "") or f"{username}@email.notfound",
+                role=self._oauth_calculate_user_roles(userinfo),
+            )
+            log.debug("New user registered: %s", user)
+
+            # If user registration failed, go away
+            if not user:
+                log.error("Error creating a new OAuth user %s", username)
+                return None
+
+        # LOGIN SUCCESS (only if user is now registered)
+        if user:
+            self._rotate_session_id()
+            self.update_user_auth_stat(user)
+            return user
+        return None
 
     def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
         """
@@ -2044,8 +2103,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     "email": data["email"],
                     "role_keys": data.get("groups", []),
                 }
-            else:
-                log.error(data.get("error_description"))
+            log.error(data.get("error_description"))
             return {}
         # for Auth0
         if provider == "auth0":
@@ -2083,8 +2141,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "role_keys": me.get("groups", []),
             }
 
-        else:
-            return {}
+        return {}
 
     @staticmethod
     def oauth_token_getter():
@@ -2118,7 +2175,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         We need to do this upon successful authentication when using the
         database session backend.
         """
-        if conf.get("webserver", "SESSION_BACKEND") == "database":
+        if conf.get("fab", "SESSION_BACKEND") == "database":
             session.sid = str(uuid.uuid4())
 
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
@@ -2311,3 +2368,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             flash(Markup(text), level)
         else:
             getattr(log, level)(text.replace("<br>", "\n").replace("<b>", "*").replace("</b>", "*"))
+
+    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
+        user_role_objects = set()
+
+        # apply AUTH_ROLES_MAPPING
+        if self.auth_roles_mapping:
+            user_role_keys = userinfo.get("role_keys", [])
+            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
+
+        # apply AUTH_USER_REGISTRATION_ROLE
+        if self.auth_user_registration:
+            registration_role_name = self.auth_user_registration_role
+
+            # if AUTH_USER_REGISTRATION_ROLE_JMESPATH is set,
+            # use it for the registration role
+            if self.auth_user_registration_role_jmespath:
+                import jmespath
+
+                registration_role_name = jmespath.search(self.auth_user_registration_role_jmespath, userinfo)
+
+            # lookup registration role in flask db
+            fab_role = self.find_role(registration_role_name)
+            if fab_role:
+                user_role_objects.add(fab_role)
+            else:
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
+
+        return list(user_role_objects)

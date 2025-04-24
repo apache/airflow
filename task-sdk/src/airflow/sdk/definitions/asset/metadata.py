@@ -32,5 +32,5 @@ class Metadata:
     """Metadata to attach to an AssetEvent."""
 
     asset: Asset
-    extra: dict[str, Any]
+    extra: dict[str, Any] = attrs.field(factory=dict)
     alias: AssetAlias | None = None

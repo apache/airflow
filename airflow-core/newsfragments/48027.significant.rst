@@ -1,0 +1,14 @@
+``password`` extra has been removed
+
+Nothing is using the dependencies that are installed in the ``password`` extra (``bcrypt`` and ``flask-bcrypt``), so the extra has been removed.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

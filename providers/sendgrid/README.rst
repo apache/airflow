@@ -55,6 +55,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
 ``sendgrid``        ``>=6.0.0``
+``werkzeug``        ``>=2.2,<4``
 ==================  ==================
 
 The changelog for the provider package can be found in the

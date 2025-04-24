@@ -46,6 +46,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -124,8 +125,11 @@ class TestSQLExecuteQueryOperator:
 
     @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
-    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output):
-        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+    @pytest.mark.parametrize("requires_result_fetch", [True, False])
+    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output, requires_result_fetch):
+        operator = self._construct_operator(
+            "SELECT 1;", do_xcom_push=True, requires_result_fetch=requires_result_fetch
+        )
         operator.execute(context=MagicMock())
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -148,6 +152,21 @@ class TestSQLExecuteQueryOperator:
             autocommit=False,
             parameters=None,
             handler=None,
+            return_last=True,
+        )
+        mock_process_output.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_requires_result_fetch_dont_xcom_push(self, mock_get_db_hook, mock_process_output):
+        operator = self._construct_operator("SELECT 1;", requires_result_fetch=True, do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
             return_last=True,
         )
         mock_process_output.assert_not_called()
@@ -659,6 +678,7 @@ class TestSQLCheckOperatorDbHook:
             assert isinstance(self._operator._hook, PostgresHook)
             mock_get_conn.assert_called_once_with(self.conn_id)
 
+    @skip_if_force_lowest_dependencies_marker
     def test_not_allowed_conn_type(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -668,6 +688,7 @@ class TestSQLCheckOperatorDbHook:
             with pytest.raises(AirflowException, match=r"You are trying to use `common-sql`"):
                 self._operator._hook
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_snowflake(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -688,6 +709,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.schema == "schema"
             assert not self._operator._hook.log_sql
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_biguery(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
@@ -701,6 +723,7 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_hook_params_templated(self):
         with mock.patch(
             "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",

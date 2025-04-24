@@ -24,7 +24,7 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 
 pytest.importorskip("weaviate")
 
-from airflow.providers.weaviate.operators.weaviate import (  # noqa: E402
+from airflow.providers.weaviate.operators.weaviate import (
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
 )

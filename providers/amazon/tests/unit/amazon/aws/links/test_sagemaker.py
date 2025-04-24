@@ -19,6 +19,7 @@ from __future__ import annotations
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 if AIRFLOW_V_3_0_PLUS:
@@ -41,8 +42,7 @@ class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
 
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/sagemaker/home"
-                "?region=us-east-1#/transform-jobs/test_job_name"
+                "https://console.aws.amazon.com/sagemaker/home?region=us-east-1#/transform-jobs/test_job_name"
             ),
             region_name="us-east-1",
             aws_partition="aws",

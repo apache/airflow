@@ -134,8 +134,7 @@ def mock_conn(request):
         return conn
     if request.param == "wrapped":
         return AwsConnectionWrapper(conn=conn)
-    else:
-        raise ValueError("invalid internal test config")
+    raise ValueError("invalid internal test config")
 
 
 class TestSessionFactory:

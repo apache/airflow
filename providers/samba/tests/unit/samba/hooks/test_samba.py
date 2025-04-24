@@ -28,12 +28,7 @@ from airflow.providers.samba.hooks.samba import SambaHook
 
 PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
-CONNECTION = Connection(
-    host="ip",
-    schema="share",
-    login="username",
-    password="password",
-)
+pytestmark = pytest.mark.db_test
 
 
 class TestSambaHook:
@@ -45,6 +40,12 @@ class TestSambaHook:
     @mock.patch("smbclient.register_session")
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_context_manager(self, get_conn_mock, register_session):
+        CONNECTION = Connection(
+            host="ip",
+            schema="share",
+            login="username",
+            password="password",
+        )
         get_conn_mock.return_value = CONNECTION
         register_session.return_value = None
         with SambaHook("samba_default"):
@@ -95,6 +96,13 @@ class TestSambaHook:
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_method(self, get_conn_mock, name):
+        CONNECTION = Connection(
+            host="ip",
+            schema="share",
+            login="username",
+            password="password",
+        )
+
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default")
         connection_settings = {
@@ -141,6 +149,13 @@ class TestSambaHook:
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test__join_path(self, get_conn_mock, path, full_path):
+        CONNECTION = Connection(
+            host="ip",
+            schema="share",
+            login="username",
+            password="password",
+        )
+
         get_conn_mock.return_value = CONNECTION
         hook = SambaHook("samba_default")
         assert hook._join_path(path) == full_path

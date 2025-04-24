@@ -1,0 +1,25 @@
+Pre-installed providers are minimized per default with Airflow 3.0.
+
+Before Airflow 3.0 a set of providers were always pre-installed. We removed the pre-install of ftp, http and imap as they are not needed for all cases.
+
+The following providers are pre-installed by default:
+
+* common.compat
+* common.io
+* common.sql
+* fab>=1.0.2
+* smtp
+* sqlite
+* standard
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

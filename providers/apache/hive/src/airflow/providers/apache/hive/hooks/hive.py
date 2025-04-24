@@ -35,10 +35,17 @@ import csv
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+else:
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    )
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -202,7 +209,7 @@ class HiveCliHook(BaseHook):
                     f"The schema used in beeline command ({conn.schema}) should not contain ';' character)"
                 )
             return
-        elif ":" in conn.host or "/" in conn.host or ";" in conn.host:
+        if ":" in conn.host or "/" in conn.host or ";" in conn.host:
             raise ValueError(
                 f"The host used in beeline command ({conn.host}) should not contain ':/;' characters)"
             )
@@ -602,8 +609,7 @@ class HiveMetastoreHook(BaseHook):
                 self.log.info("Connected to %s:%s", host, conn.port)
                 host_socket.close()
                 return host
-            else:
-                self.log.error("Could not connect to %s:%s", host, conn.port)
+            self.log.error("Could not connect to %s:%s", host, conn.port)
         return None
 
     def get_conn(self) -> Any:
@@ -706,8 +712,7 @@ class HiveMetastoreHook(BaseHook):
 
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
-            else:
-                raise AirflowException("The table isn't partitioned")
+            raise AirflowException("The table isn't partitioned")
 
     @staticmethod
     def _get_max_partition_from_part_specs(

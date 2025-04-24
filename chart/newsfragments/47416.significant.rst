@@ -1,3 +1,0 @@
-Decrements pgbouncer exporter to 1.23.1 and updates pgbouncer_exporter to v0.18.0
-
-The chart uses newer version of pgbouncer exporter - ``airflow-pgbouncer-exporter-2025.03.05-0.18.0`` and decrements the version of pgbouncer to ``airflow-pgbouncer-2025.03.05-1.23.1`` previously ``airflow-pgbouncer-2025.01.10-1.24.0``, to provide compatibility with ``airflow-pgbouncer-exporter-2025.03.05-0.18.0``.

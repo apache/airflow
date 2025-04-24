@@ -314,9 +314,9 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context=mock.MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, DataFusionStartPipelineTrigger
-        ), "Trigger is not a DataFusionStartPipelineTrigger"
+        assert isinstance(exc.value.trigger, DataFusionStartPipelineTrigger), (
+            "Trigger is not a DataFusionStartPipelineTrigger"
+        )
 
     def test_asynch_execute_should_should_throw_exception(self):
         """Tests that an AirflowException is raised in case of error event"""

@@ -156,7 +156,7 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
     if app == "fab":
         filepath = project_root / "providers" / "fab" / "docs" / "migrations-ref.rst"
     else:
-        filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
+        filepath = project_root / "airflow-core" / "docs" / "migrations-ref.rst"
 
     update_doc(
         file=filepath,

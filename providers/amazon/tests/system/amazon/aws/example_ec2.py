@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
 )
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_ec2"

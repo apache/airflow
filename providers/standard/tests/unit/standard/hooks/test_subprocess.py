@@ -92,6 +92,7 @@ class TestSubprocessHook:
         hook = SubprocessHook()
         hook.run_command(command=["bash", "-c", 'echo "stdout"'])
 
+        mock_temporary_directory.assert_called_once()
         mock_popen.assert_called_once_with(
             ["bash", "-c", 'echo "stdout"'],
             cwd="/tmp/airflowtmpcatcat",
@@ -113,4 +114,5 @@ class TestSubprocessHook:
         hook = SubprocessHook()
         hook.sub_process = MagicMock()
         hook.send_sigterm()
+        mock_getpgid.assert_called_once()
         mock_killpg.assert_called_with(123, signal.SIGTERM)

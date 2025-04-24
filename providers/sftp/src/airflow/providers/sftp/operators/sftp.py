@@ -74,6 +74,8 @@ class SFTPOperator(BaseOperator):
                 create_intermediate_dirs=True,
                 dag=dag,
             )
+    :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
+        This parameter is used only when transferring directories, not individual files. (Default is 1)
 
     """
 
@@ -90,6 +92,7 @@ class SFTPOperator(BaseOperator):
         operation: str = SFTPOperation.PUT,
         confirm: bool = True,
         create_intermediate_dirs: bool = False,
+        concurrency: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -101,6 +104,7 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
+        self.concurrency = concurrency
 
     def execute(self, context: Any) -> str | list[str] | None:
         if self.local_filepath is None:
@@ -132,6 +136,9 @@ class SFTPOperator(BaseOperator):
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT} or {SFTPOperation.DELETE}."
             )
 
+        if self.concurrency < 1:
+            raise ValueError(f"concurrency should be greater than 0, got {self.concurrency}")
+
         file_msg = None
         try:
             if self.ssh_conn_id:
@@ -161,7 +168,14 @@ class SFTPOperator(BaseOperator):
                         file_msg = f"from {_remote_filepath} to {_local_filepath}"
                         self.log.info("Starting to transfer %s", file_msg)
                         if self.sftp_hook.isdir(_remote_filepath):
-                            self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)
+                            if self.concurrency > 1:
+                                self.sftp_hook.retrieve_directory_concurrently(
+                                    _remote_filepath,
+                                    _local_filepath,
+                                    workers=self.concurrency,
+                                )
+                            elif self.concurrency == 1:
+                                self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)
                         else:
                             self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
                     elif self.operation.lower() == SFTPOperation.PUT:
@@ -171,9 +185,17 @@ class SFTPOperator(BaseOperator):
                         file_msg = f"from {_local_filepath} to {_remote_filepath}"
                         self.log.info("Starting to transfer file %s", file_msg)
                         if os.path.isdir(_local_filepath):
-                            self.sftp_hook.store_directory(
-                                _remote_filepath, _local_filepath, confirm=self.confirm
-                            )
+                            if self.concurrency > 1:
+                                self.sftp_hook.store_directory_concurrently(
+                                    _remote_filepath,
+                                    _local_filepath,
+                                    confirm=self.confirm,
+                                    workers=self.concurrency,
+                                )
+                            elif self.concurrency == 1:
+                                self.sftp_hook.store_directory(
+                                    _remote_filepath, _local_filepath, confirm=self.confirm
+                                )
                         else:
                             self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
             elif self.operation.lower() == SFTPOperation.DELETE:

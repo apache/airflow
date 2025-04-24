@@ -375,7 +375,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -384,7 +384,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 

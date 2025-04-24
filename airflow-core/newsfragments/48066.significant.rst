@@ -1,0 +1,78 @@
+Unused webserver configuration options have been removed
+
+The following configuration options are now unused and have been removed:
+
+- ``[webserver] web_server_master_timeout``
+- ``[webserver] worker_refresh_batch_size``
+- ``[webserver] worker_refresh_interval``
+- ``[webserver] reload_on_plugin_change``
+- ``[webserver] worker_class``
+- ``[webserver] expose_stacktrace``
+- ``[webserver] log_fetch_delay_sec``
+- ``[webserver] log_auto_tailing_offset``
+- ``[webserver] log_animation_speed``
+- ``[webserver] default_dag_run_display_number``
+- ``[webserver] enable_proxy_fix``
+- ``[webserver] proxy_fix_x_for``
+- ``[webserver] proxy_fix_x_proto``
+- ``[webserver] proxy_fix_x_host``
+- ``[webserver] proxy_fix_x_port``
+- ``[webserver] proxy_fix_x_prefix``
+- ``[webserver] cookie_secure``
+- ``[webserver] analytics_tool``
+- ``[webserver] analytics_id``
+- ``[webserver] analytics_url``
+- ``[webserver] show_recent_stats_for_completed_runs``
+- ``[webserver] run_internal_api``
+- ``[webserver] caching_hash_method``
+- ``[webserver] show_trigger_form_if_no_params``
+- ``[webserver] num_recent_configurations_for_trigger``
+- ``[webserver] allowed_payload_size``
+- ``[webserver] max_form_memory_size``
+- ``[webserver] max_form_parts``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] Remove configuration option ``[webserver] web_server_master_timeout``
+    * [x] Remove configuration option ``[webserver] worker_refresh_batch_size``
+    * [x] Remove configuration option ``[webserver] worker_refresh_interval``
+    * [x] Remove configuration option ``[webserver] reload_on_plugin_change``
+    * [x] Remove configuration option ``[webserver] worker_class``
+    * [x] Remove configuration option ``[webserver] expose_stacktrace``
+    * [x] Remove configuration option ``[webserver] log_fetch_delay_sec``
+    * [x] Remove configuration option ``[webserver] log_auto_tailing_offset``
+    * [x] Remove configuration option ``[webserver] log_animation_speed``
+    * [x] Remove configuration option ``[webserver] default_dag_run_display_number``
+    * [x] Remove configuration option ``[webserver] enable_proxy_fix``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_for``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_proto``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_host``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_port``
+    * [x] Remove configuration option ``[webserver] proxy_fix_x_prefix``
+    * [x] Remove configuration option ``[webserver] cookie_secure``
+    * [x] Remove configuration option ``[webserver] analytics_tool``
+    * [x] Remove configuration option ``[webserver] analytics_id``
+    * [x] Remove configuration option ``[webserver] analytics_url``
+    * [x] Remove configuration option ``[webserver] show_recent_stats_for_completed_runs``
+    * [x] Remove configuration option ``[webserver] run_internal_api``
+    * [x] Remove configuration option ``[webserver] caching_hash_method``
+    * [x] Remove configuration option ``[webserver] show_trigger_form_if_no_params``
+    * [x] Remove configuration option ``[webserver] num_recent_configurations_for_trigger``
+    * [x] Remove configuration option ``[webserver] allowed_payload_size``
+    * [x] Remove configuration option ``[webserver] max_form_memory_size``
+    * [x] Remove configuration option ``[webserver] max_form_parts``

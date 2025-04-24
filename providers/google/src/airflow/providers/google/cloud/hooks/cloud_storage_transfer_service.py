@@ -218,7 +218,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     return (
                         self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
                     )
-                elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
+                if transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
                     return self.enable_transfer_job(job_name=job_name, project_id=body.get(PROJECT_ID))
             else:
                 raise e

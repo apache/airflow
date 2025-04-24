@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
 

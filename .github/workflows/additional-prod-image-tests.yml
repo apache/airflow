@@ -37,7 +37,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       chicken-egg-providers:
-        description: "Whether to build chicken-egg provider packages in the same run (true/false)"
+        description: "Whether to build chicken-egg provider distributions in the same run (true/false)"
         required: true
         type: string
       docker-cache:
@@ -72,7 +72,7 @@ jobs:
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
       use-uv: "false"
-      build-provider-packages: ${{ inputs.default-branch == 'main' }}
+      build-provider-distributions: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
@@ -89,7 +89,7 @@ jobs:
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
       use-uv: "false"
-      build-provider-packages: ${{ inputs.default-branch == 'main' }}
+      build-provider-distributions: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
@@ -130,11 +130,10 @@ jobs:
           DEFAULT_BRANCH: ${{ inputs.default-branch }}
           DEFAULT_PYTHON_VERSION: ${{ inputs.default-python-version }}
         run: "
-          cd ./docker_tests && \
-          python -m pip install -r requirements.txt && \
+          cd ./docker-tests && \
           TEST_IMAGE=\"ghcr.io/$GITHUB_REPOSITORY/$DEFAULT_BRANCH\
           /prod/python$DEFAULT_PYTHON_VERSION\" \
-          python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes"
+          uv run pytest tests/docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes"
 
   test-docker-compose-quick-start:
     timeout-minutes: 60

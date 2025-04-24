@@ -104,9 +104,9 @@ class MsSqlToHiveOperator(BaseOperator):
     def type_map(cls, mssql_type: int) -> str:
         """Map MsSQL type to Hive type."""
         map_dict = {
-            pymssql.BINARY.value: "INT",
-            pymssql.DECIMAL.value: "FLOAT",
-            pymssql.NUMBER.value: "INT",
+            pymssql.BINARY.value: "INT",  # type:ignore[attr-defined]
+            pymssql.DECIMAL.value: "FLOAT",  # type:ignore[attr-defined]
+            pymssql.NUMBER.value: "INT",  # type:ignore[attr-defined]
         }
         return map_dict.get(mssql_type, "STRING")
 
@@ -122,7 +122,7 @@ class MsSqlToHiveOperator(BaseOperator):
                     for col_count, field in enumerate(cursor.description, start=1):
                         col_position = f"Column{col_count}"
                         field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)
+                    csv_writer.writerows(cursor)  # type:ignore[arg-type]
                     tmp_file.flush()
 
             hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)

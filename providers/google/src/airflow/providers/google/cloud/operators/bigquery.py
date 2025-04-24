@@ -287,7 +287,7 @@ class BigQueryCheckOperator(
     def _validate_records(self, records) -> None:
         if not records:
             raise AirflowException(f"The following query returned zero rows: {self.sql}")
-        elif not all(records):
+        if not all(records):
             self._raise_exception(  # type: ignore[attr-defined]
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
             )
@@ -2976,14 +2976,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-            else:
-                # Job already reached state DONE
-                if job.state == "DONE":
-                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+            # Job already reached state DONE
+            if job.state == "DONE":
+                raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
 
-                # We are reattaching to a job
-                self.log.info("Reattaching to existing Job in state %s", job.state)
-                self._handle_job_error(job)
+            # We are reattaching to a job
+            self.log.info("Reattaching to existing Job in state %s", job.state)
+            self._handle_job_error(job)
 
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -3036,24 +3035,23 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
             self._handle_job_error(job)
 
             return self.job_id
-        else:
-            if job.running():
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=BigQueryInsertJobTrigger(
-                        conn_id=self.gcp_conn_id,
-                        job_id=self.job_id,
-                        project_id=self.project_id,
-                        location=self.location or hook.location,
-                        poll_interval=self.poll_interval,
-                        impersonation_chain=self.impersonation_chain,
-                        cancel_on_kill=self.cancel_on_kill,
-                    ),
-                    method_name="execute_complete",
-                )
-            self.log.info("Current state of job %s is %s", job.job_id, job.state)
-            self._handle_job_error(job)
-            return self.job_id
+        if job.running():
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryInsertJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location or hook.location,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    cancel_on_kill=self.cancel_on_kill,
+                ),
+                method_name="execute_complete",
+            )
+        self.log.info("Current state of job %s is %s", job.job_id, job.state)
+        self._handle_job_error(job)
+        return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """

@@ -48,11 +48,17 @@ def get_provider_version(provider_name):
     return semver.VersionInfo.parse(info.version)
 
 
-def get_provider_min_airflow_version(provider_name):
-    from airflow.providers_manager import ProvidersManager
+def get_provider_min_airflow_version(provider_name: str) -> tuple[int, ...]:
+    from importlib import metadata
 
-    p = ProvidersManager()
-    deps = p.providers[provider_name].data["dependencies"]
+    from packaging.version import Version
+
+    deps = metadata.requires(provider_name)
+    if not deps:
+        raise RuntimeError(f"The provider should have dependencies: {provider_name}")
     airflow_dep = next(x for x in deps if x.startswith("apache-airflow"))
-    min_airflow_version = tuple(map(int, airflow_dep.split(">=")[1].split(".")))
-    return min_airflow_version
+    if not airflow_dep:
+        raise RuntimeError(
+            f"The provider should have `apache-airflow>=` in their dependencies: {provider_name}"
+        )
+    return Version(airflow_dep.split(">=")[1]).release

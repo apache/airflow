@@ -22,7 +22,7 @@ description: |
     `gRPC <https://grpc.io/>`__
 
 state: ready
-source-date-epoch: 1741508880
+source-date-epoch: 1743477829
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.3

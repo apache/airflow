@@ -41,6 +41,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
+    DatabricksSQLStatementsOperator,
     DatabricksSubmitRunOperator,
     DatabricksTaskOperator,
 )
@@ -151,6 +152,16 @@ with DAG(
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
+
+    # [START howto_operator_sql_statements]
+    sql_statement = DatabricksSQLStatementsOperator(
+        task_id="sql_statement",
+        databricks_conn_id="databricks_default",
+        statement="select * from default.my_airflow_table",
+        warehouse_id=WAREHOUSE_ID,
+        # deferrable=True, # For using the operator in deferrable mode
+    )
+    # [END howto_operator_sql_statements]
 
     # [START howto_operator_databricks_notebook_new_cluster]
     new_cluster_spec = {

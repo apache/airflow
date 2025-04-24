@@ -29,7 +29,7 @@ from airflow.sdk.api.datamodels._generated import TerminalTIState
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
-log = structlog.get_logger()
+log = structlog.get_logger(__name__)
 
 RunTI = Callable[[DAG, str, int], TerminalTIState]
 

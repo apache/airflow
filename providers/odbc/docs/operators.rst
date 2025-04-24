@@ -70,7 +70,7 @@ commands against a database (or data storage) accessible via an ODBC driver.
 The :doc:`ODBC Connection <connections/odbc>` must be passed as
 ``conn_id``.
 
-.. exampleinclude:: /../../providers/odbc/tests/system/odbc/example_odbc.py
+.. exampleinclude:: /../../odbc/tests/system/odbc/example_odbc.py
     :language: python
     :start-after: [START howto_operator_odbc]
     :end-before: [END howto_operator_odbc]
@@ -89,7 +89,7 @@ Templating
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
-.. exampleinclude:: /../../providers/odbc/tests/system/odbc/example_odbc.py
+.. exampleinclude:: /../../odbc/tests/system/odbc/example_odbc.py
     :language: python
     :start-after: [START howto_operator_odbc_template]
     :end-before: [END howto_operator_odbc_template]

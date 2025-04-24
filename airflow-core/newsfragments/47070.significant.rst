@@ -1,0 +1,25 @@
+Auto data interval calculation is disabled by default
+
+Configurations ``[scheduler] create_cron_data_intervals`` and ``create_delta_data_intervals`` are now *False*
+by default. This means schedules specified using cron expressions or time deltas now have their logical date
+set to *when a new run can start* instead of one data interval before.
+
+See :ref:`Differences between "trigger" and "data interval" timetables` for more information.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config update``
+
+    * [x] ``scheduler.create_cron_data_intervals``
+    * [x] ``scheduler.create_delta_data_intervals``

@@ -1,0 +1,22 @@
+Relocate utils.weekday from core to standard provider
+
+Removed module ``airflow.utils.weekday`` removed. Please use ``from airflow.providers.standard.utils.weekday`` instead.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.utils.weekday`` → ``airflow.providers.standard.utils.weekday``

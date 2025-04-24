@@ -444,3 +444,55 @@ def test_execute_openlineage_events():
             },
         )
     ]
+
+
+@pytest.mark.parametrize(
+    "conn_params, expected_uri",
+    [
+        (
+            {"login": "user", "password": "pass", "host": "localhost", "port": 8080, "schema": "hive"},
+            "trino://user:pass@localhost:8080/hive",
+        ),
+        (
+            {
+                "login": "user",
+                "password": "pass",
+                "host": "localhost",
+                "port": 8080,
+                "schema": "hive",
+                "extra": json.dumps({"schema": "sales"}),
+            },
+            "trino://user:pass@localhost:8080/hive/sales",
+        ),
+        (
+            {"login": "user@example.com", "password": "p@ss:word", "host": "localhost", "schema": "hive"},
+            "trino://user%40example.com:p%40ss%3Aword@localhost/hive",
+        ),
+        (
+            {"host": "localhost", "port": 8080, "schema": "hive"},
+            "trino://localhost:8080/hive",
+        ),
+        (
+            {
+                "login": "user",
+                "host": "host.example.com",
+                "schema": "hive",
+                "extra": json.dumps({"param1": "value1", "param2": "value2"}),
+            },
+            "trino://user@host.example.com/hive?param1=value1&param2=value2",
+        ),
+    ],
+    ids=[
+        "basic-connection",
+        "with-extra-schema",
+        "special-chars",
+        "no-credentials",
+        "extra-params",
+    ],
+)
+def test_get_uri(conn_params, expected_uri):
+    """Test TrinoHook.get_uri properly formats connection URIs."""
+    with patch(HOOK_GET_CONNECTION) as mock_get_connection:
+        mock_get_connection.return_value = Connection(**conn_params)
+        hook = TrinoHook()
+        assert hook.get_uri() == expected_uri

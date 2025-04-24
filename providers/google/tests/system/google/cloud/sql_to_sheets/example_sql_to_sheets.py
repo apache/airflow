@@ -88,6 +88,7 @@ GCE_INSTANCE_BODY = {
     "disks": [
         {
             "boot": True,
+            "auto_delete": True,
             "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",
@@ -257,8 +258,7 @@ with DAG(
         sql=SQL_SELECT,
         sql_conn_id=CONNECTION_ID,
         database=DB_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', "
-        "key='spreadsheet_id') }}",
+        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
         gcp_conn_id=SHEETS_CONNECTION_ID,
     )
     # [END upload_sql_to_sheets]

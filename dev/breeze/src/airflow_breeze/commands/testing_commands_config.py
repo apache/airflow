@@ -88,9 +88,9 @@ TEST_ADVANCED_FLAGS_FOR_INSTALLATION: dict[str, str | list[str]] = {
         "--clean-airflow-installation",
         "--force-lowest-dependencies",
         "--install-airflow-with-constraints",
-        "--package-format",
+        "--distribution-format",
         "--use-airflow-version",
-        "--use-packages-from-dist",
+        "--use-distributions-from-dist",
     ],
 }
 
@@ -150,6 +150,10 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
         "commands": ["task-sdk-tests"],
     },
     {
+        "name": "Airflow CTL Tests",
+        "commands": ["airflow-ctl-tests"],
+    },
+    {
         "name": "Other Tests",
         "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
     },
@@ -168,6 +172,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         TEST_ADVANCED_FLAGS_FOR_PROVIDERS,
     ],
     "breeze testing task-sdk-tests": [
+        TEST_OPTIONS_NON_DB,
+        {
+            "name": "Test environment",
+            "options": [
+                "--python",
+                "--forward-credentials",
+                "--force-sa-warnings",
+            ],
+        },
+        TEST_ADVANCED_FLAGS,
+    ],
+    "breeze testing airflow-ctl-tests": [
         TEST_OPTIONS_NON_DB,
         {
             "name": "Test environment",

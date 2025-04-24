@@ -21,8 +21,9 @@ import os
 from typing import TYPE_CHECKING, Callable
 
 import pytest
-from airflow.utils.state import DagRunState
 from tabulate import tabulate
+
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -52,11 +53,10 @@ def get_test_run(dag, **test_kwargs):
     def add_callback(current: list[Callable] | Callable | None, new: Callable) -> list[Callable] | Callable:
         if not current:
             return new
-        elif isinstance(current, list):
+        if isinstance(current, list):
             current.append(new)
             return current
-        else:
-            return [current, new]
+        return [current, new]
 
     @pytest.mark.system
     def test_run():
@@ -68,9 +68,9 @@ def get_test_run(dag, **test_kwargs):
             use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",
             **test_kwargs,
         )
-        assert (
-            dag_run.state == DagRunState.SUCCESS
-        ), "The system test failed, please look at the logs to find out the underlying failed task(s)"
+        assert dag_run.state == DagRunState.SUCCESS, (
+            "The system test failed, please look at the logs to find out the underlying failed task(s)"
+        )
 
     return test_run
 

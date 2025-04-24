@@ -1,0 +1,547 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "package-name": {
+            "description": "Package name available under which the package is available in the PyPI repository.",
+            "type": "string"
+        },
+        "name": {
+            "description": "Provider name",
+            "type": "string"
+        },
+        "description": {
+            "description": "Information about the package in RST format",
+            "type": "string"
+        },
+        "versions": {
+            "description": "List of available versions in PyPI. Sorted descending according to release date.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "state": {
+            "description": "State of provider: might be not-ready, regular, suspended, removed.",
+            "type:": "string",
+            "enum": [
+                "not-ready",
+                "ready",
+                "suspended",
+                "removed"
+            ]
+        },
+        "excluded-python-versions": {
+            "description": "List of python versions excluded for that provider",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "integrations": {
+            "description": "List of integrations supported by the provider.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Name of the integration."
+                    },
+                    "external-doc-url": {
+                        "type": "string",
+                        "description": "URL to external documentation for the integration."
+                    },
+                    "how-to-guide": {
+                        "description": "List of paths to how-to-guide for the integration. The path must start with '/docs/'",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "logo": {
+                        "description": "Path to the logo for the integration. The path must start with '/integration-logos/'",
+                        "type": "string"
+                    },
+                    "tags": {
+                        "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "alibaba",
+                                "apache",
+                                "aws",
+                                "azure",
+                                "dbt",
+                                "gcp",
+                                "gmp",
+                                "google",
+                                "kafka",
+                                "protocol",
+                                "service",
+                                "software",
+                                "yandex"
+                            ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 1
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "external-doc-url",
+                    "tags"
+                ]
+            }
+        },
+        "operators": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the operators.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "sensors": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the sensors.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ],
+                "additionalProperties": true
+            }
+        },
+        "dialects": {
+            "type": "array",
+            "description": "Array of dialects mapped to dialect class names",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dialect-type": {
+                        "description": "Type of dialect defined by the provider",
+                        "type": "string"
+                    },
+                    "dialect-class-name": {
+                        "description": "Dialect class name that implements the dialect type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dialect-type",
+                    "dialect-class-name"
+                ]
+            }
+        },
+        "hooks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the hooks.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "filesystems": {
+            "type": "array",
+            "description": "Filesystem module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "xcom": {
+            "type": "array",
+            "description": "XCom module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "asset-uris": {
+            "type": "array",
+            "description": "Asset URI formats",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "type": "array",
+                        "description": "List of supported URI schemes",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "type": ["string", "null"],
+                        "description": "Normalization function for specified URI schemes. Import path to a callable taking and returning a SplitResult. 'null' specifies a no-op."
+                    },
+                    "factory": {
+                        "type": ["string", "null"],
+                        "description": "Asset factory for specified URI. Creates AIP-60 compliant Asset."
+                    },
+                    "to_openlineage_converter": {
+                        "type": ["string", "null"],
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting an Asset and LineageContext and returning OpenLineage dataset."
+                    }
+                }
+            }
+        },
+        "dataset-uris": {
+            "type": "array",
+            "description": "Dataset URI formats (will be removed in Airflow 3.0)",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "type": "array",
+                        "description": "List of supported URI schemes",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "type": ["string", "null"],
+                        "description": "Normalization function for specified URI schemes. Import path to a callable taking and returning a SplitResult. 'null' specifies a no-op."
+                    },
+                    "factory": {
+                        "type": ["string", "null"],
+                        "description": "Dataset factory for specified URI. Creates AIP-60 compliant Dataset."
+                    },
+                    "to_openlineage_converter": {
+                        "type": ["string", "null"],
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting a Dataset and LineageContext and returning OpenLineage dataset."
+                    }
+                }
+            }
+        },
+        "transfers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "how-to-guide": {
+                        "description": "Path to how-to-guide for the transfer. The path must start with '/docs/'",
+                        "type": "string"
+                    },
+                    "source-integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "target-integration-name": {
+                        "type": "string",
+                        "description": "Target integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-module": {
+                        "type": "string",
+                        "description": "List of python modules containing the transfers."
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "source-integration-name",
+                    "target-integration-name",
+                    "python-module"
+                ]
+            }
+        },
+        "triggers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of Python modules containing the triggers.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "bundles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the bundles.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
+        "connection-types": {
+            "type": "array",
+            "description": "Array of connection types mapped to hook class names",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "connection-type": {
+                        "description": "Type of connection defined by the provider",
+                        "type": "string"
+                    },
+                    "hook-class-name": {
+                        "description": "Hook class name that implements the connection type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "connection-type",
+                    "hook-class-name"
+                ]
+            }
+        },
+        "extra-links": {
+            "type": "array",
+            "description": "Operator class names that provide extra link functionality",
+            "items": {
+                "type": "string"
+            }
+        },
+        "task-decorators": {
+            "type": "array",
+            "description": "Decorators to use with the TaskFlow API. Can be accessed by users via '@task.<name>'",
+            "items": {
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "secrets-backends": {
+            "type": "array",
+            "description": "Secrets Backend class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "auth-managers": {
+            "type": "array",
+            "description": "Auth managers class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "logging": {
+            "type": "array",
+            "description": "Logging Task Handlers class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "auth-backends": {
+            "type": "array",
+            "description": "API Auth Backend module names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "notifications": {
+            "type": "array",
+            "description": "Notification class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "executors": {
+            "type": "array",
+            "description": "Executor class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "config": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/definitions/option"
+                        }
+                    },
+                    "renamed": {
+                        "type": "object",
+                        "properties": {
+                            "previous_name": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "description",
+                    "options"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "plugins": {
+            "type": "array",
+            "description": "Plugins exposed by the provider",
+            "items": {
+                "name": {
+                    "type": "string"
+                },
+                "plugin-class": {
+                    "type": "string"
+                }
+            }
+        },
+        "source-date-epoch": {
+            "type": "integer",
+            "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",
+            "minimum": 0,
+            "default": 0,
+            "examples": [
+                1609459200
+            ]
+        },
+        "extra-project-metadata": {
+            "type": "string",
+            "description": "Extra project metadata. Added to pyproject.toml."
+        }
+    },
+    "additionalProperties": false,
+    "definitions": {
+        "option": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version_added": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "boolean",
+                        "integer",
+                        "float"
+                    ]
+                },
+                "example": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "default": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "sensitive": {
+                    "type": "boolean",
+                    "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+                }
+            },
+            "required": [
+                "description",
+                "version_added",
+                "type",
+                "example",
+                "default"
+            ],
+            "additional_properties": false
+        }
+    },
+    "required": [
+        "name",
+        "package-name",
+        "description",
+        "state",
+        "source-date-epoch",
+        "versions"
+    ]
+}

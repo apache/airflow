@@ -34,7 +34,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
 
@@ -516,7 +516,7 @@ class _ConcatResult(Sequence):
         for value in self.values:
             if i < 0:
                 break
-            elif i >= (curlen := len(value)):
+            if i >= (curlen := len(value)):
                 i -= curlen
             elif isinstance(value, Sequence):
                 return value[i]

@@ -26,7 +26,7 @@
 Package apache-airflow-providers-common-compat
 ------------------------------------------------------
 
-``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
+Common Compatibility Provider - providing compatibility code for previous Airflow versions
 
 
 This is detailed commit list of changes for versions provider package: ``common.compat``.
@@ -34,14 +34,59 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.6.1
+.....
+
+Latest change: 2025-04-23
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`405fbf3418 <https://github.com/apache/airflow/commit/405fbf341806e96f84dfd8ad5e2bf4df37140262>`__  2025-04-23   ``Prepare documentation to release common.compat 1.6.1 (#49624)``
+`7bd0f8324c <https://github.com/apache/airflow/commit/7bd0f8324cfd8a9f5eb60af659b87c52cea3dad8>`__  2025-04-22   ``Add backwards compatibility provider tests for Airflow 3.0.0 (#49562)``
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
+`7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+`139673d3ce <https://github.com/apache/airflow/commit/139673d3ce5552c2cf8bcb2d202e97342c4b237c>`__  2025-04-07   ``Remove fab from preinstalled providers (#48457)``
+`3461b3a259 <https://github.com/apache/airflow/commit/3461b3a259663efd6f392fba203801aee4d90a09>`__  2025-04-07   ``Fix common-io and common-compat provider description format (#48864)``
+`67858fd7e7 <https://github.com/apache/airflow/commit/67858fd7e7ac82788854844c1e6ef5a35f1d0d23>`__  2025-04-06   ``Improve documentation building iteration (#48760)``
+`adbb062b50 <https://github.com/apache/airflow/commit/adbb062b50e2e128fe475a76b7ce10ec93c39ee2>`__  2025-04-06   ``Prepare docs for Apr 1st wave of providers (#48828)``
+`d4473555c0 <https://github.com/apache/airflow/commit/d4473555c0e7022e073489b7163d49102881a1a6>`__  2025-04-02   ``Simplify tooling by switching completely to uv (#48223)``
+`fde5051eac <https://github.com/apache/airflow/commit/fde5051eaca10b81364cca43307c30f49bc7e529>`__  2025-03-28   ``Move bases classes to 'airflow.sdk.bases' (#48487)``
+==================================================================================================  ===========  ==================================================================================
+
+1.6.0
+.....
+
+Latest change: 2025-03-26
+
+==================================================================================================  ===========  =========================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =========================================================================
+`c762e17820 <https://github.com/apache/airflow/commit/c762e17820cae6b162caa3eec5123760e07d56cc>`__  2025-03-26   ``Prepare docs for Mar 2nd wave of providers (#48383)``
+`6b32358673 <https://github.com/apache/airflow/commit/6b32358673af89f598009dfb3f280c957a5f2da4>`__  2025-03-26   ``Move BaseNotifier to Task SDK (#48008)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`b96547dedc <https://github.com/apache/airflow/commit/b96547dedc497bc3001fb3a3f30682b046dc7735>`__  2025-03-22   ``serialize http transports contained in composite transport (#47444)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+`84c5579fc9 <https://github.com/apache/airflow/commit/84c5579fc9edf4b5295581af428e98ae2c63d2b4>`__  2025-03-20   ``fix: compat test test_provider_not_installed failing on main (#48012)``
+`4174bc7d39 <https://github.com/apache/airflow/commit/4174bc7d39fb336c329d887878ac327d4e283f6d>`__  2025-03-20   ``feat: Add helper for any provider version check (#47909)``
+`a993db24f7 <https://github.com/apache/airflow/commit/a993db24f790784a0b43b8a33c28565ed0412d82>`__  2025-03-18   ``feat: Add helper for OpenLineage version check (#47897)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`d5ea56ae4b <https://github.com/apache/airflow/commit/d5ea56ae4be04ebccb12d13fa2cb2be994cf51ac>`__  2025-03-14   ``AIP-84 Add Auth for DAG Versioning (#47553)``
+`46759a355d <https://github.com/apache/airflow/commit/46759a355d603167535591745c70037d691c866a>`__  2025-03-13   ``AIP-84 Add Auth for backfill (#47482)``
+`1e2660b3fc <https://github.com/apache/airflow/commit/1e2660b3fcab69ae52577e59d1c1bebe95a3f548>`__  2025-03-10   ``AIP 84 - Add auth for asset alias (#47241)``
+==================================================================================================  ===========  =========================================================================
+
 1.5.1
 .....
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  =====================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `8cc9f1fca9 <https://github.com/apache/airflow/commit/8cc9f1fca9343768e9aa7bb4c802e7d2fc109719>`__  2025-03-07   ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``

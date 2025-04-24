@@ -137,7 +137,7 @@ class DataplexHook(GoogleBaseHook, OperationHelper):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float | None, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
