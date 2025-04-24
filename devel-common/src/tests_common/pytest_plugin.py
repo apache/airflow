@@ -340,9 +340,8 @@ def pytest_addoption(parser: pytest.Parser):
 @pytest.fixture(autouse=True, scope="session")
 def initialize_airflow_tests(request):
     """Set up Airflow testing environment."""
-    print(" AIRFLOW ".center(60, "="))
-
-    from tests_common.test_utils.db import initial_db_init
+    # To separate this line from test name in case of verbosity runs
+    print("\n" + " AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
     home = os.path.expanduser("~")
@@ -350,37 +349,43 @@ def initialize_airflow_tests(request):
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
 
-    # Initialize Airflow db if required
-    lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
     if not skip_db_tests and not request.config.option.no_db_init:
-        if request.config.option.db_init:
-            from tests_common.test_utils.db import initial_db_init
+        _initialize_airflow_db(request.config.option.db_init, airflow_home)
 
-            print("Initializing the DB - forced with --with-db-init switch.")
-            initial_db_init()
-        elif not os.path.exists(lock_file):
-            print(
-                "Initializing the DB - first time after entering the container.\n"
-                "You can force re-initialization the database by adding --with-db-init switch to run-tests."
-            )
-            initial_db_init()
-            # Create pid file
-            with open(lock_file, "w+"):
-                pass
-        else:
-            print(
-                "Skipping initializing of the DB as it was initialized already.\n"
-                "You can re-initialize the database by adding --with-db-init flag when running tests."
-            )
-    integration_kerberos = os.environ.get("INTEGRATION_KERBEROS")
-    if integration_kerberos == "true":
-        # Initialize kerberos
-        kerberos = os.environ.get("KRB5_KTNAME")
-        if kerberos:
-            subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
-        else:
-            print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
-            sys.exit(1)
+    if os.environ.get("INTEGRATION_KERBEROS") == "true":
+        _initialize_kerberos()
+
+
+def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
+    db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    if not force_db_init and db_init_lock_file.exists():
+        print(
+            "Skipping initializing of the DB as it was initialized already.\n"
+            "You can re-initialize the database by adding --with-db-init flag when running tests."
+        )
+        return
+
+    from tests_common.test_utils.db import initial_db_init
+
+    if force_db_init:
+        print("Initializing the DB - forced with --with-db-init flag.")
+    else:
+        print(
+            "Initializing the DB - first time after entering the container.\n"
+            "Initialization can be also forced by adding --with-db-init flag when running tests."
+        )
+
+    initial_db_init()
+    db_init_lock_file.touch(exist_ok=True)
+
+
+def _initialize_kerberos():
+    kerberos = os.environ.get("KRB5_KTNAME")
+    if not kerberos:
+        print("Kerberos enabled! Please setup KRB5_KTNAME environment variable")
+        sys.exit(1)
+
+    subprocess.check_call(["kinit", "-kt", kerberos, "bob@EXAMPLE.COM"])
 
 
 def _find_all_deprecation_ignore_files() -> list[str]:
