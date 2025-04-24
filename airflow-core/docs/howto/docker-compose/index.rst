@@ -125,7 +125,7 @@ Setting the right Airflow user
 ------------------------------
 
 On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
-Otherwise the files created in ``dags``, ``logs``, ``config`` and ``plugins`` will be created with 
+Otherwise the files created in ``dags``, ``logs``, ``config`` and ``plugins`` will be created with
 ``root`` user ownership. You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
@@ -146,7 +146,7 @@ safely ignore it. You can also manually create an ``.env`` file in the same fold
 Initialize airflow.cfg (Optional)
 ---------------------------------
 
-If you want to initialize ``airflow.cfg`` with default values before lauching the airflow service, run.
+If you want to initialize ``airflow.cfg`` with default values before launching the airflow service, run.
 
 .. code-block:: bash
 
