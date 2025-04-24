@@ -27,7 +27,7 @@ class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
     """Middleware that automatically generates and includes auth header for simple auth manager."""
 
     async def dispatch(self, request: Request, call_next):
-        # Starlette Request is expected to be immutable, but we monkey-patch it to add the auth header
+        # Starlette Request is expected to be immutable, but we modify it to add the auth header
         # https://github.com/fastapi/fastapi/issues/2727#issuecomment-770202019
         token = SimpleAuthManagerLogin.create_token_all_admins()
         request.headers.__dict__["_list"].append((b"authorization", f"Bearer {token}".encode()))
