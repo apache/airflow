@@ -178,6 +178,9 @@ packages = []
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
+"apache.tinkerpop" = [
+    "apache-airflow-providers-apache-tinkerpop"
+]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
 ]
@@ -429,6 +432,7 @@ packages = []
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
+    "apache-airflow-providers-apache-tinkerpop",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -998,6 +1002,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/arangodb/src",
@@ -1268,6 +1274,7 @@ apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
@@ -1379,6 +1386,7 @@ members = [
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/apache/tinkerpop",
     "providers/apprise",
     "providers/arangodb",
     "providers/asana",

@@ -174,6 +174,10 @@ if [[ ${INTEGRATION_YDB} == "true" ]]; then
     check_service "YDB Cluster" "run_nc ydb 2136" 50
 fi
 
+if [[ ${INTEGRATION_GREMLIN} == "true" ]]; then
+    check_service "gremlin" "run_nc gremlin 8182" 50
+fi
+
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"

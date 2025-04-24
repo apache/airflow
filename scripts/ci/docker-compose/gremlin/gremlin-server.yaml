@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+host: 172.18.0.2
+port: 8182
+channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
+graphs: {
+  graph: conf/graph.properties}
+scriptEngines: {
+  gremlin-groovy: {
+    plugins: {
+      org.apache.tinkerpop.gremlin.server.jsr223.GremlinServerGremlinPlugin: {},
+      org.apache.tinkerpop.gremlin.tinkergraph.jsr223.TinkerGraphGremlinPlugin: {},
+      org.apache.tinkerpop.gremlin.jsr223.ImportGremlinPlugin: {
+        classImports: [java.lang.Math], methodImports: [java.lang.Math#*]
+      },
+      org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {
+        files: [scripts/empty-sample.groovy]
+      }}}}
+serializers:
+  - {className: org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV2d0,
+     config: {includeTypes: true}}
+  - {className: org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0,
+     config: {ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0]}}
+  - {className: org.apache.tinkerpop.gremlin.driver.ser.GraphBinaryMessageSerializerV1}
+  - {className: org.apache.tinkerpop.gremlin.driver.ser.GraphBinaryMessageSerializerV1,
+     config: {serializeResultToString: true}}
+processors:
+  - {className: org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor,
+     config: {sessionTimeout: 28800000}}
+  - {className: org.apache.tinkerpop.gremlin.server.op.traversal.TraversalOpProcessor,
+     config: {cacheExpirationTime: 600000, cacheMaxSize: 1000}}
+metrics: {
+  consoleReporter: {enabled: true, interval: 180000},
+  csvReporter: {enabled: true, interval: 180000, fileName: /tmp/gremlin-server-metrics.csv},
+  jmxReporter: {enabled: true},
+  slf4jReporter: {enabled: true, interval: 180000}}
+strictTransactionManagement: false
+idleConnectionTimeout: 0
+keepAliveInterval: 0
+maxInitialLineLength: 4096
+maxHeaderSize: 8192
+maxChunkSize: 8192
+maxContentLength: 65536
+maxAccumulationBufferComponents: 1024
+resultIterationBatchSize: 64
+writeBufferLowWaterMark: 32768
+writeBufferHighWaterMark: 65536
+ssl: {enabled: false}
