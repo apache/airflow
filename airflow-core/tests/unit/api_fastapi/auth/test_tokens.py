@@ -164,6 +164,8 @@ async def test_task_jwt_generator_validator(
     assert nbf <= now, "not before is in the future"
     assert exp >= now, "expiration is in the past"
     assert exp <= nbf + timedelta(minutes=10), "expiration is more then 10 minutes after not before"
+    assert "jti" in claims, "JWT ID is missing"
+    assert len(claims["jti"]) == 32, "JWT ID is not a valid UUID"
 
     def token_without_claim(claim: str) -> str:
         # remove claim and re-encode
