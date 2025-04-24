@@ -211,7 +211,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _event_to_str(self, event: dict) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
-        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+        # Format a datetime object to a string in Zulu time without milliseconds.
+        formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
 
