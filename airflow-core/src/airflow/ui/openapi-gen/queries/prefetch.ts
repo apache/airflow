@@ -354,7 +354,7 @@ export const prefetchUseBackfillServiceGetBackfill = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
 ) =>
   queryClient.prefetchQuery({

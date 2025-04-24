@@ -270,7 +270,7 @@ export const UseBackfillServiceGetBackfillKeyFn = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
