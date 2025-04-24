@@ -522,7 +522,7 @@ The output should be empty (files are identical).
 In case the files are different, you should see:
 
 ```
-Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
+Binary files apache_airflow-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
 
@@ -815,7 +815,7 @@ ARG AIRFLOW_EXTRAS=".....,<provider>,...."
 
 This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
 
-4. Make sure to update Airflow version in ``v2-*-test`` branch after cherry-picking to X.Y.1.dev0 in
+4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
 
 
