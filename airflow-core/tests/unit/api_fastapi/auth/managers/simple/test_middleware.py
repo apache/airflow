@@ -24,6 +24,8 @@ from airflow.api_fastapi.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def all_access_test_client():
@@ -163,7 +165,7 @@ def all_access_test_client():
         ("GET", "/ui/structure/structure_data"),
     ],
 )
-def test_all_endpoints_without_auth_header(all_access_test_client, method, path, session):
+def test_all_endpoints_without_auth_header(all_access_test_client, method, path):
     response = all_access_test_client.request(method, path)
     assert response.status_code not in {401, 403}, (
         f"Unexpected status code {response.status_code} for {method} {path}"
