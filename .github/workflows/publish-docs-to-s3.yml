@@ -192,7 +192,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          aws-region: us-east-2
       - name: "Syncing docs to S3"
         env:
           DESTINATION_LOCATION: "${{ inputs.destination-location }}"
@@ -200,5 +200,5 @@ jobs:
           EXCLUDE_DOCS: "${{ inputs.exclude-docs }}"
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
-          --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS}
+          --destination-location ${DESTINATION_LOCATION} \
+          --exclude-docs ${EXCLUDE_DOCS} --stable-versions
