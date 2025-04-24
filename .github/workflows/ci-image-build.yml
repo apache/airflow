@@ -116,7 +116,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
