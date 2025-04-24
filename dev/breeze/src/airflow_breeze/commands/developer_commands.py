@@ -668,12 +668,14 @@ def start_airflow(
 @click.option(
     "--clean-build",
     is_flag=True,
-    help="Cleans the build directory before building the documentation and removes inventory cache.",
+    help="Cleans the build directory before building the documentation and removes all inventory "
+    "cache (including external inventories).",
 )
 @click.option(
     "--refresh-airflow-inventories",
     is_flag=True,
-    help="When set, airflow package inventories will be refreshed, regardless if they are already downloaded.",
+    help="When set, only airflow package inventories will be refreshed, regardless "
+    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @option_dry_run

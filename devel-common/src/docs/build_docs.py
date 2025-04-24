@@ -138,8 +138,12 @@ def _promote_new_flags():
     console.print("   [bright_blue]--list-packages   - Shows the list of packages you can build[/]")
     console.print()
     console.print("You can run clean build - refreshing inter-sphinx inventories or refresh airflow ones.\n")
-    console.print("   [bright_blue]--clean-build     - Refresh inventories for inter-sphinx references[/]")
-    console.print("   [bright_blue]--refresh-airflow-inventories - Force refresh airflow inventories.[/]")
+    console.print(
+        "   [bright_blue]--clean-build                 - Refresh inventories and build files for all inter-sphinx references (including external ones)[/]"
+    )
+    console.print(
+        "   [bright_blue]--refresh-airflow-inventories - Force refresh only airflow inventories (without cleaning build files or external inventories).[/]"
+    )
     console.print()
     console.print("For more info:")
     console.print("   [bright_blue]uv run build-docs --help[/]")
@@ -523,12 +527,14 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--clean-build",
     is_flag=True,
-    help="Cleans the build directory before building the documentation and removes inventory cache.",
+    help="Cleans the build directory before building the documentation and removes all inventory "
+    "cache (including external inventories).",
 )
 @click.option(
     "--refresh-airflow-inventories",
     is_flag=True,
-    help="When set, airflow package inventories will be refreshed, regardless if they are already downloaded.",
+    help="When set, only airflow package inventories will be refreshed, regardless "
+    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option(
     "-v",
