@@ -17,8 +17,8 @@
  * under the License.
  */
 import { Box, Text, Button, useDisclosure, Skeleton } from "@chakra-ui/react";
-import { AiOutlineApi } from "react-icons/ai";
 import { FiChevronRight } from "react-icons/fi";
+import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceImportErrors } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -52,7 +52,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
               onClick={onOpen}
               title={pluralize("Plugin Import Error", importErrorsCount)}
             >
-              <AiOutlineApi size="0.5rem" />
+              <LuPlug size="0.5rem" />
               {importErrorsCount}
             </StateBadge>
           ) : (
@@ -65,7 +65,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
               variant="outline"
             >
               <StateBadge colorPalette="failed">
-                <AiOutlineApi />
+                <LuPlug />
                 {importErrorsCount}
               </StateBadge>
               <Box alignItems="center" display="flex" gap={1}>
