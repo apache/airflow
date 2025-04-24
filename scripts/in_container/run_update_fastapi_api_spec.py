@@ -83,7 +83,7 @@ def validate_openapi_file(file_path: Path) -> bool:
         validate_spec(openapi_schema)
     except Exception as e:
         print(f"[ERROR] OpenAPI validation failed for {file_path}: {e}", file=sys.stderr)
-        return False
+        sys.exit(1)
     return True
 
 
@@ -93,12 +93,10 @@ os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = (
     "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
 )
 generate_file(app=create_app(), file_path=OPENAPI_SPEC_FILE)
-if not validate_openapi_file(OPENAPI_SPEC_FILE):
-    sys.exit(1)
+validate_openapi_file(OPENAPI_SPEC_FILE)
 
 generate_file(app=create_app(), file_path=OPENAPI_UI_SPEC_FILE, only_ui=True)
-if not validate_openapi_file(OPENAPI_UI_SPEC_FILE):
-    sys.exit(1)
+validate_openapi_file(OPENAPI_UI_SPEC_FILE)
 
 # Generate simple auth manager openapi spec
 simple_auth_manager_app = SimpleAuthManager().get_fastapi_app()
@@ -108,12 +106,10 @@ if simple_auth_manager_app:
         file_path=SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE,
         prefix=AUTH_MANAGER_FASTAPI_APP_PREFIX,
     )
-    if not validate_openapi_file(SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE):
-        sys.exit(1)
+    validate_openapi_file(SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE)
 
 # Generate FAB auth manager openapi spec
 fab_auth_manager_app = FabAuthManager().get_fastapi_app()
 if fab_auth_manager_app:
     generate_file(app=fab_auth_manager_app, file_path=FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE)
-    if not validate_openapi_file(FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE):
-        sys.exit(1)
+    validate_openapi_file(FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE)
