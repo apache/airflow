@@ -116,6 +116,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -257,7 +258,7 @@ def _create_orm_dagrun(
     state: DagRunState | None,
     run_type: DagRunType,
     creating_job_id: int | None,
-    backfill_id: int | None,
+    backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
@@ -1251,7 +1252,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
-        subdag = self.partial_subset(
+        subset = self.partial_subset(
             task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
@@ -1273,9 +1274,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         }
         if not future and not past:  # Simple case 1: we're only dealing with exactly one run.
             clear_kwargs["run_id"] = run_id
-            subdag.clear(**clear_kwargs)
+            subset.clear(**clear_kwargs)
         elif future and past:  # Simple case 2: we're clearing ALL runs.
-            subdag.clear(**clear_kwargs)
+            subset.clear(**clear_kwargs)
         else:  # Complex cases: we may have more than one run, based on a date range.
             # Make 'future' and 'past' make some sense when multiple runs exist
             # for the same logical date. We order runs by their id and only
@@ -1287,7 +1288,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             else:
                 clear_kwargs["end_date"] = logical_date
                 exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
-            subdag.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
+            subset.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
         return altered
 
     @provide_session
@@ -1363,13 +1364,13 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Clear downstream tasks that are in failed/upstream_failed state to resume them.
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
-            task_subset = self.partial_subset(
+            subset = self.partial_subset(
                 task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
 
-            task_subset.clear(
+            subset.clear(
                 start_date=start_date,
                 end_date=end_date,
                 only_failed=True,
@@ -1795,7 +1796,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
-        backfill_id: int | None = None,
+        backfill_id: NonNegativeInt | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """

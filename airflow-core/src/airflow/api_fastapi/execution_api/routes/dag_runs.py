@@ -20,12 +20,11 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.exceptions import DagRunAlreadyExists
@@ -34,7 +33,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.utils.types import DagRunTriggeredByType
 
-router = AirflowRouter()
+router = APIRouter()
 
 
 log = logging.getLogger(__name__)

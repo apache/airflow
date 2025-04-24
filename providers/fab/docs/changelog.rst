@@ -20,6 +20,31 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add read config permission to viewer role in 'FabAuthManager' (#49581)``
+
+Misc
+~~~~
+
+* ``Remove some lingering subdag references (#49663)``
+* ``Bump stylelint (#49638)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49511)``
+
+Doc-only
+~~~~~~~~
+
+* ``Adding flask app configuration docs to FAB provider (#49492)``
+* ``Add note in FAB migration doc (#49423)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``capitalize the term airflow (#49450)``
+
 2.0.1
 .....
 

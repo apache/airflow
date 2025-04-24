@@ -29,10 +29,6 @@ from kubernetes_tests.test_base import (
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
 @pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
 class TestCeleryAndLocalExecutor(BaseK8STest):
-    @pytest.mark.xfail(
-        EXECUTOR == "LocalExecutor",
-        reason="https://github.com/apache/airflow/issues/47518 needs to be fixed",
-    )
     def test_integration_run_dag(self):
         dag_id = "example_bash_operator"
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
@@ -56,17 +52,21 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
             timeout=300,
         )
 
-    @pytest.mark.xfail(
-        EXECUTOR == "LocalExecutor",
-        reason="https://github.com/apache/airflow/issues/47518 needs to be fixed",
-    )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_xcom"
 
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
-        self.ensure_deployment_health("airflow-scheduler")
+
+        # Wait for the scheduler to be recreated
+        if EXECUTOR == "CeleryExecutor":
+            scheduler_resource_type = "deployment"
+        elif EXECUTOR == "LocalExecutor":
+            scheduler_resource_type = "statefulset"
+        else:
+            raise ValueError(f"Unknown executor {EXECUTOR}")
+        self.ensure_resource_health("airflow-scheduler", resource_type=scheduler_resource_type)
 
         # Wait some time for the operator to complete
         self.monitor_task(

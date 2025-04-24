@@ -165,6 +165,16 @@ class TestGetBackfill(TestBackfillEndpoint):
         assert response.status_code == 404
         assert response.json().get("detail") == "Backfill not found"
 
+    def test_invalid_id(self, test_client):
+        response = test_client.get("/backfills/invalid_id")
+        assert response.status_code == 422
+        response_detail = response.json()["detail"][0]
+        assert response_detail["input"] == "invalid_id"
+        assert response_detail["loc"] == ["path", "backfill_id"]
+        assert (
+            response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
+        )
+
 
 class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
@@ -759,6 +769,16 @@ class TestCancelBackfill(TestBackfillEndpoint):
         states = [x.state for x in dag_runs]
         assert states == ["running", "failed", "failed", "failed", "failed"]
 
+    def test_invalid_id(self, test_client):
+        response = test_client.put("/backfills/invalid_id/cancel")
+        assert response.status_code == 422
+        response_detail = response.json()["detail"][0]
+        assert response_detail["input"] == "invalid_id"
+        assert response_detail["loc"] == ["path", "backfill_id"]
+        assert (
+            response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
+        )
+
 
 class TestPauseBackfill(TestBackfillEndpoint):
     def test_pause_backfill(self, session, test_client):
@@ -805,6 +825,16 @@ class TestPauseBackfill(TestBackfillEndpoint):
         response = unauthorized_test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 403
 
+    def test_invalid_id(self, test_client):
+        response = test_client.put("/backfills/invalid_id/pause")
+        assert response.status_code == 422
+        response_detail = response.json()["detail"][0]
+        assert response_detail["input"] == "invalid_id"
+        assert response_detail["loc"] == ["path", "backfill_id"]
+        assert (
+            response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
+        )
+
 
 class TestUnpauseBackfill(TestBackfillEndpoint):
     def test_unpause_backfill(self, session, test_client):
@@ -832,3 +862,13 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)
+
+    def test_invalid_id(self, test_client):
+        response = test_client.put("/backfills/invalid_id/unpause")
+        assert response.status_code == 422
+        response_detail = response.json()["detail"][0]
+        assert response_detail["input"] == "invalid_id"
+        assert response_detail["loc"] == ["path", "backfill_id"]
+        assert (
+            response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
+        )

@@ -220,11 +220,13 @@ def get_mapped_task_instances(
     task_instances_prefix + "/{task_id}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies",
 )
 @task_instances_router.get(
     task_instances_prefix + "/{task_id}/{map_index}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies_by_map_index",
 )
 def get_task_instance_dependencies(
     dag_id: str,
@@ -775,6 +777,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
@@ -782,6 +785,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run_by_map_index",
 )
 def patch_task_instance_dry_run(
     dag_id: str,
@@ -840,6 +844,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
@@ -850,6 +855,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance_by_map_index",
 )
 def patch_task_instance(
     dag_id: str,

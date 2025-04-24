@@ -22,7 +22,7 @@ import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/req
 
 import { Alert } from "./ui";
 
-type ExpandedApiError = {
+export type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError | undefined;
 } & ApiError;
 

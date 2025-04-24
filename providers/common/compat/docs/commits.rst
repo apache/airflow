@@ -37,11 +37,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.6.1
 .....
 
-Latest change: 2025-04-22
+Latest change: 2025-04-23
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`405fbf3418 <https://github.com/apache/airflow/commit/405fbf341806e96f84dfd8ad5e2bf4df37140262>`__  2025-04-23   ``Prepare documentation to release common.compat 1.6.1 (#49624)``
 `7bd0f8324c <https://github.com/apache/airflow/commit/7bd0f8324cfd8a9f5eb60af659b87c52cea3dad8>`__  2025-04-22   ``Add backwards compatibility provider tests for Airflow 3.0.0 (#49562)``
 `ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
 `4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``

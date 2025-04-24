@@ -132,11 +132,18 @@ def _promote_new_flags():
     console.print("You can also use other extra flags to iterate faster:")
     console.print("   [bright_blue]--docs-only       - Only build documentation[/]")
     console.print("   [bright_blue]--spellcheck-only - Only perform spellchecking[/]")
-    console.print("   [bright_blue]--clean-build     - Refresh inventories for inter-sphinx references[/]")
     console.print()
     console.print("You can list all packages you can build:")
     console.print()
     console.print("   [bright_blue]--list-packages   - Shows the list of packages you can build[/]")
+    console.print()
+    console.print("You can run clean build - refreshing inter-sphinx inventories or refresh airflow ones.\n")
+    console.print(
+        "   [bright_blue]--clean-build                 - Refresh inventories and build files for all inter-sphinx references (including external ones)[/]"
+    )
+    console.print(
+        "   [bright_blue]--refresh-airflow-inventories - Force refresh only airflow inventories (without cleaning build files or external inventories).[/]"
+    )
     console.print()
     console.print("For more info:")
     console.print("   [bright_blue]uv run build-docs --help[/]")
@@ -457,7 +464,11 @@ click.rich_click.OPTION_GROUPS = {
         },
         {
             "name": "Type of build",
-            "options": ["--autobuild", "--one-pass-only", "--clean-build"],
+            "options": ["--autobuild", "--one-pass-only"],
+        },
+        {
+            "name": "Cleaning inventories",
+            "options": ["--clean-build", "--refresh-airflow-inventories"],
         },
         {
             "name": "Filtering options",
@@ -497,9 +508,6 @@ click.rich_click.OPTION_GROUPS = {
     "only that package is selected to build. "
     "If the command is run in the root of the Airflow repo, all packages are selected to be built.",
 )
-@click.option(
-    "--clean-build", is_flag=True, help="Cleans the build directory before building the documentation."
-)
 @click.option("--docs-only", is_flag=True, help="Only build documentation")
 @click.option("--spellcheck-only", is_flag=True, help="Only perform spellchecking")
 @click.option(
@@ -515,6 +523,18 @@ click.rich_click.OPTION_GROUPS = {
     "--list-packages",
     is_flag=True,
     help="Lists all available packages. You can use it to check the names of the packages you want to build.",
+)
+@click.option(
+    "--clean-build",
+    is_flag=True,
+    help="Cleans the build directory before building the documentation and removes all inventory "
+    "cache (including external inventories).",
+)
+@click.option(
+    "--refresh-airflow-inventories",
+    is_flag=True,
+    help="When set, only airflow package inventories will be refreshed, regardless "
+    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option(
     "-v",
@@ -537,6 +557,7 @@ def build_docs(
     spellcheck_only,
     jobs,
     list_packages,
+    refresh_airflow_inventories,
     verbose,
     packages,
 ):
@@ -579,7 +600,9 @@ def build_docs(
     with with_group("Fetching inventories"):
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.
-        packages_without_inventories = fetch_inventories(clean_build=clean_build)
+        packages_without_inventories = fetch_inventories(
+            clean_build=clean_build, refresh_airflow_inventories=refresh_airflow_inventories
+        )
     normal_packages, priority_packages = partition(
         lambda d: d in packages_without_inventories, packages_to_build
     )

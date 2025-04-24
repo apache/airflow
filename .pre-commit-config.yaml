@@ -246,6 +246,9 @@ repos:
         name: Check that executables have shebang
       - id: check-xml
         name: Check XML files with xmllint
+        exclude: >
+          (?x)
+          ^scripts/ci/docker-compose/gremlin/.
       - id: trailing-whitespace
         name: Remove trailing whitespace at end of line
         exclude: ^airflow-core/docs/img/.*\.dot$|^dev/breeze/doc/images/output.*$
@@ -970,6 +973,7 @@ repos:
         exclude: >
           (?x)
           ^scripts/ci/docker-compose/grafana/.|
+          ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'pyyaml>=6.0.2', 'requests==2.32.3', 'rich>=12.4.4']
@@ -1314,7 +1318,7 @@ repos:
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/.*\.py$|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow-core/src/airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'openapi-spec-validator>=0.7.1']
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files

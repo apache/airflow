@@ -35,7 +35,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-standard/operators/bash.rst",
                     "/docs/apache-airflow-providers-standard/operators/python.rst",
                     "/docs/apache-airflow-providers-standard/operators/datetime.rst",
-                    "/docs/apache-airflow-providers-standard/operators/trigger_dagrun.rst",
+                    "/docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst",
                     "/docs/apache-airflow-providers-standard/operators/latest_only.rst",
                     "/docs/apache-airflow-providers-standard/sensors/bash.rst",
                     "/docs/apache-airflow-providers-standard/sensors/python.rst",

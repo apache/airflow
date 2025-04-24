@@ -2860,6 +2860,8 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_historical_python_version
+@option_dry_run
+@option_verbose
 def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:
@@ -3796,3 +3798,76 @@ def generate_issue_content(
             progress.advance(task)
 
     print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
+
+
+@release_management.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
+@click.option(
+    "--source-dir-path",
+    help="Path to the directory with the generated documentation.",
+    required=True,
+)
+@click.option(
+    "--exclude-docs",
+    help="Comma separated list of directories to exclude from the documentation.",
+    default="",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Dry run - only print what would be done.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite existing files in the S3 bucket.",
+)
+@click.option(
+    "--destination-location",
+    help="Name of the S3 bucket to publish the documentation to.",
+    required=True,
+)
+@click.option(
+    "--publish-all-docs", is_flag=True, help="Publish all the available docs in the source directory."
+)
+@click.option(
+    "--stable-versions",
+    is_flag=True,
+    help="Publish all the stable versions of the docs in the source directory.",
+)
+@option_parallelism
+def publish_docs_to_s3(
+    source_dir_path: str,
+    destination_location: str,
+    exclude_docs: str,
+    dry_run: bool,
+    overwrite: bool,
+    parallelism: int,
+    publish_all_docs: bool,
+    stable_versions: bool,
+):
+    from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
+
+    if publish_all_docs and stable_versions:
+        get_console().print("[error]You cannot use --publish-all and --stable-versions together[/]")
+        sys.exit(1)
+
+    destination_location = destination_location.rstrip("/")
+    source_dir_path = source_dir_path.rstrip("/")
+
+    get_console().print("[info]Your publishing docs to S3[/]")
+    get_console().print(f"[info]Your source directory path is {source_dir_path}[/]")
+    get_console().print(f"[info]Your destination path to docs is {destination_location}[/]")
+    get_console().print(f"[info]Your excluded docs are {exclude_docs}[/]")
+
+    docs_to_s3 = S3DocsPublish(
+        source_dir_path=source_dir_path,
+        exclude_docs=exclude_docs,
+        dry_run=dry_run,
+        overwrite=overwrite,
+        destination_location=destination_location,
+        parallelism=parallelism,
+    )
+    if publish_all_docs:
+        docs_to_s3.publish_all_docs()
+    if stable_versions:
+        docs_to_s3.publish_stable_version_docs()

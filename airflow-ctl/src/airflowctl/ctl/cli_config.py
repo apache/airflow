@@ -227,7 +227,7 @@ class CommandFactory:
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
-    group_commands_list: list[GroupCommand]
+    group_commands_list: list[CLICommand]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -465,7 +465,7 @@ class CommandFactory:
             )
 
     @property
-    def group_commands(self) -> list[GroupCommand]:
+    def group_commands(self) -> list[CLICommand]:
         """List of GroupCommands generated for airflowctl."""
         self._inspect_operations()
         self._create_args_map_from_operation()
@@ -473,6 +473,59 @@ class CommandFactory:
         self._create_group_commands_from_operation()
 
         return self.group_commands_list
+
+
+def merge_commands(
+    base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
+) -> list[CLICommand]:
+    """
+    Merge group commands with existing commands which extends base_commands with will_be_merged commands.
+
+    Args:
+        base_commands: List of base commands to be extended.
+        commands_will_be_merged: List of group commands to be merged with base_commands.
+
+    Returns:
+        List of merged commands.
+    """
+    merge_command_map = {}
+    for command in commands_will_be_merged:
+        if isinstance(command, GroupCommand):
+            merge_command_map[command.name] = command
+    new_commands: list[CLICommand] = []
+    merged_commands = []
+    # Common commands
+    for command in base_commands:
+        if command.name in merge_command_map.keys():
+            merged_command = merge_command_map[command.name]
+            if isinstance(command, GroupCommand):
+                # Merge common group command with existing group command
+                current_subcommands = list(command.subcommands)
+                current_subcommands.extend(list(merged_command.subcommands))
+                new_commands.append(
+                    GroupCommand(
+                        name=command.name,
+                        help=command.help,
+                        subcommands=current_subcommands,
+                        api_operation=merged_command.api_operation,
+                        description=merged_command.description,
+                        epilog=command.epilog,
+                    )
+                )
+            elif isinstance(command, ActionCommand):
+                new_commands.append(merged_command)
+            merged_commands.append(command.name)
+        else:
+            new_commands.append(command)
+    # Discrete commands
+    new_commands.extend(
+        [
+            merged_command
+            for merged_command in merge_command_map.values()
+            if merged_command.name not in merged_commands
+        ]
+    )
+    return new_commands
 
 
 command_factory = CommandFactory()
@@ -497,4 +550,6 @@ core_commands: list[CLICommand] = [
     ),
 ]
 # Add generated group commands
-core_commands.extend(command_factory.group_commands)
+core_commands = merge_commands(
+    base_commands=command_factory.group_commands, commands_will_be_merged=core_commands
+)

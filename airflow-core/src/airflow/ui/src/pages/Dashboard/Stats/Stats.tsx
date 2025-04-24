@@ -22,6 +22,7 @@ import { FiClipboard, FiZap } from "react-icons/fi";
 import { useDagServiceGetDags } from "openapi/queries";
 
 import { DAGImportErrors } from "./DAGImportErrors";
+import { PluginImportErrors } from "./PluginImportErrors";
 import { StatsCard } from "./StatsCard";
 
 export const Stats = () => {
@@ -66,6 +67,8 @@ export const Stats = () => {
         />
 
         <DAGImportErrors />
+
+        <PluginImportErrors />
 
         {queuedDagsCount > 0 ? (
           <StatsCard

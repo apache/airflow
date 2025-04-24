@@ -41,9 +41,9 @@ done
 #breeze release-management prepare-provider-distributions \
 #    --distributions-list-file ./prod_image_installed_providers.txt \
 #    --distribution-format wheel \
-#    --version-suffix-for-pypi dev0
+#    --skip-tag-check
 #
-##breeze release-management prepare-airflow-distributions --distribution-format wheel --version-suffix-for-pypi dev0
+##breeze release-management prepare-airflow-distributions --distribution-format wheel --skip-tag-check
 #
 #mv -v ./dist/*.whl ./docker-context-files && chmod a+r ./docker-context-files/*
 #

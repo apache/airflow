@@ -104,14 +104,14 @@ jobs:
       - name: "Prepare provider distributions: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --distribution-format ${{ matrix.package-format }}
+          --skip-tag-check --distribution-format ${{ matrix.package-format }}
       - name: "Prepare airflow package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-airflow-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-distributions
           --distribution-format ${{ matrix.package-format }}
       - name: "Prepare task-sdk package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-task-sdk-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-task-sdk-distributions
           --distribution-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
@@ -175,7 +175,6 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.compat.python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "true"
     if: inputs.skip-providers-tests != 'true'
@@ -198,7 +197,7 @@ jobs:
       - name: "Prepare provider distributions: wheel"
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --distribution-format wheel
+          --distribution-format wheel --skip-tag-check
       # yamllint disable rule:line-length
       - name: Remove incompatible Airflow ${{ matrix.compat.airflow-version }}:Python ${{ matrix.compat.python-version }} provider distributions
         env:

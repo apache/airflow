@@ -247,7 +247,7 @@ To package the client, clone the airflow-python-client repository and run the fo
 .. code-block:: bash
 
    breeze release-management prepare-python-client --distribution-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          --python-client-repo ./airflow-client-python
 
 .. code-block:: bash
 

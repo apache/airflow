@@ -44,6 +44,7 @@ Bug Fixes
    * ``Improve documentation building iteration (#48760)``
    * ``Prepare docs for Apr 1st wave of providers (#48828)``
    * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Prepare documentation to release common.compat 1.6.1 (#49624)``
 
 1.6.0
 .....

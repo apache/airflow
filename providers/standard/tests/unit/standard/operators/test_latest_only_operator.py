@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import operator
 
 import pytest
 import time_machine
@@ -115,9 +116,7 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
-            data_interval=DataInterval(
-                timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12) + INTERVAL
-            ),
+            data_interval=DataInterval(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12)),
             **triggered_by_kwargs,
         )
 
@@ -126,7 +125,7 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=END_DATE,
             state=State.RUNNING,
-            data_interval=DataInterval(END_DATE, END_DATE + INTERVAL),
+            data_interval=DataInterval(END_DATE + INTERVAL, END_DATE + INTERVAL),
             **triggered_by_kwargs,
         )
 
@@ -145,6 +144,7 @@ class TestLatestOnlyOperator:
                 latest_ti0.run()
 
             assert exc_info.value.tasks == [("downstream", -1)]
+            # TODO: Set state is needed until #45549 is completed.
             latest_ti0.set_state(State.SUCCESS)
             dr0.get_task_instance(task_id="downstream").set_state(State.SKIPPED)
 
@@ -156,6 +156,7 @@ class TestLatestOnlyOperator:
                 latest_ti1.run()
 
             assert exc_info.value.tasks == [("downstream", -1)]
+            # TODO: Set state is needed until #45549 is completed.
             latest_ti1.set_state(State.SUCCESS)
             dr1.get_task_instance(task_id="downstream").set_state(State.SKIPPED)
 
@@ -165,77 +166,49 @@ class TestLatestOnlyOperator:
             latest_ti2.task = latest_task
             latest_ti2.run()
 
-            latest_ti2.set_state(State.SUCCESS)
-
-            # Verify the state of the other downstream tasks
-            downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-            downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-            downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-
-            downstream_instances = get_task_instances("downstream")
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): "skipped",
-                timezone.datetime(2016, 1, 1, 12): "skipped",
-                timezone.datetime(2016, 1, 2): "success",
-            }
-
-            downstream_instances = get_task_instances("downstream_2")
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): None,
-                timezone.datetime(2016, 1, 1, 12): None,
-                timezone.datetime(2016, 1, 2): "success",
-            }
-
-            downstream_instances = get_task_instances("downstream_3")
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): "success",
-                timezone.datetime(2016, 1, 1, 12): "success",
-                timezone.datetime(2016, 1, 2): "success",
-            }
-
+            date_getter = operator.attrgetter("logical_date")
         else:
             latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+            date_getter = operator.attrgetter("execution_date")
 
-            downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-            downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-            downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        latest_instances = get_task_instances("latest")
+        exec_date_to_latest_state = {date_getter(ti): ti.state for ti in latest_instances}
+        assert exec_date_to_latest_state == {
+            timezone.datetime(2016, 1, 1): "success",
+            timezone.datetime(2016, 1, 1, 12): "success",
+            timezone.datetime(2016, 1, 2): "success",
+        }
 
-            latest_instances = get_task_instances("latest")
-            exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
-            assert exec_date_to_latest_state == {
-                timezone.datetime(2016, 1, 1): "success",
-                timezone.datetime(2016, 1, 1, 12): "success",
-                timezone.datetime(2016, 1, 2): "success",
-            }
+        # Verify the state of the other downstream tasks
+        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
-            downstream_instances = get_task_instances("downstream")
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): "skipped",
-                timezone.datetime(2016, 1, 1, 12): "skipped",
-                timezone.datetime(2016, 1, 2): "success",
-            }
+        downstream_instances = get_task_instances("downstream")
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
+            timezone.datetime(2016, 1, 1): "skipped",
+            timezone.datetime(2016, 1, 1, 12): "skipped",
+            timezone.datetime(2016, 1, 2): "success",
+        }
 
-            downstream_instances = get_task_instances("downstream_2")
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): None,
-                timezone.datetime(2016, 1, 1, 12): None,
-                timezone.datetime(2016, 1, 2): "success",
-            }
+        downstream_instances = get_task_instances("downstream_2")
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
+            timezone.datetime(2016, 1, 1): None,
+            timezone.datetime(2016, 1, 1, 12): None,
+            timezone.datetime(2016, 1, 2): "success",
+        }
 
-            downstream_instances = get_task_instances("downstream_3")
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
-            assert exec_date_to_downstream_state == {
-                timezone.datetime(2016, 1, 1): "success",
-                timezone.datetime(2016, 1, 1, 12): "success",
-                timezone.datetime(2016, 1, 2): "success",
-            }
+        downstream_instances = get_task_instances("downstream_3")
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
+            timezone.datetime(2016, 1, 1): "success",
+            timezone.datetime(2016, 1, 1, 12): "success",
+            timezone.datetime(2016, 1, 2): "success",
+        }
 
-    def test_not_skipping_external(self, dag_maker):
+    def test_not_skipping_manual(self, dag_maker):
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
         ):

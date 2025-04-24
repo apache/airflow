@@ -34,6 +34,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2025-04-24
+
+==================================================================================================  ===========  =======================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =======================================================================================
+`78615a35f0 <https://github.com/apache/airflow/commit/78615a35f04b6d7a0bf2dbb1787260ba5f4356dc>`__  2025-04-24   ``Make LatestOnlyOperator work for default data-interval-less DAGs (#49554)``
+`2e3e714f6d <https://github.com/apache/airflow/commit/2e3e714f6d9ffe3e7c7d06d1e2f50e9561f2b808>`__  2025-04-23   ``Fix wrong link in standard provider yaml file (#49660)``
+`f73f895c28 <https://github.com/apache/airflow/commit/f73f895c28bc773efb614ef80f9b95b3b9c62838>`__  2025-04-23   ``Update standard provider doc operators in core operators-and-hooks-ref.rst (#49401)``
+`8480c78602 <https://github.com/apache/airflow/commit/8480c78602d00a095d8200fc3000b3be7460ee31>`__  2025-04-21   ``Move DagIsPaused exception to standard provider (#49500)``
+`6d73ae8ab6 <https://github.com/apache/airflow/commit/6d73ae8ab6aecbf6c00ea4cb6a8d73af9bdcb0b6>`__  2025-04-19   ``Add extra-links section to standard provider (#49447)``
+`bfc567f4e6 <https://github.com/apache/airflow/commit/bfc567f4e6c0bd3cd0868f75149d4420293016d7>`__  2025-04-18   ``Use unused pytest params in standard provider tests (#49422)``
+`ddf371aa9c <https://github.com/apache/airflow/commit/ddf371aa9ccc3fc426135496aafacd3a732c1af4>`__  2025-04-18   ``Move test_sensor_helper.py to standard provider tests (#49396)``
+`863702f020 <https://github.com/apache/airflow/commit/863702f0205c276a38d106172ebff10afbe758c8>`__  2025-04-17   ``Fix static check re removing unnecessary else condition (#49415)``
+`96c6daa97c <https://github.com/apache/airflow/commit/96c6daa97c94b20b14ec5fa7f39de26b3f2d2559>`__  2025-04-18   ``feat: Add fail_when_dag_is_paused param to TriggerDagRunOperator (#48214)``
+`04dabf45a6 <https://github.com/apache/airflow/commit/04dabf45a60ec55fe715c41bbd8594d0390adf3b>`__  2025-04-17   ``Update standard provider docs with correct imports (#49395)``
+==================================================================================================  ===========  =======================================================================================
+
 1.0.0
 .....
 
@@ -42,6 +62,7 @@ Latest change: 2025-04-16
 ==================================================================================================  ===========  ===========================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===========================================================================
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
 `074294d5d7 <https://github.com/apache/airflow/commit/074294d5d7e928327927ab559988c67e6670b5ce>`__  2025-04-16   ``Conditionally add session related imports in standard provider (#49218)``
 `cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
 `0c883c5be7 <https://github.com/apache/airflow/commit/0c883c5be7c6d24768b4f54904e582b4262da4b6>`__  2025-04-13   ``Remove dag_version as a create_dagrun argument (#49148)``

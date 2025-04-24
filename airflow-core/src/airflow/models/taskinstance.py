@@ -1052,8 +1052,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         query = select(
             # Select the columns, not the ORM object, to bypass any session/ORM caching layer
-            c
-            for c in TaskInstance.__table__.columns
+            *TaskInstance.__table__.columns
         ).filter_by(
             dag_id=self.dag_id,
             run_id=self.run_id,

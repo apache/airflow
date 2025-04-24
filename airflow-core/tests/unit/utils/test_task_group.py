@@ -443,7 +443,7 @@ def test_sub_dag_task_group():
         group234 >> group6
         group234 >> task7
 
-    subdag = dag.partial_subset(task_ids="task5", include_upstream=True, include_downstream=False)
+    subset = dag.partial_subset(task_ids="task5", include_upstream=True, include_downstream=False)
 
     expected_node_id = {
         "id": None,
@@ -467,9 +467,9 @@ def test_sub_dag_task_group():
         ],
     }
 
-    assert extract_node_id(task_group_to_dict(subdag.task_group)) == expected_node_id
+    assert extract_node_id(task_group_to_dict(subset.task_group)) == expected_node_id
 
-    edges = dag_edges(subdag)
+    edges = dag_edges(subset)
     assert sorted((e["source_id"], e["target_id"]) for e in edges) == [
         ("group234.group34.downstream_join_id", "task5"),
         ("group234.group34.task3", "group234.group34.downstream_join_id"),
@@ -479,19 +479,19 @@ def test_sub_dag_task_group():
         ("task1", "group234.upstream_join_id"),
     ]
 
-    subdag_task_groups = subdag.task_group.get_task_group_dict()
-    assert subdag_task_groups.keys() == {None, "group234", "group234.group34"}
+    groups = subset.task_group.get_task_group_dict()
+    assert groups.keys() == {None, "group234", "group234.group34"}
 
     included_group_ids = {"group234", "group234.group34"}
     included_task_ids = {"group234.group34.task3", "group234.group34.task4", "task1", "task5"}
 
-    for task_group in subdag_task_groups.values():
+    for task_group in groups.values():
         assert task_group.upstream_group_ids.issubset(included_group_ids)
         assert task_group.downstream_group_ids.issubset(included_group_ids)
         assert task_group.upstream_task_ids.issubset(included_task_ids)
         assert task_group.downstream_task_ids.issubset(included_task_ids)
 
-    for task in subdag.task_group:
+    for task in subset.task_group:
         assert task.upstream_task_ids.issubset(included_task_ids)
         assert task.downstream_task_ids.issubset(included_task_ids)
 
