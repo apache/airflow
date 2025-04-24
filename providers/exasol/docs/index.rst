@@ -46,6 +46,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System Tests
+
+    System Tests <_api/tests/system/exasol/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-exasol/>
