@@ -32,6 +32,7 @@ type Props = {
 export const DagTags = ({ hideIcon = false, tags }: Props) => (
   <LimitedItemsList
     icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
+    interactive
     items={tags.map(({ name }) => (
       <RouterLink key={name} to={`/dags?tags=${name}`}>
         {name}
