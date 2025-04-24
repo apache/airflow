@@ -41,3 +41,5 @@ class ConfigResponse(BaseModel):
     audit_view_included_events: str
     test_connection: str
     dashboard_alert: list[UIAlert]
+    show_external_log_redirect: bool
+    external_log_name: str | None = None

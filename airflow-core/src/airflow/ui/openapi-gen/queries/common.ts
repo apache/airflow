@@ -1228,6 +1228,33 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
   useTaskInstanceServiceGetLogKey,
   ...(queryKey ?? [{ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }]),
 ];
+export type TaskInstanceServiceGetExternalLogUrlDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getExternalLogUrl>
+>;
+export type TaskInstanceServiceGetExternalLogUrlQueryResult<
+  TData = TaskInstanceServiceGetExternalLogUrlDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetExternalLogUrlKey = "TaskInstanceServiceGetExternalLogUrl";
+export const UseTaskInstanceServiceGetExternalLogUrlKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetExternalLogUrlKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, tryNumber }]),
+];
 export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
   ReturnType<typeof ImportErrorService.getImportError>
 >;
@@ -1334,6 +1361,16 @@ export const UsePluginServiceGetPluginsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type PluginServiceImportErrorsDefaultResponse = Awaited<ReturnType<typeof PluginService.importErrors>>;
+export type PluginServiceImportErrorsQueryResult<
+  TData = PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceImportErrorsKey = "PluginServiceImportErrors";
+export const UsePluginServiceImportErrorsKeyFn = (queryKey?: Array<unknown>) => [
+  usePluginServiceImportErrorsKey,
+  ...(queryKey ?? []),
+];
 export type PoolServiceGetPoolDefaultResponse = Awaited<ReturnType<typeof PoolService.getPool>>;
 export type PoolServiceGetPoolQueryResult<
   TData = PoolServiceGetPoolDefaultResponse,

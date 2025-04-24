@@ -1698,6 +1698,44 @@ export const prefetchUseTaskInstanceServiceGetLog = (
       }),
   });
 /**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }),
+  });
+/**
  * Get Import Error
  * Get an import error.
  * @param data The data for the request.
@@ -1844,6 +1882,16 @@ export const prefetchUsePluginServiceGetPlugins = (
   queryClient.prefetchQuery({
     queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
     queryFn: () => PluginService.getPlugins({ limit, offset }),
+  });
+/**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceImportErrors = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(),
+    queryFn: () => PluginService.importErrors(),
   });
 /**
  * Get Pool

@@ -1996,6 +1996,48 @@ export const useTaskInstanceServiceGetLogSuspense = <
     ...options,
   });
 /**
+ * Get External Log Url
+ * Get external log URL for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.mapIndex
+ * @returns ExternalLogUrlResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetExternalLogUrlSuspense = <
+  TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, tryNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData,
+    ...options,
+  });
+/**
  * Get Import Error
  * Get an import error.
  * @param data The data for the request.
@@ -2168,6 +2210,24 @@ export const usePluginServiceGetPluginsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }, queryKey),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    ...options,
+  });
+/**
+ * Import Errors
+ * @returns PluginImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceImportErrorsSuspense = <
+  TData = Common.PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceImportErrorsKeyFn(queryKey),
+    queryFn: () => PluginService.importErrors() as TData,
     ...options,
   });
 /**

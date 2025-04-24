@@ -94,6 +94,7 @@ from airflow_breeze.global_constants import (
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MULTI_PLATFORM,
+    UV_VERSION,
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.prepare_providers.provider_distributions import (
@@ -245,7 +246,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.13"
+AIRFLOW_UV_VERSION = "0.6.16"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -253,7 +254,6 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.13"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.
@@ -789,7 +789,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_hatch(
@@ -811,7 +811,7 @@ def _prepare_non_core_distributions(
         with package_version(
             version_suffix=version_suffix_for_pypi,
             package_path=root_path,
-            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
+            init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
         ):
             _build_package_with_docker(
@@ -2860,6 +2860,8 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_historical_python_version
+@option_dry_run
+@option_verbose
 def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:

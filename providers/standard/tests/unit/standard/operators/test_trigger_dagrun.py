@@ -30,7 +30,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import DagIsPaused, TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -253,8 +253,9 @@ class TestDagRunOperatorAF2:
             f.flush()
         self.f_name = f.name
 
+        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile)
         with create_session() as session:
-            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
+            session.add(self.dag_model)
             session.commit()
 
     def teardown_method(self):
@@ -734,3 +735,25 @@ class TestDagRunOperatorAF2:
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].run_ids == [run_id]
+
+    def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker):
+        """Test TriggerDagRunOperator with fail_when_dag_is_paused set to True."""
+        self.dag_model.set_is_paused(True)
+
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id="dummy_run_id",
+                reset_dag_run=False,
+                fail_when_dag_is_paused=True,
+            )
+        dag_maker.create_dagrun()
+        if AIRFLOW_V_3_0_PLUS:
+            error = DagIsPaused
+        else:
+            error = AirflowException
+        with pytest.raises(error, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

@@ -438,6 +438,7 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -502,6 +503,7 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -791,6 +793,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Response for the external log URL endpoint.
+ */
+export type ExternalLogUrlResponse = {
+  url: string;
+};
+
+/**
  * Extra Links Response.
  */
 export type ExtraLinkCollectionResponse = {
@@ -905,6 +914,22 @@ export type PatchTaskInstanceBody = {
 export type PluginCollectionResponse = {
   plugins: Array<PluginResponse>;
   total_entries: number;
+};
+
+/**
+ * Plugin Import Error Collection serializer.
+ */
+export type PluginImportErrorCollectionResponse = {
+  import_errors: Array<PluginImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Plugin Import Error serializer for responses.
+ */
+export type PluginImportErrorResponse = {
+  source: string;
+  error: string;
 };
 
 /**
@@ -1458,6 +1483,8 @@ export type ConfigResponse = {
   audit_view_included_events: string;
   test_connection: string;
   dashboard_alert: Array<UIAlert>;
+  show_external_log_redirect: boolean;
+  external_log_name?: string | null;
 };
 
 /**
@@ -1534,6 +1561,7 @@ export type DAGWithLatestDagRunsResponse = {
   last_parsed_time: string | null;
   last_expired: string | null;
   bundle_name: string | null;
+  bundle_version: string | null;
   relative_fileloc: string | null;
   fileloc: string;
   description: string | null;
@@ -2372,6 +2400,16 @@ export type GetLogData = {
 
 export type GetLogResponse = TaskInstancesLogResponse;
 
+export type GetExternalLogUrlData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  tryNumber: number;
+};
+
+export type GetExternalLogUrlResponse = ExternalLogUrlResponse;
+
 export type GetImportErrorData = {
   importErrorId: number;
 };
@@ -2409,6 +2447,8 @@ export type GetPluginsData = {
 };
 
 export type GetPluginsResponse = PluginCollectionResponse;
+
+export type ImportErrorsResponse = PluginImportErrorCollectionResponse;
 
 export type DeletePoolData = {
   poolName: string;
@@ -4627,6 +4667,37 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}": {
+    get: {
+      req: GetExternalLogUrlData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ExternalLogUrlResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/api/v2/importErrors/{import_error_id}": {
     get: {
       req: GetImportErrorData;
@@ -4724,6 +4795,24 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/api/v2/plugins/importErrors": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };

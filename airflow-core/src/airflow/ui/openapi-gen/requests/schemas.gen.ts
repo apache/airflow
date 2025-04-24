@@ -1439,6 +1439,17 @@ export const $DAGDetailsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -1737,6 +1748,7 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -1839,6 +1851,17 @@ export const $DAGResponse = {
         },
       ],
       title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
     },
     relative_fileloc: {
       anyOf: [
@@ -1993,6 +2016,7 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",
@@ -3022,6 +3046,19 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
+export const $ExternalLogUrlResponse = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ExternalLogUrlResponse",
+  description: "Response for the external log URL endpoint.",
+} as const;
+
 export const $ExtraLinkCollectionResponse = {
   properties: {
     extra_links: {
@@ -3424,6 +3461,43 @@ export const $PluginCollectionResponse = {
   required: ["plugins", "total_entries"],
   title: "PluginCollectionResponse",
   description: "Plugin Collection serializer.",
+} as const;
+
+export const $PluginImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/PluginImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "PluginImportErrorCollectionResponse",
+  description: "Plugin Import Error Collection serializer.",
+} as const;
+
+export const $PluginImportErrorResponse = {
+  properties: {
+    source: {
+      type: "string",
+      title: "Source",
+    },
+    error: {
+      type: "string",
+      title: "Error",
+    },
+  },
+  type: "object",
+  required: ["source", "error"],
+  title: "PluginImportErrorResponse",
+  description: "Plugin Import Error serializer for responses.",
 } as const;
 
 export const $PluginResponse = {
@@ -5805,6 +5879,21 @@ export const $ConfigResponse = {
       type: "array",
       title: "Dashboard Alert",
     },
+    show_external_log_redirect: {
+      type: "boolean",
+      title: "Show External Log Redirect",
+    },
+    external_log_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Log Name",
+    },
   },
   type: "object",
   required: [
@@ -5825,6 +5914,7 @@ export const $ConfigResponse = {
     "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
+    "show_external_log_redirect",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",
@@ -6070,6 +6160,17 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Bundle Name",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     relative_fileloc: {
       anyOf: [
         {
@@ -6242,6 +6343,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "last_parsed_time",
     "last_expired",
     "bundle_name",
+    "bundle_version",
     "relative_fileloc",
     "fileloc",
     "description",

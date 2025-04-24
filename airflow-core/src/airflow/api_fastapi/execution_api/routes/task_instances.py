@@ -131,13 +131,17 @@ def ti_run(
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
 
+    # don't update start date when resuming from deferral
+    if ti.next_kwargs:
+        data.pop("start_date")
+
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     previous_state = ti.state
 
     # If we are already running, but this is a duplicate request from the same client return the same OK
     # -- it's possible there was a network glitch and they never got the response
-    if previous_state == TaskInstanceState.RUNNING and (ti["hostname"], ti["unixname"], ti["pid"]) == (
+    if previous_state == TaskInstanceState.RUNNING and (ti.hostname, ti.unixname, ti.pid) == (
         ti_run_payload.hostname,
         ti_run_payload.unixname,
         ti_run_payload.pid,
