@@ -194,14 +194,6 @@ option_airflow_site_directory = click.option(
     help="Local directory path of cloned airflow-site repo.",
     required=True,
 )
-option_chicken_egg_providers = click.option(
-    "--chicken-egg-providers",
-    default="",
-    help="List of chicken-egg provider distributions - "
-    "those that have airflow_version >= current_version and should "
-    "be installed in CI from locally built packages with >= current_version.dev0 ",
-    envvar="CHICKEN_EGG_PROVIDERS",
-)
 option_debug_release_management = click.option(
     "--debug",
     is_flag=True,
@@ -1437,7 +1429,6 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
-@option_chicken_egg_providers
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1445,7 +1436,6 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
-    chicken_egg_providers: str,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1490,7 +1480,6 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
-                chicken_egg_providers=chicken_egg_providers,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1509,7 +1498,6 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
-            chicken_egg_providers=chicken_egg_providers,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -2056,19 +2044,6 @@ def add_back_references(
     )
 
 
-def _add_chicken_egg_providers_to_build_args(
-    python_build_args: dict[str, str], chicken_egg_providers: str, airflow_version: str
-):
-    if chicken_egg_providers and is_pre_release(airflow_version):
-        get_console().print(
-            f"[info]Adding chicken egg providers to build args as {airflow_version} is "
-            f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
-        )
-        python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
-        python_build_args["USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS"] = "true"
-        python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
-
-
 @release_management.command(
     name="clean-old-provider-artifacts",
     help="Cleans the old provider artifacts",
@@ -2124,7 +2099,6 @@ def clean_old_provider_artifacts(
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
 @option_dry_run
-@option_chicken_egg_providers
 @click.option(
     "--dockerhub-repo",
     default=APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -2134,7 +2108,7 @@ def clean_old_provider_artifacts(
 @click.option(
     "--limit-python",
     type=BetterChoice(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS),
-    help="Specific python to build slim images for (if not specified - the images are built for all"
+    help="Specific python to build images for (if not specified - the images are built for all"
     " available python versions)",
 )
 @click.option(
@@ -2173,7 +2147,6 @@ def release_prod_images(
     commit_sha: str | None,
     skip_latest: bool,
     include_pre_release: bool,
-    chicken_egg_providers: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -2215,6 +2188,11 @@ def release_prod_images(
             "See https://github.com/regclient/regclient/blob/main/docs/regctl.md for installation info."
         )
         sys.exit(1)
+    from packaging.version import Version
+
+    include_pre_release = include_pre_release or Version(airflow_version).is_prerelease
+    if include_pre_release:
+        get_console().print("[warning]Including pre-releases when considering dependencies.[/]")
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if limit_python is None else [limit_python]
     for python in python_versions:
         if slim_images:
@@ -2224,15 +2202,14 @@ def release_prod_images(
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
                 "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
+                "INSTALL_DISTRIBUTIONS_FROM_CONTEXT": "false",
+                "DOCKER_CONTEXT_FILES": "./docker-context-files",
             }
             if commit_sha:
                 slim_build_args["COMMIT_SHA"] = commit_sha
             get_console().print(f"[info]Building slim {airflow_version} image for Python {python}[/]")
             python_build_args = deepcopy(slim_build_args)
             slim_image_name = f"{dockerhub_repo}:slim-{airflow_version}-python{python}"
-            _add_chicken_egg_providers_to_build_args(
-                python_build_args, chicken_egg_providers, airflow_version
-            )
             docker_buildx_command = [
                 "docker",
                 "buildx",
@@ -2260,12 +2237,10 @@ def release_prod_images(
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
                 "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
+                "DOCKER_CONTEXT_FILES": "./docker-context-files",
             }
             if commit_sha:
                 regular_build_args["COMMIT_SHA"] = commit_sha
-            _add_chicken_egg_providers_to_build_args(
-                regular_build_args, chicken_egg_providers, airflow_version
-            )
             docker_buildx_command = [
                 "docker",
                 "buildx",
