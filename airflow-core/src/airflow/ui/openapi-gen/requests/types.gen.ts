@@ -577,6 +577,7 @@ export type DAGRunResponse = {
   };
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
+  bundle_version: string | null;
 };
 
 /**
