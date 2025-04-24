@@ -41,7 +41,7 @@ def all_access_test_client():
     "method, path",
     [
         (method, route.path)
-        for route in create_app().routes
+        for route in sorted(create_app().routes, key=lambda r: r.path)  # type: ignore[attr-defined]
         if hasattr(route, "path") and hasattr(route, "methods")
         for method in route.methods
     ],
