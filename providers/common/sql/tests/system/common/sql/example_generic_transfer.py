@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,34 +17,43 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-
 from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
+from airflow.utils import timezone
 
-from system.openlineage.operator import OpenLineageTestOperator
+connection_args = {
+    "conn_id": "airflow_db",
+    "conn_type": "Postgres",
+    "host": "postgres",
+    "schema": "postgres",
+    "login": "postgres",
+    "password": "postgres",
+    "port": 5432,
+}
 
-
-def do_nothing():
-    pass
-
-
-# Instantiate the DAG
 with DAG(
-    "openlineage_basic_dag",
-    start_date=datetime(2021, 1, 1),
+    "example_generic_transfer",
+    description="Example DAG for GenericTransfer.",
+    default_args=connection_args,
+    start_date=timezone.datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
 ) as dag:
-    nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
+    # [START howto_operator_generic_transfer]
+    sql = "SELECT * FROM connection LIMIT 10;"
 
-    check_events = OpenLineageTestOperator(
-        task_id="check_events",
-        file_path=str(Path(__file__).parent / "example_openlineage.json"),
+    generic_transfer = GenericTransfer(
+        task_id="generic_transfer",
+        preoperator=[
+            "DROP TABLE IF EXISTS test_mysql_to_mysql",
+            "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
+        ],
+        source_conn_id="airflow_db",
+        destination_conn_id="airflow_db",
+        destination_table="test_mysql_to_mysql",
+        sql=sql,
     )
-
-    nothing_task >> check_events
+    # [END howto_operator_generic_transfer]
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

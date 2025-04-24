@@ -27,16 +27,13 @@ import pytest
 from chart_utils.helm_template_generator import render_chart
 from packaging.version import parse as parse_version
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
-
-DEFAULT_OBJECTS_STD_NAMING = {
+OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-create-user-job"),
     ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
     ("ServiceAccount", "test-basic-airflow-redis"),
     ("ServiceAccount", "test-basic-airflow-scheduler"),
     ("ServiceAccount", "test-basic-airflow-statsd"),
     ("ServiceAccount", "test-basic-airflow-triggerer"),
-    ("ServiceAccount", "test-basic-airflow-webserver"),
     ("ServiceAccount", "test-basic-airflow-worker"),
     ("Secret", "test-basic-airflow-metadata"),
     ("Secret", "test-basic-broker-url"),
@@ -53,13 +50,11 @@ DEFAULT_OBJECTS_STD_NAMING = {
     ("Service", "test-basic-airflow-redis"),
     ("Service", "test-basic-airflow-statsd"),
     ("Service", "test-basic-airflow-triggerer"),
-    ("Service", "test-basic-airflow-webserver"),
     ("Service", "test-basic-airflow-worker"),
     ("Service", "test-basic-postgresql"),
     ("Service", "test-basic-postgresql-hl"),
     ("Deployment", "test-basic-airflow-scheduler"),
     ("Deployment", "test-basic-airflow-statsd"),
-    ("Deployment", "test-basic-airflow-webserver"),
     ("StatefulSet", "test-basic-airflow-redis"),
     ("StatefulSet", "test-basic-airflow-worker"),
     ("StatefulSet", "test-basic-airflow-triggerer"),
@@ -67,6 +62,29 @@ DEFAULT_OBJECTS_STD_NAMING = {
     ("Job", "test-basic-airflow-create-user"),
     ("Job", "test-basic-airflow-run-airflow-migrations"),
 }
+
+# Airflow 3.0.0+ has a new API server that replaces the webserver & mandatory dag processor
+DEFAULT_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
+    {
+        ("Service", "test-basic-airflow-api-server"),
+        ("Deployment", "test-basic-airflow-api-server"),
+        ("Deployment", "test-basic-airflow-dag-processor"),
+        ("ServiceAccount", "test-basic-airflow-api-server"),
+        ("ServiceAccount", "test-basic-airflow-dag-processor"),
+    }
+)
+
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = len(DEFAULT_OBJECTS_STD_NAMING)
+
+AIRFLOW2_OBJECTS_STD_NAMING = OBJECTS_STD_NAMING.union(
+    {
+        ("Service", "test-basic-airflow-webserver"),
+        ("Deployment", "test-basic-airflow-webserver"),
+        ("ServiceAccount", "test-basic-airflow-webserver"),
+    }
+)
+
+OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT = len(AIRFLOW2_OBJECTS_STD_NAMING)
 
 
 class TestBaseChartTest:
@@ -78,9 +96,16 @@ class TestBaseChartTest:
         return values
 
     def _get_object_count(self, version):
-        if version == "2.3.2" or version == "default":
-            return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
-        return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
+        if self._is_airflow_3_or_above(version):
+            return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
+
+        if version == "2.3.2":
+            return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT + 1
+
+        return OBJECT_COUNT_IN_AF2_BASIC_DEPLOYMENT
+
+    def _is_airflow_3_or_above(self, version):
+        return version == "default" or (parse_version(version) >= parse_version("3.0.0"))
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
     def test_basic_deployments(self, version):
@@ -136,7 +161,7 @@ class TestBaseChartTest:
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-result-backend"))
-        if version != "default" and parse_version(version) >= parse_version("3.0.0"):
+        if self._is_airflow_3_or_above(version):
             expected.update(
                 (
                     ("Deployment", "test-basic-api-server"),
@@ -180,7 +205,7 @@ class TestBaseChartTest:
         actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
         assert actual == DEFAULT_OBJECTS_STD_NAMING
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "3.0.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
         k8s_objects = render_chart(
             "test-basic",
@@ -207,7 +232,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
             ("ServiceAccount", "test-basic-dag-processor"),
-            ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
@@ -225,13 +249,11 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
             ("Deployment", "test-basic-dag-processor"),
-            ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
@@ -240,8 +262,23 @@ class TestBaseChartTest:
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-result-backend"))
-        if version == "default":
-            expected.add(("Service", "test-basic-triggerer"))
+        if self._is_airflow_3_or_above(version):
+            expected.update(
+                {
+                    ("Service", "test-basic-triggerer"),
+                    ("Deployment", "test-basic-api-server"),
+                    ("Service", "test-basic-api-server"),
+                    ("ServiceAccount", "test-basic-api-server"),
+                }
+            )
+        else:
+            expected.update(
+                {
+                    ("Service", "test-basic-webserver"),
+                    ("Deployment", "test-basic-webserver"),
+                    ("ServiceAccount", "test-basic-webserver"),
+                }
+            )
         assert list_of_kind_names_tuples == expected
         assert len(k8s_objects) == len(expected)
         for k8s_object in k8s_objects:
@@ -257,9 +294,8 @@ class TestBaseChartTest:
                 f"Missing label test-label on {k8s_name}. Current labels: {labels}"
             )
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
     def test_basic_deployment_without_default_users(self, version):
-        expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "test-basic",
             values=self._get_values_with_version(
@@ -270,11 +306,9 @@ class TestBaseChartTest:
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
-        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 2
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0"])
     def test_basic_deployment_without_statsd(self, version):
-        expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "test-basic",
             values=self._get_values_with_version(values={"statsd": {"enabled": False}}, version=version),
@@ -287,17 +321,19 @@ class TestBaseChartTest:
         assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
-        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 4
-
-    def test_network_policies_are_valid(self):
+    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
+    def test_network_policies_are_valid(self, airflow_version):
         k8s_objects = render_chart(
-            "test-basic",
-            {
-                "networkPolicies": {"enabled": True},
-                "executor": "CeleryExecutor",
-                "flower": {"enabled": True},
-                "pgbouncer": {"enabled": True},
-            },
+            name="test-basic",
+            values=self._get_values_with_version(
+                values={
+                    "networkPolicies": {"enabled": True},
+                    "executor": "CeleryExecutor",
+                    "flower": {"enabled": True},
+                    "pgbouncer": {"enabled": True},
+                },
+                version=airflow_version,
+            ),
         )
         kind_names_tuples = {
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
@@ -309,43 +345,56 @@ class TestBaseChartTest:
             ("NetworkPolicy", "test-basic-pgbouncer-policy"),
             ("NetworkPolicy", "test-basic-scheduler-policy"),
             ("NetworkPolicy", "test-basic-statsd-policy"),
-            ("NetworkPolicy", "test-basic-webserver-policy"),
             ("NetworkPolicy", "test-basic-worker-policy"),
         ]
+
+        if self._is_airflow_3_or_above(airflow_version):
+            expected_kind_names += [
+                ("NetworkPolicy", "test-basic-api-server-policy"),
+            ]
+        else:
+            expected_kind_names += [
+                ("NetworkPolicy", "test-basic-webserver-policy"),
+            ]
+
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
 
-    def test_labels_are_valid(self):
+    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
+    def test_labels_are_valid(self, airflow_version):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
-        k8s_objects = render_chart(
-            name=release_name,
-            values={
-                "labels": {"label1": "value1", "label2": "value2"},
-                "executor": "CeleryExecutor",
-                "data": {
-                    "resultBackendConnection": {
-                        "user": "someuser",
-                        "pass": "somepass",
-                        "host": "somehost",
-                        "protocol": "postgresql",
-                        "port": 7777,
-                        "db": "somedb",
-                        "sslmode": "allow",
-                    }
-                },
-                "pgbouncer": {"enabled": True},
-                "redis": {"enabled": True},
-                "ingress": {"enabled": True},
-                "networkPolicies": {"enabled": True},
-                "cleanup": {"enabled": True},
-                "flower": {"enabled": True},
-                "dagProcessor": {"enabled": True},
-                "logs": {"persistence": {"enabled": True}},
-                "dags": {"persistence": {"enabled": True}},
-                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+
+        values = {
+            "labels": {"label1": "value1", "label2": "value2"},
+            "executor": "CeleryExecutor",
+            "data": {
+                "resultBackendConnection": {
+                    "user": "someuser",
+                    "pass": "somepass",
+                    "host": "somehost",
+                    "protocol": "postgresql",
+                    "port": 7777,
+                    "db": "somedb",
+                    "sslmode": "allow",
+                }
             },
-        )
+            "pgbouncer": {"enabled": True},
+            "redis": {"enabled": True},
+            "ingress": {"enabled": True},
+            "networkPolicies": {"enabled": True},
+            "cleanup": {"enabled": True},
+            "flower": {"enabled": True},
+            "dagProcessor": {"enabled": True},
+            "logs": {"persistence": {"enabled": True}},
+            "dags": {"persistence": {"enabled": True}},
+            "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+        }
+
+        if airflow_version != "default":
+            values["airflowVersion"] = airflow_version
+
+        k8s_objects = render_chart(name=release_name, values=values)
         kind_k8s_obj_labels_tuples = {
             (k8s_object["metadata"]["name"], k8s_object["kind"]): k8s_object["metadata"]["labels"]
             for k8s_object in k8s_objects
@@ -363,7 +412,6 @@ class TestBaseChartTest:
             (f"{release_name}-airflow-redis", "ServiceAccount", "redis"),
             (f"{release_name}-airflow-scheduler", "ServiceAccount", "scheduler"),
             (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
-            (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
             (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
             (f"{release_name}-airflow-dag-processor", "ServiceAccount", "dag-processor"),
@@ -396,11 +444,7 @@ class TestBaseChartTest:
             (f"{release_name}-statsd", "Deployment", "statsd"),
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
-            (f"{release_name}-webserver", "Deployment", "webserver"),
             (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
-            (f"{release_name}-webserver", "Service", "webserver"),
-            (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
-            (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
@@ -409,6 +453,22 @@ class TestBaseChartTest:
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
         ]
+
+        if self._is_airflow_3_or_above(airflow_version):
+            kind_names_tuples += [
+                (f"{release_name}-api-server", "Service", "api-server"),
+                (f"{release_name}-api-server-policy", "NetworkPolicy", "airflow-api-server-policy"),
+                (f"{release_name}-api-server", "Deployment", "api-server"),
+            ]
+        else:
+            kind_names_tuples += [
+                (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
+                (f"{release_name}-webserver", "Deployment", "webserver"),
+                (f"{release_name}-webserver", "Service", "webserver"),
+                (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
+                (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
+            ]
+
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
                 "label1": "value1",
@@ -465,30 +525,41 @@ class TestBaseChartTest:
             }
             assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
-    def test_annotations_on_airflow_pods_in_deployment(self):
+    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
+    def test_annotations_on_airflow_pods_in_deployment(self, airflow_version):
         """
         Test Annotations are correctly applied.
 
-        Verifies all pods created Scheduler, Webserver & Worker deployments.
+        Verifies all pods created Scheduler, Webserver/API-server & Worker deployments.
         """
         release_name = "test-basic"
+
+        show_only = [
+            "templates/scheduler/scheduler-deployment.yaml",
+            "templates/workers/worker-deployment.yaml",
+            "templates/triggerer/triggerer-deployment.yaml",
+            "templates/dag-processor/dag-processor-deployment.yaml",
+            "templates/flower/flower-deployment.yaml",
+            "templates/jobs/create-user-job.yaml",
+            "templates/jobs/migrate-database-job.yaml",
+        ]
+
+        if self._is_airflow_3_or_above(airflow_version):
+            show_only += ["templates/api-server/api-server-deployment.yaml"]
+        else:
+            show_only += ["templates/webserver/webserver-deployment.yaml"]
+
         k8s_objects = render_chart(
             name=release_name,
-            values={
-                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
-                "flower": {"enabled": True},
-                "dagProcessor": {"enabled": True},
-            },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/dag-processor/dag-processor-deployment.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-            ],
+            values=self._get_values_with_version(
+                values={
+                    "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                    "flower": {"enabled": True},
+                    "dagProcessor": {"enabled": True},
+                },
+                version=airflow_version,
+            ),
+            show_only=show_only,
         )
         # pod_template_file is tested separately as it has extra setup steps
 

@@ -35,8 +35,12 @@ with DAG(
     schedule="@once",
     tags=["example"],
 ) as dag:
+    # [START howto_operator_trigger_dagrun]
+
     trigger = TriggerDagRunOperator(
         task_id="test_trigger_dagrun",
         trigger_dag_id="example_trigger_target_dag",  # Ensure this equals the dag_id of the DAG to trigger
         conf={"message": "Hello World"},
     )
+
+    # [END howto_operator_trigger_dagrun]
