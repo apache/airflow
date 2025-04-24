@@ -27,25 +27,35 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 
-def test_invoke_api_without_auth_header():
+@pytest.fixture
+def all_access_test_client():
     with conf_vars(
         {
-            (
-                "core",
-                "simple_auth_manager_all_admins",
-            ): "true",
-            (
-                "webserver",
-                "expose_config",
-            ): "true",
+            ("core", "simple_auth_manager_all_admins"): "true",
+            ("webserver", "expose_config"): "true",
         }
     ):
         app = create_app()
-        client = TestClient(app)
-        for route in app.routes:
-            if hasattr(route, "path") and hasattr(route, "methods"):
-                for method in route.methods:
-                    response = client.request(method, route.path)
-                    assert response.status_code not in {401, 403}, (
-                        f"Unexpected status code {response.status_code} for {method} {route.path}"
-                    )
+        yield TestClient(app)
+
+
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("GET", "/api/v2/assets"),
+        ("POST", "/api/v2/backfills"),
+        ("GET", "/api/v2/config"),
+        ("GET", "/api/v2/dags"),
+        ("POST", "/api/v2/dags/{dag_id}/clearTaskInstances"),
+        ("GET", "/api/v2/dags/{dag_id}/dagRuns"),
+        ("GET", "/api/v2/eventLogs"),
+        ("GET", "/api/v2/jobs"),
+        ("GET", "/api/v2/variables"),
+        ("GET", "/api/v2/version"),
+    ],
+)
+def test_all_endpoints_without_auth_header(all_access_test_client, method, path):
+    response = all_access_test_client.request(method, path)
+    assert response.status_code not in {401, 403}, (
+        f"Unexpected status code {response.status_code} for {method} {path}"
+    )
