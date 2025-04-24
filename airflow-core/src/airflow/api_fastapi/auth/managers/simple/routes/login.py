@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Request, status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -57,10 +57,14 @@ def create_token_all_admins() -> LoginResponse:
     status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN]),
 )
-def login_all_admins() -> RedirectResponse:
+def login_all_admins(request: Request) -> RedirectResponse:
     """Login the user with no credentials."""
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"))
-    secure = conf.has_option("api", "ssl_cert")
+
+    # The default config has this as an empty string, so we can't use `has_option`.
+    # And look at the request info (needs `--proxy-headers` flag to api-server)
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+
     response.set_cookie(
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
