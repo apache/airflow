@@ -2245,23 +2245,23 @@ export type GetMappedTaskInstancesData = {
 
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
 
-export type GetTaskInstanceDependenciesData = {
+export type GetTaskInstanceDependenciesByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
 };
 
-export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesByMapIndexResponse = TaskDependencyCollectionResponse;
 
-export type GetTaskInstanceDependencies1Data = {
+export type GetTaskInstanceDependenciesData = {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
 };
 
-export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
+export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
   dagId: string;
@@ -2290,7 +2290,7 @@ export type GetMappedTaskInstanceData = {
 
 export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
-export type PatchTaskInstance1Data = {
+export type PatchTaskInstanceByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
@@ -2299,7 +2299,7 @@ export type PatchTaskInstance1Data = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstance1Response = TaskInstanceResponse;
+export type PatchTaskInstanceByMapIndexResponse = TaskInstanceResponse;
 
 export type GetTaskInstancesData = {
   dagId: string;
@@ -2365,7 +2365,7 @@ export type PostClearTaskInstancesData = {
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
-export type PatchTaskInstanceDryRunData = {
+export type PatchTaskInstanceDryRunByMapIndexData = {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
@@ -2374,9 +2374,9 @@ export type PatchTaskInstanceDryRunData = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+export type PatchTaskInstanceDryRunByMapIndexResponse = TaskInstanceCollectionResponse;
 
-export type PatchTaskInstanceDryRun1Data = {
+export type PatchTaskInstanceDryRunData = {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
@@ -2385,7 +2385,7 @@ export type PatchTaskInstanceDryRun1Data = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchTaskInstanceDryRun1Response = TaskInstanceCollectionResponse;
+export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -4277,7 +4277,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
     get: {
-      req: GetTaskInstanceDependenciesData;
+      req: GetTaskInstanceDependenciesByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4304,7 +4304,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
     get: {
-      req: GetTaskInstanceDependencies1Data;
+      req: GetTaskInstanceDependenciesData;
       res: {
         /**
          * Successful Response
@@ -4410,7 +4410,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: PatchTaskInstance1Data;
+      req: PatchTaskInstanceByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4580,7 +4580,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run": {
     patch: {
-      req: PatchTaskInstanceDryRunData;
+      req: PatchTaskInstanceDryRunByMapIndexData;
       res: {
         /**
          * Successful Response
@@ -4611,7 +4611,7 @@ export type $OpenApiTs = {
   };
   "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run": {
     patch: {
-      req: PatchTaskInstanceDryRun1Data;
+      req: PatchTaskInstanceDryRunData;
       res: {
         /**
          * Successful Response

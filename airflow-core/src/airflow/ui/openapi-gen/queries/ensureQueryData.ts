@@ -1263,7 +1263,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstancesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1278,13 +1278,14 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1297,7 +1298,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1312,13 +1313,13 @@ export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
   },
 ) =>
   queryClient.ensureQueryData({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries

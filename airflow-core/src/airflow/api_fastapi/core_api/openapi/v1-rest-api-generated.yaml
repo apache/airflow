@@ -4800,7 +4800,7 @@ paths:
       - Task Instance
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
-      operationId: get_task_instance_dependencies
+      operationId: get_task_instance_dependencies_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -5125,7 +5125,7 @@ paths:
       - Task Instance
       summary: Patch Task Instance
       description: Update a task instance.
-      operationId: patch_task_instance
+      operationId: patch_task_instance_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
@@ -5718,7 +5718,7 @@ paths:
       - Task Instance
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
-      operationId: patch_task_instance_dry_run
+      operationId: patch_task_instance_dry_run_by_map_index
       security:
       - OAuth2PasswordBearer: []
       parameters:
