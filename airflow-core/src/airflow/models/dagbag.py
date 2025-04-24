@@ -505,8 +505,8 @@ class DagBag(LoggingMixin):
         """
         Add the DAG into the bag.
 
-        :raises: AirflowDagCycleException if a cycle is detected in this dag or its subdags.
-        :raises: AirflowDagDuplicatedIdException if this dag or its subdags already exists in the bag.
+        :raises: AirflowDagCycleException if a cycle is detected.
+        :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
         check_cycle(dag)  # throws if a task cycle is found
 
