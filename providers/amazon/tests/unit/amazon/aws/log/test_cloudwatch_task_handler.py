@@ -30,7 +30,6 @@ import pytest
 import time_machine
 from moto import mock_aws
 from pydantic import TypeAdapter
-from pydantic_core import TzInfo
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -148,23 +147,12 @@ class TestCloudRemoteLogIO:
             stream_name = self.task_log_path.replace(":", "_")
             logs = self.subject.read(stream_name, self.ti)
 
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.utils.log.file_task_handler import StructuredLogMessage
+            metadata, logs = logs
 
-                metadata, logs = logs
-
-                results = TypeAdapter(list[StructuredLogMessage]).dump_python(logs)
-                assert metadata == [
-                    f"Reading remote log from Cloudwatch log_group: log_group_name log_stream: {stream_name}"
-                ]
-                assert results == [
-                    {
-                        "event": "Hi",
-                        "foo": "bar",
-                        "level": "info",
-                        "timestamp": datetime(2025, 3, 27, 21, 58, 1, 2000, tzinfo=TzInfo(0)),
-                    },
-                ]
+            assert metadata == [
+                f"Reading remote log from Cloudwatch log_group: log_group_name log_stream: {stream_name}"
+            ]
+            assert logs == ['[2025-03-27T21:58:01Z] {"foo": "bar", "event": "Hi", "level": "info"}']
 
     def test_event_to_str(self):
         handler = self.subject
