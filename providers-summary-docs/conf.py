@@ -60,8 +60,6 @@ from docs.utils.conf_constants import (
 PACKAGE_NAME = "apache-airflow-providers"
 PROVIDERS_SUMMARY_DOCS_PATH = AIRFLOW_REPO_ROOT_PATH / "providers-summary-docs"
 
-conf_py_path = f"/docs/{PACKAGE_NAME}/"
-
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
 PACKAGE_VERSION = "stable"
@@ -166,6 +164,7 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+conf_py_path = "/providers-summary-docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
