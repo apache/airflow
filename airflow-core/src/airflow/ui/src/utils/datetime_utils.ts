@@ -23,3 +23,17 @@ export const getDuration = (startDate: string | null, endDate: string | null) =>
     .duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined))
     .asSeconds()
     .toFixed(2);
+
+export const getFormattedDateTime = () => new Date().toISOString().slice(0, 16);
+
+export const getComplementaryDate = (date: string, isStartDate: boolean) => {
+  if (!date) {
+    return "";
+  }
+
+  const dateObj = dayjs(date);
+
+  return isStartDate
+    ? dateObj.add(1, "day").format("YYYY-MM-DDTHH:mm")
+    : dateObj.subtract(1, "day").format("YYYY-MM-DDTHH:mm");
+};
