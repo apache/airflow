@@ -26,6 +26,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_configuration
 from airflow.configuration import conf
 from airflow.settings import DASHBOARD_UIALERTS
+from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
@@ -56,12 +57,15 @@ def get_configs() -> ConfigResponse:
 
     config = {key: conf_dict["webserver"].get(key) for key in WEBSERVER_CONFIG_KEYS}
 
+    task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("webserver", "instance_name", fallback="Airflow"),
         "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
         "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "dashboard_alert": DASHBOARD_UIALERTS,
+        "show_external_log_redirect": task_log_reader.supports_external_link,
+        "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
     }
 
     config.update({key: value for key, value in additional_config.items()})

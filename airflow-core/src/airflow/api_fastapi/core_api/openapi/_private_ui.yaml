@@ -595,6 +595,7 @@ components:
       properties:
         id:
           type: integer
+          minimum: 0.0
           title: Id
         dag_id:
           type: string
@@ -764,6 +765,14 @@ components:
             $ref: '#/components/schemas/UIAlert'
           type: array
           title: Dashboard Alert
+        show_external_log_redirect:
+          type: boolean
+          title: Show External Log Redirect
+        external_log_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Log Name
       type: object
       required:
       - navbar_color
@@ -783,6 +792,7 @@ components:
       - audit_view_included_events
       - test_connection
       - dashboard_alert
+      - show_external_log_redirect
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:

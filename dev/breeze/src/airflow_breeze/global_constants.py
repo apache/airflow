@@ -64,6 +64,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "gremlin",
     "kafka",
     "mongo",
     "mssql",
@@ -353,6 +354,7 @@ DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
 FLOWER_HOST_PORT = "25555"
+GREMLIN_HOST_PORT = "8182"
 MSSQL_HOST_PORT = "21433"
 MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
