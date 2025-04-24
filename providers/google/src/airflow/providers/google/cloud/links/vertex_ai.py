@@ -54,6 +54,10 @@ VERTEX_AI_PIPELINE_JOB_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/pipelines/runs/{pipeline_id}?project={project_id}"
 )
 VERTEX_AI_PIPELINE_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/pipelines/runs?project={project_id}"
+VERTEX_AI_RAY_CLUSTER_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{location}/ray-clusters/{cluster_id}?project={project_id}"
+)
+VERTEX_AI_RAY_CLUSTER_LIST_LINK = VERTEX_AI_BASE_LINK + "/ray?project={project_id}"
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -365,6 +369,51 @@ class VertexAIPipelineJobListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=VertexAIPipelineJobListLink.key,
+            value={
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIRayClusterLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Ray Cluster link."""
+
+    name = "Ray Cluster"
+    key = "ray_cluster_conf"
+    format_str = VERTEX_AI_RAY_CLUSTER_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        cluster_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIRayClusterLink.key,
+            value={
+                "location": task_instance.location,
+                "cluster_id": cluster_id,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIRayClusterListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI Ray Cluster List link."""
+
+    name = "Ray Cluster List"
+    key = "ray_cluster_list_conf"
+    format_str = VERTEX_AI_RAY_CLUSTER_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIRayClusterListLink.key,
             value={
                 "project_id": task_instance.project_id,
             },
