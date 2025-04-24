@@ -9623,6 +9623,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9696,6 +9699,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -9768,6 +9772,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9866,6 +9873,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
