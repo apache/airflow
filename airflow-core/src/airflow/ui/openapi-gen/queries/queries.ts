@@ -446,7 +446,7 @@ export const useBackfillServiceGetBackfill = <
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -3645,7 +3645,7 @@ export const useBackfillServicePauseBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3656,7 +3656,7 @@ export const useBackfillServicePauseBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({
@@ -3681,7 +3681,7 @@ export const useBackfillServiceUnpauseBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3692,7 +3692,7 @@ export const useBackfillServiceUnpauseBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({
@@ -3717,7 +3717,7 @@ export const useBackfillServiceCancelBackfill = <
       TData,
       TError,
       {
-        backfillId: unknown;
+        backfillId: number;
       },
       TContext
     >,
@@ -3728,7 +3728,7 @@ export const useBackfillServiceCancelBackfill = <
     TData,
     TError,
     {
-      backfillId: unknown;
+      backfillId: number;
     },
     TContext
   >({

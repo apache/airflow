@@ -951,7 +951,8 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -997,6 +998,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1048,6 +1051,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1099,6 +1104,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -7145,6 +7152,7 @@ components:
       properties:
         id:
           type: integer
+          minimum: 0.0
           title: Id
         dag_id:
           type: string
