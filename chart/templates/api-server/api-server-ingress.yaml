@@ -21,7 +21,7 @@
 ## Airflow API Server Ingress
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-{{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+{{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -36,13 +36,13 @@ metadata:
     {{- if or (.Values.labels) (.Values.apiServer.labels) }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- with .Values.ingress.web.annotations }}
+  {{- with .Values.ingress.apiServer.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and .Values.ingress.web.hosts (.Values.ingress.web.hosts | first | kindIs "string" | not) }}
+  {{- if and .Values.ingress.apiServer.hosts (.Values.ingress.apiServer.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
-  {{- range .Values.ingress.web.hosts }}
+  {{- range .Values.ingress.apiServer.hosts }}
   {{- if .tls }}
   {{- if .tls.enabled }}
   {{- $anyTlsHosts = true -}}
@@ -51,7 +51,7 @@ spec:
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
-  {{- range .Values.ingress.web.hosts }}
+  {{- range .Values.ingress.apiServer.hosts }}
   {{- if .tls }}
   {{- if .tls.enabled }}
     - hosts:
@@ -61,17 +61,17 @@ spec:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- else if .Values.ingress.web.tls.enabled }}
+  {{- else if .Values.ingress.apiServer.tls.enabled }}
   tls:
     - hosts:
-        {{- .Values.ingress.web.hosts | default (list .Values.ingress.web.host) | toYaml | nindent 8 }}
-      secretName: {{ .Values.ingress.web.tls.secretName }}
+        {{- .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) | toYaml | nindent 8 }}
+      secretName: {{ .Values.ingress.apiServer.tls.secretName }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
+    {{- range .Values.ingress.apiServer.hosts | default (list .Values.ingress.apiServer.host) }}
     - http:
         paths:
-          {{- range $.Values.ingress.web.precedingPaths }}
+          {{- range $.Values.ingress.apiServer.precedingPaths }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
@@ -85,11 +85,11 @@ spec:
                 name: {{ $fullname }}-api-server
                 port:
                   name: airflow-ui
-            {{- if $.Values.ingress.web.path }}
-            path: {{ $.Values.ingress.web.path }}
-            pathType: {{ $.Values.ingress.web.pathType }}
+            {{- if $.Values.ingress.apiServer.path }}
+            path: {{ $.Values.ingress.apiServer.path }}
+            pathType: {{ $.Values.ingress.apiServer.pathType }}
             {{- end }}
-          {{- range $.Values.ingress.web.succeedingPaths }}
+          {{- range $.Values.ingress.apiServer.succeedingPaths }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
@@ -106,8 +106,8 @@ spec:
       host: {{ tpl $hostname $ | quote }}
       {{- end }}
     {{- end }}
-  {{- if .Values.ingress.web.ingressClassName }}
-  ingressClassName: {{ .Values.ingress.web.ingressClassName }}
+  {{- if .Values.ingress.apiServer.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.apiServer.ingressClassName }}
   {{- end }}
 {{- end }}
 {{- end }}
