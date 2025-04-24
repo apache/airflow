@@ -33,6 +33,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
+import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
@@ -129,6 +130,14 @@ const createColumns = (
   {
     accessorKey: "trigger",
     cell: ({ row: { original } }) => <TriggerDAGButton dag={original} withText={false} />,
+    enableSorting: false,
+    header: "",
+  },
+  {
+    accessorKey: "favorite",
+    cell: ({ row: { original } }) => (
+      <FavoriteDagButton dagId={original.dag_id} withText={false}/>
+    ),
     enableSorting: false,
     header: "",
   },
