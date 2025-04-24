@@ -2860,6 +2860,8 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     help="Refresh constraints before generating metadata",
 )
 @option_historical_python_version
+@option_dry_run
+@option_verbose
 def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:

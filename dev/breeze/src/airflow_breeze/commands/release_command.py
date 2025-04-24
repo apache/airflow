@@ -20,15 +20,12 @@ import os
 
 import click
 
-from airflow_breeze.commands.common_options import option_answer
+from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
-
-CI = os.environ.get("CI")
-RUNNING_IN_CI = True if CI else False
 
 
 def clone_asf_repo(working_dir):
@@ -37,16 +34,19 @@ def clone_asf_repo(working_dir):
         run_command(
             ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
             check=True,
+            dry_run_override=False,
         )
         dev_dir = f"{working_dir}/asf-dist/dev/airflow"
         release_dir = f"{working_dir}/asf-dist/release/airflow"
-        run_command(["svn", "update", "--set-depth", "infinity", dev_dir], check=True)
-        run_command(["svn", "update", "--set-depth", "infinity", release_dir], check=True)
+        run_command(["svn", "update", "--set-depth", "infinity", dev_dir], dry_run_override=False, check=True)
+        run_command(
+            ["svn", "update", "--set-depth", "infinity", release_dir], dry_run_override=False, check=True
+        )
 
 
 def create_version_dir(version):
     if confirm_action(f"Create SVN version directory for {version}?"):
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["svn", "mkdir", f"{version}"], check=True)
         console_print(f"{version} directory created")
 
 
@@ -64,28 +64,25 @@ def copy_artifacts_to_svn(rc, svn_dev_repo):
                 "-c",
                 bash_command,
             ],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         console_print("Artifacts copied to SVN:")
-        run_command(["ls"], dry_run_override=RUNNING_IN_CI)
+        run_command(["ls"])
 
 
 def commit_release(version, rc, svn_release_version_dir):
     if confirm_action(f"Commit release {version} to SVN?"):
         run_command(
             ["svn", "commit", "-m", f"Release Airflow {version} from {rc}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
 
 
 def remove_old_release(previous_release):
     if confirm_action(f"Remove old release {previous_release}?"):
-        run_command(["svn", "rm", f"{previous_release}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["svn", "rm", f"{previous_release}"], check=True)
         run_command(
             ["svn", "commit", "-m", f"Remove old release: {previous_release}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         confirm_action(
@@ -97,16 +94,13 @@ def remove_old_release(previous_release):
 
 def verify_pypi_package(version):
     if confirm_action("Verify PyPI package?"):
-        run_command(
-            ["twine", "check", "*.whl", f"*{version}.tar.gz"], dry_run_override=RUNNING_IN_CI, check=True
-        )
+        run_command(["twine", "check", "*.whl", f"*{version}.tar.gz"], check=True)
 
 
 def upload_to_pypi(version):
     if confirm_action("Upload to PyPI?"):
         run_command(
             ["twine", "upload", "-r", "pypi", "*.whl", f"*{version}.tar.gz"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         console_print("Packages pushed to production PyPI")
@@ -121,7 +115,6 @@ def retag_constraints(release_candidate, version):
     if confirm_action(f"Retag constraints for {release_candidate} as {version}?"):
         run_command(
             ["git", "checkout", f"constraints-{release_candidate}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
@@ -133,13 +126,11 @@ def retag_constraints(release_candidate, version):
                 "-m",
                 f"Constraints for Apache Airflow {version}",
             ],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
     if confirm_action(f"Push contraints-{version} tag to GitHub?"):
         run_command(
             ["git", "push", "origin", "tag", f"constraints-{version}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
 
@@ -157,13 +148,11 @@ def tag_and_push_latest_constraint(version):
                 "-m",
                 f"Latest constraints set to Apache Airflow {version}",
             ],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
     if confirm_action("Push latest constraints tag to GitHub?"):
         run_command(
             ["git", "push", "origin", "tag", "-f", "constraints-latest"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
 
@@ -179,15 +168,12 @@ def push_tag_for_final_version(version, release_candidate):
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
 
-        run_command(["git", "checkout", f"{release_candidate}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["git", "checkout", f"{release_candidate}"], check=True)
         run_command(
             ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
-        run_command(
-            ["git", "push", "origin", "tag", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
-        )
+        run_command(["git", "push", "origin", "tag", f"{version}"], check=True)
 
 
 @release_management.command(
@@ -199,6 +185,8 @@ def push_tag_for_final_version(version, release_candidate):
 @click.option("--release-candidate", required=True)
 @click.option("--previous-release", required=True)
 @option_answer
+@option_dry_run
+@option_verbose
 def airflow_release(release_candidate, previous_release):
     if "rc" not in release_candidate:
         exit("Release candidate must contain 'rc'")
