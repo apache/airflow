@@ -2098,7 +2098,11 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     @property
     def has_task_concurrency_limits(self) -> bool:
         return any(
-            task[Encoding.VAR].get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"]
+            task[Encoding.VAR].get("max_active_tis_per_dag") is not None
+            or task[Encoding.VAR].get("max_active_tis_per_dagrun") is not None
+            or task[Encoding.VAR].get("partial_kwargs", {}).get("max_active_tis_per_dag") is not None
+            or task[Encoding.VAR].get("partial_kwargs", {}).get("max_active_tis_per_dagrun") is not None
+            for task in self.data["dag"]["tasks"]
         )
 
     @property
