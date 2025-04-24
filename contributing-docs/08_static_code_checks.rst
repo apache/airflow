@@ -300,6 +300,7 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all YAML files except Helm templates |         |
 |                                                           | * Add license for all Markdown files                   |         |
 |                                                           | * Add license for all other files                      |         |
+|                                                           | * Add license for all Go files                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

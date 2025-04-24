@@ -170,6 +170,17 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.service$|\.tf$|Dockerfile.*$
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.5
+    hooks:
+      - id: insert-license
+        name: Add license for all Go files
+        files: \.go$
+        args:
+          - --comment-style
+          - "|//|"
+          - --license-filepath
+          - scripts/ci/license-templates/LICENSE.txt
   - repo: local
     hooks:
       - id: check-min-python-version
@@ -406,7 +417,7 @@ repos:
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*|\.go$
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-dockerfile
         name: Lint Dockerfile
