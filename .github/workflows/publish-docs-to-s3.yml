@@ -27,7 +27,7 @@ on:  # yamllint disable-line rule:truthy
       exclude-docs:
         description: "Comma separated list of docs to exclude"
         required: false
-        default: ""
+        default: "NO_DOCS"
         type: string
       destination-location:
         description: "The destination location in S3"
