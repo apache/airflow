@@ -53,6 +53,6 @@ def downgrade():
     )
     op.execute(
         dag_run_table.update().values(
-            external_trigger=sa.case([(dag_run_table.c.run_type == "manual", True)], else_=False)
+            external_trigger=sa.case((dag_run_table.c.run_type == "manual", True), else_=False)
         )
     )
