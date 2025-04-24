@@ -423,7 +423,7 @@ export const useBackfillServiceGetBackfillSuspense = <
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
