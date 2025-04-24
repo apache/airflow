@@ -1263,7 +1263,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1278,13 +1278,14 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Dependencies
@@ -1297,7 +1298,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
+export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1312,13 +1313,13 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
       mapIndex,
       taskId,
     }),
-    queryFn: () => TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance Tries
