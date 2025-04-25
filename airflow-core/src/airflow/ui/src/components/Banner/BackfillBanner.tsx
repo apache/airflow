@@ -65,15 +65,21 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
   const togglePause = () => {
-    if (backfill?.is_paused) {
+    if (backfill === undefined) {
+      return;
+    }
+    if (backfill.is_paused) {
       unpauseMutate({ backfillId: backfill.id });
     } else {
-      pauseMutate({ backfillId: backfill?.id });
+      pauseMutate({ backfillId: backfill.id });
     }
   };
 
   const cancel = () => {
-    stopPending({ backfillId: backfill?.id });
+    if (backfill === undefined) {
+      return;
+    }
+    stopPending({ backfillId: backfill.id });
   };
 
   if (isLoading || backfill === undefined) {
