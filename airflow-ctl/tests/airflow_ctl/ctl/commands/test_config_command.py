@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import contextlib
 from io import StringIO
-from unittest import mock
 
-from airflowctl.api.client import Client
-from airflowctl.ctl import cli_config, cli_parser
+from airflowctl.api.client import ClientKind
+from airflowctl.ctl import cli_parser
+from airflowctl.ctl.commands import config_command
 
 
 class TestCliConfigGetValue:
@@ -29,20 +29,50 @@ class TestCliConfigGetValue:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def test_should_display_value(self):
-        mock_client = mock.MagicMock(spec=Client)
-        mock_client.configs.get_value.return_value = {"value": "test_value"}
+    def test_should_display_value(self, api_client_maker):
+        api_client = api_client_maker(
+            path="/api/v2/config/section/core/option/test_key",
+            # sample response: sections=[ConfigSection(name='core', options=[ConfigOption(key='dags_folder', value='/files/dags')])]
+            response_json={
+                "sections": [{"name": "core", "options": [{"key": "test_key", "value": "test_value"}]}]
+            },
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
 
         args = self.parser.parse_args(["config", "get-value", "--section", "core", "--option", "test_key"])
 
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            cli_config.get_value(args, cli_api_client=mock_client)
+            config_command.get_value(args, api_client=api_client)
 
         assert temp_stdout.getvalue().strip() == "test_value"
-        mock_client.configs.get_value.assert_called_once_with(section="core", option="test_key")
 
-    # def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(self):
-    #     pass
+    def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
+        self, api_client_maker, caplog
+    ):
+        api_client = api_client_maker(
+            path="/api/v2/config/section/some_section/option/value",
+            response_json=None,
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
 
-    # def test_should_raise_exception_when_option_is_missing(self):
-    #     pass
+        args = self.parser.parse_args(
+            ["config", "get-value", "--section", "some_section", "--option", "value"]
+        )
+
+        config_command.get_value(args, api_client=api_client)
+
+    def test_should_raise_exception_when_option_is_missing(self, api_client_maker, caplog):
+        api_client = api_client_maker(
+            path="/api/v2/config/section/missing-section/option/dags_folder",
+            response_json=None,
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+
+        args = self.parser.parse_args(
+            ["config", "get-value", "--section", "missing-section", "--option", "dags_folder"]
+        )
+
+        config_command.get_value(args, api_client=api_client)

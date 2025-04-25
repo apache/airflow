@@ -18,34 +18,34 @@
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowConfigException
-from airflowctl.api.client import Client, provide_api_client
+from httpx import HTTPStatusError
+
+from airflowctl.api.client import Client, ClientKind, provide_api_client
 
 
-@provide_api_client
+@provide_api_client(kind=ClientKind.CLI)
 def show_config(args):
     """Show current application configuration."""
     pass
 
 
-@provide_api_client
-def get_value(args, cli_api_client: Client):
+@provide_api_client(kind=ClientKind.CLI)
+def get_value(args, api_client: Client):
     """Get one value from configuration."""
     try:
-        response = cli_api_client.configs.get(section=args.section, option=args.option)
-        if response and "value" in response:
-            print(response["value"])
-    except AirflowConfigException:
+        response = api_client.configs.get(section=args.section, option=args.option)
+        print(response.sections[0].options[0].value)
+    except HTTPStatusError:
         pass
 
 
-@provide_api_client
+@provide_api_client(kind=ClientKind.CLI)
 def lint_config(args) -> None:
     """Lint the airflow.cfg file for removed, or renamed configurations."""
     pass
 
 
-@provide_api_client
+@provide_api_client(kind=ClientKind.CLI)
 def update_config(args) -> None:
     """Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3."""
     pass
