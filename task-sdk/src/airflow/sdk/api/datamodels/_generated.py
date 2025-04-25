@@ -193,6 +193,7 @@ class TIDeferredStatePayload(BaseModel):
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -233,6 +234,7 @@ class TIRescheduleStatePayload(BaseModel):
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
     reschedule_date: Annotated[AwareDatetime, Field(title="Reschedule Date")]
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIRetryStatePayload(BaseModel):
@@ -245,6 +247,7 @@ class TIRetryStatePayload(BaseModel):
     )
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -270,6 +273,7 @@ class TISuccessStatePayload(BaseModel):
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -494,3 +498,4 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None

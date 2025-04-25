@@ -75,6 +75,7 @@ class TITerminalStatePayload(StrictBaseModel):
 
     end_date: UtcDateTime
     """When the task completed executing"""
+    rendered_map_index: Annotated[str | None, Field(default_factory=str)]
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -97,6 +98,7 @@ class TISuccessStatePayload(StrictBaseModel):
 
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
+    rendered_map_index: Annotated[str | None, Field(default_factory=str)]
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -136,6 +138,7 @@ class TIDeferredStatePayload(StrictBaseModel):
 
     Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
     """
+    rendered_map_index: Annotated[str | None, Field(default_factory=str)]
 
 
 class TIRescheduleStatePayload(StrictBaseModel):
@@ -171,6 +174,7 @@ class TIRetryStatePayload(StrictBaseModel):
         ),
     ]
     end_date: UtcDateTime
+    rendered_map_index: Annotated[str | None, Field(default_factory=str)]
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
