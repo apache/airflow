@@ -503,7 +503,8 @@ core:
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``
-        where ``{BASE_URL}`` is the base url of the API Server.
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
+        it will use ``http://localhost:8080`` as the default base url.
       version_added: 3.0.0
       type: string
       example: ~
