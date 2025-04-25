@@ -151,9 +151,7 @@ class LazyXComSequence(Sequence[T]):
     def _get_item(self, index: int) -> T:
         # TODO: maybe we need to call SUPERVISOR_COMMS manually so we can handle not found here?
         return self._ti.xcom_pull(
-            task_ids=self._xcom_arg.operator.task_id,
-            key=self._xcom_arg.key,
-            map_indexes=index,
+            task_ids=self._xcom_arg.operator.task_id, key=self._xcom_arg.key, offset=index
         )
 
 

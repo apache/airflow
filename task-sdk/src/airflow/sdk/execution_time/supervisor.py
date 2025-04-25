@@ -1027,7 +1027,13 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = var
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.map_index,
+                msg.include_prior_dates,
+                msg.offset,
             )
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result

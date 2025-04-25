@@ -357,6 +357,7 @@ class XComOperations:
         key: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        offset: int | None = None,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -364,6 +365,8 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
+        if offset is not None:
+            params.update({"offset": offset})
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:

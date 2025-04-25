@@ -126,6 +126,7 @@ class GetXcomFilterParams(BaseModel):
 
     map_index: int = -1
     include_prior_dates: bool = False
+    offset: int | None = None
 
 
 @router.get(
@@ -148,11 +149,15 @@ def get_xcom(
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
-        map_indexes=params.map_index,
+        map_indexes=None if params.offset is not None else params.map_index,
         include_prior_dates=params.include_prior_dates,
         session=session,
     )
-    xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
+
+    if params.offset is not None:
+        xcom_query = xcom_query.offset(params.offset)
+    else:
+        xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
