@@ -56,7 +56,7 @@ _DEFAULT_SCOPESS = frozenset(
 logger = logging.getLogger(__name__)
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: Path = attrs.field(converter=Path)

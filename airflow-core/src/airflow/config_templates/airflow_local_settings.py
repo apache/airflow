@@ -190,6 +190,7 @@ if REMOTE_LOGGING:
                     "base_log_folder": BASE_LOG_FOLDER,
                     "remote_base": remote_base_log_folder,
                     "delete_local_copy": delete_local_copy,
+
                     "gcp_key_path": key_path,
                 }
                 | remote_task_handler_kwargs
