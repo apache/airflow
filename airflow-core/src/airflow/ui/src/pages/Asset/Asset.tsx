@@ -31,14 +31,14 @@ import { ProgressBar, Toaster } from "src/components/ui";
 import { AssetGraph } from "./AssetGraph";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
+import { getOrderBy } from "src/utils";
 
 export const Asset = () => {
   const { assetId } = useParams();
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-timestamp"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-timestamp");
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },

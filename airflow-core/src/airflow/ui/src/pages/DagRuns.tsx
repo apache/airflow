@@ -38,7 +38,7 @@ import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
-import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending, getOrderBy } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -138,8 +138,7 @@ export const DagRuns = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-run_after"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-run_after");
 
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);

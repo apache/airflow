@@ -45,7 +45,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
-import { pluralize } from "src/utils";
+import { getOrderBy, pluralize } from "src/utils";
 
 import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
@@ -179,8 +179,7 @@ export const DagsList = () => {
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
 
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-last_run_start_date"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-last_run_start_date");
 
   const handleSearchChange = (value: string) => {
     if (value) {

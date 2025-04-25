@@ -26,6 +26,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { getOrderBy } from "src/utils";
 
 const eventsColumn = (
   dagId?: string,
@@ -115,8 +116,7 @@ export const Events = () => {
   const { dagId, runId, taskId } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-when"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-when");
 
   const {
     data,
