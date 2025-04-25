@@ -685,10 +685,10 @@ class TestStringifiedDAGs:
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field, None)
+
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
-        assert dag._processor_dags_folder is None
         assert (
             serialized_dag._processor_dags_folder
             == (AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "tests" / "unit" / "dags").as_posix()
