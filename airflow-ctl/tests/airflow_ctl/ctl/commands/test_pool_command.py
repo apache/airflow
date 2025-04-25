@@ -129,8 +129,8 @@ class TestPoolImportCommand:
 class TestPoolExportCommand:
     """Test cases for pool export command."""
 
-    def test_export_success(self, mock_client, tmp_path, capsys):
-        """Test successful pool export."""
+    def test_export_json_to_file(self, mock_client, tmp_path, capsys):
+        """Test successful pool export to file with json output."""
         export_file = tmp_path / "export.json"
         mock_pools = [
             {
@@ -142,7 +142,7 @@ class TestPoolExportCommand:
         ]
         mock_client.pools.list.return_value = mock_pools
 
-        pool_command.export(file=export_file)
+        pool_command.export(file=export_file, output="json")
 
         # Verify the exported file content
         exported_data = json.loads(export_file.read_text())
@@ -151,10 +151,31 @@ class TestPoolExportCommand:
         assert exported_data["test_pool"]["description"] == "Test pool"
         assert exported_data["test_pool"]["include_deferred"] is True
 
-        # Verify output - update assertion to handle newlines
+        # Verify output message
         captured = capsys.readouterr()
         expected_output = f"Exported 1 pool(s) to {export_file}"
         assert expected_output in captured.out.replace("\n", "")
+
+    def test_export_non_json_output(self, mock_client, tmp_path, capsys):
+        """Test pool export with non-json output format."""
+        mock_pools = [
+            {
+                "name": "test_pool",
+                "slots": 1,
+                "description": "Test pool",
+                "include_deferred": True,
+            }
+        ]
+        mock_client.pools.list.return_value = mock_pools
+
+        pool_command.export(file=tmp_path / "unused.json", output="table")
+
+        # Verify console output contains the raw dict
+        captured = capsys.readouterr()
+        assert "test_pool" in captured.out
+        assert "slots" in captured.out
+        assert "description" in captured.out
+        assert "include_deferred" in captured.out
 
     def test_export_failure(self, mock_client, tmp_path):
         """Test pool export with API failure."""
@@ -162,4 +183,4 @@ class TestPoolExportCommand:
         mock_client.pools.list.side_effect = Exception("API Error")
 
         with pytest.raises(SystemExit, match="Failed to export pools: API Error"):
-            pool_command.export(file=export_file)
+            pool_command.export(file=export_file, output="json")

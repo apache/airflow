@@ -48,8 +48,12 @@ def import_(api_client: Client, file: str | Path, **kwargs):
 
 
 @provide_api_client(kind=ClientKind.CLI)
-def export(api_client: Client, file: str | Path, **kwargs):
-    """Export all pools to file."""
+def export(api_client: Client, file: str | Path, output: str = "json", **kwargs):
+    """
+    Export all pools.
+
+    If output is json, write to file. Otherwise print to console.
+    """
     try:
         pools = api_client.pools.list()
         pools_dict = {
@@ -61,11 +65,14 @@ def export(api_client: Client, file: str | Path, **kwargs):
             for pool in pools
         }
 
-        file_path = Path(file)
-        with open(file_path, "w") as f:
-            json.dump(pools_dict, f, indent=4, sort_keys=True)
-
-        rich.print(f"Exported {len(pools)} pool(s) to {file}")
+        if output == "json":
+            file_path = Path(file)
+            with open(file_path, "w") as f:
+                json.dump(pools_dict, f, indent=4, sort_keys=True)
+            rich.print(f"Exported {len(pools)} pool(s) to {file}")
+        else:
+            # For non-json formats, print the pools directly to console
+            rich.print(pools_dict)
     except Exception as e:
         raise SystemExit(f"Failed to export pools: {e}")
 
