@@ -31,7 +31,7 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 # TODO: FIXME The argument types here seems somewhat tricky to fix
 # mypy: disable-error-code="arg-type"
 
-DAG_ID = "example_dynamodbvaluesensor"
+DAG_ID = "example_dynamodb"
 sys_test_context_task = SystemTestContextBuilder().build()
 
 PK_ATTRIBUTE_NAME = "PK"
