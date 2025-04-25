@@ -60,7 +60,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.sdk import SecretCache
+from airflow.sdk.execution_time.cache import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace
