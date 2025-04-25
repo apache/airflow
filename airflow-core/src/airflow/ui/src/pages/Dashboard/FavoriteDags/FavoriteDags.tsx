@@ -19,11 +19,12 @@
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { FiStar } from "react-icons/fi";
 import { FavoriteDagCard } from "./FavoriteDagCard";
-import { fetchFavoriteDags } from "src/queries/useFavoriteDag";
+import { useDagServiceGetDags } from "openapi/queries";
 
 
 export const FavoriteDags = () => {
-    const { data: favorites } = fetchFavoriteDags();
+    const { data: allDags } = useDagServiceGetDags();
+    const favorites = allDags?.dags?.filter((dag) => dag.is_favorite) ?? [];
 
     return (
         <Box>
@@ -34,8 +35,8 @@ export const FavoriteDags = () => {
             </Heading>
             </Flex>
             <HStack align="end">
-              {favorites.map((dag_id) => (
-                <FavoriteDagCard key={dag_id} dag_id={dag_id} />
+              {favorites.map((dag) => (
+                <FavoriteDagCard key={dag.dag_id} dag_id={dag.dag_id} />
               ))}
             </HStack>
         </Box>

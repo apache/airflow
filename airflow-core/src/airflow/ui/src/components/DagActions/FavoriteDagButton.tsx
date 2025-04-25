@@ -20,32 +20,36 @@ import { Box } from "@chakra-ui/react";
 import { FiStar } from "react-icons/fi";
 
 import ActionButton from "../ui/ActionButton";
-import { updateFavoriteDags, fetchFavoriteDags } from "src/queries/useFavoriteDag";
+import { useFavoriteDag } from "src/queries/useFavoriteDag";
+import { useCallback } from "react";
 
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
+  readonly isFavorite?: boolean;
   readonly withText?: boolean;
 };
 
-export const FavoriteDagButton = ({ dagId, withText = true}: FavoriteDagButtonProps) => {
-  const { data: favorites } = fetchFavoriteDags();
-  const { mutate: toggleFavorite } = updateFavoriteDags();
+export const FavoriteDagButton = ({ dagId, isFavorite, withText = true}: FavoriteDagButtonProps) => {
+  const { mutate: toggleFavorite } = useFavoriteDag({ dagId });
 
-  const isCurrentFavorite = favorites?.includes(dagId) ?? false;
-
-  const onToggle = () => {
-    toggleFavorite({ dagId, isFavorite: !isCurrentFavorite });
-  };
+  const onToggle = useCallback(() => {
+    toggleFavorite({
+      dagId,
+      requestBody: {
+        is_favorite: !isFavorite,
+      },
+    });
+  }, [dagId, isFavorite, toggleFavorite]);
 
   return (
     <Box>
       <ActionButton
-        actionName={isCurrentFavorite ? "Unfavorite Dag" : "Favorite Dag"}
+        actionName={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
         colorPalette="blue"
-        icon={<FiStar style={{fill: isCurrentFavorite ? 'blue' : 'none'}} />}
+        icon={<FiStar style={{fill: isFavorite ? 'blue' : 'none'}} />}
         onClick={onToggle}
-        text={isCurrentFavorite ? "Unfavorite Dag" : "Favorite Dag"}
+        text={isFavorite ? "Unfavorite Dag" : "Favorite Dag"}
         variant="solid"
         withText={withText}
       />

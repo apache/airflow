@@ -60,6 +60,7 @@ class DAGResponse(BaseModel):
     dag_id: str
     dag_display_name: str
     is_paused: bool
+    is_favorite: bool | None
     is_stale: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
@@ -121,6 +122,11 @@ class DAGPatchBody(StrictBaseModel):
     """Dag Serializer for updatable bodies."""
 
     is_paused: bool
+
+class DAGFavoriteBody(StrictBaseModel):
+    """Dag Serializer for updatable bodies."""
+
+    is_favorite: bool
 
 
 class DAGCollectionResponse(BaseModel):
