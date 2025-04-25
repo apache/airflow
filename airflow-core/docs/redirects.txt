@@ -177,10 +177,10 @@ howto/use-test-config.rst index.rst
 
 # Operators/Sensors moved to standard providers
 
-howto/operator/bash.rst ../apache-airflow-providers-standard/stable/operators/bash.html
-howto/operator/datetime.rst ../apache-airflow-providers-standard/stable/operators/datetime.html
-howto/operator/external_task_sensor.rst ../apache-airflow-providers-standard/stable/sensors/external_task_sensor.html
-howto/operator/file.rst ../apache-airflow-providers-standard/stable/sensors/file.html
-howto/operator/python.rst ../apache-airflow-providers-standard/stable/operators/python.html
-howto/operator/time.rst ../apache-airflow-providers-standard/stable/sensors/datetime.html
-howto/operator/weekday.rst ../apache-airflow-providers-standard/stable/operators/datetime.html#branchdayofweekoperator
+howto/operator/bash.rst ../apache-airflow-providers-standard/stable/operators/bash.rst
+howto/operator/datetime.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst
+howto/operator/external_task_sensor.rst ../apache-airflow-providers-standard/stable/sensors/external_task_sensor.rst
+howto/operator/file.rst ../apache-airflow-providers-standard/stable/sensors/file.rst
+howto/operator/python.rst ../apache-airflow-providers-standard/stable/operators/python.rst
+howto/operator/time.rst ../apache-airflow-providers-standard/stable/sensors/datetime.rst
+howto/operator/weekday.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator
