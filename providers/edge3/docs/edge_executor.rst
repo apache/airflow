@@ -268,6 +268,7 @@ running tasks are completed before return.
 
 If you want to know the status of a worker while waiting on maintenance you can
 use the command
+
 .. code-block:: bash
 
     airflow edge status
