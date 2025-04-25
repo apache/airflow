@@ -55,6 +55,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
+    DAGFavoriteBody,
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -316,6 +317,47 @@ def patch_dags(
         total_entries=total_entries,
     )
 
+@dags_router.put(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
+)
+def favorite_dag(
+    dag_id: str,
+    favorite_body: DAGFavoriteBody,
+    session: SessionDep,
+    update_mask: list[str] | None = Query(None),
+) -> DAGResponse:
+    """Favorite the specific DAG."""
+    dag = session.get(DagModel, dag_id)
+
+    if dag is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
+
+    fields_to_update = favorite_body.model_fields_set
+    if update_mask:
+        if update_mask != ["is_favorite"]:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Only `is_favorite` field can be updated through the REST API"
+            )
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            DAGFavoriteBody(**favorite_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    data = favorite_body.model_dump(include=fields_to_update, by_alias=True)
+
+    for key, val in data.items():
+        setattr(dag, key, val)
+
+    return dag
 
 @dags_router.delete(
     "/{dag_id}",
