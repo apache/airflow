@@ -170,7 +170,6 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
                 "apache_airflow",
                 "apache-airflow==",
                 "apache-airflow-core==",
-                "apache_airflow_task_sdk=",
                 "apache-airflow-task-sdk=",
                 "/opt/airflow",
                 "#",
