@@ -125,8 +125,8 @@ Setting the right Airflow user
 ------------------------------
 
 On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
-Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` user ownership.
-You have to make sure to configure them for the docker-compose:
+Otherwise the files created in ``dags``, ``logs``, ``config`` and ``plugins`` will be created with
+``root`` user ownership. You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
@@ -142,6 +142,17 @@ safely ignore it. You can also manually create an ``.env`` file in the same fold
 .. code-block:: text
 
   AIRFLOW_UID=50000
+
+Initialize airflow.cfg (Optional)
+---------------------------------
+
+If you want to initialize ``airflow.cfg`` with default values before launching the airflow service, run.
+
+.. code-block:: bash
+
+   docker compose run airflow-cli airflow config list
+
+This will seed ``airflow.cfg`` with default values in ``config`` folder.
 
 Initialize the database
 -----------------------
@@ -346,12 +357,9 @@ Special case - Adding a custom config file
 
 If you have a custom config file and wish to use it in your Airflow instance, you need to perform the following steps:
 
-1) Remove comment from the ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'`` line
-   in the ``docker-compose.yaml`` file.
+1) Replace the auto-generated ``airflow.cfg`` file in the local config folder with your custom config file.
 
-2) Place your custom ``airflow.cfg`` file in the local config folder.
-
-3) If your config file has a different name than ``airflow.cfg``, adjust the filename in
+2) If your config file has a different name than ``airflow.cfg``, adjust the filename in
    ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'``
 
 Networking
