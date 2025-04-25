@@ -4,7 +4,7 @@
 
 .. Check the type of change that applies to this change
 .. Dag changes: requires users to change their dag code
-.. Config changes: requires users to change their airflow config
+.. Config changes: requires users to change their Airflow config
 .. API changes: requires users to change their Airflow REST API calls
 .. CLI changes: requires users to change their Airflow CLI usage
 .. Behaviour changes: the existing code won't break, but the behavior is different

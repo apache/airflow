@@ -84,8 +84,7 @@ def auth_manager():
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
         }
     ):
-        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
-            return AwsAuthManager()
+        return AwsAuthManager()
 
 
 @pytest.fixture
@@ -211,7 +210,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, mock, ANY, None),
-            (BackfillDetails(id="1"), mock, mock, "1"),
+            (BackfillDetails(id=1), mock, mock, 1),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")

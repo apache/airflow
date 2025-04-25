@@ -217,11 +217,11 @@ class OpenLineageTestOperator(BaseOperator):
                 self.event_templates[key] = event
         for key, template in self.event_templates.items():  # type: ignore[union-attr]
             send_event = Variable.get(key=key, deserialize_json=True)
+            self.log.info("Events: %s, %s, %s", send_event, len(send_event), type(send_event))
             if len(send_event) == 0:
                 raise ValueError(f"No event for key {key}")
             if len(send_event) != 1 and not self.multiple_events:
                 raise ValueError(f"Expected one event for key {key}, got {len(send_event)}")
-            self.log.info("Events: %s, %s, %s", send_event, len(send_event), type(send_event))
             if not match(template, json.loads(send_event[0]), self.env):
                 raise ValueError("Event received does not match one specified in test")
         if self.delete:

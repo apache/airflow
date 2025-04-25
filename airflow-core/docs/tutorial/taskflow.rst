@@ -388,7 +388,7 @@ method.
 
 .. code-block:: python
 
-    from airflow.providers.standard.operators.python import get_current_context
+    from airflow.sdk import get_current_context
 
 
     def some_function_in_your_library():
@@ -423,6 +423,6 @@ What's Next
 
 Now that you've seen how to build clean, maintainable DAGs using the TaskFlow API, here are some good next steps:
 
-- Explore asset-aware workflows in :doc:`/authoring-and-scheduling/datasets`
+- Explore asset-aware workflows in :doc:`/authoring-and-scheduling/asset-scheduling`
 - Dive into scheduling patterns in :ref:`Scheduling Options <scheduling-section>`
 - Move to the next tutorial: :doc:`/tutorial/pipeline`

@@ -1,4 +1,4 @@
-Move all time operators and sensors from airflow core to standard provider
+Move all time operators and sensors from Airflow core to standard provider
 
 * Types of change
 

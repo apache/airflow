@@ -23,99 +23,672 @@
 
 Airflow 3.0.0 (2025-04-22)
 --------------------------
-We are proud to announce the General Availability of **Apache Airflow® 3.0**, the most significant release in the
-project's history. Airflow 3.0 builds on the foundation of Airflow 2 and introduces a new service-oriented architecture,
-a modern React-based UI, enhanced security, and a host of long-requested features such as DAG versioning, improved
-backfills, event-driven scheduling, and support for remote execution.
+We are proud to announce the General Availability of Apache Airflow 3.0 — the most significant release in the project's
+history. This version introduces a service-oriented architecture, a stable DAG authoring interface, expanded support for
+event-driven and ML workflows, and a fully modernized UI built on React. Airflow 3.0 reflects years of community
+investment and lays the foundation for the next era of scalable, modular orchestration.
 
 Highlights
 ^^^^^^^^^^
 
-Major Architectural Advancements
-""""""""""""""""""""""""""""""""
+- **Service-Oriented Architecture**: A new Task Execution API and ``airflow api-server`` enable task execution in remote environments with improved isolation and flexibility (AIP-72).
 
-- **Task Execution API & Task SDK (AIP-72)**: Airflow 3.0 introduces a service-oriented architecture and a new API Server, enabling tasks to run anywhere, in any language, with improved isolation and security.
-- **Edge Executor (AIP-69)**: A new experimental executor that enables edge compute patterns and event-driven orchestration scenarios.
-- **Split CLI (AIP-81)**: The core CLI is now divided between local and remote functionality, with a new provider package (``airflowctl``) for API-based remote interactions.
+- **Edge Executor**: A new executor that supports distributed, event-driven, and edge-compute workflows (AIP-69), now generally available.
 
-UI Overhaul
-"""""""""""
+- **Stable Authoring Interface**: DAG authors should now use the new ``airflow.sdk`` namespace to import core DAG constructs like ``@dag``, ``@task``, and ``DAG``.
 
-- **Modern React UI (AIP-38, AIP-84)**: Airflow's UI has been completely rewritten using React and FastAPI. This new UI supports a better UX across Grid, Graph, and Asset views.
-- **DAG Versioning (AIP-65, AIP-66)**: DAG structure changes are now tracked natively. Users can inspect DAG history directly from the UI.
+- **Scheduler-Managed Backfills**: Backfills are now scheduled and tracked like regular DAG runs, with native UI and API support (AIP-78).
 
-Expanded Scheduling and Execution
-"""""""""""""""""""""""""""""""""
+- **DAG Versioning**: Airflow now tracks structural changes to DAGs over time, enabling inspection of historical DAG definitions via the UI and API (AIP-66).
 
-- **Data Assets & Asset-Driven DAGs (AIP-74, AIP-75)**: Data-aware scheduling has evolved into first-class Asset support, including a new ``@asset`` decorator syntax and asset-based execution.
-- **External Event Scheduling (AIP-82)**: DAGs can now be triggered from external events via a pluggable message bus interface. Initial support for AWS SQS is included.
-- **Scheduler-Managed Backfills (AIP-78)**: Backfills are now managed by the scheduler, with UI support and enhanced diagnostics.
+- **Asset-Based Scheduling**: The dataset model has been renamed and redesigned as assets, with a new ``@asset`` decorator and cleaner event-driven DAG definition (AIP-74, AIP-75).
 
-ML & AI Use Cases
-"""""""""""""""""
+- **Support for ML and AI Workflows**: DAGs can now run with ``logical_date=None``, enabling use cases such as model inference, hyperparameter tuning, and non-interval workflows (AIP-83).
 
-- **Support for Non-Data-Interval DAGs (AIP-83)**: Enables inference DAGs and hyperparameter tuning runs by removing the uniqueness constraint on execution dates.
+- **Removal of Legacy Features**: SLAs, SubDAGs, DAG and Xcom pickling, and several internal context variables have been removed. Use the upgrade tools to detect deprecated usage.
 
-Breaking Changes
-^^^^^^^^^^^^^^^^
+- **Split CLI and API Changes**: The CLI has been split into ``airflow`` and ``airflowctl`` (AIP-81), and REST API now defaults to ``logical_date=None`` when triggering a new DAG run.
 
-See the :doc:`Upgrade Guide <installation/upgrading_to_airflow3>` for a full list of changes and migration recommendations. Major breaking changes include:
+- **Modern React UI**: A complete UI overhaul built on React and FastAPI includes version-aware views, backfill management, and improved DAG and task introspection (AIP-38, AIP-84).
 
-Metadata Database Access
-""""""""""""""""""""""""
+- **Migration Tooling**: Use **ruff** and **airflow config update** to validate DAGs and configurations. Upgrade requires Airflow 2.7 or later and Python 3.9–3.12.
 
-- Direct access to the metadata DB from task code is no longer supported. Use the :doc:`REST API <stable-rest-api-ref>` instead.
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
 
-Scheduling Changes
-""""""""""""""""""
+Airflow 3.0 introduces the most significant set of changes since the 2.0 release, including architectural shifts, new
+execution models, and improvements to DAG authoring and scheduling.
 
-- New default: ``schedule=None``, ``catchup=False``
-- ``schedule_interval`` and ``timetable`` are removed; use ``schedule`` exclusively.
-- Raw cron strings now use ``CronTriggerTimetable`` instead of ``CronDataIntervalTimetable``.
+Task Execution API & Task SDK (AIP-72)
+""""""""""""""""""""""""""""""""""""""
 
-Context and Parameters
+Airflow now supports a service-oriented architecture, enabling tasks to be executed remotely via a new Task Execution
+API. This API decouples task execution from the scheduler and introduces a stable contract for running tasks outside of
+Airflow's traditional runtime environment.
+
+To support this, Airflow introduces the Task SDK — a lightweight runtime environment for running Airflow tasks in
+external systems such as containers, edge environments, or other runtimes. This lays the groundwork for
+language-agnostic task execution and brings improved isolation, portability, and extensibility to Airflow-based
+workflows.
+
+Airflow 3.0 also introduces a new ``airflow.sdk`` namespace that exposes the core authoring interfaces for defining DAGs
+and tasks. DAG authors should now import objects like ``DAG``, ``@dag``, and ``@task`` from ``airflow.sdk`` rather than
+internal modules. This new namespace provides a stable, forward-compatible interface for DAG authoring across future
+versions of Airflow.
+
+Edge Executor (AIP-69)
 """"""""""""""""""""""
 
-- Several context variables removed (``conf``, ``execution_date``, ``dag_run.external_trigger``, etc)
-- ``fail_stop`` renamed to ``fail_fast``
-- ``.airflowignore`` now uses glob syntax by default
+Airflow 3.0 introduces the **Edge Executor** as a generally available feature, enabling execution of tasks in
+distributed or remote compute environments. Designed for event-driven and edge-compute use cases, the Edge Executor
+integrates with the Task Execution API to support task orchestration beyond the traditional Airflow runtime. This
+advancement facilitates hybrid and cross-environment orchestration patterns, allowing task workers to operate closer to
+data or application layers.
 
-Deprecated and Removed Features
+Scheduler-Managed Backfills (AIP-78)
+""""""""""""""""""""""""""""""""""""
+
+Backfills are now fully managed by the scheduler, rather than being launched as separate command-line jobs. This change
+unifies backfill logic with regular DAG execution and ensures that backfill runs follow the same scheduling, versioning,
+and observability models as other DAG runs.
+
+Airflow 3.0 also introduces native UI and REST API support for initiating and monitoring backfills, making them more
+accessible and easier to integrate into automated workflows. These improvements lay the foundation for smarter, safer
+historical reprocessing — now available directly through the Airflow UI and API.
+
+DAG Versioning (AIP-66)
+"""""""""""""""""""""""
+
+Airflow 3.0 introduces native DAG versioning. DAG structure changes (e.g., renamed tasks, dependency shifts) are now
+tracked directly in the metadata database. This allows users to inspect historical DAG structures through the UI and API,
+and lays the foundation for safer backfills, improved observability, and runtime-determined DAG logic.
+
+React UI Rewrite (AIP-38, AIP-84)
+"""""""""""""""""""""""""""""""""
+
+Airflow 3.0 ships with a completely redesigned user interface built on React and FastAPI. This modern architecture
+improves responsiveness, enables more consistent navigation across views, and unlocks new UI capabilities — including
+support for DAG versioning, asset-centric DAG definitions, and more intuitive filtering and search.
+
+The new UI replaces the legacy Flask-based frontend and introduces a foundation for future extensibility and community
+contributions.
+
+Asset-Based Scheduling & Terminology Alignment (AIP-74, AIP-75)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The concept of **Datasets** has been renamed to **Assets**, unifying terminology with common practices in the modern
+data ecosystem. The internal model has also been reworked to better support future features like asset partitions and
+validations.
+
+The ``@asset`` decorator and related changes to the DAG parser enable clearer, asset-centric DAG definitions, allowing
+Airflow to more naturally support event-driven and data-aware scheduling patterns.
+
+Unified Scheduling Field
+""""""""""""""""""""""""
+
+Airflow 3.0 removes the legacy ``schedule_interval`` and ``timetable`` parameters. DAGs must now use the unified
+``schedule`` field for all time- and event-based scheduling logic. This simplifies DAG definition and improves
+consistency across scheduling paradigms.
+
+Updated Scheduling Defaults
+"""""""""""""""""""""""""""
+
+Airflow 3.0 changes the default behavior for new DAGs by setting ``catchup_by_default = False`` in the configuration
+file. This means DAGs that do not explicitly set ``catchup=...`` will no longer backfill missed intervals by default.
+This change reduces confusion for new users and better reflects the growing use of on-demand and event-driven workflows.
+
+Restricted Metadata Database Access
+"""""""""""""""""""""""""""""""""""
+
+Task code can no longer directly access the metadata database. Interactions with DAG state, task history, or DAG runs
+must be performed via the Airflow REST API or exposed context. This change improves architectural separation and enables
+remote execution.
+
+Future Logical Dates No Longer Supported
+"""""""""""""""""""""""""""""""""""""""""
+
+Airflow no longer supports triggering DAG runs with a logical date in the future. This change aligns with the logical
+execution model and removes ambiguity in backfills and event-driven DAGs. Use ``logical_date=None`` to trigger runs with
+the current timestamp.
+
+Context Behavior for Asset and Manually Triggered DAGs
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+For DAG runs triggered by an Asset event or through the REST API without specifying a ``logical_date``, Airflow now sets
+``logical_date=None`` by default. These DAG runs do not have a data interval, and attempting to access
+``data_interval_start``, ``data_interval_end``, or ``logical_date`` from the task context will raise a ``KeyError``.
+
+DAG authors should use ``dag_run.logical_date`` and perform appropriate checks or fallbacks if supporting multiple
+trigger types. This change improves consistency with event-driven semantics but may require updates to existing DAGs
+that assume these values are always present.
+
+Improved Callback Behavior
+""""""""""""""""""""""""""
+
+Airflow 3.0 refines task callback behavior to improve clarity and consistency. In particular, ``on_success_callback`` is
+no longer executed when a task is marked as ``SKIPPED``, aligning it more closely with expected semantics.
+
+Updated Default Configuration
+"""""""""""""""""""""""""""""
+
+Several default configuration values have been updated in Airflow 3.0 to better reflect modern usage patterns and
+simplify onboarding:
+
+- ``catchup_by_default`` is now set to ``False`` by default. DAGs will not automatically backfill unless explicitly configured to do so.
+- ``create_cron_data_intervals`` is now set to ``False`` by default. As a result, cron expressions will be interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``.
+- ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-flask-appbuilder`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
+
+These changes represent the most significant evolution of the Airflow platform since the release of 2.0 — setting the
+stage for more scalable, event-driven, and language-agnostic orchestration in the years ahead.
+
+Executor & Scheduler Updates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 introduces several important improvements and behavior changes in how DAGs and tasks are scheduled,
+prioritized, and executed.
+
+Standalone DAG Processor Required
+"""""""""""""""""""""""""""""""""
+
+Airflow 3.0 now requires the standalone DAG processor to parse DAGs. This dedicated process improves scheduler
+performance, isolation, and observability. It also simplifies architecture by clearly separating DAG parsing from
+scheduling logic. This change may affect custom deployments that previously used embedded DAG parsing.
+
+Priority Weight Capped by Pool Slots
+"""""""""""""""""""""""""""""""""""""
+
+The ``priority_weight`` value on a task is now capped by the number of available pool slots. This ensures that resource
+availability remains the primary constraint in task execution order, preventing high-priority tasks from starving others
+when resource contention exists.
+
+Teardown Task Handling During DAG Termination
+"""""""""""""""""""""""""""""""""""""""""""""
+
+Teardown tasks will now be executed even when a DAG run is terminated early. This ensures that cleanup logic is
+respected, improving reliability for workflows that use teardown tasks to manage ephemeral infrastructure, temporary
+files, or downstream notifications.
+
+Improved Scheduler Fault Tolerance
+""""""""""""""""""""""""""""""""""
+
+Scheduler components now use ``run_with_db_retries`` to handle transient database issues more gracefully. This enhances
+Airflow's fault tolerance in high-volume environments and reduces the likelihood of scheduler restarts due to temporary
+database connection problems.
+
+Mapped Task Stats Accuracy
+"""""""""""""""""""""""""""
+
+Airflow 3.0 fixes a bug that caused incorrect task statistics to be reported for dynamic task mapping. Stats now
+accurately reflect the number of mapped task instances and their statuses, improving observability and debugging for
+dynamic workflows.
+
+DAG Authoring Enhancements
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 includes several changes that improve consistency, clarity, and long-term stability for DAG authors.
+
+Renamed Parameter: ``fail_stop`` → ``fail_fast``
+"""""""""""""""""""""""""""""""""""""""""""""""""
+
+The DAG argument ``fail_stop`` has been renamed to ``fail_fast`` for improved clarity. This parameter controls whether a
+DAG run should immediately stop execution when a task fails. DAG authors should update any code referencing
+``fail_stop`` to use the new name.
+
+Context Cleanup and Parameter Removal
+"""""""""""""""""""""""""""""""""""""
+
+Several legacy context variables have been removed or may no longer be available in certain types of DAG runs,
+including:
+
+- ``conf``
+- ``execution_date``
+- ``dag_run.external_trigger``
+
+In asset-triggered and manually triggered DAG runs with ``logical_date=None``, data interval fields such as
+``data_interval_start`` and ``data_interval_end`` may not be present in the task context. DAG authors should use
+explicit references such as ``dag_run.logical_date`` and conditionally check for the presence of interval-related fields
+where applicable.
+
+Task Context Utilities Moved
+""""""""""""""""""""""""""""
+
+Internal task context functions such as ``get_parsing_context`` have been moved to a more appropriate location (e.g.,
+``airflow.models.taskcontext``). DAG authors using these utilities directly should update import paths accordingly.
+
+Trigger Rule Restrictions
+"""""""""""""""""""""""""
+
+The ``TriggerRule.ALWAYS`` rule can no longer be used with teardown tasks or tasks that are expected to honor upstream
+dependency semantics. DAG authors should ensure that teardown logic is defined with the appropriate trigger rules for
+consistent task resolution behavior.
+
+Asset Aliases for Reusability
+"""""""""""""""""""""""""""""
+
+A new utility function, ``create_asset_aliases()``, allows DAG authors to define reusable aliases for frequently
+referenced Assets. This improves modularity and reuse across DAG files and is particularly helpful for teams adopting
+asset-centric DAGs.
+
+Support for ML & AI Use Cases (AIP-83)
+"""""""""""""""""""""""""""""""""""""""
+
+Airflow 3.0 expands the types of DAGs that can be expressed by removing the constraint that each DAG run must correspond
+to a unique data interval. This change, introduced in AIP-83, enables support for workflows that don't operate on a
+fixed schedule — such as model training, hyperparameter tuning, and inference tasks.
+
+These ML- and AI-oriented DAGs often run ad hoc, are triggered by external systems, or need to execute multiple times
+with different parameters over the same dataset. By allowing multiple DAG runs with ``logical_date=None``, Airflow now
+supports these scenarios natively without requiring workarounds.
+
+Config & Interface Changes
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 introduces several configuration and interface updates that improve consistency, clarify ownership of core
+utilities, and remove legacy behaviors that were no longer aligned with modern usage patterns.
+
+Default Value Handling
+""""""""""""""""""""""
+
+Airflow no longer silently updates configuration options that retain deprecated default values. Users are now required
+to explicitly set any config values that differ from the current defaults. This change improves transparency and
+prevents unintentional behavior changes during upgrades.
+
+Refactored Config Defaults
+"""""""""""""""""""""""""""
+
+Several configuration defaults have changed in Airflow 3.0 to better reflect modern usage patterns:
+
+- The default value of ``catchup_by_default`` is now ``False``. DAGs will not backfill missed intervals unless explicitly configured to do so.
+- The default value of ``create_cron_data_intervals`` is now ``False``. Cron expressions are now interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``. This change simplifies interval logic and aligns with the future direction of Airflow's scheduling system.
+
+Refactored Internal Utilities
+"""""""""""""""""""""""""""""
+
+Several core components have been moved to more intuitive or stable locations:
+
+- The ``SecretsMasker`` class has been relocated to ``airflow.utils.secrets_masker``.
+- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.utils.object_storage_path``.
+
+These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
+
+Improved ``inlet_events``, ``outlet_events``, and ``triggering_asset_events``
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Asset event mappings in the task context are improved to better support asset use cases, including new features introduced in AIP-74.
+
+Events of an asset or asset alias are now accessed directly by a concrete object to avoid ambiguity. Using a ``str`` to access events is
+no longer supported. Use an ``Asset`` or ``AssetAlias`` object, or ``Asset.ref`` to refer to an entity explicitly instead, such as::
+
+    outlet_events[Asset.ref(name="myasset")]  # Get events for asset named "myasset".
+    outlet_events[AssetAlias(name="myalias")]  # Get events for asset alias named "myalias".
+
+Alternatively, two helpers ``for_asset`` and ``for_asset_alias`` are added as shortcuts::
+
+    outlet_events.for_asset(name="myasset")  # Get events for asset named "myasset".
+    outlet_events.for_asset_alias(name="myalias")  # Get events for asset alias named "myalias".
+
+The internal representation of asset event triggers now also includes an explicit ``uri`` field, simplifying traceability and
+aligning with the broader asset-aware execution model introduced in Airflow 3.0. DAG authors interacting directly with
+``inlet_events`` may need to update logic that assumes the previous structure.
+
+
+
+Behaviour change in ``xcom_pull``
+"""""""""""""""""""""""""""""""""
+
+**Pulling without setting ``task_ids``**:
+
+In Airflow 2, the ``xcom_pull()`` method allowed pulling XComs by key without specifying task_ids, despite the fact that the underlying
+DB model defines task_id as part of the XCom primary key. This created ambiguity: if two tasks pushed XComs with the same key,
+``xcom_pull()`` would pull whichever one happened to be first, leading to unpredictable behavior.
+
+Airflow 3 resolves this inconsistency by requiring ``task_ids`` when pulling by key. This change aligns with the task-scoped nature of
+XComs as defined by the schema, ensuring predictable and consistent behavior.
+
+DAG Authors should update their dags to use ``task_ids`` if their dags used ``xcom_pull`` without ``task_ids`` such as::
+
+  kwargs["ti"].xcom_pull(key="key")
+
+Should be updated to::
+
+  kwargs["ti"].xcom_pull(task_ids="task1", key="key")
+
+
+**Return Type Change for Single Task ID**:
+
+In Airflow 2, when using ``xcom_pull()`` with a single task ID in a list (e.g., ``task_ids=["task1"]``), it would return a ``LazyXComSelectSequence``
+object containing one value. In Airflow 3.0.0, this behavior was changed to return the value directly.
+
+So, if you previously used:
+
+.. code-block:: python
+
+    xcom_values = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
+    xcom_value = xcom_values[0]  # Access the first value
+
+You would now get the value directly, rather than a sequence containing one value.
+
+.. code-block:: python
+
+    xcom_value = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
+
+The previous behaviour (returning list when passed a list) will be restored in Airflow 3.0.1 to maintain backward compatibility.
+
+However, it is recommended to be explicit about your intentions when using ``task_ids`` (after the fix in 3.0.1):
+
+- If you want a single value, use ``task_ids="task1"``
+- If you want a sequence, use ``task_ids=["task1"]``
+
+This makes the code more explicit and easier to understand.
+
+
+Removed Configuration Keys
+"""""""""""""""""""""""""""
+
+As part of the deprecation cleanup, several legacy configuration options have been removed. These include:
+
+- ``scheduler.allow_trigger_in_future``
+- ``scheduler.use_job_schedule``
+- ``scheduler.use_local_tz``
+
+Users should review their ``airflow.cfg`` files or use the ``airflow config lint`` command to identify outdated or
+removed options.
+
+Upgrade Tooling
+""""""""""""""""
+
+Airflow 3.0 includes improved support for upgrade validation. Use the following tools to proactively catch incompatible
+configs or deprecated usage patterns:
+
+- ``airflow config lint``: Identifies removed or invalid config keys
+- ``ruff check --select AIR30``: Flags removed interfaces and common migration issues
+
+CLI & API Changes
+^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 introduces changes to both the CLI and REST API interfaces to better align with service-oriented deployments
+and event-driven workflows.
+
+Split CLI Architecture (AIP-81)
 """""""""""""""""""""""""""""""
 
-+-----------------------------+----------------------------------------------------------+
-| **Feature**                 | **Replacement**                                          |
-+=============================+==========================================================+
-| SubDAGs                     | Task Groups                                              |
-+-----------------------------+----------------------------------------------------------+
-| SLAs                        | Deadline Alerts (planned post-3.0)                       |
-+-----------------------------+----------------------------------------------------------+
-| ``EmailOperator`` (core)    | SMTP provider's ``EmailOperator``                        |
-+-----------------------------+----------------------------------------------------------+
-| ``dummy`` trigger rule      | ``always``                                               |
-+-----------------------------+----------------------------------------------------------+
-| ``none_failed_or_skipped`` | ``none_failed_min_one_success``                           |
-+-----------------------------+----------------------------------------------------------+
-| XCom pickling               | Use a custom XCom backend                                |
-+-----------------------------+----------------------------------------------------------+
+The Airflow CLI has been split into two distinct interfaces:
 
-Upgrade Process
-^^^^^^^^^^^^^^^
+- The core ``airflow`` CLI now handles only local functionality (e.g., ``airflow tasks test``, ``airflow dags list``).
+- Remote functionality, including triggering DAGs or managing connections in service-mode environments, is now handled by a separate CLI called ``airflowctl``, distributed via the ``apache-airflow-client`` package.
 
-Airflow 3 was designed with migration in mind. Many Airflow 2 DAGs will work without changes. Use these tools:
+This change improves security and modularity for deployments that use Airflow in a distributed or API-first context.
 
-- ``ruff check --preview --select AIR30 --fix``: Flag and auto-fix DAG-level changes
-- ``airflow config lint``: Identify outdated or removed config options
+REST API: DAG Trigger Behavior Updated
+""""""""""""""""""""""""""""""""""""""
 
-**Minimum version required to upgrade**: Airflow 2.7
+The behavior of the ``POST /dags/{dag_id}/dagRuns`` endpoint has changed. If a ``logical_date`` is not explicitly
+provided when triggering a DAG via the REST API, it now defaults to ``None``.
 
-We recommend upgrading to the latest Airflow 2.10.x release before migrating to Airflow 3.0 to benefit from deprecation warnings. Check :doc:`Upgrade Guide <installation/upgrading_to_airflow3>` for more details.
+This aligns with event-driven DAGs and manual runs in Airflow 3.0, but may break backward compatibility with scripts or
+tools that previously relied on Airflow auto-generating a timestamped ``logical_date``.
+
+Removed CLI Flags and Commands
+""""""""""""""""""""""""""""""
+
+Several deprecated CLI arguments and commands that were marked for removal in earlier versions have now been cleaned up
+in Airflow 3.0. Refer to the Deprecations & Removals section or run ``airflow --help`` to review the current set of
+available commands and arguments.
+
+Provider Refactor & Standardization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 completes the migration of several core operators, sensors, and hooks into the new
+``apache-airflow-providers-standard`` package. This package now includes commonly used components such as:
+
+- ``PythonOperator``
+- ``BashOperator``
+- ``EmailOperator``
+- ``SimpleHttpOperator``
+- ``ShortCircuitOperator``
+
+These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
+improve modularity, testability, and lifecycle independence.
+
+This change enables more consistent versioning across providers and prepares Airflow for a future where all integrations
+— including "standard" ones — follow the same interface model.
+
+To maintain compatibility with existing DAGs, the ``apache-airflow-providers-standard`` package is installable on both
+Airflow 2.x and 3.x. Users upgrading from Airflow 2.x are encouraged to begin updating import paths and testing provider
+installation in advance of the upgrade.
+
+Legacy imports such as ``airflow.operators.python.PythonOperator`` are deprecated and will be removed soon. They should be
+replaced with:
+
+.. code-block:: python
+
+    from airflow.providers.standard.operators.python import PythonOperator
+
+UI & Usability Improvements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3.0 introduces a modernized user experience that complements the new React-based UI architecture (see
+Significant Changes). Several areas of the interface have been enhanced to improve visibility, consistency, and
+navigability.
+
+New Home Page
+"""""""""""""
+
+The Airflow Home page now provides a high-level operational overview of your environment. It includes health checks for
+core components (Scheduler, Triggerer, DAG Processor), summary stats for DAG and task instance states, and a real-time
+feed of asset-triggered events. This view helps users quickly identify pipeline health, recent activity, and potential
+failures.
+
+Unified DAG List View
+""""""""""""""""""""""
+
+The DAG List page has been refreshed with a cleaner layout and improved responsiveness. Users can browse DAGs by name,
+tags, or owners. While full-text search has not yet been integrated, filters and navigation have been refined for
+clarity in large deployments.
+
+Version-Aware Graph and Grid Views
+"""""""""""""""""""""""""""""""""""
+
+The Graph and Grid views now display task information in the context of the DAG version that was used at runtime. This
+improves traceability for DAGs that evolve over time and provides more accurate debugging of historical runs.
+
+Expanded DAG Graph Visualization
+""""""""""""""""""""""""""""""""
+
+The Graph view now supports visualizing the full chain of asset and task dependencies, including assets consumed or
+produced across DAG boundaries. This allows users to inspect upstream and downstream lineage in a unified view, making
+it easier to trace data flows, debug triggering behavior, and understand conditional dependencies between assets and
+tasks.
+
+DAG Code View
+"""""""""""""
+
+The "Code" tab now displays the exact DAG source as parsed by the scheduler for the selected DAG version. This allows
+users to inspect the precise code that was executed, even for historical runs, and helps debug issues related to
+versioned DAG changes.
+
+Improved Task Log Access
+"""""""""""""""""""""""""
+
+Task log access has been streamlined across views. Logs are now easier to access from both the Grid and Task Instance
+pages, with cleaner formatting and reduced visual noise.
+
+Enhanced Asset and Backfill Views
+""""""""""""""""""""""""""""""""""
+
+New UI components support asset-centric DAGs and backfill workflows:
+
+- Asset definitions are now visible from the DAG details page, allowing users to inspect upstream and downstream asset relationships.
+- Backfills can be triggered and monitored directly from the UI, including support for scheduler-managed backfills introduced in Airflow 3.0.
+
+These improvements make Airflow more accessible to operators, data engineers, and stakeholders working across both
+time-based and event-driven workflows.
+
+Deprecations & Removals
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A number of deprecated features, modules, and interfaces have been removed in Airflow 3.0, completing long-standing
+migrations and cleanups.
+
+Users are encouraged to review the following removals to ensure compatibility:
+
+- **SubDag support has been removed** entirely, including the ``SubDagOperator``, related CLI and API interfaces. TaskGroups are now the recommended alternative for nested DAG structures.
+
+- **SLAs have been removed**: The legacy SLA feature, including SLA callbacks and metrics, has been removed. A more flexible replacement mechanism, ``DeadlineAlerts``, is planned for a future version of Airflow. Users who relied on SLA-based notifications should consider implementing custom alerting using task-level success/failure hooks or external monitoring integrations.
+
+- **Pickling support has been removed**: All legacy features related to DAG pickling have been fully removed. This includes the ``PickleDag`` CLI/API, as well as implicit behaviors around ``store_serialized_dags = False``. DAGs must now be serialized using the JSON-based serialization system. Ensure any custom Python objects used in DAGs are JSON-serializable.
+
+- **Context parameter cleanup**: Several previously available context variables have been removed from the task execution context, including ``conf``, ``execution_date``, and ``dag_run.external_trigger``. These values are either no longer applicable or have been renamed (e.g., use ``dag_run.logical_date`` instead of ``execution_date``). DAG authors should ensure that templated fields and Python callables do not reference these deprecated keys.
+
+- **Deprecated core imports** have been fully removed. Any use of ``airflow.operators.*``, ``airflow.hooks.*``, or similar legacy import paths should be updated to import from their respective providers.
+
+- **Configuration cleanup**: Several legacy config options have been removed, including:
+
+  - ``scheduler.allow_trigger_in_future``: DAG runs can no longer be triggered with a future logical date. Use ``logical_date=None`` instead.
+  - ``scheduler.use_job_schedule`` and ``scheduler.use_local_tz`` have also been removed. These options were deprecated and no longer had any effect.
+
+- **Deprecated utility methods** such as those in ``airflow.utils.helpers``, ``airflow.utils.process_utils``, and ``airflow.utils.timezone`` have been removed. Equivalent functionality can now be found in the standard Python library or Airflow provider modules.
+
+- **Removal of deprecated CLI flags and behavior**: Several CLI entrypoints and arguments that were marked for removal in earlier versions have been cleaned up.
+
+To assist with the upgrade, tools like ``ruff`` (e.g., rule ``AIR302``) and ``airflow config lint`` can help identify
+obsolete imports and configuration keys. These utilities are recommended for locating and resolving common
+incompatibilities during migration. Please see :doc:`Upgrade Guide <installation/upgrading_to_airflow3>` for more
+information.
+
+Summary of Removed Features
+"""""""""""""""""""""""""""
+
+The following table summarizes user-facing features removed in 3.0 and their recommended replacements. Not all of these
+are called out individually above.
+
++-------------------------------------------+----------------------------------------------------------+
+| **Feature**                               | **Replacement / Notes**                                  |
++===========================================+==========================================================+
+| SubDagOperator / SubDAGs                  | Use TaskGroups                                           |
++-------------------------------------------+----------------------------------------------------------+
+| SLA callbacks / metrics                   | Deadline Alerts (planned post-3.0)                       |
++-------------------------------------------+----------------------------------------------------------+
+| DAG Pickling                              | Use JSON serialization; pickling is no longer supported  |
++-------------------------------------------+----------------------------------------------------------+
+| Xcom Pickling                             | Use custom Xcom backend; pickling is no longer supported |
++-------------------------------------------+----------------------------------------------------------+
+| ``execution_date`` context var            | Use ``dag_run.logical_date``                             |
++-------------------------------------------+----------------------------------------------------------+
+| ``conf`` and ``dag_run.external_trigger`` | Removed from context; use DAG params or ``dag_run`` APIs |
++-------------------------------------------+----------------------------------------------------------+
+| Core ``EmailOperator``                    | Use ``EmailOperator`` from the ``smtp`` provider         |
++-------------------------------------------+----------------------------------------------------------+
+| ``none_failed_or_skipped`` rule           | Use ``none_failed_min_one_success``                      |
++-------------------------------------------+----------------------------------------------------------+
+| ``dummy`` trigger rule                    | Use ``always``                                           |
++-------------------------------------------+----------------------------------------------------------+
+| ``fail_stop`` argument                    | Use ``fail_fast``                                        |
++-------------------------------------------+----------------------------------------------------------+
+| ``store_serialized_dags=False``           | DAGs are always serialized; config has no effect         |
++-------------------------------------------+----------------------------------------------------------+
+| Deprecated core imports                   | Import from appropriate provider package                 |
++-------------------------------------------+----------------------------------------------------------+
+| DebugExecutor                             | Use LocalExecutor for testing                            |
++-------------------------------------------+----------------------------------------------------------+
+| ``.airflowignore`` regex                  | Uses glob syntax by default                              |
++-------------------------------------------+----------------------------------------------------------+
+
+Migration Tooling & Upgrade Process
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Airflow 3 was designed with migration in mind. Many Airflow 2 DAGs will work without changes, especially if deprecation
+warnings were addressed in earlier releases. To support the upgrade, Airflow 3 includes validation tools such as ``ruff``
+and ``airflow config update``, as well as a simplified startup model.
+
+For a step-by-step upgrade process, see the :doc:`Upgrade Guide <installation/upgrading_to_airflow3>`.
+
+Minimum Supported Versions
+"""""""""""""""""""""""""""
+
+To upgrade to Airflow 3.0, you must be running **Airflow 2.7 or later**.
+
+Airflow 3.0 supports the following Python versions:
+
+- Python 3.9
+- Python 3.10
+- Python 3.11
+- Python 3.12
+
+Earlier versions of Airflow or Python are not supported due to architectural changes and updated dependency requirements.
+
+DAG Compatibility Checks
+"""""""""""""""""""""""""
+
+Airflow now includes a Ruff-based linter with custom rules to detect DAG patterns and interfaces that are no longer
+compatible with Airflow 3.0. These checks are packaged under the ``AIR30x`` rule series. Example usage:
+
+.. code-block:: bash
+
+    ruff check dags/ --select AIR301
+    ruff check dags/ --select AIR301 --fix
+
+These checks can automatically fix many common issues such as renamed arguments, removed imports, or legacy context
+variable usage.
+
+Configuration Migration
+"""""""""""""""""""""""
+
+Airflow 3.0 introduces a new utility to validate and upgrade your Airflow configuration file:
+
+.. code-block:: bash
+
+    airflow config update
+    airflow config update --fix
+
+This utility detects removed or deprecated configuration options and, if desired, updates them in-place.
+
+Additional validation is available via:
+
+.. code-block:: bash
+
+    airflow config lint
+
+This command surfaces obsolete configuration keys and helps align your environment with Airflow 3.0 requirements.
+
+Metadata Database Upgrade
+"""""""""""""""""""""""""
+
+As with previous major releases, the Airflow 3.0 upgrade includes schema changes to the metadata database. Before
+upgrading, it is strongly recommended that you back up your database and optionally run:
+
+.. code-block:: bash
+
+    airflow db clean
+
+to remove old task instance, log, or XCom data. To apply the new schema:
+
+.. code-block:: bash
+
+    airflow db migrate
+
+Startup Behavior Changes
+"""""""""""""""""""""""""
+
+Airflow components are now started explicitly. For example:
+
+.. code-block:: bash
+
+    airflow api-server        # Replaces airflow webserver
+    airflow dag-processor     # Required in all environments
+
+These changes reflect Airflow's new service-oriented architecture.
 
 Resources
 ^^^^^^^^^
 
 - :doc:`Upgrade Guide <installation/upgrading_to_airflow3>`
 - `Airflow AIPs <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals>`_
+
+Airflow 3.0 represents more than a year of collaboration across hundreds of contributors and dozens of organizations. We
+thank everyone who helped shape this release through design discussions, code contributions, testing, documentation, and
+community feedback. For full details, migration guidance, and upgrade best practices, refer to the official Upgrade
+Guide and join the conversation on the Airflow dev and user mailing lists.
 
 Airflow 2.10.5 (2025-02-10)
 ---------------------------

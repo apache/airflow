@@ -76,6 +76,7 @@ class DAGRunResponse(BaseModel):
     conf: dict
     note: str | None
     dag_versions: list[DagVersionResponse]
+    bundle_version: str | None
 
 
 class DAGRunCollectionResponse(BaseModel):

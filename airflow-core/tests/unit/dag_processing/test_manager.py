@@ -414,7 +414,7 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == deque([file1, file2])
         assert manager._force_refresh_bundles == {"dags-folder"}
         with create_session() as session2:
-            parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
+            parsing_request_after = session2.get(DagPriorityParsingRequest, parsing_request.id)
         assert parsing_request_after is None
 
     def test_parsing_requests_only_bundles_being_parsed(self, testing_dag_bundle):
