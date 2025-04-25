@@ -666,6 +666,13 @@ workers:
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
+    # Prometheus configuration
+    prometheus:
+      # Use Prometheus for Keda autoscaling
+      enabled: false
+      # Address of Prometheus server
+      serverAddress: ""
+
   # Allow HPA (KEDA must be disabled).
   hpa:
     enabled: false
@@ -1812,6 +1819,13 @@ triggerer:
     # Whether to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: false
+
+    # Prometheus configuration
+    prometheus:
+      # Use Prometheus for Keda autoscaling
+      enabled: false
+      # Address of Prometheus server
+      serverAddress: ""
 
 # Airflow Dag Processor Config
 dagProcessor:

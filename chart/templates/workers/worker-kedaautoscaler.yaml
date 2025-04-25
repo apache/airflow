@@ -48,7 +48,14 @@ spec:
   advanced: {{- toYaml .Values.workers.keda.advanced | nindent 4 }}
   {{- end }}
   triggers:
-    {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
+    {{- if .Values.workers.keda.prometheus.enabled }}
+    - type: "prometheus"
+      metadata:
+        serverAddress: {{ .Values.workers.keda.prometheus.serverAddress | quote }}
+        metricName: "airflow-workers"
+        query: {{ tpl .Values.workers.keda.query . | quote }}
+        threshold: "1"
+    {{- else if eq .Values.data.metadataConnection.protocol "mysql" }}
     - type: "mysql"
       metadata:
         queryValue: "1"
