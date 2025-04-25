@@ -147,7 +147,6 @@ if REMOTE_LOGGING:
             f"{type(remote_task_handler_kwargs)}"
         )
     delete_local_copy = conf.getboolean("logging", "delete_local_logs")
-    print(delete_local_copy)
 
     if remote_base_log_folder.startswith("s3://"):
         from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
