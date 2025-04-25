@@ -56,7 +56,7 @@ _DEFAULT_SCOPESS = frozenset(
 logger = logging.getLogger(__name__)
 
 
-@attrs.define(kw_only=True)
+@attrs.define
 class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: Path = attrs.field(converter=Path)
@@ -69,7 +69,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: os.PathLike, ti: RuntimeTI):
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():
