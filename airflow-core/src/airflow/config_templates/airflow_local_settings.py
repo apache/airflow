@@ -194,7 +194,7 @@ if REMOTE_LOGGING:
                 }
                 | remote_task_handler_kwargs
             )
-        )  # type: ignore[assignment]
+        )
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
