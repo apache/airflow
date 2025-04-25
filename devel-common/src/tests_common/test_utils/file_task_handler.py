@@ -24,10 +24,10 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
-from airflow.utils.log.file_task_handler import StructuredLogMessage
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.utils.log.file_task_handler import ParsedLog
+    from airflow.utils.log.file_task_handler import ParsedLog, StructuredLogMessage
 
 
 def events(logs: Iterable[StructuredLogMessage], skip_source_info=True) -> list[str]:
@@ -60,6 +60,9 @@ def mock_parsed_logs_factory(
     Create a list of ParsedLog objects with the specified start datetime and count.
     Each ParsedLog object contains a timestamp and a list of StructuredLogMessage objects.
     """
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.log.file_task_handler import StructuredLogMessage
+
     parsed_logs: list[ParsedLog] = []
     for i in range(count):
         timestamp: datetime = start_datetime + pendulum.duration(seconds=i)
