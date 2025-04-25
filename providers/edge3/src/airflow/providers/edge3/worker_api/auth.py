@@ -62,10 +62,11 @@ else:
 
     @cache
     def jwt_signer() -> JWTSigner:
+        clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
         return JWTSigner(
-            secret_key=conf.get("api_auth", "jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api_auth", "jwt_expiration_time", fallback=30),
-            leeway_in_seconds=conf.getint("api_auth", "jwt_leeway", fallback=30),
+            secret_key=conf.get("core", "internal_api_secret_key"),
+            expiration_time_in_seconds=clock_grace,
+            leeway_in_seconds=clock_grace,
             audience="api",
         )
 
