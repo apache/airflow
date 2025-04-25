@@ -209,12 +209,6 @@ ARG_OUTPUT = Arg(
 )
 
 # Pool Commands Args
-ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
-ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
-ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
-ARG_POOL_INCLUDE_DEFERRED = Arg(
-    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
-)
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -597,7 +591,7 @@ def merge_commands(
 
 command_factory = CommandFactory()
 
-AUTH_ARGS = (ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD)
+AUTH_ARGS = ()
 
 AUTH_COMMANDS = (
     ActionCommand(
@@ -605,7 +599,7 @@ AUTH_COMMANDS = (
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
-        args=AUTH_ARGS,
+        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT, ARG_AUTH_USERNAME, ARG_AUTH_PASSWORD),
     ),
 )
 
@@ -614,13 +608,16 @@ POOL_COMMANDS = (
         name="import",
         help="Import pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.import"),
-        args=(ARG_POOL_IMPORT, *AUTH_ARGS),
+        args=(ARG_POOL_IMPORT,),
     ),
     ActionCommand(
         name="export",
         help="Export all pools",
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
-        args=(ARG_POOL_EXPORT, *AUTH_ARGS),
+        args=(
+            ARG_POOL_EXPORT,
+            ARG_OUTPUT,
+        ),
     ),
 )
 
