@@ -62,7 +62,10 @@ func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
 	if errResult := retValues[len(retValues)-1].Interface(); errResult != nil {
 		var ok bool
 		if err, ok = errResult.(error); !ok {
-			return fmt.Errorf("failed to extract task error result as it is not of error interface: %v", errResult)
+			return fmt.Errorf(
+				"failed to extract task error result as it is not of error interface: %v",
+				errResult,
+			)
 		}
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
@@ -83,17 +86,23 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 	//     `<result>, error`,  or just `error`
 	if fnType.NumOut() < 1 || fnType.NumOut() > 2 {
 		return fmt.Errorf(
-			"task function %s has %d return values, must be `<result>, error` or just `error`", f.fullName, fnType.NumOut(),
+			"task function %s has %d return values, must be `<result>, error` or just `error`",
+			f.fullName,
+			fnType.NumOut(),
 		)
 	}
 	if fnType.NumOut() > 1 && !isValidResultType(fnType.Out(0)) {
 		return fmt.Errorf(
-			"expected task function %s first return value to return valid type but found: %v", f.fullName, fnType.Out(0).Kind(),
+			"expected task function %s first return value to return valid type but found: %v",
+			f.fullName,
+			fnType.Out(0).Kind(),
 		)
 	}
 	if !isError(fnType.Out(fnType.NumOut() - 1)) {
 		return fmt.Errorf(
-			"expected task function %s last return value to return error but found %v", f.fullName, fnType.Out(fnType.NumOut()-1).Kind(),
+			"expected task function %s last return value to return error but found %v",
+			f.fullName,
+			fnType.Out(fnType.NumOut()-1).Kind(),
 		)
 	}
 	return nil

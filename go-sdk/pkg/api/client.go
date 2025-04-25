@@ -19,6 +19,8 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -61,4 +63,24 @@ func (c *Client) WithBearerToken(token string) (*Client, error) {
 		opts = append(opts, WithRequestEditorFn(fn))
 	}
 	return NewClient(c.Server, opts...)
+}
+
+func (*Client) ResponseErrorToJson(resp *http.Response) (any, error) {
+	if resp.Body == nil {
+		return "Unknown error", nil
+	}
+	b, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to json decode it, else just return the content
+	var jsonMap map[string](any)
+
+	err = json.Unmarshal(b, &jsonMap)
+	if err != nil {
+		return string(b), nil
+	}
+	return jsonMap, nil
 }

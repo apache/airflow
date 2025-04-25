@@ -24,11 +24,15 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
+	"runtime/debug"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"github.com/apache/airflow/go-sdk/pkg/api"
-	apiContext "github.com/apache/airflow/go-sdk/pkg/context"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 )
 
 type (
@@ -47,7 +51,9 @@ type (
 	Worker interface {
 		Registry
 
-		RunForever(ctx context.Context, server string) error
+		ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) error
+
+		WithServer(server string) (Worker, error)
 	}
 
 	worker struct {
@@ -71,31 +77,53 @@ const (
 	ReportTimeout     = 10 * time.Second
 )
 
-func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) {
+func (w *worker) WithServer(server string) (Worker, error) {
+	client, err := api.NewDefaultClient(server)
+	if err != nil {
+		return nil, err
+	}
+	return &worker{
+		Registry: w.Registry,
+		client:   client,
+		logger:   w.logger,
+	}, nil
+}
+
+func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTaskActivity) error {
 	// Store the activity in the context so we can get at task id, etc, variables
-	taskContext, cancelTaskCtx := context.WithCancel(context.WithValue(ctx, apiContext.ActivityContextKey, activity))
+	taskContext, cancelTaskCtx := context.WithCancel(
+		context.WithValue(ctx, sdkcontext.ActivityContextKey, activity),
+	)
+	defer cancelTaskCtx()
 
 	taskLogger, err := w.setupTaskLogger(ctx, activity)
 	if err != nil {
 		w.logger.ErrorContext(taskContext, "Could not create logger", slog.Any("error", err))
-		return
+		return err
 	}
 
 	task, exists := w.LookupTask(activity.TI.DagId, activity.TI.TaskId)
 	if !exists {
-		taskLogger.ErrorContext(taskContext, "Task not registered", "dag_id", activity.TI.DagId, "task_id", activity.TI.TaskId)
-		return
+		taskLogger.ErrorContext(
+			taskContext,
+			"Task not registered",
+			"dag_id",
+			activity.TI.DagId,
+			"task_id",
+			activity.TI.TaskId,
+		)
+		// TODO: We can still report this to the server!
+		return nil
 	}
 	taskLogger.InfoContext(taskContext, "Task starting")
 
 	activityClient, err := w.client.WithBearerToken(activity.Token)
 	if err != nil {
 		w.logger.ErrorContext(taskContext, "Could not create client", slog.Any("error", err))
-		return
+		return err
 	}
 
 	// TODO: Timeout etc on the context
-
 	// TODO: Add in retries on the api client
 
 	resp, err := activityClient.TiRun(ctx, activity.TI.Id, api.TIEnterRunningPayload{
@@ -106,15 +134,22 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 		StartDate: time.Now().UTC(),
 	})
 	if err != nil {
-		taskLogger.ErrorContext(taskContext, "Error reporting task as started", slog.Any("error", err))
-		return
+		taskLogger.ErrorContext(
+			taskContext,
+			"Error reporting task as started",
+			slog.Any("error", err),
+		)
+		return err
 	} else if resp.StatusCode >= 400 {
-		if resp.Body != nil {
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+		errResp, err := activityClient.ResponseErrorToJson(resp)
+		if err != nil {
+			taskLogger.ErrorContext(taskContext, "Error reading error response", slog.Any("error", err))
+			return err
 		}
-		taskLogger.ErrorContext(taskContext, "Server reported task as started", slog.Any("error", err))
-		return
+		taskLogger.ErrorContext(taskContext, "Server reported error when attempting to start task",
+			slog.Any("error", errResp), slog.Int("status_code", resp.StatusCode),
+			slog.Group("request", "url", resp.Request.URL, "method", resp.Request.Method, "headers", resp.Request.Header))
+		return nil
 
 	}
 
@@ -125,7 +160,13 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 			ctx, cancel := context.WithTimeout(context.WithoutCancel(taskContext), ReportTimeout)
 			defer cancel()
 			stopHeartbeating <- true
-			taskLogger.ErrorContext(ctx, "Recovered in f", slog.Any("error", r))
+			taskLogger.ErrorContext(
+				ctx,
+				"Recovered in f",
+				slog.Any("error", r),
+				"stack",
+				string(debug.Stack()),
+			)
 			payload, err := json.Marshal(api.TITerminalStatePayload{
 				State:   api.TerminalStateNonSuccess(api.TerminalTIStateFailed),
 				EndDate: time.Now().UTC(),
@@ -135,7 +176,12 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 				return
 			}
 			bodyReader := bytes.NewReader(payload)
-			resp, err := activityClient.TiUpdateStateWithBody(ctx, activity.TI.Id, "application/json", bodyReader)
+			resp, _ := activityClient.TiUpdateStateWithBody(
+				ctx,
+				activity.TI.Id,
+				"application/json",
+				bodyReader,
+			)
 			if resp != nil && resp.Body != nil {
 				io.Copy(io.Discard, resp.Body)
 				resp.Body.Close()
@@ -146,7 +192,10 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 	ticker := time.NewTicker(HeartbeatInterval)
 	go func() {
 		// Task Logger is for the task's _own_ logs. We want a logger for our heartbeat etc.
-		logger := w.logger.With(slog.String("dag_id", activity.TI.DagId), slog.String("task_id", activity.TI.TaskId))
+		logger := w.logger.With(
+			slog.String("dag_id", activity.TI.DagId),
+			slog.String("task_id", activity.TI.TaskId),
+		)
 		logger.InfoContext(ctx, "Starting heartbeater")
 		for {
 			select {
@@ -158,7 +207,9 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 					Hostname: Hostname,
 					Pid:      os.Getpid(),
 				})
-				logger.InfoContext(ctx, "heartbeating", slog.Any("error", err))
+				if err != nil {
+					logger.InfoContext(ctx, "heartbeating", slog.Any("error", err))
+				}
 
 				if resp != nil && resp.StatusCode == 404 || resp.StatusCode == 409 {
 					stopHeartbeating <- true
@@ -171,12 +222,12 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 					taskLogger.ErrorContext(
 						taskContext,
 						"Server indicated the task shouldn't be running anymore. Terminating activity",
-						"status_code", resp.StatusCode,
+						"status_code",
+						resp.StatusCode,
 						// TODO: include the response body here
 					)
 
 					// TODO: Put a timeout on waiting for the task to actually cancel?
-					cancelTaskCtx()
 					return
 				}
 			case <-taskContext.Done():
@@ -197,7 +248,12 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 	var finalState api.TerminalTIState
 
 	if err != nil {
-		taskLogger.InfoContext(taskContext, "Task failed with error, marking task as failed", "error", err)
+		taskLogger.InfoContext(
+			taskContext,
+			"Task failed with error, marking task as failed",
+			"error",
+			err,
+		)
 		finalState = api.TerminalTIStateFailed
 		finalStatePayload, _ = json.Marshal(api.TITerminalStatePayload{
 			EndDate: endTime,
@@ -211,12 +267,13 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 		})
 	}
 
-	if err != nil {
-		taskLogger.ErrorContext(ctx, "Unable to error to server", slog.Any("error", err))
-		return
-	}
 	bodyReader := bytes.NewReader(finalStatePayload)
-	resp, err = activityClient.TiUpdateStateWithBody(ctx, activity.TI.Id, "application/json", bodyReader)
+	resp, err = activityClient.TiUpdateStateWithBody(
+		ctx,
+		activity.TI.Id,
+		"application/json",
+		bodyReader,
+	)
 	if resp != nil && resp.Body != nil {
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
@@ -224,22 +281,42 @@ func (w *worker) ExecuteTaskActivity(ctx context.Context, activity api.ExecuteTa
 
 	if err != nil {
 		taskLogger.Error("Error reporting success", "error", err, "final_state", finalState)
+		return err
 	} else if resp.StatusCode >= 400 {
 		taskLogger.Error("Error reporting success", "error", err, "final_state", finalState, "status_code", resp.StatusCode)
 	}
+
+	return err
 }
 
-func (w *worker) setupTaskLogger(ctx context.Context, activity api.ExecuteTaskActivity) (*slog.Logger, error) {
+func (w *worker) setupTaskLogger(
+	ctx context.Context,
+	activity api.ExecuteTaskActivity,
+) (*slog.Logger, error) {
 	// Create a logger that:
 	// - only exits the go-routine on panic, not the whole program
 	// - Writes JSON to a file
 	// - And streams output to stdout in a nice format too
 
+	base := viper.GetString("logging.base_log_path")
+	filename := path.Join(base, *activity.LogPath)
+	dir := path.Dir(filename)
+
+	// TODO: umask?
+	err := os.MkdirAll(dir, 0o750)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: log to the file name specified in `activity`
+	fh, err := os.Create(filename)
+	if err != nil {
+		return nil, err
+	}
 	taskLogger := slog.New(
 		logging.NewTeeLogger(
 			slog.NewJSONHandler(
-				os.Stdout,
+				fh,
 				&slog.HandlerOptions{
 					AddSource:   false,
 					ReplaceAttr: nil,
@@ -249,39 +326,4 @@ func (w *worker) setupTaskLogger(ctx context.Context, activity api.ExecuteTaskAc
 		),
 	)
 	return taskLogger, nil
-}
-
-func (w *worker) RunForever(ctx context.Context, server string) error {
-	var err error
-	w.client, err = api.NewDefaultClient(server)
-	if err != nil {
-		return err
-	}
-
-	w.logger.Info("Starting up")
-
-	ch := make(chan api.ExecuteTaskActivity)
-	// ch := w.client.PollQueue(ctx)
-
-	go func() {
-		ch <- api.ExecuteTaskActivity{}
-	}()
-
-	for true {
-		select {
-		case <-ctx.Done():
-			return nil
-		case activity, ok := <-ch:
-			if ok {
-				w.logger.Debug("Got activity", slog.Any("activity", activity))
-				w.ExecuteTaskActivity(ctx, activity)
-				w.logger.Debug("activity complete")
-			} else {
-				w.logger.Info("poll closed")
-				break
-			}
-		}
-	}
-
-	return ctx.Err()
 }

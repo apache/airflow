@@ -21,12 +21,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
-	"os/signal"
 	"time"
 
 	"github.com/MatusOllah/slogcolor"
+
+	"github.com/apache/airflow/go-sdk/celery/cmd"
 	"github.com/apache/airflow/go-sdk/sdk"
 	"github.com/apache/airflow/go-sdk/worker"
 )
@@ -64,31 +64,16 @@ func load() error {
 }
 
 func main() {
-	// defer logger.Sync() // flushes buffer, if any
-
 	worker := worker.New(logger)
 	registerTasks(worker)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
-	worker.RunForever(ctx, getServerUrl())
+	cmd.Execute(worker)
 }
 
 func makeLogger() *slog.Logger {
 	log := slog.New(slogcolor.NewHandler(os.Stderr, slogcolor.DefaultOptions))
 	slog.SetDefault(log)
 	return log
-}
-
-func getServerUrl() string {
-	// Very simple for now
-	url, err := url.Parse(os.Args[1])
-	if err != nil {
-		logger.Error("Invalid server url", "error", err)
-		os.Exit(1)
-	}
-	return url.String()
 }
 
 var logger = makeLogger()

@@ -15,28 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package sdk
+package celery
 
-import (
-	"context"
-	"fmt"
-	"io"
-
-	"github.com/apache/airflow/go-sdk/pkg/api"
-	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
-)
-
-func VariableGet(ctx context.Context, key string) (string, error) {
-	client := ctx.Value(sdkcontext.ApiClientContextKey).(*api.Client)
-
-	resp, err := client.GetVariable(ctx, key)
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("variable not found: %d", resp.StatusCode)
-	}
-	b, err := io.ReadAll(resp.Body)
-	// TODO: Handle deserialization etc!
-	return string(b), err
+type Config struct {
+	BrokerAddr string   `mapstructure:"broker_address"`
+	Port       int      `mapstructure:"port"`
+	Queues     []string `mapstructure:"queues"`
 }

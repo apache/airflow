@@ -1,7 +1,0 @@
-{
-    "isGoSubmodule": true,
-    "disallowAdditionalPropertiesIfNotPresent": false,
-    "useDefaultValuesForRequiredVars": true,
-    "validateSpec": false,
-    "withGoMod": false
-}

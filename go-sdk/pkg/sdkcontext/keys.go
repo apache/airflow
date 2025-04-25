@@ -15,14 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package context
+package sdkcontext
 
 type (
 	activityContextKey  struct{}
 	apiClientContextKey struct{}
+	workerContextKey    struct{}
 )
 
 var (
 	ActivityContextKey  = activityContextKey{}
 	ApiClientContextKey = apiClientContextKey{}
+	WorkerContextKey    = workerContextKey{}
 )
