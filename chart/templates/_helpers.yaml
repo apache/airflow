@@ -664,6 +664,12 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
 {{- end }}
 
+{{/* Determine trigger capacity, taking Airflow 2 and 3 config option differences into account */}}
+{{- define "triggerer.capacity" -}}
+  {{- $triggerer_section := .Values.config.triggerer | default dict }}
+  {{- $triggerer_section.capacity | default $triggerer_section.default_capacity | default 1000 | int -}}
+{{- end -}}
+
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "dagProcessor" "nameSuffix" "dag-processor") .) -}}

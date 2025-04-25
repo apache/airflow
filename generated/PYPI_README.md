@@ -32,9 +32,9 @@ PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTO
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow)](https://pypi.org/project/apache-airflow/)
 [![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/apache-airflow)](https://artifacthub.io/packages/search?repo=apache-airflow)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://x.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 [![Contributors](https://img.shields.io/github/contributors/apache/airflow)](https://github.com/apache/airflow/graphs/contributors)
+![Commit Activity](https://img.shields.io/github/commit-activity/m/apache/airflow)
 [![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/6)](https://ossrank.com/p/6)
 
 <picture width="500">
@@ -54,14 +54,14 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (2.10.5)    |
-|------------|------------------------|----------------------------|
-| Python     | 3.9, 3.10, 3.11, 3.12  | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)            |
-| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.27, 1.28, 1.29, 1.30     |
-| PostgreSQL | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation       |
-| SQLite     | 3.15.0+                | 3.15.0+                    |
+|            | Main version (dev)     | Stable version (3.0.0) |
+|------------|------------------------|------------------------|
+| Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
+| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
+| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.29, 1.30, 1.31, 1.32 |
+| PostgreSQL | 13, 14, 15, 16, 17     | 13, 14, 15, 16, 17     |
+| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation   |
+| SQLite     | 3.15.0+                | 3.15.0+                |
 
 \* Experimental
 
@@ -91,7 +91,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals).
 
-Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
+Documentation for dependent projects like provider distributions, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
 ## Installing from PyPI
 
@@ -128,18 +128,18 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow[postgres,google]==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
-For information on installing provider packages, check
+For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 ## Official source code

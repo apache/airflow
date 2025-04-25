@@ -6,7 +6,7 @@
             "runId": "{{ is_uuid(result) }}"
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
             "facets": {
                 "jobType": {
@@ -24,7 +24,7 @@
             "runId": "{{ is_uuid(result) }}"
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
             "facets": {
                 "jobType": {
@@ -42,7 +42,7 @@
             "runId": "{{ is_uuid(result) }}"
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
             "facets": {
                 "jobType": {
@@ -61,7 +61,7 @@
             "runId": "{{ is_uuid(result) }}"
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_sensor_mapped_tasks_dag.wait_for_10_seconds",
             "facets": {
                 "jobType": {

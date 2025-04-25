@@ -24,9 +24,10 @@ from collections import Counter
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple
 
+from sqlalchemy import event
+
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
-from sqlalchemy import event
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

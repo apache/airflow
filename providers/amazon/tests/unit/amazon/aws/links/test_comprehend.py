@@ -20,14 +20,29 @@ from airflow.providers.amazon.aws.links.comprehend import (
     ComprehendDocumentClassifierLink,
     ComprehendPiiEntitiesDetectionLink,
 )
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 
 class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
     link_class = ComprehendPiiEntitiesDetectionLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
         test_job_id = "123-345-678"
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "eu-west-1",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "job_id": test_job_id,
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 f"https://console.aws.amazon.com/comprehend/home?region=eu-west-1#/analysis-job-details/pii/{test_job_id}"
@@ -41,10 +56,20 @@ class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
 class TestComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
     link_class = ComprehendDocumentClassifierLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
         test_job_id = (
             "arn:aws:comprehend:us-east-1:0123456789:document-classifier/test-custom-document-classifier"
         )
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "us-east-1",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "arn": test_job_id,
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 f"https://console.aws.amazon.com/comprehend/home?region=us-east-1#classifier-version-details/{test_job_id}"

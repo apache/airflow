@@ -47,9 +47,9 @@ from airflow.providers.amazon.aws.triggers.dms import (
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ARN = "test_arn"
 

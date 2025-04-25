@@ -442,8 +442,7 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return head_object_val
-            else:
-                raise e
+            raise e
 
     async def list_prefixes_async(
         self,
@@ -790,10 +789,6 @@ class S3Hook(AwsBaseHook):
                 "FAILURE: Inactivity Period passed, not enough objects found in %s",
                 path,
             )
-            return {
-                "status": "error",
-                "message": f"FAILURE: Inactivity Period passed, not enough objects found in {path}",
-            }
         return {
             "status": "pending",
             "previous_objects": previous_objects,
@@ -940,8 +935,7 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
                 return None
-            else:
-                raise e
+            raise e
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1473,8 +1467,7 @@ class S3Hook(AwsBaseHook):
                 raise AirflowNotFoundException(
                     f"The source file in Bucket {bucket_name} with path {key} does not exist"
                 )
-            else:
-                raise e
+            raise e
 
         if preserve_file_name:
             local_dir = local_path or gettempdir()
@@ -1494,7 +1487,9 @@ class S3Hook(AwsBaseHook):
             get_hook_lineage_collector().add_output_asset(
                 context=self,
                 scheme="file",
-                asset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
+                asset_kwargs={
+                    "path": str(file_path) if file_path.is_absolute() else str(file_path.absolute())
+                },
             )
             file = open(file_path, "wb")
         else:

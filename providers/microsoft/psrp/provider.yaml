@@ -24,7 +24,7 @@ description: |
   <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 state: ready
-source-date-epoch: 1741509033
+source-date-epoch: 1743477846
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.0.1

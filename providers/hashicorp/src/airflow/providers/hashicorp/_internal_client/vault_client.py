@@ -126,8 +126,7 @@ class _VaultClient(LoggingMixin):
         super().__init__()
         if kv_engine_version and kv_engine_version not in VALID_KV_VERSIONS:
             raise VaultError(
-                f"The version is not supported: {kv_engine_version}. "
-                f"It should be one of {VALID_KV_VERSIONS}"
+                f"The version is not supported: {kv_engine_version}. It should be one of {VALID_KV_VERSIONS}"
             )
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(
@@ -246,8 +245,7 @@ class _VaultClient(LoggingMixin):
 
         if _client.is_authenticated():
             return _client
-        else:
-            raise VaultError("Vault Authentication Error!")
+        raise VaultError("Vault Authentication Error!")
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -386,8 +384,7 @@ class _VaultClient(LoggingMixin):
             if len(split_secret_path) < 2:
                 raise InvalidPath
             return split_secret_path[0], split_secret_path[1]
-        else:
-            return self.mount_point, secret_path
+        return self.mount_point, secret_path
 
     def get_secret(self, secret_path: str, secret_version: int | None = None) -> dict | None:
         """

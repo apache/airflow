@@ -30,12 +30,13 @@ with models.DAG(
     schedule=None,
     tags=["example"],
 ) as dag:
+    # TODO: those examples have typeignores, likely need to be fixed
     # [START howto_operator_powerbi_workspaces]
     workspaces_task = MSGraphAsyncOperator(
         task_id="workspaces",
         conn_id="powerbi",
         url="myorg/admin/workspaces/modified",
-        result_processor=lambda context, response: list(map(lambda workspace: workspace["id"], response)),
+        result_processor=lambda context, response: list(map(lambda workspace: workspace["id"], response)),  # type: ignore[typeddict-item, index]
     )
     # [END howto_operator_powerbi_workspaces]
 
@@ -53,7 +54,7 @@ with models.DAG(
             "getArtifactUsers": True,
         },
         data={"workspaces": workspaces_task.output},
-        result_processor=lambda context, response: {"scanId": response["id"]},
+        result_processor=lambda context, response: {"scanId": response["id"]},  # type: ignore[typeddict-item]
     )
     # [END howto_operator_powerbi_workspaces_info]
 
@@ -77,7 +78,7 @@ with models.DAG(
             "datasetId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d",
         },
         data={"type": "full"},  # Needed for enhanced refresh
-        result_processor=lambda context, response: response["requestid"],
+        result_processor=lambda context, response: response["requestid"],  # type: ignore[typeddict-item]
     )
 
     refresh_dataset_history_task = MSGraphSensor(
@@ -90,7 +91,7 @@ with models.DAG(
             "refreshId": refresh_dataset_task.output,
         },
         timeout=350.0,
-        event_processor=lambda context, event: event["status"] == "Completed",
+        event_processor=lambda context, event: event["status"] == "Completed",  # type: ignore[typeddict-item]
     )
     # [END howto_operator_powerbi_refresh_dataset]
 

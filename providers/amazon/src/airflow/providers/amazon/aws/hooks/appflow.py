@@ -16,15 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, cast
-
-from mypy_boto3_appflow.type_defs import (
-    DestinationFlowConfigTypeDef,
-    SourceFlowConfigTypeDef,
-    TaskTypeDef,
-    TriggerConfigTypeDef,
-)
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -125,11 +117,9 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         self.conn.update_flow(
             flowName=response["flowName"],
-            destinationFlowConfigList=cast(
-                Sequence[DestinationFlowConfigTypeDef], response["destinationFlowConfigList"]
-            ),
-            sourceFlowConfig=cast(SourceFlowConfigTypeDef, response["sourceFlowConfig"]),
-            triggerConfig=cast(TriggerConfigTypeDef, response["triggerConfig"]),
+            destinationFlowConfigList=response["destinationFlowConfigList"],
+            sourceFlowConfig=response["sourceFlowConfig"],
+            triggerConfig=response["triggerConfig"],
             description=response.get("description", "Flow description."),
-            tasks=cast(Sequence[TaskTypeDef], tasks),
+            tasks=tasks,
         )

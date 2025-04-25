@@ -28,6 +28,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook, BedrockRuntimeHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockBatchInferenceOperator,
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
@@ -36,6 +37,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -548,3 +550,62 @@ class TestBedrockRaGOperator:
             vector_search_config=self.VECTOR_SEARCH_CONFIG,
         )
         validate_template_fields(op)
+
+
+class TestBedrockBatchInferenceOperator:
+    JOB_NAME = "job_name"
+    ROLE_ARN = "role_arn"
+    MODEL_ID = "model_id"
+    INPUT_URI = "input_uri"
+    OUTPUT_URI = "output_uri"
+    INVOKE_KWARGS = {"tags": {"key": "key", "value": "value"}}
+
+    JOB_ARN = "job_arn"
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(BedrockHook, "conn") as _conn:
+            _conn.create_model_invocation_job.return_value = {"jobArn": self.JOB_ARN}
+            yield _conn
+
+    @pytest.fixture
+    def bedrock_hook(self) -> Generator[BedrockHook, None, None]:
+        with mock_aws():
+            hook = BedrockHook(aws_conn_id="aws_default")
+            yield hook
+
+    def setup_method(self):
+        self.operator = BedrockBatchInferenceOperator(
+            task_id="test_task",
+            job_name=self.JOB_NAME,
+            role_arn=self.ROLE_ARN,
+            model_id=self.MODEL_ID,
+            input_uri=self.INPUT_URI,
+            output_uri=self.OUTPUT_URI,
+            invoke_kwargs=self.INVOKE_KWARGS,
+        )
+        self.operator.defer = mock.MagicMock()
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(BedrockHook, "get_waiter")
+    def test_customize_model_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, bedrock_hook
+    ):
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.JOB_ARN
+        assert bedrock_hook.get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

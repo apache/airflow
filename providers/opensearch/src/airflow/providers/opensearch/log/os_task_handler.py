@@ -98,8 +98,7 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
         return val
-    else:
-        raise AirflowException(f"Could not find TaskInstance for {ti}")
+    raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 def get_os_kwargs_from_config() -> dict[str, Any]:

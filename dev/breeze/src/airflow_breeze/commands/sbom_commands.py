@@ -77,9 +77,9 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    FILES_SBOM_DIR,
-    PROVIDER_METADATA_JSON_FILE_PATH,
+    AIRFLOW_ROOT_PATH,
+    FILES_SBOM_PATH,
+    PROVIDER_METADATA_JSON_PATH,
 )
 from airflow_breeze.utils.projects_google_spreadsheet import (
     ACTIONS,
@@ -214,7 +214,7 @@ def update_sbom_information(
         python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
     else:
         python_versions = [python]
-    application_root_path = FILES_SBOM_DIR
+    application_root_path = FILES_SBOM_PATH
     start_cdxgen_server(application_root_path, run_in_parallel, parallelism)
 
     jobs_to_run: list[SbomApplicationJob] = []
@@ -226,9 +226,8 @@ def update_sbom_information(
             if not force:
                 get_console().print(f"[warning]The {dir} already exists. Skipping")
                 return True
-            else:
-                get_console().print(f"[warning]The {dir} already exists. Forcing update")
-                return False
+            get_console().print(f"[warning]The {dir} already exists. Forcing update")
+            return False
         return False
 
     apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
@@ -552,7 +551,7 @@ def generate_providers_requirements(
     else:
         python_versions = [python]
 
-    with open(PROVIDER_METADATA_JSON_FILE_PATH) as f:
+    with open(PROVIDER_METADATA_JSON_PATH) as f:
         provider_metadata = json.load(f)
 
     if provider_id is None:
@@ -793,8 +792,7 @@ def export_dependency_information(
 def sort_deps_key(dependency: dict[str, Any]) -> str:
     if dependency.get("Vcs"):
         return "0:" + dependency["Name"]
-    else:
-        return "1:" + dependency["Name"]
+    return "1:" + dependency["Name"]
 
 
 def convert_all_sbom_to_value_dictionaries(
@@ -812,7 +810,7 @@ def convert_all_sbom_to_value_dictionaries(
     num_deps = 0
     all_dependency_value_dicts = []
     dependency_depth: dict[str, int] = json.loads(
-        (AIRFLOW_SOURCES_ROOT / "generated" / "dependency_depth.json").read_text()
+        (AIRFLOW_ROOT_PATH / "generated" / "dependency_depth.json").read_text()
     )
     from rich.progress import Progress
 

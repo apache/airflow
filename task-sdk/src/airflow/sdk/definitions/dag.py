@@ -23,6 +23,7 @@ import itertools
 import logging
 import os
 import sys
+import warnings
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
@@ -35,6 +36,7 @@ from typing import (
     ClassVar,
     Union,
     cast,
+    overload,
 )
 from urllib.parse import urlsplit
 
@@ -49,10 +51,11 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
-from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
@@ -65,16 +68,15 @@ from airflow.timetables.simple import (
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import EdgeInfoType
 
 if TYPE_CHECKING:
-    # TODO: Task-SDK: Remove pendulum core dep
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
+    from airflow.utils.types import EdgeInfoType
 
 
 log = logging.getLogger(__name__)
@@ -132,6 +134,12 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
+def _config_bool_factory(section: str, key: str):
+    from airflow.configuration import conf
+
+    return functools.partial(conf.getboolean, section, key)
+
+
 def _convert_params(val: abc.MutableMapping | None, self_: DAG) -> ParamsDict:
     """
     Convert the plain dict into a ParamsDict.
@@ -164,8 +172,7 @@ def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
 def _convert_access_control(value, self_: DAG):
     if hasattr(self_, "_upgrade_outdated_dag_access_control"):
         return self_._upgrade_outdated_dag_access_control(value)
-    else:
-        return value
+    return value
 
 
 def _convert_doc_md(doc_md: str | None) -> str | None:
@@ -309,7 +316,7 @@ class DAG:
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -367,7 +374,7 @@ class DAG:
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
-    dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
+    dag_id: str = attrs.field(kw_only=False, validator=lambda i, a, v: validate_key(v))
     description: str | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(str)),
@@ -399,8 +406,10 @@ class DAG:
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
-    # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
-    catchup: bool = attrs.field(default=True, converter=bool)
+    sla_miss_callback: None = attrs.field(default=None)
+    catchup: bool = attrs.field(
+        factory=_config_bool_factory("scheduler", "catchup_by_default"),
+    )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
@@ -439,6 +448,9 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
+    disable_bundle_versioning: bool = attrs.field(
+        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -499,16 +511,15 @@ class DAG:
         # delattr(self, "schedule")
         if isinstance(schedule, Timetable):
             return schedule
-        elif isinstance(schedule, BaseAsset):
+        if isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
-        elif isinstance(schedule, Collection) and not isinstance(schedule, str):
+        if isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, BaseAsset) for x in schedule):
                 raise ValueError(
                     "All elements in 'schedule' should be either assets, asset references, or asset aliases"
                 )
             return AssetTriggeredTimetable(AssetAll(*schedule))
-        else:
-            return _create_timetable(schedule, instance.timezone)
+        return _create_timetable(schedule, instance.timezone)
 
     @timezone.default
     def _extract_tz(instance):
@@ -535,6 +546,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -811,7 +831,7 @@ class DAG:
         }
 
         def filter_task_group(group, parent_group):
-            """Exclude tasks not included in the subdag from the given TaskGroup."""
+            """Exclude tasks not included in the partial dag from the given TaskGroup."""
             # We want to deepcopy _most but not all_ attributes of the task group, so we create a shallow copy
             # and then manually deep copy the instances. (memo argument to deepcopy only works for instances
             # of classes, not "native" properties of an instance)
@@ -847,12 +867,12 @@ class DAG:
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
-        subdag_task_groups = dag.task_group.get_task_group_dict()
-        for group in subdag_task_groups.values():
-            group.upstream_group_ids.intersection_update(subdag_task_groups)
-            group.downstream_group_ids.intersection_update(subdag_task_groups)
-            group.upstream_task_ids.intersection_update(dag.task_dict)
-            group.downstream_task_ids.intersection_update(dag.task_dict)
+        groups = dag.task_group.get_task_group_dict()
+        for g in groups.values():
+            g.upstream_group_ids.intersection_update(groups)
+            g.downstream_group_ids.intersection_update(groups)
+            g.upstream_task_ids.intersection_update(dag.task_dict)
+            g.downstream_task_ids.intersection_update(dag.task_dict)
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
@@ -922,12 +942,11 @@ class DAG:
             task_id in self.task_dict and self.task_dict[task_id] is not task
         ) or task_id in self.task_group.used_group_ids:
             raise DuplicateTaskIdFound(f"Task id '{task_id}' has already been added to the DAG")
-        else:
-            self.task_dict[task_id] = task
-            # TODO: Task-SDK: this type ignore shouldn't be needed!
-            task.dag = self  # type: ignore[assignment]
-            # Add task_id to used_group_ids to prevent group_id and task_id collisions.
-            self.task_group.used_group_ids.add(task_id)
+        self.task_dict[task_id] = task
+        # TODO: Task-SDK: this type ignore shouldn't be needed!
+        task.dag = self  # type: ignore[assignment]
+        # Add task_id to used_group_ids to prevent group_id and task_id collisions.
+        self.task_group.used_group_ids.add(task_id)
 
         FailFastDagInvalidTriggerRule.check(fail_fast=self.fail_fast, trigger_rule=task.trigger_rule)
 
@@ -966,11 +985,10 @@ class DAG:
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
         """Return edge information for the given pair of tasks or an empty edge if there is no information."""
         # Note - older serialized DAGs may not have edge_info being a dict at all
-        empty = cast(EdgeInfoType, {})
+        empty = cast("EdgeInfoType", {})
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
-        else:
-            return empty
+        return empty
 
     def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
         """
@@ -1014,7 +1032,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "_log",
     "task_dict",
     "template_searchpath",
-    # "sla_miss_callback",
+    "sla_miss_callback",
     "on_success_callback",
     "on_failure_callback",
     "template_undefined",
@@ -1023,13 +1041,13 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_success_callback",
     "has_on_failure_callback",
     "auto_register",
-    "fail_fast",
     "schedule",
 }
 
 if TYPE_CHECKING:
     # NOTE: Please keep the list of arguments in sync with DAG.__init__.
     # Only exception: dag_id here should have a default value, but not in DAG.
+    @overload
     def dag(
         dag_id: str = "",
         *,
@@ -1046,7 +1064,6 @@ if TYPE_CHECKING:
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
-        # sla_miss_callback: Any = None,
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
@@ -1061,6 +1078,7 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_fast: bool = False,
         dag_display_name: str | None = None,
+        disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.
@@ -1070,48 +1088,63 @@ if TYPE_CHECKING:
         :param dag_args: Arguments for DAG object
         :param dag_kwargs: Kwargs for DAG object.
         """
-else:
 
-    def dag(dag_id="", __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
-        # TODO: Task-SDK: remove __DAG_class
-        # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
-        # return SchedulerDag objects
-        DAG = __DAG_class
+    @overload
+    def dag(func: Callable[..., DAG]) -> Callable[..., DAG]:
+        """Python dag decorator to use without any arguments."""
 
-        def wrapper(f: Callable) -> Callable[..., DAG]:
-            @functools.wraps(f)
-            def factory(*args, **kwargs):
-                # Generate signature for decorated function and bind the arguments when called
-                # we do this to extract parameters, so we can annotate them on the DAG object.
-                # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
-                f_sig = signature(f).bind(*args, **kwargs)
-                # Apply defaults to capture default values if set.
-                f_sig.apply_defaults()
 
-                # Initialize DAG with bound arguments
-                with DAG(dag_id or f.__name__, **decorator_kwargs) as dag_obj:
-                    # Set DAG documentation from function documentation if it exists and doc_md is not set.
-                    if f.__doc__ and not dag_obj.doc_md:
-                        dag_obj.doc_md = f.__doc__
+def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    # TODO: Task-SDK: remove __DAG_class
+    # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
+    # return SchedulerDag objects
+    DAG = __DAG_class
 
-                    # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
-                    # All args/kwargs for function will be DAGParam object and replaced on execution time.
-                    f_kwargs = {}
-                    for name, value in f_sig.arguments.items():
-                        f_kwargs[name] = dag_obj.param(name, value)
+    def wrapper(f: Callable) -> Callable[..., DAG]:
+        # Determine dag_id: prioritize keyword arg, then positional string, fallback to function name
+        if "dag_id" in decorator_kwargs:
+            dag_id = decorator_kwargs.pop("dag_id", "")
+        elif isinstance(dag_id_or_func, str) and dag_id_or_func.strip():
+            dag_id = dag_id_or_func
+        else:
+            dag_id = f.__name__
 
-                    # set file location to caller source path
-                    back = sys._getframe().f_back
-                    dag_obj.fileloc = back.f_code.co_filename if back else ""
+        @functools.wraps(f)
+        def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters, so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+            f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
+            f_sig.apply_defaults()
 
-                    # Invoke function to create operators in the DAG scope.
-                    f(**f_kwargs)
+            # Initialize DAG with bound arguments
+            with DAG(dag_id, **decorator_kwargs) as dag_obj:
+                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                if f.__doc__ and not dag_obj.doc_md:
+                    dag_obj.doc_md = f.__doc__
 
-                # Return dag object such that it's accessible in Globals.
-                return dag_obj
+                # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
+                # All args/kwargs for function will be DAGParam object and replaced on execution time.
+                f_kwargs = {}
+                for name, value in f_sig.arguments.items():
+                    f_kwargs[name] = dag_obj.param(name, value)
 
-            # Ensure that warnings from inside DAG() are emitted from the caller, not here
-            fixup_decorator_warning_stack(factory)
-            return factory
+                # set file location to caller source path
+                back = sys._getframe().f_back
+                dag_obj.fileloc = back.f_code.co_filename if back else ""
 
-        return wrapper
+                # Invoke function to create operators in the DAG scope.
+                f(**f_kwargs)
+
+            # Return dag object such that it's accessible in Globals.
+            return dag_obj
+
+        # Ensure that warnings from inside DAG() are emitted from the caller, not here
+        fixup_decorator_warning_stack(factory)
+        return factory
+
+    if callable(dag_id_or_func) and not isinstance(dag_id_or_func, str):
+        return wrapper(dag_id_or_func)
+
+    return wrapper

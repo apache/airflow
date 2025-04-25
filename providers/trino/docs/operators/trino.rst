@@ -34,7 +34,7 @@ Use the ``trino_conn_id`` argument to connect to your Trino instance
 
 An example usage of the SQLExecuteQueryOperator to connect to Trino is as follows:
 
-.. exampleinclude:: /../../providers/trino/tests/system/trino/example_trino.py
+.. exampleinclude:: /../../trino/tests/system/trino/example_trino.py
     :language: python
     :start-after: [START howto_operator_trino]
     :end-before: [END howto_operator_trino]

@@ -1,0 +1,20 @@
+The BaseNotifier class has been moved to ``airflow.sdk``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.notifications.basenotifier.BaseNotifier`` → ``airflow.sdk.BaseNotifier``

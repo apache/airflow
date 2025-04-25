@@ -36,7 +36,7 @@ upload data from local filesystem to Azure Blob Storage.
 
 Below is an example of using this operator to upload a file to Azure Blob Storage.
 
-.. exampleinclude:: /../../providers/microsoft/azure/tests/system/microsoft/azure/example_local_to_wasb.py
+.. exampleinclude:: /../tests/system/microsoft/azure/example_local_to_wasb.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_local_to_wasb]

@@ -116,7 +116,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -138,13 +137,13 @@ jobs:
       - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/tmp/"
         id: restore-cache-mount
       - name: "Verify ci-cache file exists"
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
         env:
-          CACHE_FILE: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          CACHE_FILE: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
         run: |
           if [ ! -f "$CACHE_FILE" ]; then
             echo "Cache file not found:"
@@ -157,7 +156,7 @@ jobs:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze ci-image import-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Login to ghcr.io"
         env:
@@ -194,7 +193,7 @@ jobs:
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
@@ -204,13 +203,13 @@ jobs:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze ci-image export-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: inputs.upload-mount-cache-artifact == 'true'
       - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-          path: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
           if-no-files-found: 'error'
           retention-days: 2
         if: inputs.upload-mount-cache-artifact == 'true'

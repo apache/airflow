@@ -47,7 +47,7 @@ wait for another task on a different DAG for a specific ``execution_date``.
 ExternalTaskSensor also provide options to set if the Task on a remote DAG succeeded or failed
 via ``allowed_states`` and ``failed_states`` parameters.
 
-.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_external_task_marker_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_task_sensor]
@@ -55,7 +55,7 @@ via ``allowed_states`` and ``failed_states`` parameters.
 
 Also for this action you can use sensor in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/core/example_external_task_parent_deferrable.py
+.. exampleinclude:: /../../../airflow-core/tests/system/core/example_external_task_parent_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_external_task_async_sensor]
@@ -67,7 +67,7 @@ ExternalTaskSensor with task_group dependency
 In Addition, we can also use the :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
 wait for another ``task_group`` on a different DAG for a specific ``execution_date``.
 
-.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_external_task_marker_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_task_sensor_with_task_group]
@@ -81,7 +81,7 @@ on ``child_dag`` for a specific ``execution_date`` should also be cleared, ``Ext
 should be used. Note that ``child_task1`` will only be cleared if "Recursive" is selected when the
 user clears ``parent_task``.
 
-.. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
+.. exampleinclude:: /../../../airflow-core/src/airflow/example_dags/example_external_task_marker_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_external_task_marker]

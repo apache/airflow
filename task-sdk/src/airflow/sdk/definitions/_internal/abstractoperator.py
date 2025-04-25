@@ -25,7 +25,6 @@ from collections.abc import (
     Collection,
     Iterable,
     Iterator,
-    Mapping,
 )
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -34,6 +33,7 @@ import methodtools
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
+from airflow.sdk.definitions.context import Context
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -41,15 +41,14 @@ from airflow.utils.weight_rule import WeightRule
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.sdk.definitions.baseoperator import BaseOperator
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import Operator
 
-TaskStateChangeCallback = Callable[[Mapping[str, Any]], None]
+TaskStateChangeCallback = Callable[[Context], None]
 
 DEFAULT_OWNER: str = "airflow"
 DEFAULT_POOL_SLOTS: int = 1
@@ -121,6 +120,7 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
+            "inherits_from_skipmixin",  # impl detail
             # Decide whether to start task execution from triggerer
             "start_trigger_args",
             "start_from_trigger",
@@ -153,6 +153,7 @@ class AbstractOperator(Templater, DAGNode):
 
     _is_sensor: bool = False
     _is_mapped: bool = False
+    _can_skip_downstream: bool = False
 
     @property
     def dag_id(self) -> str:
@@ -207,6 +208,11 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def inherits_from_skipmixin(self):
+        """Used to determine if an Operator is inherited from SkipMixin or its subclasses (e.g., BranchMixin)."""
+        return getattr(self, "_can_skip_downstream", False)
 
     def as_setup(self):
         self.is_setup = True

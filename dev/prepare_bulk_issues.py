@@ -228,7 +228,7 @@ def prepare_bulk_issues(
             except GithubException as e:
                 console.print(f"[red]Error!: {e}[/]")
                 console.print(
-                    f"[yellow]Restart with `--start-from {processed_issues+start_from}` to continue.[/]"
+                    f"[yellow]Restart with `--start-from {processed_issues + start_from}` to continue.[/]"
                 )
         console.print(f"Created {processed_issues} issue(s).")
 

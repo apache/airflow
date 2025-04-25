@@ -1,0 +1,34 @@
+Old default values no longer auto-updated
+
+There are a few configuration options that had old default values that no longer worked, so
+Airflow 2 would automatically update them on-the-fly to the new default values. This is no longer
+the case, and users need to update their configuration files to the new default values.
+
+The configuration options that were auto-updated in Airflow 2 are:
+
+- ``[core] hostname`` with value ``:``
+- ``[email] email_backend`` with value ``airflow.contrib.utils.sendgrid.send_email``
+- ``[logging] log_filename_template`` with value ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log``
+- ``[elasticsearch] log_id_template`` with value ``{dag_id}-{task_id}-{logical_date}-{try_number}``
+
+If you have these configuration options in your ``airflow.cfg`` file, you need to update them.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config update``
+
+    * [x] Remove ``[core] hostname`` configuration option from config if value is ``:``
+    * [x] Remove ``[email] email_backend`` configuration option from config if value is ``airflow.contrib.utils.sendgrid.send_email``
+    * [x] Remove ``[logging] log_filename_template`` configuration option from config if value is ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log``
+    * [x] Remove ``[elasticsearch] log_id_template`` configuration option from config if value is ``{dag_id}-{task_id}-{logical_date}-{try_number}``

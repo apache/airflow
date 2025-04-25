@@ -49,15 +49,20 @@ NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""
 
 
+class SetDuringExecution(ArgNotSet):
+    """Sentinel type for annotations, useful when a value is dynamic and set during Execution but not parsing."""
+
+    @staticmethod
+    def serialize() -> str:
+        return "DYNAMIC (set during execution)"
+
+
+SET_DURING_EXECUTION = SetDuringExecution()
+"""Sentinel value for argument default. See ``SetDuringExecution``."""
+
+
 if TYPE_CHECKING:
-    import logging
-
     from airflow.sdk.definitions._internal.node import DAGNode
-
-    Logger = logging.Logger
-else:
-
-    class Logger: ...
 
 
 def validate_instance_args(instance: DAGNode, expected_arg_types: dict[str, Any]) -> None:

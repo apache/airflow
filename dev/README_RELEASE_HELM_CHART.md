@@ -75,7 +75,7 @@ Instructions for installing the pre-requisites are explained in the steps below.
 
 ```shell
 # Set Version
-export VERSION=1.0.1
+export VERSION=1.1.0
 export VERSION_SUFFIX=rc1
 
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -122,7 +122,15 @@ towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir chart --con
 
 Then remove the `--draft` flag to have towncrier build the release notes for real.
 
+The significant changes section does require some reformatting - look at prior releases as an example.
+
 If no significant changes where added in this release, add the header and put "No significant changes.".
+
+Then, get the rest of the entries, categorize them into the appropriate sections, and add it to the release notes.
+
+``` shell script
+git log --oneline helm-chart/1.1.0..main --pretty='format:- %s' -- chart/ docs/helm-chart/
+```
 
 ### Add changelog annotations to `Chart.yaml`
 
@@ -583,7 +591,7 @@ Checking airflow-chart-1.0.0-source.tar.gz.sha512
 Contributors can run below commands to test the Helm Chart
 
 ```shell
-helm repo add apache-airflow-dev https://dist.apache.org/repos/dist/dev/airflow/helm-chart/1.0.1rc1/
+helm repo add apache-airflow-dev https://dist.apache.org/repos/dist/dev/airflow/helm-chart/1.1.0rc1/
 helm repo update
 helm install airflow apache-airflow-dev/airflow
 ```
@@ -600,7 +608,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Release Apache Airflow Helm Chart 1.0.1 based on 1.0.1rc1
+[RESULT][VOTE] Release Apache Airflow Helm Chart 1.1.0 based on 1.1.0rc1
 ```
 
 Message:
@@ -608,7 +616,7 @@ Message:
 ```
 Hello all,
 
-The vote to release Apache Airflow Helm Chart version 1.0.1 based on 1.0.1rc1 is now closed.
+The vote to release Apache Airflow Helm Chart version 1.1.0 based on 1.1.0rc1 is now closed.
 
 The vote PASSED with 4 binding "+1", 4 non-binding "+1" and 0 "-1" votes:
 
@@ -646,7 +654,7 @@ the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell
 # First clone the repo
-export VERSION=1.0.1
+export VERSION=1.1.0
 export VERSION_SUFFIX=rc1
 svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
@@ -714,10 +722,11 @@ between the two repositories to be able to build the documentation.
 
 - Update `index.yaml`
 
-  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
+  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add apache-airflow https://airflow.apache.org`.
 
     ```shell
     breeze release-management add-back-references helm-chart
+    cd "${AIRFLOW_SITE_DIRECTORY}"
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
     helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
@@ -837,7 +846,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social

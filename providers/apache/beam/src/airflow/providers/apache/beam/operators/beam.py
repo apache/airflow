@@ -36,6 +36,7 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.hooks.dataflow import (
+    DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
     DataflowJobStatus,
     process_line_and_extract_dataflow_job_id_callback,
@@ -398,15 +399,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_python_pipeline(
-                    variables=self.snake_case_pipeline_options,
-                    py_file=self.py_file,
-                    py_options=self.py_options,
-                    py_interpreter=self.py_interpreter,
-                    py_requirements=self.py_requirements,
-                    py_system_site_packages=self.py_system_site_packages,
-                )
+            self.beam_hook.start_python_pipeline(
+                variables=self.snake_case_pipeline_options,
+                py_file=self.py_file,
+                py_options=self.py_options,
+                py_interpreter=self.py_interpreter,
+                py_requirements=self.py_requirements,
+                py_system_site_packages=self.py_system_site_packages,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -436,7 +436,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                     job_id=self.dataflow_job_id,
                     expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                     project_id=self.dataflow_config.project_id,
-                    location=self.dataflow_config.location,
+                    location=self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION,
                     gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
@@ -559,12 +559,11 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_java_pipeline(
-                    variables=self.pipeline_options,
-                    jar=self.jar,
-                    job_class=self.job_class,
-                )
+            self.beam_hook.start_java_pipeline(
+                variables=self.pipeline_options,
+                jar=self.jar,
+                job_class=self.job_class,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -767,12 +766,11 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
-            else:
-                go_artifact.start_pipeline(
-                    beam_hook=self.beam_hook,
-                    variables=snake_case_pipeline_options,
-                    process_line_callback=process_line_callback,
-                )
+            go_artifact.start_pipeline(
+                beam_hook=self.beam_hook,
+                variables=snake_case_pipeline_options,
+                process_line_callback=process_line_callback,
+            )
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:

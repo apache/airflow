@@ -939,9 +939,9 @@ class TestBeamRunPythonPipelineOperatorAsync:
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context=mock.MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BeamPythonPipelineTrigger
-        ), "Trigger is not a BeamPythonPipelineTrigger"
+        assert isinstance(exc.value.trigger, BeamPythonPipelineTrigger), (
+            "Trigger is not a BeamPythonPipelineTrigger"
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     def test_async_execute_direct_runner(self, beam_hook_mock):
@@ -1046,9 +1046,9 @@ class TestBeamRunJavaPipelineOperatorAsync:
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context=mock.MagicMock())
 
-        assert isinstance(
-            exc.value.trigger, BeamJavaPipelineTrigger
-        ), "Trigger is not a BeamPJavaPipelineTrigger"
+        assert isinstance(exc.value.trigger, BeamJavaPipelineTrigger), (
+            "Trigger is not a BeamPJavaPipelineTrigger"
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     def test_async_execute_direct_runner(self, beam_hook_mock):

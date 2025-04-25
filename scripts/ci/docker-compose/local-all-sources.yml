@@ -32,3 +32,8 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../tmp:/tmp:cached
       - ../../../:/opt/airflow:cached
+      - root-airflow-volume:/root/airflow/
+      - airflow-cache-volume:/root/.cache
+volumes:
+  root-airflow-volume:
+  airflow-cache-volume:

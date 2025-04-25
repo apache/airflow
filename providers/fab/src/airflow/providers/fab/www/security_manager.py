@@ -62,7 +62,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
     @staticmethod
     def before_request():
         """Run hook before request."""
-        g.user = get_auth_manager().get_user()
+        if hasattr(get_auth_manager(), "get_user"):
+            g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
         app = self.appbuilder.get_app

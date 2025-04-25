@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     GcpTransferOperationStatus,
     gen_job_name,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,

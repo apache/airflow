@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
+from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -281,3 +284,179 @@ class TestSparkSubmitOperator:
         assert task.application_args == "application_args"
         assert task.env_vars == "env_vars"
         assert task.properties_file == "properties_file"
+
+    @mock.patch.object(SparkSubmitOperator, "_get_hook")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_simple_openlineage_config_to_spark(self, mock_get_openlineage_listener, mock_get_hook):
+        # Given / When
+        from openlineage.client.transport.http import (
+            ApiKeyTokenProvider,
+            HttpCompression,
+            HttpConfig,
+            HttpTransport,
+        )
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+            config=HttpConfig(
+                url="http://localhost:5000",
+                endpoint="api/v2/lineage",
+                timeout=5050,
+                auth=ApiKeyTokenProvider({"api_key": "12345"}),
+                compression=HttpCompression.GZIP,
+                custom_headers={"X-OpenLineage-Custom-Header": "airflow"},
+            )
+        )
+        operator = SparkSubmitOperator(
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            openlineage_inject_parent_job_info=False,
+            openlineage_inject_transport_info=True,
+            **self._config,
+        )
+        operator.execute(MagicMock())
+
+        assert operator.conf == {
+            "parquet.compression": "SNAPPY",
+            "spark.openlineage.transport.type": "http",
+            "spark.openlineage.transport.url": "http://localhost:5000",
+            "spark.openlineage.transport.endpoint": "api/v2/lineage",
+            "spark.openlineage.transport.timeoutInMillis": "5050000",
+            "spark.openlineage.transport.compression": "gzip",
+            "spark.openlineage.transport.auth.type": "api_key",
+            "spark.openlineage.transport.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.headers.X-OpenLineage-Custom-Header": "airflow",
+        }
+
+    @mock.patch.object(SparkSubmitOperator, "_get_hook")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_composite_openlineage_config_to_spark(self, mock_get_openlineage_listener, mock_get_hook):
+        # Given / When
+        from openlineage.client.transport.composite import CompositeConfig, CompositeTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+            CompositeConfig.from_dict(
+                {
+                    "transports": {
+                        "test1": {
+                            "type": "http",
+                            "url": "http://localhost:5000",
+                            "endpoint": "api/v2/lineage",
+                            "timeout": "5050",
+                            "auth": {
+                                "type": "api_key",
+                                "api_key": "12345",
+                            },
+                            "compression": "gzip",
+                            "custom_headers": {
+                                "X-OpenLineage-Custom-Header": "airflow",
+                            },
+                        },
+                        "test2": {
+                            "type": "http",
+                            "url": "https://example.com:1234",
+                        },
+                        "test3": {"type": "console"},
+                    }
+                }
+            )
+        )
+
+        mock_ti = MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = "spark_submit_job"
+        mock_ti.try_number = 1
+        mock_ti.dag_run.logical_date = DEFAULT_DATE
+        mock_ti.dag_run.run_after = DEFAULT_DATE
+        mock_ti.logical_date = DEFAULT_DATE
+        mock_ti.map_index = -1
+
+        operator = SparkSubmitOperator(
+            task_id="spark_submit_job",
+            spark_binary="sparky",
+            dag=self.dag,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+            **self._config,
+        )
+        operator.execute({"ti": mock_ti})
+
+        assert operator.conf == {
+            "parquet.compression": "SNAPPY",
+            "spark.openlineage.parentJobName": "test_dag_id.spark_submit_job",
+            "spark.openlineage.parentJobNamespace": "default",
+            "spark.openlineage.parentRunId": "01595753-6400-710b-8a12-9e978335a56d",
+            "spark.openlineage.transport.type": "composite",
+            "spark.openlineage.transport.continueOnFailure": "True",
+            "spark.openlineage.transport.transports.test1.type": "http",
+            "spark.openlineage.transport.transports.test1.url": "http://localhost:5000",
+            "spark.openlineage.transport.transports.test1.endpoint": "api/v2/lineage",
+            "spark.openlineage.transport.transports.test1.timeoutInMillis": "5050000",
+            "spark.openlineage.transport.transports.test1.auth.type": "api_key",
+            "spark.openlineage.transport.transports.test1.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.transports.test1.compression": "gzip",
+            "spark.openlineage.transport.transports.test1.headers.X-OpenLineage-Custom-Header": "airflow",
+            "spark.openlineage.transport.transports.test2.type": "http",
+            "spark.openlineage.transport.transports.test2.url": "https://example.com:1234",
+            "spark.openlineage.transport.transports.test2.endpoint": "api/v1/lineage",
+            "spark.openlineage.transport.transports.test2.timeoutInMillis": "5000",
+        }
+
+    @mock.patch.object(SparkSubmitOperator, "_get_hook")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_openlineage_composite_config_wrong_transport_to_spark(
+        self, mock_get_openlineage_listener, mock_get_hook, caplog
+    ):
+        # Given / When
+        from openlineage.client.transport.composite import CompositeConfig, CompositeTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+            CompositeConfig.from_dict({"transports": {"test1": {"type": "console"}}})
+        )
+
+        with caplog.at_level(logging.INFO):
+            operator = SparkSubmitOperator(
+                task_id="spark_submit_job",
+                spark_binary="sparky",
+                dag=self.dag,
+                openlineage_inject_parent_job_info=False,
+                openlineage_inject_transport_info=True,
+                **self._config,
+            )
+            operator.execute(MagicMock())
+
+            assert (
+                "OpenLineage transport type `composite` does not contain http transport. Skipping injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
+        assert operator.conf == {
+            "parquet.compression": "SNAPPY",
+        }
+
+    @mock.patch.object(SparkSubmitOperator, "_get_hook")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_openlineage_simple_config_wrong_transport_to_spark(
+        self, mock_get_openlineage_listener, mock_get_hook, caplog
+    ):
+        # Given / When
+        from openlineage.client.transport.console import ConsoleConfig, ConsoleTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = ConsoleTransport(
+            config=ConsoleConfig()
+        )
+
+        with caplog.at_level(logging.INFO):
+            operator = SparkSubmitOperator(
+                task_id="spark_submit_job",
+                spark_binary="sparky",
+                dag=self.dag,
+                openlineage_inject_parent_job_info=False,
+                openlineage_inject_transport_info=True,
+                **self._config,
+            )
+            operator.execute(MagicMock())
+
+            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+        assert operator.conf == {
+            "parquet.compression": "SNAPPY",
+        }

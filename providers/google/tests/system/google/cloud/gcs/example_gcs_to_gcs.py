@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -57,7 +58,7 @@ PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
 def _assert_copied_files_exist(ti):
-    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")[0]
+    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")
 
     assert PREFIX + OBJECT_1 in objects
     assert f"{PREFIX}subdir/{OBJECT_1}" in objects
