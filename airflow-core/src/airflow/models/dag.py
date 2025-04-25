@@ -1550,6 +1550,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     ):
         all_tis = []
         for dag in dags:
+            if not isinstance(dag, DAG):
+                dag = DAG.from_sdk_dag(dag)
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -1576,6 +1578,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             for dag in dags:
+                if not isinstance(dag, DAG):
+                    dag = DAG.from_sdk_dag(dag)
                 dag.clear(
                     start_date=start_date,
                     end_date=end_date,
