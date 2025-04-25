@@ -364,7 +364,7 @@ labelPRBasedOnFilePath:
     - providers/**/log/*
 
   area:ConfigTemplates:
-    - airflow-core/src/airflow/config_templates/**/*
+    - airflow-core/src/airflow/config_templates/*
 
   area:Plugins:
     - airflow-core/src/airflow/cli/commands/plugins_command.py
