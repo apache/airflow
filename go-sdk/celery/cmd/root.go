@@ -24,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	cc "github.com/ivanpirog/coloredcobra"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -53,6 +54,15 @@ to quickly create a Cobra application.
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute(worker worker.Worker) {
+	cc.Init(&cc.Config{
+		RootCmd:       rootCmd,
+		Headings:      cc.Bold,
+		Commands:      cc.Yellow + cc.Bold,
+		Example:       cc.Italic,
+		ExecName:      cc.HiMagenta + cc.Bold,
+		Flags:         cc.Green,
+		FlagsDataType: cc.Italic + cc.White,
+	})
 	// Store the worker in the context so we can pull it out later
 	ctx := context.WithValue(context.Background(), sdkcontext.WorkerContextKey, worker)
 	err := rootCmd.ExecuteContext(ctx)
