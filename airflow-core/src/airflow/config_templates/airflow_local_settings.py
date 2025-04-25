@@ -147,6 +147,7 @@ if REMOTE_LOGGING:
             f"{type(remote_task_handler_kwargs)}"
         )
     delete_local_copy = conf.getboolean("logging", "delete_local_logs")
+    print(delete_local_copy)
 
     if remote_base_log_folder.startswith("s3://"):
         from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
@@ -180,7 +181,7 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("gs://"):
-        from airflow.providers.google.cloud.logs.gcs_task_handler import GCSRemoteLogIO
+        from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
         key_path = conf.get_mandatory_value("logging", "google_key_path", fallback=None)
 
@@ -194,7 +195,7 @@ if REMOTE_LOGGING:
                 }
                 | remote_task_handler_kwargs
             )
-        )
+        )  # type: ignore[assignment]
         remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
