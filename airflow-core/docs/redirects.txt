@@ -75,7 +75,7 @@ start/index.rst start.rst
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst public-airflow-interface.rst
-rest-api-ref.rst deprecated-rest-api-ref.rst
+deprecated-rest-api-ref.rst rest-api-ref.rst
 macros-ref.rst templates-ref.rst
 
 # Concepts
@@ -85,7 +85,6 @@ scheduler.rst administration-and-deployment/scheduler.rst
 # Installation
 installation.rst installation/index.rst
 upgrade-check.rst installation/upgrade-check.rst
-upgrading-to-2.rst howto/upgrading-from-1-10/index.rst
 
 # Release Notes
 changelog.rst release_notes.rst
