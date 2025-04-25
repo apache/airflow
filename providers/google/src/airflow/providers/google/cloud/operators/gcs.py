@@ -24,6 +24,7 @@ import subprocess
 import sys
 import warnings
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -272,7 +273,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     """
     Deletes objects from a list or all objects matching a prefix from a Google Cloud Storage bucket.
 
-    :param bucket_name: The GCS bucket to delete from
+    :param bucket_name: The GCS bucket to delete from.
     :param objects: List of objects to delete. These should be the names
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
@@ -281,11 +282,9 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
+        (templated)
+    :param parallel_deletion: If True, objects will be deleted in parallel using a thread pool.
+    :param parallel_workers: Number of threads to use for parallel deletion if enabled.
     """
 
     template_fields: Sequence[str] = (
@@ -303,6 +302,8 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         prefix: str | list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        parallel_deletion: bool = False,
+        parallel_workers: int = 4,
         **kwargs,
     ) -> None:
         self.bucket_name = bucket_name
@@ -310,6 +311,8 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.parallel_deletion = parallel_deletion
+        self.parallel_workers = parallel_workers
 
         if objects is None and prefix is None:
             err_message = "(Task {task_id}) Either objects or prefix should be set. Both are None.".format(
@@ -322,6 +325,14 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
 
         super().__init__(**kwargs)
 
+    def _delete_object(self, hook: GCSHook, object_name: str) -> tuple[str, bool]:
+        try:
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            return object_name, True
+        except Exception as e:
+            self.log.error("Failed to delete object %s: %s", object_name, e)
+            return object_name, False
+
     def execute(self, context: Context) -> None:
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -332,9 +343,25 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = self.objects
         else:
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-        self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
-        for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+
+        self.log.info("Preparing to delete %s objects from bucket %s", len(objects), self.bucket_name)
+
+        if not self.parallel_deletion:
+            for object_name in objects:
+                self._delete_object(hook, object_name)
+        else:
+            failed_deletions = []
+            with ThreadPoolExecutor(max_workers=self.parallel_workers) as executor:
+                futures = {executor.submit(self._delete_object, hook, obj): obj for obj in objects}
+                for future in as_completed(futures):
+                    object_name, success = future.result()
+                    if not success:
+                        failed_deletions.append(object_name)
+
+            if failed_deletions:
+                raise RuntimeError(
+                    f"Failed to delete the following objects from bucket {self.bucket_name}: {failed_deletions}"
+                )
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (
