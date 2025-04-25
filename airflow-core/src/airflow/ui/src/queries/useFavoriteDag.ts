@@ -16,41 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
-const FAVORITES_KEY = "favoriteDags";
+import {
+  UseDagRunServiceGetDagRunsKeyFn,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
+  useDagServiceGetDagsKey,
+  useDagServiceFavoriteDag,
+  useDagsServiceRecentDagRunsKey,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
+} from "openapi/queries";
 
-const getFavoriteDags = (): string[] => {
-  const favorites = localStorage.getItem(FAVORITES_KEY);
-  return favorites ? JSON.parse(favorites) : [];
-};
-
-const setFavoriteDags = (favorites: string[]) => {
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-};
-
-export const fetchFavoriteDags = () => {
-  return useQuery<string[]>({
-    queryKey: [FAVORITES_KEY],
-    queryFn: () => Promise.resolve(getFavoriteDags()),
-    initialData: [],
-  });
-};
-
-export const updateFavoriteDags = () => {
+export const useFavoriteDag = ({ dagId }: { dagId: string }) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ dagId, isFavorite }: { dagId: string; isFavorite: boolean }) => {
-      const current = getFavoriteDags();
-      const updated = isFavorite
-        ? [...new Set([...current, dagId])]
-        : current.filter((id) => id !== dagId);
-      setFavoriteDags(updated);
-      return Promise.resolve(updated);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favoriteDags"] });
-    },
+  const onSuccess = async () => {
+    const queryKeys = [
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
+      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+    ];
+
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+  };
+
+  return useDagServiceFavoriteDag({
+    onSuccess,
   });
 };

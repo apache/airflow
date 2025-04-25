@@ -743,6 +743,11 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+    
+    @provide_session
+    def get_is_favorite(self, session=NEW_SESSION) -> None:
+        """Return a boolean indicating whether this DAG is favorited."""
+        return session.scalar(select(DagModel.is_favorite).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_bundle_name(self, session=NEW_SESSION) -> str | None:
@@ -1874,6 +1879,8 @@ class DagModel(Base):
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
+    # Whether the DAG is favorited
+    is_favorite = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
     is_stale = Column(Boolean, default=True)
     # Last time the scheduler started
@@ -2037,7 +2044,12 @@ class DagModel(Base):
     def get_is_paused(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
         return self.is_paused
+    
+    def get_is_favorite(self, *, session: Session | None = None) -> bool:
+        """Provide interface compatibility to 'DAG'."""
+        return self.is_favorite
 
+    
     def get_is_active(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
         return not self.is_stale
@@ -2060,6 +2072,26 @@ class DagModel(Base):
 
         paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
         return paused_dag_ids
+    
+    @staticmethod
+    @provide_session
+    def get_favorite_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
+        """
+        Given a list of dag_ids, get a set of Favorited Dag Ids.
+
+        :param dag_ids: List of Dag ids
+        :param session: ORM Session
+        :return: Favorited Dag_ids
+        """
+        favorited_dag_ids = session.execute(
+            select(DagModel.dag_id)
+            .where(DagModel.is_favorite == expression.true())
+            .where(DagModel.dag_id.in_(dag_ids))
+        )
+
+        favorited_dag_ids = {favorited_dag_id for (favorited_dag_id,) in favorited_dag_ids}
+        return favorited_dag_ids
+    
 
     @property
     def safe_dag_id(self):
@@ -2084,6 +2116,27 @@ class DagModel(Base):
             .execution_options(synchronize_session="fetch")
         )
         session.commit()
+
+    @provide_session
+    def set_is_favorite(self, is_favorite: bool, session=NEW_SESSION) -> None:
+        """
+        Favorite/Unfavorite a DAG.
+
+        :param is_favorite: Is the DAG favorited
+        :param session: session
+        """
+        filter_query = [
+            DagModel.dag_id == self.dag_id,
+        ]
+
+        session.execute(
+            update(DagModel)
+            .where(or_(*filter_query))
+            .values(is_favorite=is_favorite)
+            .execution_options(synchronize_session="fetch")
+        )
+        session.commit()
+
 
     @hybrid_property
     def dag_display_name(self) -> str:

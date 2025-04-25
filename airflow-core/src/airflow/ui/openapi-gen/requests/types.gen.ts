@@ -549,6 +549,13 @@ export type DAGDetailsResponse = {
 /**
  * Dag Serializer for updatable bodies.
  */
+export type DAGFavoriteBody = {
+  is_favorite: boolean;
+};
+
+/**
+ * Dag Serializer for updatable bodies.
+ */
 export type DAGPatchBody = {
     is_paused: boolean;
 };
@@ -560,6 +567,7 @@ export type DAGResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    is_favorite?: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_expired: string | null;
@@ -1672,6 +1680,7 @@ export type DAGWithLatestDagRunsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    is_favorite?: boolean;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_expired: string | null;
@@ -2324,6 +2333,14 @@ export type PatchDagData = {
 };
 
 export type PatchDagResponse = DAGResponse;
+
+export type FavoriteDagData = {
+  dagId: string;
+  requestBody: DAGFavoriteBody;
+  updateMask?: Array<string> | null;
+};
+
+export type FavoriteDagResponse = DAGResponse;
 
 export type DeleteDagData = {
     dagId: string;

@@ -1,8 +1,66 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExtraLinksService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+
+import {
+  AssetService,
+  AuthLinksService,
+  BackfillService,
+  CalendarService, 
+  ConfigService,
+  ConnectionService,
+  DagParsingService,
+  DagReportService,
+  DagRunService,
+  DagService,
+  DagSourceService,
+  DagStatsService,
+  DagVersionService,
+  DagWarningService,
+  DashboardService,
+  DependenciesService,
+  EventLogService,
+  ExtraLinksService,
+  GridService,
+  ImportErrorService,
+  JobService,
+  LoginService,
+  MonitorService,
+  PluginService,
+  PoolService,
+  ProviderService,
+  StructureService,
+  TaskInstanceService,
+  TaskService,
+  VariableService,
+  VersionService,
+  XcomService,
+} from "../requests/services.gen";
+import {
+  BackfillPostBody,
+  BulkBody_BulkTaskInstanceBody_,
+  BulkBody_ConnectionBody_,
+  BulkBody_PoolBody_,
+  BulkBody_VariableBody_,
+  ClearTaskInstancesBody,
+  ConnectionBody,
+  CreateAssetEventsBody,
+  DAGFavoriteBody,
+  DAGPatchBody,
+  DAGRunClearBody,
+  DAGRunPatchBody,
+  DAGRunsBatchBody,
+  DagRunState,
+  DagWarningType,
+  PatchTaskInstanceBody,
+  PoolBody,
+  PoolPatchBody,
+  TaskInstancesBatchBody,
+  TriggerDAGRunPostBody,
+  VariableBody,
+  XComCreateBody,
+  XComUpdateBody,
+} from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -1737,6 +1795,51 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
   requestBody: DAGPatchBody;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, requestBody, updateMask }) => DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+
+/**
+ * Favorite Dag
+ * Toggle favorite the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceFavoriteDag = <
+  TData = Common.DagServiceFavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGFavoriteBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGFavoriteBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody, updateMask }) =>
+      DagService.favoriteDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>,
+    ...options,
+  });
+
 /**
 * Patch Task Instance
 * Update a task instance.
