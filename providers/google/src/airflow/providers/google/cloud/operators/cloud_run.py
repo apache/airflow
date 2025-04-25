@@ -266,8 +266,17 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run the operator in deferrable mode.
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
     operator_extra_links = (CloudRunJobLoggingLink(),)
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "job_name",
+        "overrides",
+        "polling_period_seconds",
+        "timeout_seconds",
+    )
 
     def __init__(
         self,

@@ -297,7 +297,7 @@ class EmrContainerSensor(AwsBaseSensor[EmrContainerHook]):
         self.deferrable = deferrable
 
     @property
-    def _hook_paramters(self):
+    def _hook_parameters(self):
         return {**super()._hook_parameters, "virtual_cluster_id": self.virtual_cluster_id}
 
     def poke(self, context: Context) -> bool:
