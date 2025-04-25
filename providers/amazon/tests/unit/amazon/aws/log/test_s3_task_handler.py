@@ -261,7 +261,7 @@ class TestS3TaskHandler:
             actual = log[0][0][-1]
             assert f"*** Found logs in s3:\n***   * {expected_s3_uri}\n" in actual
             assert actual.endswith("Line 4")
-            assert metadata == [{"end_of_log": True, "first_time_read": 33}]
+            assert metadata == [{"end_of_log": True, "log_pos": 33}]
 
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)

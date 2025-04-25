@@ -81,10 +81,16 @@ class TestFileTaskLogHandler:
             fth = FileTaskHandler("")
 
             fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = (
-                ["this message"],
-                [convert_list_to_stream(["this", "log", "content"])],
-            )
+
+            # compact with 2.x and 3.x
+            if AIRFLOW_V_3_0_PLUS:
+                fth._read_from_logs_server.return_value = (
+                    ["this message"],
+                    [convert_list_to_stream(["this", "log", "content"])],
+                )
+            else:
+                fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
+
             logs, metadata = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
 
