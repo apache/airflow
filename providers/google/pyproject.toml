@@ -76,6 +76,9 @@ dependencies = [
     "google-auth>=2.29.0",
     "google-auth-httplib2>=0.0.1",
     "google-cloud-aiplatform[evaluation,ray]>=1.73.0",
+    # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
+    # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
+    "ray[default]==2.42.0 ; python_version == '3.12'",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
