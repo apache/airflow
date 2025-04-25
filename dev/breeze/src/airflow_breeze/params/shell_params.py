@@ -539,9 +539,7 @@ class ShellParams:
                 "airflow.providers.edge3.executors.edge_executor.EdgeExecutor",
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
-            _set_var(
-                _env, "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8")
-            )
+            _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
 
             # For testing Edge Worker on Windows... Default Run ID is having a colon (":") from the time which is
             # made into the log path template, which then fails to be used in Windows. So we replace it with a dash
