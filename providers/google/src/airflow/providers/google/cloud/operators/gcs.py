@@ -273,7 +273,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     """
     Deletes objects from a list or all objects matching a prefix from a Google Cloud Storage bucket.
 
-    :param bucket_name: The GCS bucket to delete from.
+    :param bucket_name: The GCS bucket to delete from
     :param objects: List of objects to delete. These should be the names
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
@@ -282,7 +282,11 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
-        (templated)
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     :param parallel_deletion: If True, objects will be deleted in parallel using a thread pool.
     :param parallel_workers: Number of threads to use for parallel deletion if enabled.
     """
@@ -325,7 +329,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
 
         super().__init__(**kwargs)
 
-    def _delete_object(self, hook: GCSHook, object_name: str) -> tuple[str, bool]:
+    def _delete_object_safe(self, hook: GCSHook, object_name: str) -> tuple[str, bool]:
         try:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
             return object_name, True
@@ -348,11 +352,11 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
 
         if not self.parallel_deletion:
             for object_name in objects:
-                self._delete_object(hook, object_name)
+                hook.delete(bucket_name=self.bucket_name, object_name=object_name)
         else:
             failed_deletions = []
             with ThreadPoolExecutor(max_workers=self.parallel_workers) as executor:
-                futures = {executor.submit(self._delete_object, hook, obj): obj for obj in objects}
+                futures = {executor.submit(self._delete_object_safe, hook, obj): obj for obj in objects}
                 for future in as_completed(futures):
                     object_name, success = future.result()
                     if not success:

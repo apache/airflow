@@ -153,6 +153,14 @@ to delete one or more objects from a Google Cloud Storage bucket.
     :start-after: [START howto_operator_gcs_delete_object]
     :end-before: [END howto_operator_gcs_delete_object]
 
+When working with a large number of objects, you can enable parallel deletion for better performance:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_delete_object_parallel]
+    :end-before: [END howto_operator_gcs_delete_object_parallel]
+
 .. _howto/operator:GCSDeleteBucketOperator:
 
 Deleting Bucket
