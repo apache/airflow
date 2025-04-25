@@ -20,6 +20,11 @@ import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useConfig } from "src/queries/useConfig";
 
+export const getOrderBy = (pre_defined?: string): string[] => {
+  const sortParam = new URLSearchParams(globalThis.location.search).getAll("sort");
+  return (sortParam.length === 0 && pre_defined != undefined) ? [pre_defined] : sortParam;
+};
+
 export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "deferred" ||
   state === "scheduled" ||

@@ -32,6 +32,7 @@ import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+import { getOrderBy } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
@@ -104,7 +105,8 @@ export const AssetsList = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort");
+  
+  const orderBy = getOrderBy();
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,

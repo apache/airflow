@@ -43,6 +43,7 @@ import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
+import { getOrderBy } from "src/utils";
 
 const getColumns = ({
   allRowsSelected,
@@ -123,8 +124,7 @@ export const Variables = () => {
   );
   const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0
-    ? ["-key"] : new URLSearchParams(globalThis.location.search).getAll("sort").map(el => el.replace("value", "_val"));
+  const orderBy = getOrderBy("-key").map(el => el.replace("value", "_val"));
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,

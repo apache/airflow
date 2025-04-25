@@ -35,7 +35,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { getDuration, useAutoRefresh, isStatePending, getOrderBy } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
@@ -191,8 +191,7 @@ export const TaskInstances = () => {
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-start_date"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-start_date");
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);

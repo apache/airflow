@@ -44,7 +44,7 @@ import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import DeleteRunButton from "src/pages/DeleteRunButton";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { renderDuration, useAutoRefresh, isStatePending, getOrderBy } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
@@ -174,8 +174,7 @@ export const DagRuns = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort").length === 0 ?
-    ["-run_after"] : new URLSearchParams(globalThis.location.search).getAll("sort");
+  const orderBy = getOrderBy("-run_after");
 
   const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
