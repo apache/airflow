@@ -132,6 +132,12 @@ export const Details = () => {
               <Table.Cell>Trigger Source</Table.Cell>
               <Table.Cell>{dagRun.triggered_by}</Table.Cell>
             </Table.Row>
+            {dagRun.bundle_version !== null && (
+              <Table.Row>
+                <Table.Cell>Bundle Version</Table.Cell>
+                <Table.Cell>{dagRun.bundle_version}</Table.Cell>
+              </Table.Row>
+            )}
             <Table.Row>
               <Table.Cell>Dag Version(s)</Table.Cell>
               <Table.Cell>
