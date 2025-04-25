@@ -43,7 +43,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
     return undefined;
   }
 
-  if (importErrorsCount <= 0) {
+  if (importErrorsCount === 0) {
     return undefined;
   }
 
