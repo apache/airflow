@@ -85,7 +85,6 @@ scheduler.rst administration-and-deployment/scheduler.rst
 # Installation
 installation.rst installation/index.rst
 upgrade-check.rst installation/upgrade-check.rst
-howto/upgrading-from-1-10/index.rst upgrading-to-2.rst
 
 # Release Notes
 changelog.rst release_notes.rst
