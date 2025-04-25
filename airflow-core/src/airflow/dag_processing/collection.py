@@ -296,9 +296,14 @@ def _update_import_errors(
                 get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             except Exception:
                 log.exception("error calling listener")
-        session.query(DagModel).filter(
-            DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
-        ).update({"has_import_errors": True})
+        session.query(DagModel).filter(DagModel.fileloc == filename).update(
+            {
+                "has_import_errors": True,
+                "bundle_name": bundle_name,
+                "is_stale": True,
+            },
+            synchronize_session="fetch",
+        )
 
 
 def update_dag_parsing_results_in_db(
