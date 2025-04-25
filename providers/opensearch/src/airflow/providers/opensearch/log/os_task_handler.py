@@ -22,6 +22,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Generator
 from datetime import datetime
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -44,12 +45,19 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.typing_compat import TypeAlias
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.log.file_task_handler import LogHandlerOutputStream
+    from collections.abc import Generator
+    from itertools import chain
+    from typing import Union
 
-    OsLogMsgType = LogHandlerOutputStream
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
+
+    OsLogMsgType = Union[StructuredLogStream, chain[StructuredLogMessage]]
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 

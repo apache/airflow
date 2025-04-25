@@ -55,11 +55,18 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.typing_compat import TypeAlias
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.log.file_task_handler import LogHandlerOutputStream
+    from collections.abc import Generator
+    from itertools import chain
+    from typing import Union
 
-    EsLogMsgType = LogHandlerOutputStream
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
+
+    EsLogMsgType = Union[StructuredLogStream, chain[StructuredLogMessage]]
 else:
     EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
 
