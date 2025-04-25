@@ -1711,7 +1711,6 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("core", "internal_api_secret_key"),
         ("api_auth", "jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
