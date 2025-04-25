@@ -38,7 +38,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
     return <Skeleton height="9" width="225px" />;
   }
 
-  if (importErrorsCount === 0) {
+  if (importErrorsCount <= 0) {
     return undefined;
   }
 
