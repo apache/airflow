@@ -1144,6 +1144,7 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_version": None,
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,
