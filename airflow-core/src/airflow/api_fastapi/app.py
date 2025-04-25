@@ -111,9 +111,10 @@ def cached_app(config=None, testing=False, apps="all") -> FastAPI:
 
 
 def purge_cached_app() -> None:
-    """Remove the cached version of the app in global state."""
-    global app
+    """Remove the cached version of the app and auth_manager in global state."""
+    global app, auth_manager
     app = None
+    auth_manager = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
