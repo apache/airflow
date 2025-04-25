@@ -1905,6 +1905,7 @@ export type ConnectionServiceBulkConnectionsMutationResult = Awaited<
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;
 export type DagServicePatchDagMutationResult = Awaited<ReturnType<typeof DagService.patchDag>>;
+export type DagServiceFavoriteDagMutationResult = Awaited<ReturnType<typeof DagService.favoriteDag>>;
 export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstance>
 >;

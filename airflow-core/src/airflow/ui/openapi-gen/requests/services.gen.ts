@@ -223,6 +223,8 @@ import type {
   StructureDataResponse2,
   GridDataData,
   GridDataResponse,
+  FavoriteDagData,
+  FavoriteDagResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -1663,6 +1665,39 @@ export class DagService {
       },
     });
   }
+
+  /**
+   * Favorite Dag
+   * Toggle favorite the specific DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns DAGResponse Successful Response
+   * @throws ApiError
+   */
+  public static favoriteDag(data: FavoriteDagData): CancelablePromise<FavoriteDagResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/api/v2/dags/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
 
   /**
    * Delete Dag

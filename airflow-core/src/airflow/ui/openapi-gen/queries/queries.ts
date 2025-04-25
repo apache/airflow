@@ -43,6 +43,7 @@ import {
   ClearTaskInstancesBody,
   ConnectionBody,
   CreateAssetEventsBody,
+  DAGFavoriteBody,
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
@@ -4051,6 +4052,51 @@ export const useDagServicePatchDag = <
       DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>,
     ...options,
   });
+
+/**
+ * Favorite Dag
+ * Toggle favorite the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceFavoriteDag = <
+  TData = Common.DagServiceFavoriteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGFavoriteBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGFavoriteBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody, updateMask }) =>
+      DagService.favoriteDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>,
+    ...options,
+  });
+
 /**
  * Patch Task Instance
  * Update a task instance.
