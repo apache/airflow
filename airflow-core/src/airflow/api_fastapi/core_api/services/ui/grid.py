@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from functools import cache
 from operator import methodcaller
 from typing import Callable
@@ -42,6 +43,8 @@ from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -140,19 +143,14 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
     return [task_id for task_id, task_map in task_node_map.items() if task_map["parent_id"] == parent_task_id]
 
 
-def _get_total_task_count(
-    run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
-) -> int:
-    return sum(
-        node
-        if isinstance(node, int)
-        else (
-            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
-            if isinstance(node, (MappedTaskGroup, MappedOperator))
-            else node
-        )
-        for node in task_count
-    )
+def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
+    if not isinstance(node, (MappedTaskGroup, MappedOperator)):
+        return node
+    with contextlib.suppress(NotFullyPopulated, NotMapped):
+        return DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session)
+    # If the downstream is not actually mapped, or we don't have information to
+    # determine the length yet, simply return 1 to represent the stand-in ti.
+    return 1
 
 
 def fill_task_instance_summaries(
@@ -253,7 +251,7 @@ def fill_task_instance_summaries(
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
                 child_states=child_states,
-                task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
+                task_count=sum(_count_tis(n, run_id, session) for n in task_node_map[task_id]["task_count"]),
                 state=TaskInstanceState[overall_ti_state.upper()]
                 if overall_ti_state != "no_status"
                 else None,
