@@ -789,9 +789,10 @@ jobs:
       - additional-prod-image-tests
       - basic-tests
       - build-info
+      - basic-tests
+      - generate-constraints
       - build-prod-images
       - ci-image-checks
-      - generate-constraints
       - providers
       - tests-helm
       - tests-integration-system
