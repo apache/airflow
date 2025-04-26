@@ -62,8 +62,19 @@ github:
     merge: false
     rebase: false
 
+  pull_request:
+    # allow auto-mergeto
+    allow_auto_merge: true
+    # enable updating head branches of pull requests
+    allow_update_branch: true
+    # auto-delete head branches after being merged
+    del_branch_on_merge: true
+
   protected_branches:
     main:
+      required_status_checks:
+        contexts:
+          - "Tests/Finalize tests"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
@@ -133,6 +144,11 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
+    v3-0-test:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
       required_signatures: false
     v3-0-stable:
       required_pull_request_reviews:
