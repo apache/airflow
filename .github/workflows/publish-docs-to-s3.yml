@@ -27,7 +27,7 @@ on:  # yamllint disable-line rule:truthy
       exclude-docs:
         description: "Comma separated list of docs to exclude"
         required: false
-        default: ""
+        default: "NO_DOCS"
         type: string
       destination-location:
         description: "The destination location in S3"
@@ -192,7 +192,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          aws-region: us-east-2
       - name: "Syncing docs to S3"
         env:
           DESTINATION_LOCATION: "${{ inputs.destination-location }}"
