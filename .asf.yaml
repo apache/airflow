@@ -65,8 +65,6 @@ github:
   pull_request:
     # allow auto-mergeto
     allow_auto_merge: true
-    # enable updating head branches of pull requests
-    allow_update_branch: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
 
