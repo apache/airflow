@@ -138,7 +138,7 @@ def docker_compose_tests(
     image_name: str,
     skip_docker_compose_deletion: bool,
     github_repository: str,
-    include_success_outputs: str,
+    include_success_outputs: bool,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
