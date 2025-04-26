@@ -188,7 +188,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
     make_sure_builder_configured(params=params)
 
 
-def build_timout_handler(build_process_group_id: int, signum, frame):
+def build_timeout_handler(build_process_group_id: int, signum, frame):
     # Kill the forked process group - it will kill the build even if it is running in parallel
     # with multiple processes and docker build sessions
     os.killpg(build_process_group_id, signal.SIGTERM)

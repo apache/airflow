@@ -153,7 +153,7 @@ class TestSecretsMasker:
         called, and fixing this "properly" is hard/impossible.
 
         (It would likely need to construct a custom traceback that changed the
-        source. I have no idead if that is even possible)
+        source. I have no idea if that is even possible)
 
         This test illustrates that, but ix marked xfail in case someone wants to
         fix this later.
