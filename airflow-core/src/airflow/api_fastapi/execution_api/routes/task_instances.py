@@ -665,9 +665,6 @@ def get_task_instance_states(
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
 
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
-
     if logical_dates:
         query = query.where(TI.logical_date.in_(logical_dates))
 
@@ -676,19 +673,25 @@ def get_task_instance_states(
 
     results = session.scalars(query).all()
 
-    [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in results]
-
     if task_group_id:
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
-        if map_index is None:
-            [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
+        if task_ids:
+            results = results | group_tasks
         else:
-            [
-                run_id_task_state_map[task.run_id].update({task.task_id: task.state})
-                for task in group_tasks
-                if task.map_index == map_index
-            ]
+            results = group_tasks
+
+    if map_index is not None:
+        results = [task for task in results if task.map_index == map_index]
+
+    [
+        run_id_task_state_map[task.run_id].update(
+            {task.task_id: task.state}
+            if task.map_index < 0
+            else {f"{task.task_id}_{task.map_index}": task.state}
+        )
+        for task in results
+    ]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 

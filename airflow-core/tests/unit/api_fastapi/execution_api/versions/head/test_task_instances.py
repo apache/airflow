@@ -1662,7 +1662,6 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
-                    "task2": "failed",
                 },
             },
         }
@@ -1802,21 +1801,21 @@ class TestGetTaskStates:
                 None,
                 [1, 2, 3],
                 {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
-                {"task1": "success", "add_one": "success"},
+                {"task1": "success", "add_one_0": "success", "add_one_1": "success", "add_one_2": "success"},
                 id="with-default-map-index-None",
             ),
             pytest.param(
                 0,
                 [1, 2, 3],
                 {"-1": State.SUCCESS, "0": State.FAILED, "1": State.SUCCESS, "2": State.SUCCESS},
-                {"add_one": "failed"},
+                {"add_one_0": "failed"},
                 id="with-map-index-0",
             ),
             pytest.param(
                 1,
                 [1, 2, 3],
                 {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.FAILED, "2": State.SUCCESS},
-                {"add_one": "failed"},
+                {"add_one_1": "failed"},
                 id="with-map-index-1",
             ),
         ),
@@ -1867,7 +1866,13 @@ class TestGetTaskStates:
                 None,
                 None,
                 {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
-                {"group1.add_one": "success", "group1.task2": "success", "task1": "success"},
+                {
+                    "group1.add_one_0": "success",
+                    "group1.add_one_1": "success",
+                    "group1.add_one_2": "success",
+                    "group1.task2": "success",
+                    "task1": "success",
+                },
                 id="with-default-map-index-None",
             ),
             pytest.param(
@@ -1885,7 +1890,12 @@ class TestGetTaskStates:
                 None,
                 "group1",
                 {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
-                {"task1": "success", "group1.task2": "success", "group1.add_one": "success"},
+                {
+                    "group1.task2": "success",
+                    "group1.add_one_0": "success",
+                    "group1.add_one_1": "success",
+                    "group1.add_one_2": "success",
+                },
                 id="with-task-group-id-and-map-index-None",
             ),
             pytest.param(
@@ -1894,7 +1904,7 @@ class TestGetTaskStates:
                 None,
                 "group1",
                 {"-1": State.SUCCESS, "0": State.FAILED, "1": State.SUCCESS, "2": State.SUCCESS},
-                {"group1.add_one": "failed"},
+                {"group1.add_one_0": "failed"},
                 id="with-task-group-id-and-map-index-0",
             ),
         ),
@@ -1914,7 +1924,7 @@ class TestGetTaskStates:
         """
         case1: map_index is None, task_ids is None, task_group_name is None, it should fetch all the task states
         case2: when map index -1 and provided task_ids, it should return the task states of task_ids
-        case3: when map index is None and provided task_group_id, it should return the task states of tasks under the task group and normal task states (because the task_ids filter is None)
+        case3: when map index is None and provided task_group_id, it should return the task states of tasks under the task group and normal task states under task group
         case4: when map index is 0 and provided task_group_id, it should return the task states of tasks under the task group that falls under map index = 0
         """
 
