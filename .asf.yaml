@@ -72,7 +72,7 @@ github:
     main:
       required_status_checks:
         contexts:
-          - "Tests / Finalize tests / Summarize warnings"
+          - "Tests / Finalize tests / Summarize warnings (pull_request)"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
