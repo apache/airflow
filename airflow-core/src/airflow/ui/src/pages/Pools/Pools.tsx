@@ -35,6 +35,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBarCard from "./PoolBarCard";
+import { getOrderBy } from "src/utils";
 
 const cardDef = (): CardDef<PoolResponse> => ({
   card: ({ row }) => <PoolBarCard key={row.name} pool={row} />,
@@ -58,8 +59,7 @@ export const Pools = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["name"];
+  const orderBy = getOrderBy("name");
 
   const { data, error, isLoading } = usePoolServiceGetPools({
     limit: pagination.pageSize,
