@@ -20,6 +20,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from airflow.configuration import conf
+
 
 def generate_access_token(username: str, password: str, host: str) -> str:
     """
@@ -40,7 +42,12 @@ def generate_access_token(username: str, password: str, host: str) -> str:
     session = requests.Session()
     session.mount("http://", HTTPAdapter(max_retries=retry))
     session.mount("https://", HTTPAdapter(max_retries=retry))
-    url = f"http://{host}/auth/token"
+
+    api_server_url = host
+    if not api_server_url.startswith(("http://", "https://")):
+        api_server_url = "http://" + host
+    url = f"{api_server_url}/auth/token"
+
     login_response = session.post(
         url,
         json={"username": username, "password": password},
@@ -49,3 +56,22 @@ def generate_access_token(username: str, password: str, host: str) -> str:
 
     assert access_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
     return access_token
+
+
+def make_authenticated_rest_api_request(
+    path: str,
+    method: str,
+    body: dict | None = None,
+    username: str = "admin",
+    password: str = "admin",
+):
+    api_server_url = conf.get("api", "base_url", fallback="http://localhost:8080").rstrip("/")
+    token = generate_access_token(username, password, api_server_url)
+    response = requests.request(
+        method=method,
+        url=api_server_url + path,
+        headers={"Authorization": f"Bearer {token}"},
+        json=body,
+    )
+    response.raise_for_status()
+    return response.json()
