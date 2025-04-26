@@ -105,8 +105,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "model",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (
         TranslationLegacyModelTrainLink(),
@@ -215,8 +214,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "model_id",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyModelPredictLink(),)
 
@@ -365,8 +363,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyDatasetLink(),)
 
@@ -470,8 +467,7 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "input_config",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyDatasetLink(),)
 
@@ -589,8 +585,7 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         "field_mask",
         "filter_",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyDatasetLink(),)
 
@@ -798,8 +793,7 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "model_id",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyModelLink(),)
 
@@ -896,8 +890,7 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "model_id",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -1002,8 +995,7 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "model_id",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -1099,8 +1091,7 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "filter_",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationLegacyDatasetLink(),)
 
@@ -1201,8 +1192,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (TranslationDatasetListLink(),)
 
@@ -1298,8 +1288,7 @@ class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "location",
-        "project_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(

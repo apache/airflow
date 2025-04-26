@@ -85,10 +85,9 @@ class BigQueryCreateDataTransferOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "transfer_config",
-        "project_id",
         "authorization_code",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigQueryDataTransferConfigLink(),)
 
@@ -180,9 +179,8 @@ class BigQueryDeleteDataTransferConfigOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "transfer_config_id",
-        "project_id",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -263,11 +261,10 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
 
     template_fields: Sequence[str] = (
         "transfer_config_id",
-        "project_id",
         "requested_time_range",
         "requested_run_time",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigQueryDataTransferConfigLink(),)
 

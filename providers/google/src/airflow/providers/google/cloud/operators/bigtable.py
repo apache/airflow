@@ -100,11 +100,10 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ("instance_id", "main_cluster_id", "main_cluster_zone")
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
         "main_cluster_id",
         "main_cluster_zone",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigtableInstanceLink(),)
 
@@ -210,9 +209,8 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
 
     REQUIRED_ATTRIBUTES: Iterable[str] = ["instance_id"]
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigtableInstanceLink(),)
 
@@ -291,9 +289,8 @@ class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
 
     REQUIRED_ATTRIBUTES = ("instance_id",)  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -364,10 +361,9 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
 
     REQUIRED_ATTRIBUTES = ("instance_id", "table_id")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
         "table_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigtableTablesLink(),)
 
@@ -469,10 +465,9 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
 
     REQUIRED_ATTRIBUTES = ("instance_id", "table_id")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
         "table_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -547,11 +542,10 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
 
     REQUIRED_ATTRIBUTES = ("instance_id", "cluster_id", "nodes")  # type: Iterable[str]
     template_fields: Sequence[str] = (
-        "project_id",
         "instance_id",
         "cluster_id",
         "nodes",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (BigtableClusterLink(),)
 

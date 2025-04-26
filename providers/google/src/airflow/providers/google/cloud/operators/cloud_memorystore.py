@@ -99,12 +99,11 @@ class CloudMemorystoreCreateInstanceOperator(GoogleCloudBaseOperator):
         "location",
         "instance_id",
         "instance",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -187,12 +186,11 @@ class CloudMemorystoreDeleteInstanceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "location",
         "instance",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -270,12 +268,11 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
         "location",
         "instance",
         "output_config",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -363,12 +360,11 @@ class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
         "location",
         "instance",
         "data_protection_mode",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -450,12 +446,11 @@ class CloudMemorystoreGetInstanceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "location",
         "instance",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -543,12 +538,11 @@ class CloudMemorystoreImportOperator(GoogleCloudBaseOperator):
         "location",
         "instance",
         "input_config",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -634,12 +628,11 @@ class CloudMemorystoreListInstancesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "location",
         "page_size",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceListLink(),)
 
@@ -735,12 +728,11 @@ class CloudMemorystoreUpdateInstanceOperator(GoogleCloudBaseOperator):
         "instance",
         "location",
         "instance_id",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -829,12 +821,11 @@ class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
         "memory_size_gb",
         "location",
         "instance_id",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -940,12 +931,11 @@ class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
         "instance_id",
         "instance",
         "input_config",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (RedisInstanceDetailsLink(),)
 
@@ -1049,12 +1039,11 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(GoogleCloudBaseOperator):
         "location",
         "instance",
         "output_config",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -1135,12 +1124,11 @@ class CloudMemorystoreMemcachedApplyParametersOperator(GoogleCloudBaseOperator):
         "apply_all",
         "location",
         "instance_id",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
@@ -1378,12 +1366,11 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "location",
         "instance",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
@@ -1463,12 +1450,11 @@ class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "location",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (MemcachedInstanceListLink(),)
 
@@ -1558,12 +1544,11 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
         "instance",
         "location",
         "instance_id",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (MemcachedInstanceDetailsLink(),)
 
@@ -1652,12 +1637,11 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator)
         "parameters",
         "location",
         "instance_id",
-        "project_id",
         "retry",
         "timeout",
         "metadata",
         "gcp_conn_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
     operator_extra_links = (MemcachedInstanceDetailsLink(),)
 

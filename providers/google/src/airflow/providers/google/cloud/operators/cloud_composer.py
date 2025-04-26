@@ -121,11 +121,10 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "environment_id",
         "environment",
-        "impersonation_chain",
+*GoogleCloudBaseOperator.template_fields,
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -252,10 +251,9 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "environment_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -339,10 +337,9 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "environment_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -413,9 +410,8 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     operator_extra_links = (CloudComposerEnvironmentsLink(),)
@@ -493,10 +489,9 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "environment_id",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -604,9 +599,8 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
@@ -680,11 +674,10 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
     """
 
     template_fields = (
-        "project_id",
         "region",
         "environment_id",
         "command",
-        "impersonation_chain",
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     def __init__(
