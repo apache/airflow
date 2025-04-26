@@ -59,7 +59,6 @@ jobs:
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       core-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.core-test-types-list-as-strings-in-json }}
@@ -257,7 +256,6 @@ jobs:
       # generate no providers constraints only in canary builds - they take quite some time to generate
       # they are not needed for regular builds, they are only needed to update constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
 
@@ -282,7 +280,6 @@ jobs:
       basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -693,7 +690,6 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       build-provider-distributions: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
@@ -708,7 +704,6 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
