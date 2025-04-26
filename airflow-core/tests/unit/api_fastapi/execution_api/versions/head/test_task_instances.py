@@ -1907,6 +1907,15 @@ class TestGetTaskStates:
                 {"group1.add_one_0": "failed"},
                 id="with-task-group-id-and-map-index-0",
             ),
+            pytest.param(
+                -1,
+                [1, 2, 3],
+                ["task1"],
+                "group1",
+                {"-1": State.SUCCESS, "0": State.SUCCESS, "1": State.SUCCESS, "2": State.SUCCESS},
+                {"task1": "success", "group1.task2": "success"},
+                id="with-task-id-and-task-group-map-index-(-1)",
+            ),
         ),
     )
     def test_get_task_states_mix_of_task_and_task_group_dynamic_task_mapping(
@@ -1926,6 +1935,7 @@ class TestGetTaskStates:
         case2: when map index -1 and provided task_ids, it should return the task states of task_ids
         case3: when map index is None and provided task_group_id, it should return the task states of tasks under the task group and normal task states under task group
         case4: when map index is 0 and provided task_group_id, it should return the task states of tasks under the task group that falls under map index = 0
+        case5: when map index is -1 and provided both task_id and task_group_id, it should return the task states of tasks under the task group that falls under map index = -1 and normal task_ids states
         """
 
         with dag_maker(session=session, serialized=True) as dag:

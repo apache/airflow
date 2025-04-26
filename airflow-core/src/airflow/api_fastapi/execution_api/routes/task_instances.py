@@ -677,13 +677,12 @@ def get_task_instance_states(
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
         if task_ids:
-            results = results | group_tasks
+            results = results + group_tasks
         else:
             results = group_tasks
 
     if map_index is not None:
         results = [task for task in results if task.map_index == map_index]
-
     [
         run_id_task_state_map[task.run_id].update(
             {task.task_id: task.state}
