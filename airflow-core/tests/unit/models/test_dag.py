@@ -1256,6 +1256,20 @@ class TestDag:
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
+    def test_get_favorite_dag_ids(self):
+        dag_id = "test_get_favorite_dag_ids"
+        dag = DAG(dag_id, schedule=None)
+        dag.sync_to_db()
+        dagModel = DagModel.get_dagmodel(dag_id)
+        assert dagModel is not None
+
+        dagModel.set_is_favorite(True)
+        favorite_dag_ids = DagModel.get_favorite_dag_ids([dag_id])
+        assert favorite_dag_ids == {dag_id}
+
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
+
     @pytest.mark.parametrize(
         "schedule_arg, expected_timetable, interval_description",
         [
