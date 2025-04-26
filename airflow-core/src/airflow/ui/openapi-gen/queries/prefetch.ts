@@ -434,7 +434,7 @@ export const prefetchUseConnectionServiceGetConnections = (
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -1935,7 +1935,7 @@ export const prefetchUsePoolServiceGetPools = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
 ) =>

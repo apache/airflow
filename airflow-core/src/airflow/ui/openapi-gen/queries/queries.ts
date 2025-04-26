@@ -547,7 +547,7 @@ export const useConnectionServiceGetConnections = <
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -2308,7 +2308,7 @@ export const usePoolServiceGetPools = <
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,

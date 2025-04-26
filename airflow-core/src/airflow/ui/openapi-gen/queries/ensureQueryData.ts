@@ -67,7 +67,7 @@ export const ensureUseAssetServiceGetAssetsData = (
     namePattern?: string;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: string[];
     uriPattern?: string;
   } = {},
 ) =>
@@ -106,7 +106,7 @@ export const ensureUseAssetServiceGetAssetAliasesData = (
     limit?: number;
     namePattern?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
 ) =>
   queryClient.ensureQueryData({
@@ -167,7 +167,7 @@ export const ensureUseAssetServiceGetAssetEventsData = (
     assetId?: number;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     sourceDagId?: string;
     sourceMapIndex?: number;
     sourceRunId?: string;
@@ -335,7 +335,7 @@ export const ensureUseBackfillServiceListBackfillsData = (
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   },
 ) =>
   queryClient.ensureQueryData({
@@ -434,7 +434,7 @@ export const ensureUseConnectionServiceGetConnectionsData = (
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
 ) =>
   queryClient.ensureQueryData({
@@ -549,7 +549,7 @@ export const ensureUseDagRunServiceGetDagRunsData = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     runAfterGte?: string;
     runAfterLte?: string;
     runType?: string[];
@@ -809,7 +809,7 @@ export const ensureUseDagServiceGetDagsData = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owners?: string[];
     paused?: boolean;
     tags?: string[];
@@ -991,7 +991,7 @@ export const ensureUseEventLogServiceGetEventLogsData = (
     limit?: number;
     mapIndex?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owner?: string;
     runId?: string;
     taskId?: string;
@@ -1485,7 +1485,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstancesData = (
     logicalDateGte?: string;
     logicalDateLte?: string;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     pool?: string[];
     queue?: string[];
     runAfterGte?: string;
@@ -1935,7 +1935,7 @@ export const ensureUsePoolServiceGetPoolsData = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
 ) =>
@@ -2148,7 +2148,7 @@ export const ensureUseVariableServiceGetVariablesData = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     variableKeyPattern?: string;
   } = {},
 ) =>

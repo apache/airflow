@@ -254,7 +254,7 @@ export const UseBackfillServiceListBackfillsKeyFn = (
     dagId: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceListBackfillsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy }])];
@@ -332,7 +332,7 @@ export const UseConnectionServiceGetConnectionsKeyFn = (
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -1400,7 +1400,7 @@ export const UsePoolServiceGetPoolsKeyFn = (
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
   queryKey?: Array<unknown>,

@@ -524,7 +524,7 @@ export const useConnectionServiceGetConnectionsSuspense = <
     connectionIdPattern?: string;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -2285,7 +2285,7 @@ export const usePoolServiceGetPoolsSuspense = <
   }: {
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,

@@ -1871,7 +1871,7 @@ export type ListBackfillsData = {
   dagId: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
 };
 
 export type ListBackfillsResponse = BackfillCollectionResponse;
@@ -2474,7 +2474,7 @@ export type PatchPoolResponse = PoolResponse;
 export type GetPoolsData = {
   limit?: number;
   offset?: number;
-  orderBy?: string;
+  orderBy?: string[];
   poolNamePattern?: string | null;
 };
 
