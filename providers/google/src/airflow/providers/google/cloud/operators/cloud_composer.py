@@ -124,7 +124,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "environment",
-*GoogleCloudBaseOperator.template_fields,
+        *GoogleCloudBaseOperator.template_fields,
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
