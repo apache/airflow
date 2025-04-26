@@ -391,6 +391,39 @@ class TestPatchDags(TestDagEndpoint):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
 
+class TestFavoriteDag(TestDagEndpoint):
+    """Unit tests for Favorite DAG."""
+
+    @pytest.mark.parametrize(
+        "query_params, dag_id, body, expected_status_code, expected_is_favorite",
+        [
+            ({}, "fake_dag_id", {"is_favorite": True}, 404, None),
+            ({"update_mask": ["field_1", "is_favorite"]}, DAG1_ID, {"is_favorite": True}, 400, None),
+            ({}, DAG1_ID, {"is_favorite": True}, 200, True),
+            ({}, DAG1_ID, {"is_favorite": False}, 200, False),
+            ({"update_mask": ["is_favorite"]}, DAG1_ID, {"is_favorite": True}, 200, True),
+            ({"update_mask": ["is_favorite"]}, DAG1_ID, {"is_favorite": False}, 200, False),
+        ],
+    )
+    def test_favorite_dag(
+        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_favorite, session
+    ):
+        response = test_client.put(f"/dags/{dag_id}", json=body, params=query_params)
+
+        assert response.status_code == expected_status_code
+        if expected_status_code == 200:
+            body = response.json()
+            assert body["is_favorite"] == expected_is_favorite
+            check_last_log(session, dag_id=dag_id, event="favorite_dag", logical_date=None)
+
+    def test_favorite_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.put(f"/dags/{DAG1_ID}", json={"is_favorite": True})
+        assert response.status_code == 401
+
+    def test_favorite_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.put(f"/dags/{DAG1_ID}", json={"is_favorite": True})
+        assert response.status_code == 403
+
 
 class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
