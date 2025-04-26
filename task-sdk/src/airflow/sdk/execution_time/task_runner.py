@@ -325,6 +325,9 @@ class RuntimeTaskInstance(TaskInstance):
         if run_id is None:
             run_id = self.run_id
 
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None), ArgNotSet))
+
         if task_ids is None:
             # default to the current task if not provided
             task_ids = [self.task_id]
@@ -363,8 +366,9 @@ class RuntimeTaskInstance(TaskInstance):
             else:
                 xcoms.append(value)
 
-        if len(xcoms) == 1:
+        if single_task_requested and single_map_index_requested:
             return xcoms[0]
+
         return xcoms
 
     def xcom_push(self, key: str, value: Any):

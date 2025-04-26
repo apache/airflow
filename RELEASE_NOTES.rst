@@ -336,8 +336,6 @@ aligning with the broader asset-aware execution model introduced in Airflow 3.0.
 Behaviour change in ``xcom_pull``
 """""""""""""""""""""""""""""""""
 
-**Pulling without setting ``task_ids``**:
-
 In Airflow 2, the ``xcom_pull()`` method allowed pulling XComs by key without specifying task_ids, despite the fact that the underlying
 DB model defines task_id as part of the XCom primary key. This created ambiguity: if two tasks pushed XComs with the same key,
 ``xcom_pull()`` would pull whichever one happened to be first, leading to unpredictable behavior.
@@ -352,34 +350,6 @@ DAG Authors should update their dags to use ``task_ids`` if their dags used ``xc
 Should be updated to::
 
   kwargs["ti"].xcom_pull(task_ids="task1", key="key")
-
-
-**Return Type Change for Single Task ID**:
-
-In Airflow 2, when using ``xcom_pull()`` with a single task ID in a list (e.g., ``task_ids=["task1"]``), it would return a ``LazyXComSelectSequence``
-object containing one value. In Airflow 3.0.0, this behavior was changed to return the value directly.
-
-So, if you previously used:
-
-.. code-block:: python
-
-    xcom_values = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
-    xcom_value = xcom_values[0]  # Access the first value
-
-You would now get the value directly, rather than a sequence containing one value.
-
-.. code-block:: python
-
-    xcom_value = kwargs["ti"].xcom_pull(task_ids=["task1"], key="key")
-
-The previous behaviour (returning list when passed a list) will be restored in Airflow 3.0.1 to maintain backward compatibility.
-
-However, it is recommended to be explicit about your intentions when using ``task_ids`` (after the fix in 3.0.1):
-
-- If you want a single value, use ``task_ids="task1"``
-- If you want a sequence, use ``task_ids=["task1"]``
-
-This makes the code more explicit and easier to understand.
 
 
 Removed Configuration Keys
