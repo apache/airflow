@@ -593,6 +593,7 @@ def get_previous_successful_dagrun(
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
+    map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
@@ -605,6 +606,9 @@ def get_task_instance_count(
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
 
+    if map_index is not None:
+        query = query.where(TI.map_index == map_index)
+
     if logical_dates:
         query = query.where(TI.logical_date.in_(logical_dates))
 
@@ -615,7 +619,11 @@ def get_task_instance_count(
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
-        task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
+        if map_index is None:
+            task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
+        else:
+            task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks if ti.map_index == map_index]
+
         if not task_map_pairs:
             # If no task group tasks found, default to checking the task group ID itself
             # This matches the behavior in _get_external_task_group_task_ids
@@ -643,6 +651,7 @@ def get_task_instance_count(
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
+    map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
     task_group_id: Annotated[str | None, Query()] = None,
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
@@ -655,6 +664,9 @@ def get_task_instance_states(
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
+
+    if map_index is not None:
+        query = query.where(TI.map_index == map_index)
 
     if logical_dates:
         query = query.where(TI.logical_date.in_(logical_dates))
@@ -669,7 +681,14 @@ def get_task_instance_states(
     if task_group_id:
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
-        [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
+        if map_index is None:
+            [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
+        else:
+            [
+                run_id_task_state_map[task.run_id].update({task.task_id: task.state})
+                for task in group_tasks
+                if task.map_index == map_index
+            ]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 

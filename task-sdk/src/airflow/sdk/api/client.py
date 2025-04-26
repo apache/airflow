@@ -212,6 +212,7 @@ class TaskInstanceOperations:
     def get_count(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -221,6 +222,7 @@ class TaskInstanceOperations:
         """Get count of task instances matching the given criteria."""
         params = {
             "dag_id": dag_id,
+            "map_index": map_index,
             "task_ids": task_ids,
             "task_group_id": task_group_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
@@ -237,6 +239,7 @@ class TaskInstanceOperations:
     def get_task_states(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -245,6 +248,7 @@ class TaskInstanceOperations:
         """Get task states given criteria."""
         params = {
             "dag_id": dag_id,
+            "map_index": map_index,
             "task_ids": task_ids,
             "task_group_id": task_group_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
