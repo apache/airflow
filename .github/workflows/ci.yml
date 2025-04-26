@@ -780,20 +780,30 @@ jobs:
     # This will fire when all the jobs from "needs" are either successful or skipped
     if: always() && !failure() && !cancelled()
     needs:
-      - build-info
+      - additional-ci-image-checks
+      - additional-prod-image-tests
       - basic-tests
-      - generate-constraints
+      - build-info
+      - build-prod-images
       - ci-image-checks
-      - tests-sqlite-core
-      - tests-sqlite-providers
+      - generate-constraints
+      - providers
+      - tests-helm
+      - tests-integration-system
+      - tests-kubernetes
       - tests-mysql-core
       - tests-mysql-providers
-      - tests-postgres-core
-      - tests-postgres-providers
       - tests-non-db-core
       - tests-non-db-providers
-      - tests-integration-system
-      - build-prod-images
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-airflow-ctl
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
@@ -814,17 +824,6 @@ jobs:
   notify-slack-failure:
     name: "Notify Slack on Failure"
     needs:
-      - basic-tests
-      - additional-ci-image-checks
-      - providers
-      - tests-helm
-      - tests-special
-      - tests-with-lowest-direct-resolution-core
-      - tests-with-lowest-direct-resolution-providers
-      - additional-prod-image-tests
-      - tests-kubernetes
-      - tests-task-sdk
-      - tests-airflow-ctl
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
