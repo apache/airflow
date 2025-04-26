@@ -67,14 +67,14 @@ def is_mappable(v: Any) -> TypeGuard[OperatorExpandArgument]:
 
 # To replace tedious isinstance() checks.
 def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Sequence]:
-    from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.xcom_arg import XComArg
 
     return not isinstance(v, (MappedArgument, XComArg))
 
 
 # To replace tedious isinstance() checks.
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | XComArg]:
-    from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.xcom_arg import XComArg
 
     return isinstance(v, (MappedArgument, XComArg))
 
@@ -187,7 +187,7 @@ class DictOfListsExpandInput(ResolveMixin):
         raise IndexError(f"index {map_index} is over mapped length")
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for x in self.value.values():
             if isinstance(x, XComArg):
@@ -238,7 +238,7 @@ class ListOfDictsExpandInput(ResolveMixin):
         raise NotFullyPopulated({"expand_kwargs() argument"})
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         if isinstance(self.value, XComArg):
             yield from self.value.iter_references()
