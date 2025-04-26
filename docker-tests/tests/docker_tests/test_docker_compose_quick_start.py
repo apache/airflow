@@ -88,7 +88,7 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     subfolders = ("dags", "logs", "plugins", "config")
     console.print(f"[yellow]Cleaning subfolders:[/ {subfolders}")
     # Create required directories for docker compose quick start howto
-    for subdir in ("dags", "logs", "plugins", "config"):
+    for subdir in subfolders:
         (tmp_dir / subdir).mkdir()
 
     dot_env_file = tmp_dir / ".env"
