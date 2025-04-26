@@ -234,7 +234,6 @@ class TIRescheduleStatePayload(BaseModel):
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
     reschedule_date: Annotated[AwareDatetime, Field(title="Reschedule Date")]
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
-    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
 class TIRetryStatePayload(BaseModel):

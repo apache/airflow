@@ -843,8 +843,10 @@ class ActivitySubprocess(WatchedSubprocess):
         # by the subprocess in the `handle_requests` method.
         if self.final_state not in STATES_SENT_DIRECTLY:
             self.client.task_instances.finish(
-                id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc),
-                rendered_map_index=self._rendered_map_index
+                id=self.id,
+                state=self.final_state,
+                when=datetime.now(tz=timezone.utc),
+                rendered_map_index=self._rendered_map_index,
             )
 
         # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
