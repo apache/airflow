@@ -786,6 +786,7 @@ jobs:
       - ci-image-checks
       - tests-sqlite-core
       - tests-sqlite-providers
+      - tests-kubernetes
       - tests-mysql-core
       - tests-mysql-providers
       - tests-postgres-core
