@@ -62,8 +62,8 @@ github:
     merge: false
     rebase: false
 
-  pull_request:
-    # allow auto-mergeto
+  pull_requests:
+    # allow auto-merge
     allow_auto_merge: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
