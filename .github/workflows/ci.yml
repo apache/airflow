@@ -781,6 +781,7 @@ jobs:
     if: always() && !failure() && !cancelled()
     needs:
       - build-info
+      - basic-tests
       - generate-constraints
       - ci-image-checks
       - tests-sqlite-core
