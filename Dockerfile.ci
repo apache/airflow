@@ -401,7 +401,7 @@ function common::get_packaging_tool() {
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
         export UV_CONCURRENT_DOWNLOADS
         if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
-            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease allow"
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease if-necessary"
         fi
     else
         echo

@@ -60,10 +60,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "List of providers that should be prepared from sources"
-        required: false
-        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true

@@ -36,10 +36,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "Whether to build chicken-egg provider distributions in the same run (true/false)"
-        required: true
-        type: string
       docker-cache:
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
@@ -74,7 +70,6 @@ jobs:
       use-uv: "false"
       build-provider-distributions: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -91,7 +86,6 @@ jobs:
       use-uv: "false"
       build-provider-distributions: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}

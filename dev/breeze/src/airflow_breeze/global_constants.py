@@ -637,9 +637,6 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join([])
-
-
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
