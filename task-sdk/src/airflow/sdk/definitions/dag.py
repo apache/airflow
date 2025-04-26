@@ -399,9 +399,7 @@ class DAG:
     user_defined_filters: dict | None = None
     max_active_tasks: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
     max_active_runs: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
-    max_consecutive_failed_dag_runs: int = attrs.field(
-        default=-1, validator=attrs.validators.instance_of(int)
-    )
+    max_consecutive_failed_dag_runs: int = attrs.field(default=0, validator=attrs.validators.instance_of(int))
     dagrun_timeout: timedelta | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
@@ -831,7 +829,7 @@ class DAG:
         }
 
         def filter_task_group(group, parent_group):
-            """Exclude tasks not included in the subdag from the given TaskGroup."""
+            """Exclude tasks not included in the partial dag from the given TaskGroup."""
             # We want to deepcopy _most but not all_ attributes of the task group, so we create a shallow copy
             # and then manually deep copy the instances. (memo argument to deepcopy only works for instances
             # of classes, not "native" properties of an instance)
@@ -867,12 +865,12 @@ class DAG:
 
         # Removing upstream/downstream references to tasks and TaskGroups that did not make
         # the cut.
-        subdag_task_groups = dag.task_group.get_task_group_dict()
-        for group in subdag_task_groups.values():
-            group.upstream_group_ids.intersection_update(subdag_task_groups)
-            group.downstream_group_ids.intersection_update(subdag_task_groups)
-            group.upstream_task_ids.intersection_update(dag.task_dict)
-            group.downstream_task_ids.intersection_update(dag.task_dict)
+        groups = dag.task_group.get_task_group_dict()
+        for g in groups.values():
+            g.upstream_group_ids.intersection_update(groups)
+            g.downstream_group_ids.intersection_update(groups)
+            g.upstream_task_ids.intersection_update(dag.task_dict)
+            g.downstream_task_ids.intersection_update(dag.task_dict)
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not

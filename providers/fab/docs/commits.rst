@@ -34,6 +34,23 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.2
+.....
+
+Latest change: 2025-04-23
+
+==================================================================================================  ===========  ====================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================
+`b01e534195 <https://github.com/apache/airflow/commit/b01e534195fff5dea03d000051e6469b83852f6c>`__  2025-04-23   ``Remove some lingering subdag references (#49663)``
+`d2755fc52e <https://github.com/apache/airflow/commit/d2755fc52e13db4816fa69409c16ac777b5f7c9f>`__  2025-04-23   ``Bump stylelint (#49638)``
+`998f70036b <https://github.com/apache/airflow/commit/998f70036b919a434edd086c0233991c5ff1c736>`__  2025-04-23   ``Add read config permission to viewer role in 'FabAuthManager' (#49581)``
+`1ec1e68f6b <https://github.com/apache/airflow/commit/1ec1e68f6bcd18affa2cad5e72408b7463fa81c0>`__  2025-04-23   ``Adding flask app configuration docs to FAB provider (#49492)``
+`5595ded129 <https://github.com/apache/airflow/commit/5595ded129e00553df0af735e2513f996b1b524d>`__  2025-04-22   ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49511)``
+`223a741869 <https://github.com/apache/airflow/commit/223a741869505ad31c38310f307bf2f0f0f193fb>`__  2025-04-19   ``capitalize the term airflow (#49450)``
+`f65eeb05f4 <https://github.com/apache/airflow/commit/f65eeb05f48d9ad67cdbbeb81a5db085c519aaba>`__  2025-04-18   ``Add note in FAB migration doc (#49423)``
+==================================================================================================  ===========  ====================================================================================
+
 2.0.1
 .....
 
@@ -42,6 +59,7 @@ Latest change: 2025-04-16
 ==================================================================================================  ===========  ===================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
 `ade9fb185a <https://github.com/apache/airflow/commit/ade9fb185a92530001e23fb6391163a300463c36>`__  2025-04-16   ``refactor: remove 'navbar_logo_text_color' (#49161)``
 `47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
 `a45c32971c <https://github.com/apache/airflow/commit/a45c32971ce1f91a985af57d0b186295e6fae887>`__  2025-04-15   ``Add possibility to have extra project metadata in providers (#49306)``

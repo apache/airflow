@@ -167,6 +167,7 @@ def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
 
 def get_dag_run_dict(run: DagRun):
     return {
+        "bundle_version": None,
         "dag_run_id": run.run_id,
         "dag_id": run.dag_id,
         "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
@@ -1303,6 +1304,7 @@ class TestTriggerDagRun:
             session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
         )
         expected_response_json = {
+            "bundle_version": None,
             "conf": {},
             "dag_id": DAG1_ID,
             "dag_run_id": expected_dag_run_id,
@@ -1492,6 +1494,7 @@ class TestTriggerDagRun:
 
         assert response_1.status_code == 200
         assert response_1.json() == {
+            "bundle_version": None,
             "dag_run_id": RUN_ID_1,
             "dag_id": DAG1_ID,
             "dag_versions": mock.ANY,
@@ -1576,6 +1579,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_version": None,
             "dag_run_id": mock.ANY,
             "dag_id": DAG1_ID,
             "dag_versions": mock.ANY,

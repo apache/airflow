@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from pydantic import NonNegativeInt
+
 
 @dataclass
 class ConfigurationDetails:
@@ -46,7 +48,7 @@ class DagDetails:
 class BackfillDetails:
     """Represents the details of a backfill."""
 
-    id: str | None = None
+    id: NonNegativeInt | None = None
 
 
 @dataclass

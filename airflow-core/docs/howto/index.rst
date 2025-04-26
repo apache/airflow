@@ -30,6 +30,7 @@ configuring an Airflow environment.
     :maxdepth: 2
 
     Using the CLI <usage-cli>
+    Using the REST API <../security/api>
     add-dag-tags
     notifications
     set-config

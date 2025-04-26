@@ -16,25 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack } from "@chakra-ui/react";
+import { Box, Text, HStack, StackSeparator } from "@chakra-ui/react";
 import React, { type ReactNode } from "react";
 
 import { Tooltip } from "./ui";
 
 type ListProps = {
   readonly icon?: ReactNode;
+  readonly interactive?: boolean;
   readonly items: Array<ReactNode | string>;
   readonly maxItems?: number;
   readonly separator?: string;
 };
 
-export const LimitedItemsList = ({ icon, items, maxItems, separator = ", " }: ListProps) => {
+export const LimitedItemsList = ({
+  icon,
+  interactive = false,
+  items,
+  maxItems,
+  separator = ", ",
+}: ListProps) => {
   const shouldTruncate = maxItems !== undefined && items.length > maxItems;
   const displayItems = shouldTruncate ? items.slice(0, maxItems) : items;
   const remainingItems = shouldTruncate ? items.slice(maxItems) : [];
-  const remainingItemsList = remainingItems
-    .map((item) => (typeof item === "string" ? item : "item"))
-    .join(", ");
+  const remainingItemsList = interactive ? (
+    <HStack separator={<StackSeparator />}>{remainingItems}</HStack>
+  ) : (
+    `More items: ${remainingItems.map((item) => (typeof item === "string" ? item : "item")).join(", ")}`
+  );
 
   if (!items.length) {
     return undefined;
@@ -57,9 +66,9 @@ export const LimitedItemsList = ({ icon, items, maxItems, separator = ", " }: Li
           remainingItems.length === 1 ? (
             <Text as="span">{remainingItems[0]}</Text>
           ) : (
-            <Tooltip content={`More items: ${remainingItemsList}`}>
+            <Tooltip content={remainingItemsList} interactive={interactive}>
               <Text as="span" cursor="help">
-                , +{remainingItems.length} more
+                +{remainingItems.length} more
               </Text>
             </Tooltip>
           )
