@@ -237,6 +237,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--python",
                 "--skip-docker-compose-deletion",
+                "--include-success-outputs",
                 "--github-repository",
             ],
         }
