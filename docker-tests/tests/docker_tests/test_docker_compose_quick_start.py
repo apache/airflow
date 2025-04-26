@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import os
 import shlex
-from pprint import pprint
 from shutil import copyfile
 from time import sleep
 
@@ -27,6 +26,7 @@ import pytest
 import requests
 from python_on_whales import DockerClient, docker
 from python_on_whales.exceptions import DockerException
+from rich.console import Console
 
 # isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
@@ -35,6 +35,8 @@ from docker_tests.constants import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.api_client_helpers import generate_access_token
 
 # isort:on (needed to workaround isort bug)
+
+console = Console(width=400, color_system="standard")
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
@@ -60,13 +62,13 @@ def api_request(
 
 
 def wait_for_terminal_dag_state(dag_id, dag_run_id):
-    print(f" Simplified representation of DAG {dag_id} ".center(72, "="))
-    pprint(api_request("GET", f"dags/{DAG_ID}/details"))
+    console.print(f"[bright_blue]Simplified representation of DAG {dag_id} ".center(72, "="))
+    console.print(api_request("GET", f"dags/{DAG_ID}/details"))
 
     # Wait 400 seconds
     for _ in range(400):
         dag_state = api_request("GET", f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
-        print(f"Waiting for DAG Run: dag_state={dag_state}")
+        console.print(f"Waiting for DAG Run: dag_state={dag_state}")
         sleep(1)
         if dag_state in ("success", "failed"):
             break
@@ -76,20 +78,24 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     """Simple test which reproduce setup docker-compose environment and trigger example dag."""
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
+    console.print(f"[yellow]Tests are run in {tmp_dir}")
 
     compose_file_path = (
         AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
     )
     copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 
+    subfolders = ("dags", "logs", "plugins", "config")
+    console.print(f"[yellow]Cleaning subfolders:[/ {subfolders}")
     # Create required directories for docker compose quick start howto
-    for subdir in ("dags", "logs", "plugins"):
+    for subdir in subfolders:
         (tmp_dir / subdir).mkdir()
 
     dot_env_file = tmp_dir / ".env"
+    console.print(f"[yellow]Creating .env file :[/ {dot_env_file}")
     dot_env_file.write_text(f"AIRFLOW_UID={os.getuid()}\n")
-    print(" .env file content ".center(72, "="))
-    print(dot_env_file.read_text())
+    console.print(" .env file content ".center(72, "="))
+    console.print(dot_env_file.read_text())
 
     compose_version = None
     try:
@@ -101,10 +107,14 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     except NotImplementedError:
         docker_version = run_command(["docker", "version"], return_output=True)
 
+    console.print("[yellow] Shutting down previous instances of quick-start docker compose")
     compose = DockerClient(compose_project_name="quick-start", compose_project_directory=tmp_dir).compose
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
+        console.print("[yellow] Starting docker compose")
         compose.up(detach=True, wait=True, color=not os.environ.get("NO_COLOR"))
+        console.print("[green] Docker compose started")
+
         # Before we proceed, let's make sure our DAG has been parsed
         compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
 
@@ -118,36 +128,53 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
         dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
         assert dag_state == "success"
+        if os.environ.get("INCLUDE_SUCCESS_OUTPUTS", "") == "true":
+            print_diagnostics(compose, compose_version, docker_version)
     except Exception:
-        print("HTTP: GET health")
-        pprint(api_request("GET", "monitor/health"))
-        print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
-        pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
-        print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
-        pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
-        print(" Docker Version ".center(72, "="))
-        print(docker_version)
-        print(" Docker Compose Version ".center(72, "="))
-        print(compose_version)
-        print(" Compose Config ".center(72, "="))
-        print(json.dumps(compose.config(return_json=True), indent=4))
-
-        for service in compose.ps(all=True):
-            print(f" Service: {service.name} ".center(72, "-"))
-            print(" Service State ".center(72, "."))
-            pprint(service.state)
-            print(" Service Config ".center(72, "."))
-            pprint(service.config)
-            print(" Service Logs ".center(72, "."))
-            print(service.logs())
+        print_diagnostics(compose, compose_version, docker_version)
         raise
     finally:
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+            console.print(
+                "[yellow] Deleting docker compose instance (you can avoid that by passing "
+                "--skip-docker-compose-deletion flag in `breeze testing docker-compose` or "
+                'by setting SKIP_DOCKER_COMPOSE_DELETION environment variable to "true")'
+            )
             compose.down(remove_orphans=True, volumes=True, quiet=True)
-            print("Docker compose instance deleted")
+            console.print("[green]Docker compose instance deleted")
         else:
-            print("Skipping docker-compose deletion")
-            print()
-            print("You can run inspect your docker-compose by running commands starting with:")
+            console.print("[yellow]Skipping docker-compose deletion")
+            console.print()
+            console.print(
+                "[yellow]You can run inspect your docker-compose by running commands starting with:"
+            )
+            console.print()
             quoted_command = map(shlex.quote, map(str, compose.docker_compose_cmd))
-            print(" ".join(quoted_command))
+            console.print(" ".join(quoted_command))
+
+
+def print_diagnostics(compose: DockerClient, compose_version: str, docker_version: str):
+    console.print("HTTP: GET health")
+    try:
+        console.print(api_request("GET", "monitor/health"))
+        console.print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
+        console.print(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
+        console.print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
+        console.print(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
+    except Exception as e:
+        console.print(f"Failed to get health check: {e}")
+    console.print(" Docker Version ".center(72, "="))
+    console.print(docker_version)
+    console.print(" Docker Compose Version ".center(72, "="))
+    console.print(compose_version)
+    console.print(" Compose Config ".center(72, "="))
+    console.print(json.dumps(compose.config(return_json=True), indent=4))
+    for service in compose.ps(all=True):
+        console.print(f"Service: {service.name} ".center(72, "="))
+        console.print(f" Service State {service.name}".center(50, "."))
+        console.print(service.state)
+        console.print(f" Service Config {service.name}".center(50, "."))
+        console.print(service.config)
+        console.print(f" Service Logs {service.name}".center(50, "."))
+        console.print(service.logs())
+        console.print(f"End of service: {service.name} ".center(72, "="))

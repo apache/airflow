@@ -2255,6 +2255,17 @@ export const $DAGRunResponse = {
       type: "array",
       title: "Dag Versions",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
   },
   type: "object",
   required: [
@@ -2274,6 +2285,7 @@ export const $DAGRunResponse = {
     "conf",
     "note",
     "dag_versions",
+    "bundle_version",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",

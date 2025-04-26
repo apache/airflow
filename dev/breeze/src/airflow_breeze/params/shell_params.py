@@ -147,7 +147,6 @@ class ShellParams:
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
-    chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -561,7 +560,6 @@ class ShellParams:
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
-        _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
