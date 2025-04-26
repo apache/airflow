@@ -70,6 +70,9 @@ github:
 
   protected_branches:
     main:
+      required_status_checks:
+        contexts:
+          - "Tests / Finalize tests / Summarize warnings"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
