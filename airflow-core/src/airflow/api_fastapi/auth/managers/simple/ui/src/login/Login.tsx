@@ -32,6 +32,18 @@ export type LoginBody = {
   username: string;
 };
 
+const isSafeUrl = (targetUrl: string): boolean => {
+  try {
+    // eslint-disable-next-line no-restricted-globals
+    const base = new URL(window.location.origin);
+    const target = new URL(targetUrl, base);
+
+    return (target.protocol === "http:" || target.protocol === "https:") && target.origin === base.origin;
+  } catch {
+    return false;
+  }
+};
+
 const LOCAL_STORAGE_DISABLE_BANNER_KEY = "disable-sam-banner";
 
 export const Login = () => {
@@ -45,12 +57,17 @@ export const Login = () => {
     // Redirect to appropriate page with the token
     const next = searchParams.get("next");
 
+    // Fallback similar to FabAuthManager, strip off the next
+    const fallback = "/";
+
     setCookie("_token", data.access_token, {
       path: "/",
       secure: globalThis.location.protocol !== "http:",
     });
 
-    globalThis.location.replace(next ?? "");
+    const redirectTarget = isSafeUrl(next!) ? next : fallback;
+
+    globalThis.location.replace(redirectTarget!);
   };
   const { createToken, error, isPending, setError } = useCreateToken({
     onSuccess,
@@ -79,7 +96,7 @@ export const Login = () => {
         </Heading>
       </Flex>
 
-      {error === null && <ErrorAlert error={error} />}
+      {Boolean(error) && <ErrorAlert error={error} />}
 
       <Text mb={4}>Enter your username and password below:</Text>
       <LoginForm isPending={isPending} onLogin={onLogin} />

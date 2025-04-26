@@ -997,7 +997,7 @@ class BackfillResponse(BaseModel):
     Base serializer for Backfill.
     """
 
-    id: Annotated[int, Field(title="Id")]
+    id: Annotated[int, Field(ge=0, title="Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     from_date: Annotated[datetime, Field(title="From Date")]
     to_date: Annotated[datetime, Field(title="To Date")]
@@ -1217,6 +1217,7 @@ class DAGRunResponse(BaseModel):
     conf: Annotated[dict[str, Any], Field(title="Conf")]
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class DAGRunsBatchBody(BaseModel):

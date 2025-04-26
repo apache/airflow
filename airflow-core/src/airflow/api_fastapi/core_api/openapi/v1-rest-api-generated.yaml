@@ -951,7 +951,8 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -997,6 +998,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1048,6 +1051,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -1099,6 +1104,8 @@ paths:
         in: path
         required: true
         schema:
+          type: integer
+          minimum: 0
           title: Backfill Id
       responses:
         '200':
@@ -7039,6 +7046,7 @@ components:
       properties:
         id:
           type: integer
+          minimum: 0.0
           title: Id
         dag_id:
           type: string
@@ -8223,6 +8231,11 @@ components:
             $ref: '#/components/schemas/DagVersionResponse'
           type: array
           title: Dag Versions
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       type: object
       required:
       - dag_run_id
@@ -8241,6 +8254,7 @@ components:
       - conf
       - note
       - dag_versions
+      - bundle_version
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:

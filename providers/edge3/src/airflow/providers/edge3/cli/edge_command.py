@@ -271,6 +271,12 @@ class _EdgeWorkerCli:
             setproctitle(f"airflow edge worker: {workload.ti.key}")
 
             try:
+                base_url = conf.get("api", "base_url", fallback="/")
+                # If it's a relative URL, use localhost:8080 as the default
+                if base_url.startswith("/"):
+                    base_url = f"http://localhost:8080{base_url}"
+                default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
                 supervise(
                     # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                     # Same like in airflow/executors/local_executor.py:_execute_work()
@@ -278,7 +284,9 @@ class _EdgeWorkerCli:
                     dag_rel_path=workload.dag_rel_path,
                     bundle_info=workload.bundle_info,
                     token=workload.token,
-                    server=conf.get("core", "execution_api_server_url"),
+                    server=conf.get(
+                        "core", "execution_api_server_url", fallback=default_execution_api_server
+                    ),
                     log_path=workload.log_path,
                 )
                 return 0
