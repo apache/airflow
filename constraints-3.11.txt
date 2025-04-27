@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-27T17:41:08.473672
+# This constraints file was automatically generated on 2025-04-27T19:25:36.723182
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -707,7 +707,7 @@ std-uritemplate==2.0.3
 strictyaml==1.7.3
 structlog==25.3.0
 svcs==25.1.0
-sympy==1.13.3
+sympy==1.14.0
 tableauserverclient==0.37
 tabulate==0.9.0
 tenacity==9.1.2
