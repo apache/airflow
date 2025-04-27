@@ -44,7 +44,7 @@ Typical command to install airflowctl from scratch in a reproducible way from Py
 
 .. code-block:: bash
 
-    pip install "apache-airflow-ctl\==|version|"
+    pip install "apache-airflow-ctl==|version|"
 
 Those are just examples, see further for more explanation why those are the best practices.
 
@@ -77,7 +77,7 @@ from time to time plain ``pip install apache-airflow-ctl`` will not work or will
 Airflow CTL installation.
 
 Reproducible Airflow CTL installation
-=================================
+=====================================
 
 In order to have a reproducible installation, we also keep a set of constraint files in the
 ``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
@@ -92,7 +92,7 @@ You can create the URL to the file substituting the variables in the template be
 
 .. code-block::
 
-  https://raw.githubusercontent.com/apache/airflow/airflow-ctl/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt
+  https://raw.githubusercontent.com/apache/airflow/airflow-ctl/constraints-${AIRFLOWCTL_VERSION}/constraints-${PYTHON_VERSION}.txt
 
 where:
 
@@ -161,26 +161,3 @@ The easiest way to keep-up with the latest released dependencies is to upgrade t
 Airflow CTL version. Whenever we release a new version of Airflow CTL, we upgrade all dependencies to the latest
 applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
 with latest version of Airflow CTL is the easiest way to update those dependencies.
-
-Installation and upgrade scenarios
-''''''''''''''''''''''''''''''''''
-
-In order to simplify the installation, we have prepared examples of how to upgrade Airflow CT: and providers.
-
-Installing Airflow CTL® with extras and providers
-=============================================
-
-If you need to install extra dependencies of Airflow CTL®, you can use the script below to make an installation
-a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
-
-.. code-block:: bash
-    :substitutions:
-
-    AIRFLOW_CTL_VERSION=|version|
-    PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    pip install "apache-airflow-ctl==${AIRFLOW_CTL_VERSION}" --constraint "${CONSTRAINT_URL}"
-
-Note, that it will install the versions of providers that were available at the moment this version of Airflow CTL
-has been released. You need to run separate ``pip`` commands without constraints, if you want to upgrade
-providers in case they were released afterwards.

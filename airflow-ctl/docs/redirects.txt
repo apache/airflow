@@ -17,6 +17,8 @@
 
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
+start.rst start.rst
+changelog.rst changelog.rst
 
 # Installation.rst
 installation/index.rst

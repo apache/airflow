@@ -14,10 +14,11 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
 Dependencies
 ------------
 
-Airflow extra dependencies
+Airflow CTL dependencies
 ''''''''''''''''''''''''''
 
 The ``apache-airflow-ctl`` PyPI basic package only installs what's needed to get started.
