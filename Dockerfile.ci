@@ -1391,10 +1391,10 @@ COPY --from=scripts install_airflow_when_building_images.sh /scripts/docker/
 COPY . ${AIRFLOW_SOURCES}/
 
 ARG UPGRADE_RANDOM_INDICATOR_STRING=""
-ARG VERSION_SUFFIX_FOR_PYPI=""
+ARG VERSION_SUFFIX=""
 
 ENV UPGRADE_RANDOM_INDICATOR_STRING=${UPGRADE_RANDOM_INDICATOR_STRING} \
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
+    VERSION_SUFFIX=${VERSION_SUFFIX}
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast

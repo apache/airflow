@@ -83,7 +83,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -101,7 +101,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -111,7 +111,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
             ],
         }
@@ -231,8 +231,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distributions-list-file",
                 "--skip-deleting-generated-files",
                 "--skip-tag-check",
-                "--version-suffix-for-pypi",
-                "--version-suffix-for-local",
+                "--version-suffix",
                 "--distributions-list",
             ],
         }
@@ -267,7 +266,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Python client preparation flags",
             "options": [
                 "--distribution-format",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 "--use-local-hatch",
                 "--python-client-repo",
                 "--only-publish-build-scripts",

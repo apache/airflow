@@ -73,10 +73,11 @@ class BuildCiParams(CommonBuildParams):
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
+        self._opt_arg("VERSION_SUFFIX", self.version_suffix)
         # Convert to build args
         build_args = self._to_build_args()
         # Add cache directive
         return build_args
 
     def __post_init__(self):
-        self.version_suffix_for_pypi = self.version_suffix_for_pypi or "dev0"
+        self.version_suffix = self.version_suffix or "dev0"
