@@ -226,7 +226,7 @@ option_include_not_ready_providers = click.option(
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
-    help="Whether to include outputs of successful parallel runs (skipped by default).",
+    help="Whether to include outputs of successful runs (not shown by default).",
     is_flag=True,
     envvar="INCLUDE_SUCCESS_OUTPUTS",
 )

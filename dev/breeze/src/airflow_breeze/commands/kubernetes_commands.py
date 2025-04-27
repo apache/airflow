@@ -1579,6 +1579,7 @@ def kubernetes_tests_command(
 def _run_complete_tests(
     python: str,
     kubernetes_version: str,
+    include_success_outputs: bool,
     executor: str,
     rebuild_base_image: bool,
     copy_local_sources: bool,
@@ -1683,7 +1684,7 @@ def _run_complete_tests(
                 extra_options=extra_options,
                 multi_namespace_mode=True,
             )
-            if returncode != 0:
+            if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)
         return returncode, message
     finally:
@@ -1822,6 +1823,7 @@ def run_complete_tests(
         result, _ = _run_complete_tests(
             python=python,
             kubernetes_version=kubernetes_version,
+            include_success_outputs=include_success_outputs,
             executor=executor,
             rebuild_base_image=rebuild_base_image,
             copy_local_sources=copy_local_sources,
