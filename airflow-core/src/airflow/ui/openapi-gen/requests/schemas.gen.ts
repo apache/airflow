@@ -3410,6 +3410,8 @@ export const $JobResponse = {
   description: "Job serializer for responses.",
 } as const;
 
+export const $JsonValue = {} as const;
+
 export const $PatchTaskInstanceBody = {
   properties: {
     new_state: {
@@ -5451,8 +5453,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      type: "string",
-      title: "Value",
+      $ref: "#/components/schemas/JsonValue",
     },
     description: {
       anyOf: [

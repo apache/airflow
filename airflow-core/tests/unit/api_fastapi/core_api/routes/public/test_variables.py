@@ -478,25 +478,6 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
-    def test_post_should_respond_422_when_value_is_null(self, test_client):
-        body = {
-            "key": "null value key",
-            "value": None,
-            "description": "key too large",
-        }
-        response = test_client.post("/variables", json=body)
-        assert response.status_code == 422
-        assert response.json() == {
-            "detail": [
-                {
-                    "type": "string_type",
-                    "loc": ["body", "value"],
-                    "msg": "Input should be a valid string",
-                    "input": None,
-                }
-            ]
-        }
-
     @pytest.mark.parametrize(
         "body",
         [
@@ -728,7 +709,10 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "entities": [{"key": "new_var1", "value": "new_value1"}],
+                            "entities": [
+                                {"key": "new_var1", "value": "new_value1"},
+                                {"key": "new_var2", "value": ["new_value1"]},
+                            ],
                             "action_on_existence": "skip",
                         },
                         {
@@ -750,7 +734,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {
-                    "create": {"success": ["new_var1"], "errors": []},
+                    "create": {"success": ["new_var1", "new_var2"], "errors": []},
                     "update": {"success": ["test_variable_key"], "errors": []},
                     "delete": {"success": ["dictionary_password"], "errors": []},
                 },
