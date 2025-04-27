@@ -138,6 +138,9 @@ This can be done with the following command:
 
     airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
 
+.. note::
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
+
 For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
 Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
 database client:
