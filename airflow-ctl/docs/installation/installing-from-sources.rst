@@ -85,7 +85,7 @@ distribution directory and follow the below guide.
 
 .. code-block:: bash
 
-    gpg --verify apache-airflow-ctl-********.asc apache-airflow-*********
+    gpg --verify apache-airflow-ctl-********.asc apache-airflow-ctl-*********
 
 or
 
