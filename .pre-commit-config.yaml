@@ -514,7 +514,7 @@ repos:
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
         language: python
-        files: ^docs|^airflow-core/src/airflow/__init__\.py$
+        files: ^docs|^airflow-core/src/airflow/__init__\.py$|.*/pyproject\.toml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: check-pydevd-left-in-code
