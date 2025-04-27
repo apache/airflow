@@ -84,7 +84,7 @@ spec:
               service:
                 name: {{ $fullname }}-api-server
                 port:
-                  name: airflow-ui
+                  name: api-server
             {{- if $.Values.ingress.apiServer.path }}
             path: {{ $.Values.ingress.apiServer.path }}
             pathType: {{ $.Values.ingress.apiServer.pathType }}
