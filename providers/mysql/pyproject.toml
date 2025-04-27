@@ -62,8 +62,10 @@ dependencies = [
     # The mysqlclient package creates friction when installing on MacOS as it needs pkg-config to
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-    "mysqlclient>=1.4.0; sys_platform != 'darwin'",
-    "mysql-connector-python>=8.0.29",
+    'mysqlclient>=2.1.0; sys_platform != "darwin" and python_version<"3.12"',
+    'mysqlclient>=2.2.1; sys_platform != "darwin" and python_version>="3.12"',
+    'mysql-connector-python>=8.0.29; python_version<"3.12"',
+    'mysql-connector-python>=8.2.0; python_version>="3.12"',
     "aiomysql>=0.2.0",
 ]
 
