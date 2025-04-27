@@ -146,34 +146,10 @@ dependencies = [
 
 
 [project.optional-dependencies]
-# Aiobotocore required for AWS deferrable operators.
-# There is conflict between boto3 and aiobotocore dependency botocore.
-# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-# boto3 have native aync support and we move away from aio aiobotocore
-"aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
-]
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=24.2.1",
     "greenlet>=0.4.9",
-]
-"apache-atlas" = [
-    "atlasclient>=0.1.2",
-]
-"apache-webhdfs" = [
-    "apache-airflow-providers-apache-hdfs",
-]
-"cloudpickle" = [
-    "cloudpickle>=2.2.1",
-]
-"github-enterprise" = [
-    "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
-]
-"google-auth" = [
-    "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
@@ -186,26 +162,8 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
-"ldap" = [
-    "python-ldap>=3.4.4",
-]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
-]
-
-"pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    "pandas>=2.1.2,<2.3",
-]
-"rabbitmq" = [
-    "amqp>=5.2.0",
-]
-"s3fs" = [
-    # This is required for support of S3 file system which uses aiobotocore
-    # which can have a conflict with boto3 as mentioned in aiobotocore extra
-    "apache-airflow-providers-amazon[s3fs]",
 ]
 "sentry" = [
     "blinker>=1.1",
@@ -216,11 +174,8 @@ dependencies = [
 "statsd" = [
     "statsd>=3.3.0",
 ]
-"uv" = [
-    "uv>=0.6.17",
-]
 "all" = [
-    "apache-airflow-core[aiobotocore,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
 ]
 
 [project.scripts]
@@ -281,11 +236,14 @@ dev = [
     "apache-airflow-ctl",
     "apache-airflow-devel-common",
     "apache-airflow-task-sdk",
+    # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
+    # airflow-core tests
+    "apache-airflow[pandas]",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-fab",
     "apache-airflow-providers-git",
-    # TODO(potiuk): check if this is really needed
     "apache-airflow-providers-ftp",
 ]
 

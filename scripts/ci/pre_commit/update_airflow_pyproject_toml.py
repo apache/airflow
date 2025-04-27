@@ -63,12 +63,12 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
 }
 
 
-def get_optional_dependencies_from_airflow_core() -> list[str]:
+def get_optional_dependencies(pyproject_toml_path: Path) -> list[str]:
     try:
         import tomllib
     except ImportError:
         import tomli as tomllib
-    airflow_core_toml_dict = tomllib.loads(AIRFLOW_CORE_PYPROJECT_TOML_FILE.read_text())
+    airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
     return airflow_core_toml_dict["project"]["optional-dependencies"].keys()
 
 
@@ -131,7 +131,7 @@ PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
 
 if __name__ == "__main__":
     all_optional_dependencies = []
-    optional_airflow_core_dependencies = get_optional_dependencies_from_airflow_core()
+    optional_airflow_core_dependencies = get_optional_dependencies(AIRFLOW_CORE_PYPROJECT_TOML_FILE)
     for optional in sorted(optional_airflow_core_dependencies):
         if optional == "all":
             all_optional_dependencies.append('"all-core" = [\n    "apache-airflow-core[all]"\n]\n')
@@ -150,7 +150,15 @@ if __name__ == "__main__":
         else:
             all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
             all_provider_lines.append(f'    "{distribution_name}",\n')
-    all_optional_dependencies.append('"all" = [\n    "apache-airflow-core[all]",\n')
+    all_optional_dependencies.append('"all" = [\n')
+    optional_apache_airflow_dependencies = get_optional_dependencies(AIRFLOW_PYPROJECT_TOML_FILE)
+    all_local_extras = [
+        extra
+        for extra in sorted(optional_apache_airflow_dependencies)
+        if extra not in all_providers and not extra.startswith("all")
+    ]
+    all_optional_dependencies.append(f'    "apache-airflow[{",".join(all_local_extras)}]",\n')
+    all_optional_dependencies.append('    "apache-airflow-core[all]",\n')
     all_optional_dependencies.extend(all_provider_lines)
     all_optional_dependencies.append("]\n")
     insert_documentation(
