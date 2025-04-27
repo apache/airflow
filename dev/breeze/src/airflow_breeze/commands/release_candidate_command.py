@@ -230,7 +230,7 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
                 "breeze",
                 "release-management",
                 "prepare-airflow-distributions",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 f"{version_suffix}",
                 "--distribution-format",
                 "both",

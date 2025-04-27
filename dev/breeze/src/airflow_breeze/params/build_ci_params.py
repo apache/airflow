@@ -79,4 +79,4 @@ class BuildCiParams(CommonBuildParams):
         return build_args
 
     def __post_init__(self):
-        self.version_suffix_for_pypi = self.version_suffix_for_pypi or "dev0"
+        self.version_suffix = self.version_suffix or "dev0"

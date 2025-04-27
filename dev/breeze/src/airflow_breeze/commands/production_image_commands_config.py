@@ -36,7 +36,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--docker-host",
                 "--install-airflow-version",
                 "--python",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
             ],
         },
         {

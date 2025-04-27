@@ -30,7 +30,6 @@ import textwrap
 import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
-from contextlib import contextmanager
 from copy import deepcopy
 from datetime import date, datetime
 from enum import Enum
@@ -68,7 +67,7 @@ from airflow_breeze.commands.common_options import (
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
-    option_version_suffix_for_pypi,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -101,12 +100,10 @@ from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageErrorBuildingPackageException,
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
-    apply_version_suffix_to_pyproject_toml,
     build_provider_distribution,
     cleanup_build_remnants,
     get_packages_list_to_act_on,
     move_built_distributions_and_cleanup,
-    restore_pyproject_toml,
     should_skip_the_package,
 )
 from airflow_breeze.utils.add_back_references import (
@@ -116,6 +113,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.debug_pyproject_toml import debug_pyproject_tomls
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     execute_command_in_shell,
@@ -126,9 +124,10 @@ from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
+    apply_version_suffix_to_non_provider_pyproject_tomls,
+    apply_version_suffix_to_provider_pyproject_toml,
     expand_all_provider_distributions,
     find_matching_long_package_names,
-    floor_version_suffix,
     get_available_distributions,
     get_provider_details,
     get_provider_distributions_metadata,
@@ -147,7 +146,6 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
-    AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     CONSTRAINTS_CACHE_PATH,
     OUT_PATH,
@@ -171,7 +169,6 @@ from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.version_utils import (
     get_latest_airflow_version,
     get_latest_helm_chart_version,
-    get_package_version_suffix,
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
@@ -374,146 +371,18 @@ def _build_local_build_image():
     )
 
 
-def get_current_package_version(package_directory_path: Path) -> str:
-    get_console().print("[info]Checking package version\n")
-    try:
-        package_version = subprocess.check_output(
-            [sys.executable, "-m", "hatch", "version"], text=True, cwd=package_directory_path
-        ).strip()
-    except Exception as ex:
-        print(f"test {ex}")
-    get_console().print(f"[success]Version: {package_version}\n")
-    return package_version
-
-
-def set_package_version(version: str, init_file_path: Path, extra_text: str) -> None:
-    get_console().print(f"\n[warning]Setting {extra_text} {version} version in {init_file_path}\n")
-    # replace __version__ with the version passed as argument in python
-    init_content = init_file_path.read_text()
-    init_content = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{version}"', init_content)
-    init_file_path.write_text(init_content)
-
-
-def update_version_suffix_in_pyproject_toml(version_suffix: str, pyproject_toml_path: Path):
-    if not version_suffix:
-        return
-    get_console().print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
-    lines = pyproject_toml_path.read_text().splitlines()
-    updated_lines = []
-    for line in lines:
-        if line.startswith("version = "):
-            if not line.endswith(f'.{version_suffix}"'):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('"') + f'.{version_suffix}"'
-            else:
-                get_console().print(
-                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
-                    f"{version_suffix} suffix."
-                )
-        if line.strip().startswith('"apache-airflow-') and ">=" in line:
-            if not line.endswith(
-                f'.{version_suffix}"',
-            ):
-                floored_version_suffix = floor_version_suffix(version_suffix)
-                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{floored_version_suffix}",'
-            else:
-                get_console().print(
-                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
-                    f"{version_suffix} suffix."
-                )
-        if line.strip().startswith('"apache-airflow-core') and "==" in line:
-            if not line.endswith(
-                f'.{version_suffix}",',
-            ):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{version_suffix}",'
-            else:
-                get_console().print(
-                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
-                    f"{version_suffix} suffix."
-                )
-        if line.strip().startswith('"apache-airflow-task-sdk') and "==" in line:
-            if not line.endswith(
-                f'.{version_suffix}",',
-            ):
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'.{version_suffix}",'
-            else:
-                get_console().print(
-                    f"[info]Not updating version suffix to {version_suffix} for {line} as it already has the "
-                    f"{version_suffix} suffix."
-                )
-        updated_lines.append(line)
-    new_content = "\n".join(updated_lines) + "\n"
-    get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
-    if get_verbose() or get_dry_run():
-        with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
-            # Format the content to make it more readable with rich
-            syntax = Syntax(new_content, "toml", theme="ansi_dark", line_numbers=True)
-            get_console().print(syntax)
-    pyproject_toml_path.write_text(new_content)
-
-
-@contextmanager
-def package_version(
-    version_suffix: str, package_path: Path, init_file_path: Path, pyproject_toml_paths: list[Path]
-) -> Generator:
-    release_version_matcher = re.compile(r"^\d+\.\d+\.\d+$")
-    original_package_version = get_current_package_version(package_path)
-    original_contents = []
-    for pyproject_toml_path in pyproject_toml_paths:
-        original_contents.append(pyproject_toml_path.read_text())
-    update_version_in__init_py = False
-    base_package_version = original_package_version
-    if version_suffix:
-        if original_package_version.endswith(f".{version_suffix}"):
-            get_console().print(
-                f"[info]The {original_package_version} already has suffix {version_suffix}. Not updating it.\n"
-            )
-        elif not release_version_matcher.match(original_package_version):
-            get_console().print(
-                f"[warning]Normally you should only pass version suffix if package version "
-                f"does not have suffix in code (it is  {original_package_version} now).\n"
-                f"Overriding the version in code with the {version_suffix}."
-            )
-            update_version_in__init_py = True
-        else:
-            base_package_version = original_package_version
-            update_version_in__init_py = True
-    if update_version_in__init_py:
-        set_package_version(
-            f"{base_package_version}.{version_suffix}",
-            init_file_path=init_file_path,
-            extra_text="temporarily",
-        )
-    for pyproject_toml_path in pyproject_toml_paths:
-        update_version_suffix_in_pyproject_toml(
-            version_suffix=version_suffix,
-            pyproject_toml_path=pyproject_toml_path,
-        )
-    try:
-        yield
-    finally:
-        if update_version_in__init_py:
-            set_package_version(original_package_version, init_file_path=init_file_path, extra_text="back")
-        for pyproject_toml_path, original_content in zip(pyproject_toml_paths, original_contents):
-            get_console().print(f"[info]Restoring original content of {pyproject_toml_path}.\n")
-            pyproject_toml_path.write_text(original_content)
-
-
 def _build_airflow_packages_with_docker(
-    distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
+    distribution_format: str, source_date_epoch: int, version_suffix: str
 ):
-    with package_version(
-        version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_CORE_SOURCES_PATH / "..",
+    with apply_version_suffix_to_non_provider_pyproject_tomls(
+        version_suffix=version_suffix,
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
         pyproject_toml_paths=[
             AIRFLOW_ROOT_PATH / "pyproject.toml",
             AIRFLOW_CORE_ROOT_PATH / "pyproject.toml",
         ],
-    ):
+    ) as pyproject_toml_paths:
+        debug_pyproject_tomls(pyproject_toml_paths)
         _build_local_build_image()
         container_id = f"airflow-build-{random.getrandbits(64):08x}"
         result = run_command(
@@ -557,20 +426,18 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
         build_command.extend(["-t", "wheel"])
 
 
-def _build_airflow_packages_with_hatch(
-    distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
-):
+def _build_airflow_packages_with_hatch(distribution_format: str, source_date_epoch: int, version_suffix: str):
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
     apply_distribution_format_to_hatch_command(build_airflow_core_command, distribution_format)
     get_console().print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
-    with package_version(
-        version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_CORE_ROOT_PATH,
+    with apply_version_suffix_to_non_provider_pyproject_tomls(
+        version_suffix=version_suffix,
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
         pyproject_toml_paths=[AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"],
-    ):
+    ) as pyproject_toml_paths:
+        debug_pyproject_tomls(pyproject_toml_paths)
         run_command(
             build_airflow_core_command,
             check=True,
@@ -580,12 +447,12 @@ def _build_airflow_packages_with_hatch(
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
     build_airflow_command = ["hatch", "build", "-c"]
     apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
-    with package_version(
-        version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_CORE_ROOT_PATH,
+    with apply_version_suffix_to_non_provider_pyproject_tomls(
+        version_suffix=version_suffix,
         init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
         pyproject_toml_paths=[AIRFLOW_ROOT_PATH / "pyproject.toml"],
-    ):
+    ) as pyproject_toml_paths:
+        debug_pyproject_tomls(pyproject_toml_paths)
         run_command(
             build_airflow_command,
             check=True,
@@ -660,13 +527,13 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     help="Prepare sdist/whl package of Airflow.",
 )
 @option_distribution_format
-@option_version_suffix_for_pypi
+@option_version_suffix
 @option_use_local_hatch
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
     use_local_hatch: bool,
 ):
     perform_environment_checks()
@@ -677,7 +544,7 @@ def prepare_airflow_distributions(
         _build_airflow_packages_with_hatch(
             distribution_format=distribution_format,
             source_date_epoch=source_date_epoch,
-            version_suffix_for_pypi=version_suffix_for_pypi,
+            version_suffix=version_suffix,
         )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
@@ -695,14 +562,14 @@ def prepare_airflow_distributions(
         _build_airflow_packages_with_docker(
             distribution_format=distribution_format,
             source_date_epoch=source_date_epoch,
-            version_suffix_for_pypi=version_suffix_for_pypi,
+            version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
 
 
 def _prepare_non_core_distributions(
     distribution_format: str,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
     use_local_hatch: bool,
     root_path: Path,
     init_file_path: Path,
@@ -778,12 +645,12 @@ def _prepare_non_core_distributions(
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:
-        with package_version(
-            version_suffix=version_suffix_for_pypi,
-            package_path=root_path,
+        with apply_version_suffix_to_non_provider_pyproject_tomls(
+            version_suffix=version_suffix,
             init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
-        ):
+        ) as pyproject_toml_paths:
+            debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_hatch(
                 build_distribution_format=distribution_format,
             )
@@ -800,12 +667,12 @@ def _prepare_non_core_distributions(
             get_console().print(str(dist_info))
         get_console().print()
     else:
-        with package_version(
-            version_suffix=version_suffix_for_pypi,
-            package_path=root_path,
+        with apply_version_suffix_to_non_provider_pyproject_tomls(
+            version_suffix=version_suffix,
             init_file_path=init_file_path,
             pyproject_toml_paths=[TASK_SDK_ROOT_PATH / "pyproject.toml"],
-        ):
+        ) as pyproject_toml_paths:
+            debug_pyproject_tomls(pyproject_toml_paths)
             _build_package_with_docker(
                 build_distribution_format=distribution_format,
             )
@@ -817,19 +684,19 @@ def _prepare_non_core_distributions(
     help="Prepare sdist/whl distributions of Airflow Task SDK.",
 )
 @option_distribution_format
-@option_version_suffix_for_pypi
+@option_version_suffix
 @option_use_local_hatch
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
     use_local_hatch: bool,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
         distribution_format=distribution_format,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
         use_local_hatch=use_local_hatch,
         # Distribution specific parameters
         root_path=TASK_SDK_ROOT_PATH,
@@ -845,19 +712,19 @@ def prepare_task_sdk_distributions(
     help="Prepare sdist/whl distributions of Airflow CTL.",
 )
 @option_distribution_format
-@option_version_suffix_for_pypi
+@option_version_suffix
 @option_use_local_hatch
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
     use_local_hatch: bool,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
         distribution_format=distribution_format,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
         use_local_hatch=use_local_hatch,
         # Distribution specific parameters
         root_path=AIRFLOW_CTL_ROOT_PATH,
@@ -1092,22 +959,19 @@ def _build_provider_distributions(
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
-        provider_root_dir = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split("."))
         get_console().print(
             f"[info]Provider {provider_id} building in-place with suffix: '{package_version_suffix}'."
         )
-        cleanup_build_remnants(provider_root_dir)
-        old_content = apply_version_suffix_to_pyproject_toml(
-            provider_id, provider_root_dir, package_version_suffix
-        )
-        try:
+        with apply_version_suffix_to_provider_pyproject_toml(
+            provider_id, package_version_suffix
+        ) as pyproject_toml_file:
+            provider_root_dir = pyproject_toml_file.parent
+            cleanup_build_remnants(provider_root_dir)
             build_provider_distribution(
                 provider_id=provider_id,
                 distribution_format=distribution_format,
                 target_provider_root_sources_path=provider_root_dir,
             )
-        finally:
-            restore_pyproject_toml(provider_root_dir, old_content)
         move_built_distributions_and_cleanup(
             provider_root_dir,
             AIRFLOW_DIST_PATH,
@@ -1121,7 +985,7 @@ def _build_provider_distributions(
     help="Prepare sdist/whl distributions of Airflow Providers.",
 )
 @option_distribution_format
-@option_version_suffix_for_pypi
+@option_version_suffix
 @click.option(
     "--distributions-list-file",
     type=click.File("rt"),
@@ -1132,15 +996,6 @@ def _build_provider_distributions(
     default=False,
     is_flag=True,
     help="Skip checking if the tag already exists in the remote repository",
-)
-@click.option(
-    "--version-suffix-for-local",
-    default=None,
-    show_default=False,
-    help="Version suffix for local builds. Do not provide the leading plus sign ('+'). The suffix must "
-    "contain only ascii letters, numbers, and periods. The first character must be an ascii letter or number "
-    "and the last character must be an ascii letter or number. Note: the local suffix will be appended after "
-    "the PyPi suffix if both are provided.",
 )
 @click.option(
     "--skip-deleting-generated-files",
@@ -1181,8 +1036,7 @@ def prepare_provider_distributions(
     provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
-    version_suffix_for_pypi: str,
-    version_suffix_for_local: str,
+    version_suffix: str,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1192,7 +1046,7 @@ def prepare_provider_distributions(
         get_console().print(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
-        # Override provider_distributios with values from DISTRIBUTIONS_LIST
+        # Override provider_distributions with values from DISTRIBUTIONS_LIST
         distributions_list_as_tuple = tuple(distributions_list.split(","))
     if provider_distributions and distributions_list_as_tuple:
         get_console().print(
@@ -1207,8 +1061,7 @@ def prepare_provider_distributions(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    package_version_suffix = get_package_version_suffix(version_suffix_for_pypi, version_suffix_for_local)
-    if not skip_tag_check and not is_local_package_version(package_version_suffix):
+    if not skip_tag_check and not is_local_package_version(version_suffix):
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -1225,7 +1078,7 @@ def prepare_provider_distributions(
             basic_provider_checks(provider_id)
             _build_provider_distributions(
                 provider_id,
-                package_version_suffix,
+                version_suffix,
                 distribution_format,
                 skip_tag_check,
                 skip_deleting_generated_files,
@@ -3121,21 +2974,21 @@ FILES_TO_COPY_TO_CLIENT_REPO = [
 ]
 
 
-def _get_python_client_version(version_suffix_for_pypi):
+def _get_python_client_version(version_suffix):
     from packaging.version import Version
 
     python_client_version = VERSION_FILE.read_text().strip()
     version = Version(python_client_version)
-    if version_suffix_for_pypi:
+    if version_suffix:
         if version.pre:
             currrent_suffix = version.pre[0] + str(version.pre[1])
-            if currrent_suffix != version_suffix_for_pypi:
+            if currrent_suffix != version_suffix:
                 get_console().print(
-                    f"[error]The version suffix for PyPI ({version_suffix_for_pypi}) does not match the "
+                    f"[error]The version suffix for PyPI ({version_suffix}) does not match the "
                     f"suffix in the version ({version})[/]"
                 )
                 sys.exit(1)
-    return version.base_version + version_suffix_for_pypi
+    return version.base_version + version_suffix
 
 
 def _generate_python_client_sources(python_client_version: str) -> None:
@@ -3269,7 +3122,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
 
 @release_management.command(name="prepare-python-client", help="Prepares python client packages.")
 @option_distribution_format
-@option_version_suffix_for_pypi
+@option_version_suffix
 @option_use_local_hatch
 @click.option(
     "--python-client-repo",
@@ -3294,7 +3147,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
 @option_verbose
 def prepare_python_client(
     distribution_format: str,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
     use_local_hatch: bool,
     python_client_repo: Path | None,
     only_publish_build_scripts: bool,
@@ -3312,7 +3165,7 @@ def prepare_python_client(
     for scheme in security_schemes.split(","):
         security.append({scheme: []})
     openapi_yaml["security"] = security
-    python_client_version = _get_python_client_version(version_suffix_for_pypi)
+    python_client_version = _get_python_client_version(version_suffix)
     TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
 
     _generate_python_client_sources(python_client_version=python_client_version)
@@ -3365,9 +3218,9 @@ def prepare_python_client(
     get_console().print(f"\n[info]Building packages in {PYTHON_CLIENT_DIST_DIR_PATH}[/]\n")
     shutil.rmtree(PYTHON_CLIENT_DIST_DIR_PATH, ignore_errors=True)
     PYTHON_CLIENT_DIST_DIR_PATH.mkdir(parents=True, exist_ok=True)
-    version = _get_python_client_version(version_suffix_for_pypi)
+    version = _get_python_client_version(version_suffix)
     original_version = VERSION_FILE.read_text().strip()
-    if version_suffix_for_pypi:
+    if version_suffix:
         VERSION_FILE.write_text(version)
     try:
         if use_local_hatch:
@@ -3380,7 +3233,7 @@ def prepare_python_client(
             )
         get_console().print(f"\n[success]Built packages in {AIRFLOW_DIST_PATH}[/]\n")
     finally:
-        if version_suffix_for_pypi:
+        if version_suffix:
             VERSION_FILE.write_text(original_version)
 
 
