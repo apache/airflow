@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-27T19:19:02.826188
+# This constraints file was automatically generated on 2025-04-27T22:33:45.120556
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -244,8 +244,8 @@ bitarray==2.9.3
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.37.1
-botocore==1.37.1
+boto3==1.38.3
+botocore==1.38.3
 cachelib==0.13.0
 cachetools==5.5.2
 cadwyn==5.3.3
@@ -304,6 +304,7 @@ entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
 eval_type_backport==0.2.2
+eventlet==0.39.1
 exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.2.0
@@ -323,6 +324,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
 geomet==0.2.1.post1
+gevent==25.4.2
 gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
@@ -650,7 +652,7 @@ ruamel.yaml.clib==0.2.12
 ruamel.yaml==0.18.10
 ruff==0.11.2
 s3fs==2025.3.2
-s3transfer==0.11.3
+s3transfer==0.12.0
 sagemaker_studio==1.0.13
 scikit-learn==1.5.2
 scipy==1.13.1
@@ -789,4 +791,6 @@ ydb==3.21.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
+zope.event==5.0
+zope.interface==7.2
 zstandard==0.23.0

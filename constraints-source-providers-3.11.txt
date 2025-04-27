@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-27T19:16:08.259211
+# This constraints file was automatically generated on 2025-04-27T22:30:43.313941
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -187,6 +187,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
+eventlet==0.39.1
 execnet==2.1.1
 executing==2.2.0
 facebook_business==22.0.4
@@ -205,6 +206,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
 geomet==0.2.1.post1
+gevent==25.4.2
 gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
@@ -671,4 +673,6 @@ ydb==3.21.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
+zope.event==5.0
+zope.interface==7.2
 zstandard==0.23.0
