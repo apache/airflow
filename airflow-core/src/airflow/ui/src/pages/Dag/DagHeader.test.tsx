@@ -24,7 +24,7 @@ import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 import { handlers } from "src/mocks/handlers";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
-import { BaseWrapper } from "src/utils/Wrapper";
+import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
 
@@ -41,9 +41,9 @@ afterAll(() => server.close());
 describe("Dag Documentation Modal", () => {
   it("Display documentation button when doc_md is present", async () => {
     render(
-      <BaseWrapper>
+      <Wrapper>
         <Header dag={MOCK_DAG as unknown as DAGDetailsResponse} />
-      </BaseWrapper>,
+      </Wrapper>,
     );
 
     await waitFor(() => expect(screen.getByTestId("markdown-button")).toBeInTheDocument());
@@ -55,10 +55,10 @@ describe("Dag Documentation Modal", () => {
 
   it("Do not display documentation button only doc_md is not present", () => {
     render(
-      <BaseWrapper>
+      <Wrapper>
         {/* eslint-disable-next-line unicorn/no-null */}
         <Header dag={{ ...MOCK_DAG, doc_md: null } as unknown as DAGDetailsResponse} />
-      </BaseWrapper>,
+      </Wrapper>,
     );
 
     expect(screen.queryByTestId("markdown-button")).toBeNull();
