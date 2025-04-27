@@ -75,7 +75,7 @@ from airflow_breeze.commands.common_options import (
     option_use_uv_default_disabled,
     option_uv_http_timeout,
     option_verbose,
-    option_version_suffix_for_pypi,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -269,7 +269,7 @@ def prod_image():
 @option_use_uv_default_disabled
 @option_uv_http_timeout
 @option_verbose
-@option_version_suffix_for_pypi
+@option_version_suffix
 def build(
     additional_airflow_extras: str | None,
     additional_dev_apt_command: str | None,
@@ -320,7 +320,7 @@ def build(
     use_constraints_for_context_distributions: bool,
     use_uv: bool,
     uv_http_timeout: int,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
 ):
     """
     Build Production image. Include building multiple images for all or selected Python versions sequentially.
@@ -385,7 +385,7 @@ def build(
         use_constraints_for_context_distributions=use_constraints_for_context_distributions,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
     )
     if platform:
         base_build_params.platform = platform
