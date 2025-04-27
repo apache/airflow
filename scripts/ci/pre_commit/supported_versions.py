@@ -24,7 +24,14 @@ from tabulate import tabulate
 AIRFLOW_SOURCES = Path(__file__).resolve().parent.parent.parent.parent
 
 
-HEADERS = ("Version", "Current Patch/Minor", "State", "First Release", "Limited Support", "EOL/Terminated")
+HEADERS = (
+    "Version",
+    "Current Patch/Minor",
+    "State",
+    "First Release",
+    "Limited Maintenance",
+    "EOL/Terminated",
+)
 
 SUPPORTED_VERSIONS = (
     ("3", "3.0.0", "Supported", "Apr 22, 2025", "TBD", "TBD"),
