@@ -26,20 +26,20 @@ Install Edge Worker on Windows
     due to Python OS restrictions and if currently of Proof-of-Concept quality.
 
 
-The setup was tested on Windows 10 with Python 3.12.8, 64-bit.
+The setup was tested on Windows 10 with Python 3.12.8, 64-bit. Backend for tests was Airflow 2.10.5.
 To setup a instance of Edge Worker on Windows, you need to follow the steps below:
 
 1. Install Python 3.9 or higher.
-2. Create an empty folder as base to start with. In our example it is ``C:\\Airflow``.
-3. Start Shell/Command Line in ``C:\\Airflow`` and create a new virtual environment via: ``python -m venv venv``
-4. Activate the virtual environment via: ``venv\\Scripts\\activate.bat``
+2. Create an empty folder as base to start with. In our example it is ``C:\Airflow``.
+3. Start Shell/Command Line in ``C:\Airflow`` and create a new virtual environment via: ``python -m venv venv``
+4. Activate the virtual environment via: ``venv\Scripts\activate.bat``
 5. Install Edge provider using the Airflow constraints as of your Airflow version via
    ``pip install apache-airflow-providers-edge3 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.12.txt``.
-   (or alternative build and copy the wheel of the edge provider to the folder ``C:\\Airflow``.
+   (or alternative build and copy the wheel of the edge provider to the folder ``C:\Airflow``.
    This document used ``apache_airflow_providers_edge-0.9.7rc0-py3-none-any.whl``, install the wheel file with the
    Airflow constraints matching your Airflow and Python version:
    ``pip install apache_airflow_providers_edge-0.9.7rc0-py3-none-any.whl apache-airflow==2.10.5 virtualenv --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.12.txt``)
-6. Create a new folder ``dags`` in ``C:\\Airflow`` and copy the relevant DAG files in it.
+6. Create a new folder ``dags`` in ``C:\Airflow`` and copy the relevant DAG files in it.
    (At least the DAG files which should be executed on the edge alongside the dependencies. For testing purposes
    the DAGs from the ``apache-airflow`` repository can be used located in
    <https://github.com/apache/airflow/tree/main/providers/edge3/src/airflow/providers/edge3/example_dags>.)
@@ -50,7 +50,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
   - Any proxy details if applicable for your environment.
 
 8. Create a worker start script to prevent repeated typing. Create a new file ``start_worker.bat`` in
-   ``C:\\Airflow`` with the following content - replace with your settings:
+   ``C:\Airflow`` with the following content - replace with your settings:
 
 .. code-block:: bash
 
