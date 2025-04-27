@@ -1,0 +1,3 @@
+The ``parsing_pre_import_modules`` setting is removed from code base.
+It has no use in Airflow 3.
+If your deployment override this setting you can safely remove it.
