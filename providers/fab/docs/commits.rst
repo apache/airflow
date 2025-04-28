@@ -37,11 +37,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.2
 .....
 
-Latest change: 2025-04-23
+Latest change: 2025-04-25
 
-==================================================================================================  ===========  ====================================================================================
+==================================================================================================  ===========  =========================================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ====================================================================================
+==================================================================================================  ===========  =========================================================================================================
+`36c8975522 <https://github.com/apache/airflow/commit/36c8975522a9241605ff34d0d78daa26f02a360b>`__  2025-04-25   ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49792)``
+`e3c221d135 <https://github.com/apache/airflow/commit/e3c221d13577b1fbd3d6c54267d50ee11a4ab62e>`__  2025-04-24   ``Remove old dynamic attr accessing re dag resource in FAB provider (#49669)``
+`8ad08fa075 <https://github.com/apache/airflow/commit/8ad08fa075ee23f891339fa237a093ea5e52f49c>`__  2025-04-24   ``Fix infinite redirect in FAB AuthManager caused by mistakenly setting token cookie as secure (#49724)``
+`c14b3c7407 <https://github.com/apache/airflow/commit/c14b3c74078e523a1623ab461213ec07a3bfac62>`__  2025-04-24   ``Prepare docs for Apr ad hoc release of fab and common.compat providers (#49690)``
 `b01e534195 <https://github.com/apache/airflow/commit/b01e534195fff5dea03d000051e6469b83852f6c>`__  2025-04-23   ``Remove some lingering subdag references (#49663)``
 `d2755fc52e <https://github.com/apache/airflow/commit/d2755fc52e13db4816fa69409c16ac777b5f7c9f>`__  2025-04-23   ``Bump stylelint (#49638)``
 `998f70036b <https://github.com/apache/airflow/commit/998f70036b919a434edd086c0233991c5ff1c736>`__  2025-04-23   ``Add read config permission to viewer role in 'FabAuthManager' (#49581)``
@@ -49,7 +53,7 @@ Commit                                                                          
 `5595ded129 <https://github.com/apache/airflow/commit/5595ded129e00553df0af735e2513f996b1b524d>`__  2025-04-22   ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49511)``
 `223a741869 <https://github.com/apache/airflow/commit/223a741869505ad31c38310f307bf2f0f0f193fb>`__  2025-04-19   ``capitalize the term airflow (#49450)``
 `f65eeb05f4 <https://github.com/apache/airflow/commit/f65eeb05f48d9ad67cdbbeb81a5db085c519aaba>`__  2025-04-18   ``Add note in FAB migration doc (#49423)``
-==================================================================================================  ===========  ====================================================================================
+==================================================================================================  ===========  =========================================================================================================
 
 2.0.1
 .....
