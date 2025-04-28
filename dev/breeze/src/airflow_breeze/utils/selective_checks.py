@@ -748,7 +748,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        if self.providers_test_types_list_as_strings_in_json != "[]":
+        if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
         return (
             "amazon" in self.providers_test_types_list_as_strings_in_json
