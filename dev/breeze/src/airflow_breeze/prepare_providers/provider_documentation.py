@@ -110,6 +110,7 @@ class TypeOfChange(Enum):
     BREAKING_CHANGE = "x"
     SKIP = "s"
     MISC = "m"
+    MIN_AIRFLOW_VERSION_BUMP = "v"
 
 
 # defines the precedence order for provider version bumps
@@ -506,13 +507,13 @@ def bump_version(v: Version, index: int) -> Version:
 
 
 def _update_version_in_provider_yaml(
-    provider_id: str,
-    type_of_change: TypeOfChange,
+    provider_id: str, type_of_change: TypeOfChange, min_airflow_version_bump: bool = False
 ) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
     :param provider_id: provider package
+    :param min_airflow_version_bump: if set, ensure that the version bump is at least min version.
     :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
     provider_details = get_provider_details(provider_id)
@@ -533,6 +534,8 @@ def _update_version_in_provider_yaml(
         v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     elif type_of_change == TypeOfChange.MISC:
         v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
+        if min_airflow_version_bump:
+            v = bump_version(v, VERSION_MINOR_INDEX)
     provider_yaml_path = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     updated_provider_yaml_content = re.sub(
@@ -797,6 +800,9 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
+            if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
+                bump = True
+                type_of_change = TypeOfChange.MISC
             if type_of_change in [
                 TypeOfChange.BUGFIX,
                 TypeOfChange.FEATURE,
@@ -804,7 +810,9 @@ def update_release_notes(
                 TypeOfChange.MISC,
             ]:
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
-                    _update_version_in_provider_yaml(provider_id=provider_id, type_of_change=type_of_change)
+                    _update_version_in_provider_yaml(
+                        provider_id=provider_id, type_of_change=type_of_change, min_airflow_version_bump=bump
+                    )
                 )
                 if not reapply_templates_only:
                     _update_source_date_epoch_in_provider_yaml(provider_id)
@@ -851,9 +859,13 @@ def update_release_notes(
             TypeOfChange.BREAKING_CHANGE,
             TypeOfChange.MISC,
         ]:
+            if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
+                bump = True
+                type_of_change = TypeOfChange.MISC
             with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
                 provider_id=provider_id,
                 type_of_change=type_of_change,
+                min_airflow_version_bump=bump,
             )
             if not reapply_templates_only:
                 _update_source_date_epoch_in_provider_yaml(provider_id)
