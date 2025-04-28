@@ -671,7 +671,6 @@ def _update_file(
             f"[info]Please fix them by replacing with double backticks (``).[/]\n"
         )
         raise PrepareReleaseDocsErrorOccurredException()
-
     get_console().print(f"Linting: {target_file_path}")
     import restructuredtext_lint
 
@@ -684,6 +683,8 @@ def _update_file(
                 'No role entry for "doc"' in error.message
                 or 'Unknown interpreted text role "doc"' in error.message
             ):
+                continue
+            if "airflow-providers-commits" in error.message:
                 continue
             real_errors = True
             get_console().print(f"* [red] {error.message}")
