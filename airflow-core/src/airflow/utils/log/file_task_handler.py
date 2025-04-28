@@ -65,6 +65,7 @@ HEAP_DUMP_SIZE = 500000
 HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 PARALLEL_YIELD_SIZE = HEAP_DUMP_SIZE // 100
 FIRST_TIME_READ_KEY = "first_time_read"
+LAST_LOG_POS_FORMAT = "{identifier}_last_log_pos"
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
@@ -94,7 +95,15 @@ LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
 """Legacy log response, containing source information and log messages."""
 LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
 """Log response, containing source information, stream of log lines, and total log size."""
-LAST_LOG_POS_FORMAT = "{identifier}_last_log_pos"
+StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
+"""Structured log stream, containing structured log messages."""
+LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain["StructuredLogMessage"]]
+"""Output stream, containing structured log messages or a chain of them."""
+ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
+"""Parsed log record, containing timestamp, line_num and the structured log message."""
+ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
+LegacyEsOsLogType: TypeAlias = Union[list["StructuredLogMessage"], str]
+"""Legacy Elasticsearch/OpenSearch _read method return type, containing a list of structured log messages or a single string."""
 
 logger = logging.getLogger(__name__)
 
@@ -118,15 +127,6 @@ class StructuredLogMessage(BaseModel):
     # values; `extra=allow` means we'll create extra properties as needed. Only timestamp and event are
     # required, everything else is up to what ever is producing the logs
     model_config = ConfigDict(cache_strings=False, extra="allow")
-
-
-StructuredLogStream: TypeAlias = Generator[StructuredLogMessage, None, None]
-"""Structured log stream, containing structured log messages."""
-LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain[StructuredLogMessage]]
-"""Output stream, containing structured log messages or a chain of them."""
-ParsedLog: TypeAlias = tuple[Optional[datetime], int, StructuredLogMessage]
-"""Parsed log record, containing timestamp, line_num and the structured log message."""
-ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
 
 
 class LogType(str, Enum):
@@ -640,7 +640,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: LogMetadata | None = None,
-    ) -> tuple[LogHandlerOutputStream, LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream | LegacyEsOsLogType, LogMetadata]:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -798,7 +798,28 @@ class FileTaskHandler(logging.Handler):
             ]
             return chain(logs), {"end_of_log": True, FIRST_TIME_READ_KEY: False}
 
-        return self._read(task_instance, try_number, metadata)
+        # compatibility for es_task_handler and os_task_handler
+        read_result = self._read(task_instance, try_number, metadata)
+        out_stream, metadata = read_result
+        # If the out_stream is None or empty, return the read result
+        if not out_stream:
+            out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
+            return out_stream, metadata
+
+        if _is_logs_stream_like(out_stream):
+            out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
+            return out_stream, metadata
+        if isinstance(out_stream, list) and isinstance(out_stream[0], StructuredLogMessage):
+            return get_compatible_output_log_stream(out_stream), metadata
+        if isinstance(out_stream, str):
+            # If the out_stream is a string, convert it to a generator
+            raw_stream = _stream_lines_by_chunk(io.StringIO(out_stream))
+            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            return out_stream, metadata
+        raise TypeError(
+            "Invalid log stream type. Expected a generator, list of StructuredLogMessage, or string."
+            f" Got {type(out_stream).__name__} instead."
+        )
 
     @staticmethod
     def _prepare_log_folder(directory: Path, new_folder_permissions: int):
