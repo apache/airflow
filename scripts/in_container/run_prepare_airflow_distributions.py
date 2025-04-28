@@ -37,7 +37,7 @@ AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
 AIRFLOW_INIT_FILE = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
 WWW_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "www"
-VERSION_SUFFIX = os.environ.get("VERSION_SUFFIX_FOR_PYPI", "")
+VERSION_SUFFIX = os.environ.get("VERSION_SUFFIX", "")
 DISTRIBUTION_FORMAT = os.environ.get("DISTRIBUTION_FORMAT", "wheel")
 
 
@@ -130,8 +130,6 @@ def build_airflow_packages(distribution_format: str):
                             tmpdir,
                             "--no-deps",
                             "--no-cache",
-                            "--no-binary",
-                            ":all:",
                             sdist_distribution_file.as_posix(),
                         ],
                         check=False,

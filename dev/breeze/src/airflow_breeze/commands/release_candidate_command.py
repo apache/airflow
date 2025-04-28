@@ -22,16 +22,14 @@ from pathlib import Path
 
 import click
 
-from airflow_breeze.commands.common_options import option_answer
+from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, OUT_PATH
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
-
-CI = os.environ.get("CI")
-RUNNING_IN_CI = True if CI else False
+from airflow_breeze.utils.shared_options import get_dry_run
 
 
 def merge_pr(version_branch):
@@ -42,47 +40,36 @@ def merge_pr(version_branch):
                 "checkout",
                 f"v{version_branch}-stable",
             ],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
             ["git", "reset", "--hard", f"origin/v{version_branch}-stable"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
             ["git", "merge", "--ff-only", f"v{version_branch}-test"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
             run_command(
                 ["git", "push", "origin", f"v{version_branch}-stable"],
-                dry_run_override=RUNNING_IN_CI,
                 check=True,
             )
 
 
 def git_tag(version):
     if confirm_action(f"Tag {version}?"):
-        if RUNNING_IN_CI:
-            # override tags when running in CI
-            run_command(
-                ["git", "tag", "-f", f"{version}", "-m", f"Apache Airflow {version}"],
-                check=True,
-            )
-        else:
-            run_command(
-                ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
-                check=True,
-            )
+        run_command(
+            ["git", "tag", "-s", f"{version}", "-m", f"Apache Airflow {version}"],
+            check=True,
+        )
         console_print("[success]Tagged")
 
 
 def git_clean():
     if confirm_action("Clean git repo?"):
-        run_command(["breeze", "ci", "fix-ownership"], dry_run_override=RUNNING_IN_CI, check=True)
-        run_command(["git", "clean", "-fxd"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["breeze", "ci", "fix-ownership"], check=True)
+        run_command(["git", "clean", "-fxd"], check=True)
         console_print("[success]Git repo cleaned")
 
 
@@ -156,7 +143,7 @@ def create_artifacts_with_docker():
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(f"{repo_root}/dist")
-        run_command("./../dev/sign.sh *", dry_run_override=RUNNING_IN_CI, check=True, shell=True)
+        run_command("./../dev/sign.sh *", check=True, shell=True)
         console_print("[success]Release signed")
 
 
@@ -164,7 +151,6 @@ def tag_and_push_constraints(version, version_branch):
     if confirm_action("Do you want to tag and push constraints?"):
         run_command(
             ["git", "checkout", f"origin/constraints-{version_branch}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
@@ -176,12 +162,10 @@ def tag_and_push_constraints(version, version_branch):
                 "-m",
                 f"Constraints for Apache Airflow {version}",
             ],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         run_command(
             ["git", "push", "origin", "tag", f"constraints-{version}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         console_print("[success]Constraints tagged and pushed")
@@ -193,33 +177,35 @@ def clone_asf_repo(version, repo_root):
         run_command(
             ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
             check=True,
+            dry_run_override=False,
         )
-        run_command(["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"], check=True)
+        run_command(
+            ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"],
+            check=True,
+            dry_run_override=False,
+        )
         console_print("[success]Cloned ASF repo successfully")
 
 
 def move_artifacts_to_svn(version, repo_root):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
-        run_command(["svn", "mkdir", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
-        run_command(
-            f"mv {repo_root}/dist/* {version}/", dry_run_override=RUNNING_IN_CI, check=True, shell=True
-        )
+        run_command(["svn", "mkdir", f"{version}"], check=True)
+        run_command(f"mv {repo_root}/dist/* {version}/", check=True, shell=True)
         console_print("[success]Moved artifacts to SVN:")
-        run_command(["ls"], dry_run_override=RUNNING_IN_CI)
+        run_command(["ls"])
 
 
 def push_artifacts_to_asf_repo(version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
         console_print("Files to push to svn:")
-        if not RUNNING_IN_CI:
+        if not get_dry_run():
             os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
-        run_command(["ls"], dry_run_override=RUNNING_IN_CI)
+        run_command(["ls"])
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", dry_run_override=RUNNING_IN_CI, check=True, shell=True)
+        run_command("svn add *", check=True, shell=True)
         run_command(
             ["svn", "commit", "-m", f"Add artifacts for Airflow {version}"],
-            dry_run_override=RUNNING_IN_CI,
             check=True,
         )
         console_print("[success]Files pushed to svn")
@@ -231,20 +217,20 @@ def push_artifacts_to_asf_repo(version, repo_root):
 def delete_asf_repo(repo_root):
     os.chdir(repo_root)
     if confirm_action("Do you want to remove the cloned asf repo?"):
-        run_command(["rm", "-rf", "asf-dist"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["rm", "-rf", "asf-dist"], check=True)
 
 
 def prepare_pypi_packages(version, version_suffix, repo_root):
     if confirm_action("Prepare pypi packages?"):
         console_print("[info]Preparing PyPI packages")
         os.chdir(repo_root)
-        run_command(["git", "checkout", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["git", "checkout", f"{version}"], check=True)
         run_command(
             [
                 "breeze",
                 "release-management",
                 "prepare-airflow-distributions",
-                "--version-suffix-for-pypi",
+                "--version-suffix",
                 f"{version_suffix}",
                 "--distribution-format",
                 "both",
@@ -261,7 +247,7 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
 
 def push_packages_to_pypi(version):
     if confirm_action("Do you want to push packages to production PyPI?"):
-        run_command(["twine", "upload", "-r", "pypi", "dist/*"], dry_run_override=RUNNING_IN_CI, check=True)
+        run_command(["twine", "upload", "-r", "pypi", "dist/*"], check=True)
         console_print("[success]Packages pushed to production PyPI")
         console_print(
             "Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow"
@@ -297,9 +283,7 @@ def push_release_candidate_tag_to_github(version):
         """
         )
         confirm_action(f"Confirm that {version} is pushed to PyPI(not PyPI test). Is it pushed?", abort=True)
-        run_command(
-            ["git", "push", "origin", "tag", f"{version}"], dry_run_override=RUNNING_IN_CI, check=True
-        )
+        run_command(["git", "push", "origin", "tag", f"{version}"], check=True)
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
@@ -322,10 +306,9 @@ def remove_old_releases(version, repo_root):
 
     for old_release in old_releases:
         if confirm_action(f"Remove old RC {old_release}?"):
-            run_command(["svn", "rm", old_release], dry_run_override=RUNNING_IN_CI, check=True)
+            run_command(["svn", "rm", old_release], check=True)
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
-                dry_run_override=RUNNING_IN_CI,
                 check=True,
             )
     console_print("[success]Old releases removed")
@@ -339,6 +322,8 @@ def remove_old_releases(version, repo_root):
 @click.option(
     "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
 )
+@option_dry_run
+@option_verbose
 def prepare_airflow_tarball(version: str):
     from packaging.version import Version
 
@@ -364,6 +349,8 @@ def prepare_airflow_tarball(version: str):
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
 @option_answer
+@option_dry_run
+@option_verbose
 def publish_release_candidate(version, previous_version, github_token):
     from packaging.version import Version
 
@@ -394,7 +381,7 @@ def publish_release_candidate(version, previous_version, github_token):
     console_print(f"airflow_repo_root: {airflow_repo_root}")
     console_print()
     console_print("Below are your git remotes. We will push to origin:")
-    run_command(["git", "remote", "-v"], dry_run_override=RUNNING_IN_CI)
+    run_command(["git", "remote", "-v"])
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Final confirmation

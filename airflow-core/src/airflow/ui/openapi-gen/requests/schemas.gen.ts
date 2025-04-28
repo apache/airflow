@@ -427,6 +427,7 @@ export const $BackfillResponse = {
   properties: {
     id: {
       type: "integer",
+      minimum: 0,
       title: "Id",
     },
     dag_id: {
@@ -2254,6 +2255,17 @@ export const $DAGRunResponse = {
       type: "array",
       title: "Dag Versions",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
   },
   type: "object",
   required: [
@@ -2273,6 +2285,7 @@ export const $DAGRunResponse = {
     "conf",
     "note",
     "dag_versions",
+    "bundle_version",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -3044,6 +3057,19 @@ export const $EventLogResponse = {
   ],
   title: "EventLogResponse",
   description: "Event Log Response.",
+} as const;
+
+export const $ExternalLogUrlResponse = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ExternalLogUrlResponse",
+  description: "Response for the external log URL endpoint.",
 } as const;
 
 export const $ExtraLinkCollectionResponse = {
@@ -4072,6 +4098,10 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Task Display Name",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     hostname: {
       anyOf: [
         {
@@ -4209,6 +4239,7 @@ export const $TaskInstanceHistoryResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -4322,6 +4353,10 @@ export const $TaskInstanceResponse = {
     task_display_name: {
       type: "string",
       title: "Task Display Name",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
     },
     hostname: {
       anyOf: [
@@ -4510,6 +4545,7 @@ export const $TaskInstanceResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -5866,6 +5902,21 @@ export const $ConfigResponse = {
       type: "array",
       title: "Dashboard Alert",
     },
+    show_external_log_redirect: {
+      type: "boolean",
+      title: "Show External Log Redirect",
+    },
+    external_log_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Log Name",
+    },
   },
   type: "object",
   required: [
@@ -5886,6 +5937,7 @@ export const $ConfigResponse = {
     "audit_view_included_events",
     "test_connection",
     "dashboard_alert",
+    "show_external_log_redirect",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",

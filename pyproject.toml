@@ -59,40 +59,22 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0"
+version = "3.1.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.1.0,>=1.0.0",
-    "apache-airflow-core==3.0.0",
+    "apache-airflow-task-sdk<1.2.0,>=1.0.0",
+    "apache-airflow-core==3.1.0",
 ]
 
 packages = []
 
 [project.optional-dependencies]
 # Automatically generated airflow optional dependencies
-"aiobotocore" = [
-    "apache-airflow-core[aiobotocore]"
-]
 "all-core" = [
     "apache-airflow-core[all]"
 ]
-"apache-atlas" = [
-    "apache-airflow-core[apache-atlas]"
-]
-"apache-webhdfs" = [
-    "apache-airflow-core[apache-webhdfs]"
-]
 "async" = [
     "apache-airflow-core[async]"
-]
-"cloudpickle" = [
-    "apache-airflow-core[cloudpickle]"
-]
-"github-enterprise" = [
-    "apache-airflow-core[github-enterprise]"
-]
-"google-auth" = [
-    "apache-airflow-core[google-auth]"
 ]
 "graphviz" = [
     "apache-airflow-core[graphviz]"
@@ -100,29 +82,14 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
-"ldap" = [
-    "apache-airflow-core[ldap]"
-]
 "otel" = [
     "apache-airflow-core[otel]"
-]
-"pandas" = [
-    "apache-airflow-core[pandas]"
-]
-"rabbitmq" = [
-    "apache-airflow-core[rabbitmq]"
-]
-"s3fs" = [
-    "apache-airflow-core[s3fs]"
 ]
 "sentry" = [
     "apache-airflow-core[sentry]"
 ]
 "statsd" = [
     "apache-airflow-core[statsd]"
-]
-"uv" = [
-    "apache-airflow-core[uv]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -177,6 +144,9 @@ packages = []
 ]
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
+]
+"apache.tinkerpop" = [
+    "apache-airflow-providers-apache-tinkerpop"
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -410,6 +380,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
+    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -429,6 +400,7 @@ packages = []
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
+    "apache-airflow-providers-apache-tinkerpop",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -508,6 +480,51 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
+# Aiobotocore required for AWS deferrable operators.
+# There is conflict between boto3 and aiobotocore dependency botocore.
+# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+# boto3 have native aync support and we move away from aio aiobotocore
+"aiobotocore" =  [
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
+]
+"apache-atlas" = [
+    "atlasclient>=0.1.2",
+]
+"apache-webhdfs" = [
+    "apache-airflow-providers-apache-hdfs",
+]
+"cloudpickle" = [
+    "cloudpickle>=2.2.1",
+]
+"github-enterprise" = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+"google-auth" = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+"ldap" = [
+    "python-ldap>=3.4.4",
+]
+"pandas" = [
+    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+    "pandas>=2.1.2,<2.3",
+]
+"rabbitmq" = [
+    "amqp>=5.2.0",
+]
+"s3fs" = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned in aiobotocore extra
+    "apache-airflow-providers-amazon[s3fs]",
+]
+"uv" = [
+    "uv>=0.6.17",
+]
+
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -998,6 +1015,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/arangodb/src",
@@ -1268,6 +1287,7 @@ apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
@@ -1379,6 +1399,7 @@ members = [
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/apache/tinkerpop",
     "providers/apprise",
     "providers/arangodb",
     "providers/asana",
