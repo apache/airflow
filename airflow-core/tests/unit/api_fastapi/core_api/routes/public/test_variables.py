@@ -712,6 +712,9 @@ class TestBulkVariables(TestVariableEndpoint):
                             "entities": [
                                 {"key": "new_var1", "value": "new_value1"},
                                 {"key": "new_var2", "value": ["new_value1"]},
+                                {"key": "new_var3", "value": 1},
+                                {"key": "new_var4", "value": None},
+                                {"key": "new_var5", "value": {"foo": "bar"}},
                             ],
                             "action_on_existence": "skip",
                         },
@@ -734,7 +737,10 @@ class TestBulkVariables(TestVariableEndpoint):
                     ]
                 },
                 {
-                    "create": {"success": ["new_var1", "new_var2"], "errors": []},
+                    "create": {
+                        "success": ["new_var1", "new_var2", "new_var3", "new_var4", "new_var5"],
+                        "errors": [],
+                    },
                     "update": {"success": ["test_variable_key"], "errors": []},
                     "delete": {"success": ["dictionary_password"], "errors": []},
                 },
