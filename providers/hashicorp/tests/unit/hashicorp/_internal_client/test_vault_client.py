@@ -924,7 +924,7 @@ class TestVaultClient:
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
         )
-    
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1_with_proxies_applied(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -950,9 +950,9 @@ class TestVaultClient:
             url="http://localhost:8180",
             verify=False,
             proxies={
-                'http': 'http://10.10.1.10:3128',
-                'https': 'http://10.10.1.10:1080',
-            }
+                "http": "http://10.10.1.10:3128",
+                "https": "http://10.10.1.10:1080",
+            },
         )
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert secret == {"value": "world"}
@@ -986,11 +986,11 @@ class TestVaultClient:
             kv_engine_version=1,
             url="http://localhost:8180",
             verify=False,
-            cert=('/path/client.cert', '/path/client.key')
+            cert=("/path/client.cert", "/path/client.key"),
         )
         secret = vault_client.get_secret(secret_path="/path/to/secret")
         assert secret == {"value": "world"}
-        assert vault_client.kwargs["session"].cert == ('/path/client.cert', '/path/client.key')
+        assert vault_client.kwargs["session"].cert == ("/path/client.cert", "/path/client.key")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="secret", path="/path/to/secret"
         )
