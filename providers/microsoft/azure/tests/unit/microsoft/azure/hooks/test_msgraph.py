@@ -400,20 +400,21 @@ class TestResponseHandler:
 
     # TODO: Elad: review this after merging the bump 2.10 PR
     # We should not have specific provider test block the release
-    # @pytest.mark.db_test
-    # def test_when_provider_min_airflow_version_is_2_10_or_higher_remove_obsolete_code(self):
-    #     """
-    #     Once this test starts failing due to the fact that the minimum Airflow version is now 2.10.0 or higher
-    #     for this provider, you should remove the obsolete code in the get_proxies method of the
-    #     KiotaRequestAdapterHook and remove this test.  This test was added to make sure to not forget to
-    #     remove the fallback code for backward compatibility with Airflow 2.9.x which isn't need anymore once
-    #     this provider depends on Airflow 2.10.0 or higher.
-    #     """
-    #     min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure")
-    #
-    #     # Check if the current Airflow version is 2.10.0 or higher
-    #     if min_airflow_version[0] >= 3 or (min_airflow_version[0] >= 2 and min_airflow_version[1] >= 10):
-    #         method_source = inspect.getsource(KiotaRequestAdapterHook.get_proxies)
-    #         raise AirflowProviderDeprecationWarning(
-    #             f"Check TODO's to remove obsolete code in get_proxies method:\n\r\n\r\t\t\t{method_source}"
-    #         )
+    @pytest.mark.xfail(reason="TODO: Remove")
+    @pytest.mark.db_test
+    def test_when_provider_min_airflow_version_is_2_10_or_higher_remove_obsolete_code(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 2.10.0 or higher
+        for this provider, you should remove the obsolete code in the get_proxies method of the
+        KiotaRequestAdapterHook and remove this test.  This test was added to make sure to not forget to
+        remove the fallback code for backward compatibility with Airflow 2.9.x which isn't need anymore once
+        this provider depends on Airflow 2.10.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure")
+
+        # Check if the current Airflow version is 2.10.0 or higher
+        if min_airflow_version[0] >= 3 or (min_airflow_version[0] >= 2 and min_airflow_version[1] >= 10):
+            method_source = inspect.getsource(KiotaRequestAdapterHook.get_proxies)
+            raise AirflowProviderDeprecationWarning(
+                f"Check TODO's to remove obsolete code in get_proxies method:\n\r\n\r\t\t\t{method_source}"
+            )
