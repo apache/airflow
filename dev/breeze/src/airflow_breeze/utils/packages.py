@@ -82,12 +82,10 @@ class ProviderPackageDetails(NamedTuple):
     source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
-    original_source_provider_distribution_path: Path
     root_provider_path: Path
     base_provider_package_path: Path
     documentation_provider_distribution_path: Path
-    previous_documentation_provider_distribution_path: Path
-    previous_source_provider_distribution_path: Path
+    possible_old_provider_paths: list[Path]
     changelog_path: Path
     provider_description: str
     dependencies: list[str]
@@ -431,21 +429,20 @@ def find_matching_long_package_names(
     )
 
 
-# !!!! We should not remove those old/original package paths as they are used to get changes
-# When documentation is generated using git_log
-def get_original_source_distribution_path(provider_id: str) -> Path:
-    return AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+def get_provider_root_path(provider_id: str) -> Path:
+    return AIRFLOW_PROVIDERS_ROOT_PATH / provider_id.replace(".", "/")
 
 
-def get_previous_source_providers_distribution_path(provider_id: str) -> Path:
-    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split("."))
-
-
-def get_previous_documentation_distribution_path(provider_id: str) -> Path:
-    return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
-
-
-# End of do not remove those package paths.
+def get_possible_old_provider_paths(provider_id: str) -> list[Path]:
+    # This is used to get historical commits for the provider
+    paths: list[Path] = []
+    paths.append(AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split(".")))
+    paths.append(PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split(".")))
+    paths.append(DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}")
+    if provider_id == "edge3":
+        paths.append(get_provider_root_path("edge"))
+        paths.append(get_provider_root_path("edgeexecutor"))
+    return paths
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
@@ -565,13 +562,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         root_provider_path=root_provider_path,
         base_provider_package_path=base_provider_package_path,
-        original_source_provider_distribution_path=get_original_source_distribution_path(provider_id),
-        previous_documentation_provider_distribution_path=get_previous_documentation_distribution_path(
-            provider_id
-        ),
-        previous_source_provider_distribution_path=get_previous_source_providers_distribution_path(
-            provider_id
-        ),
+        possible_old_provider_paths=get_possible_old_provider_paths(provider_id),
         documentation_provider_distribution_path=documentation_provider_distribution_path,
         changelog_path=changelog_path,
         provider_description=provider_info["description"],
