@@ -123,6 +123,19 @@ validations.
 The ``@asset`` decorator and related changes to the DAG parser enable clearer, asset-centric DAG definitions, allowing
 Airflow to more naturally support event-driven and data-aware scheduling patterns.
 
+This renaming impacts modules, classes, functions, configuration keys, and internal models. Key changes include:
+
+- ``Dataset`` → ``Asset``
+- ``DatasetEvent`` → ``AssetEvent``
+- ``DatasetAlias`` → ``AssetAlias``
+- ``airflow.datasets.*`` → ``airflow.sdk.*``
+- ``airflow.timetables.simple.DatasetTriggeredTimetable`` → ``airflow.timetables.simple.AssetTriggeredTimetable``
+- ``airflow.timetables.datasets.DatasetOrTimeSchedule`` → ``airflow.timetables.assets.AssetOrTimeSchedule``
+- ``airflow.listeners.spec.dataset.on_dataset_created`` → ``airflow.listeners.spec.asset.on_asset_created``
+- ``airflow.listeners.spec.dataset.on_dataset_changed`` → ``airflow.listeners.spec.asset.on_asset_changed``
+- ``core.dataset_manager_class`` → ``core.asset_manager_class``
+- ``core.dataset_manager_kwargs`` → ``core.asset_manager_kwargs``
+
 Unified Scheduling Field
 """"""""""""""""""""""""
 
@@ -136,6 +149,8 @@ Updated Scheduling Defaults
 Airflow 3.0 changes the default behavior for new DAGs by setting ``catchup_by_default = False`` in the configuration
 file. This means DAGs that do not explicitly set ``catchup=...`` will no longer backfill missed intervals by default.
 This change reduces confusion for new users and better reflects the growing use of on-demand and event-driven workflows.
+
+The default DAG schedule has been changed to ``None`` from ``@once``.
 
 Restricted Metadata Database Access
 """""""""""""""""""""""""""""""""""
@@ -222,10 +237,84 @@ Airflow 3.0 fixes a bug that caused incorrect task statistics to be reported for
 accurately reflect the number of mapped task instances and their statuses, improving observability and debugging for
 dynamic workflows.
 
+``SequentialExecutor`` has been removed
+"""""""""""""""""""""""""""""""""""""""
+
+``SequentialExecutor`` was primarily used for local testing but is now redundant, as ``LocalExecutor``
+supports SQLite with WAL mode and provides better performance with parallel execution.
+Users should switch to ``LocalExecutor`` or ``CeleryExecutor`` as alternatives.
+
 DAG Authoring Enhancements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Airflow 3.0 includes several changes that improve consistency, clarity, and long-term stability for DAG authors.
+
+New Stable DAG Authoring Interface: ``airflow.sdk``
+"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Airflow 3.0 introduces a new, stable public API for DAG authoring under the ``airflow.sdk`` namespace,
+available via the ``apache-airflow-task-sdk`` package.
+
+The goal of this change is to **decouple DAG authoring from Airflow internals** (Scheduler, API Server, etc.),
+providing a **forward-compatible, stable interface** for writing and maintaining DAGs across Airflow versions.
+
+DAG authors should now import core constructs from ``airflow.sdk`` rather than internal modules.
+
+**Key Imports from** ``airflow.sdk``:
+
+- Classes:
+
+  - ``Asset``
+  - ``BaseNotifier``
+  - ``BaseOperator``
+  - ``BaseOperatorLink``
+  - ``BaseSensorOperator``
+  - ``Connection``
+  - ``Context``
+  - ``DAG``
+  - ``EdgeModifier``
+  - ``Label``
+  - ``ObjectStoragePath``
+  - ``Param``
+  - ``TaskGroup``
+  - ``Variable``
+
+- Decorators and Functions:
+
+  - ``@asset``
+  - ``@dag``
+  - ``@setup``
+  - ``@task``
+  - ``@task_group``
+  - ``@teardown``
+  - ``chain``
+  - ``chain_linear``
+  - ``cross_downstream``
+  - ``get_current_context``
+  - ``get_parsing_context``
+
+For an exhaustive list of available classes, decorators, and functions, check ``airflow.sdk.__all__``.
+
+All DAGs should update imports to use ``airflow.sdk`` instead of referencing internal Airflow modules directly.
+Legacy import paths (e.g., ``airflow.models.dag.DAG``, ``airflow.decorator.task``) are **deprecated** and
+will be **removed** in a future Airflow version. Some additional utilities and helper functions
+that DAGs sometimes use from ``airflow.utils.*`` and others will be progressively migrated to the Task SDK in future
+minor releases.
+
+These future changes aim to **complete the decoupling** of DAG authoring constructs
+from internal Airflow services. DAG authors should expect continued improvements
+to ``airflow.sdk`` with no backwards-incompatible changes to existing constructs.
+
+For example, update:
+
+.. code-block:: python
+
+    # Old (Airflow 2.x)
+    from airflow.models import DAG
+    from airflow.decorators import task
+
+    # New (Airflow 3.x)
+    from airflow.sdk import DAG, task
 
 Renamed Parameter: ``fail_stop`` → ``fail_fast``
 """""""""""""""""""""""""""""""""""""""""""""""""
@@ -268,6 +357,60 @@ Asset Aliases for Reusability
 A new utility function, ``create_asset_aliases()``, allows DAG authors to define reusable aliases for frequently
 referenced Assets. This improves modularity and reuse across DAG files and is particularly helpful for teams adopting
 asset-centric DAGs.
+
+Operator Links interface changed
+""""""""""""""""""""""""""""""""
+
+The Operator Extra links, which can be defined either via plugins or custom operators
+now do not execute any user code in the Airflow UI, but instead push the "full"
+links to XCom backend and the link is fetched from the XCom backend when viewing
+task details, for example from grid view.
+
+Example for users with custom links class:
+
+.. code-block:: python
+
+  @attr.s(auto_attribs=True)
+  class CustomBaseIndexOpLink(BaseOperatorLink):
+      """Custom Operator Link for Google BigQuery Console."""
+
+      index: int = attr.ib()
+
+      @property
+      def name(self) -> str:
+          return f"BigQuery Console #{self.index + 1}"
+
+      @property
+      def xcom_key(self) -> str:
+          return f"bigquery_{self.index + 1}"
+
+      def get_link(self, operator, *, ti_key):
+          search_queries = XCom.get_one(
+              task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+          )
+          return f"https://console.cloud.google.com/bigquery?j={search_query}"
+
+The link has an ``xcom_key`` defined, which is how it will be stored in the XCOM backend, with key as xcom_key and
+value as the entire link, this case: ``https://console.cloud.google.com/bigquery?j=search``
+
+Plugins no longer support adding executors, operators & hooks
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Operator (including Sensors), Executors & Hooks can no longer be registered or imported via Airflow's plugin mechanism. These types of classes
+are just treated as plain Python classes by Airflow, so there is no need to register them with Airflow. They
+can be imported directly from their respective provider packages.
+
+Before:
+
+.. code-block:: python
+
+  from airflow.hooks.my_plugin import MyHook
+
+You should instead import it as:
+
+.. code-block:: python
+
+  from my_plugin import MyHook
 
 Support for ML & AI Use Cases (AIP-83)
 """""""""""""""""""""""""""""""""""""""
@@ -331,8 +474,6 @@ The internal representation of asset event triggers now also includes an explici
 aligning with the broader asset-aware execution model introduced in Airflow 3.0. DAG authors interacting directly with
 ``inlet_events`` may need to update logic that assumes the previous structure.
 
-
-
 Behaviour change in ``xcom_pull``
 """""""""""""""""""""""""""""""""
 
@@ -357,9 +498,34 @@ Removed Configuration Keys
 
 As part of the deprecation cleanup, several legacy configuration options have been removed. These include:
 
-- ``scheduler.allow_trigger_in_future``
-- ``scheduler.use_job_schedule``
-- ``scheduler.use_local_tz``
+- ``[scheduler] allow_trigger_in_future``
+- ``[scheduler] use_job_schedule``
+- ``[scheduler] use_local_tz``
+- ``[scheduler] processor_poll_interval``
+- ``[logging] dag_processor_manager_log_location``
+- ``[logging] dag_processor_manager_log_stdout``
+- ``[logging] log_processor_filename_template``
+
+All the webserver configurations have also been removed since API server now replaces webserver, so
+the configurations like below have no effect:
+
+- ``[webserver] allow_raw_html_descriptions``
+- ``[webserver] cookie_samesite``
+- ``[webserver] error_logfile``
+- ``[webserver] access_logformat``
+- ``[webserver] web_server_master_timeout``
+- etc
+
+Several configuration options previously located under the ``[webserver]`` section have
+been **moved to the new ``[api]`` section**. The following configuration keys have been moved:
+
+- ``[webserver] web_server_host`` → ``[api] host``
+- ``[webserver] web_server_port`` → ``[api] port``
+- ``[webserver] workers`` → ``[api] workers``
+- ``[webserver] web_server_worker_timeout`` → ``[api] worker_timeout``
+- ``[webserver] web_server_ssl_cert`` → ``[api] ssl_cert``
+- ``[webserver] web_server_ssl_key`` → ``[api] ssl_key``
+- ``[webserver] access_logfile`` → ``[api] access_logfile``
 
 Users should review their ``airflow.cfg`` files or use the ``airflow config lint`` command to identify outdated or
 removed options.
@@ -402,8 +568,22 @@ Removed CLI Flags and Commands
 """"""""""""""""""""""""""""""
 
 Several deprecated CLI arguments and commands that were marked for removal in earlier versions have now been cleaned up
-in Airflow 3.0. Refer to the Deprecations & Removals section or run ``airflow --help`` to review the current set of
-available commands and arguments.
+in Airflow 3.0. Run ``airflow --help`` to review the current set of available commands and arguments.
+
+- Deprecated ``--ignore-depends-on-past``  cli option is replaced by ``--depends-on-past ignore``.
+
+- ``--tree`` flag for ``airflow tasks list`` command is removed. The format of the output with that flag can be
+  expensive to generate and extremely large, depending on the DAG. ``airflow dag show`` is a better way to
+  visualize the relationship of tasks in a DAG.
+
+- Changing ``dag_id`` from flag (``-d``, ``--dag-id``) to a positional argument in the ``dags list-runs`` CLI command.
+
+- The ``airflow db init`` and ``airflow db upgrade`` commands have been removed. Use ``airflow db migrate`` instead
+  to initialize or migrate the metadata database. If you would like to create default connections use
+  ``airflow connections create-default-connections``.
+
+- ``airflow api-server`` has replaced ``airflow webserver`` cli command.
+
 
 Provider Refactor & Standardization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -559,7 +739,7 @@ are called out individually above.
 +-------------------------------------------+----------------------------------------------------------+
 | Deprecated core imports                   | Import from appropriate provider package                 |
 +-------------------------------------------+----------------------------------------------------------+
-| DebugExecutor                             | Use LocalExecutor for testing                            |
+| ``SequentialExecutor`` & ``DebugExecutor``| Use LocalExecutor for testing                            |
 +-------------------------------------------+----------------------------------------------------------+
 | ``.airflowignore`` regex                  | Uses glob syntax by default                              |
 +-------------------------------------------+----------------------------------------------------------+
