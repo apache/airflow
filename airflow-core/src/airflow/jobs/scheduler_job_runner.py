@@ -1076,7 +1076,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         span.end()
                         ti.span_status = SpanStatus.NEEDS_CONTINUANCE
             elif prefix == "dr":
-                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == str(key))).one()
+                dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.id == int(key))).one()
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=span)
 
@@ -1116,7 +1116,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ).all()
 
         for dag_run in dag_runs_should_end:
-            active_dagrun_span = self.active_spans.get("dr:" + dag_run.run_id)
+            active_dagrun_span = self.active_spans.get("dr:" + str(dag_run.id))
             if active_dagrun_span is not None:
                 if dag_run.state in State.finished_dr_states:
                     dag_run.set_dagrun_span_attrs(span=active_dagrun_span)
@@ -1124,7 +1124,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_dagrun_span.end(end_time=datetime_to_nano(dag_run.end_date))
                 else:
                     active_dagrun_span.end()
-                self.active_spans.delete("dr:" + dag_run.run_id)
+                self.active_spans.delete("dr:" + str(dag_run.id))
                 dag_run.span_status = SpanStatus.ENDED
 
         for ti in tis_should_end:
@@ -1170,7 +1170,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 carrier = Trace.inject()
                 # Update the context_carrier and leave the SpanStatus as ACTIVE.
                 dag_run.context_carrier = carrier
-                self.active_spans.set("dr:" + dag_run.run_id, dr_span)
+                self.active_spans.set("dr:" + str(dag_run.id), dr_span)
 
                 tis = dag_run.get_task_instances(session=session)
 
@@ -1895,7 +1895,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (
                 dag_run.scheduled_by_job_id is not None
                 and dag_run.scheduled_by_job_id != self.job.id
-                and self.active_spans.get("dr:" + dag_run.run_id) is None
+                and self.active_spans.get("dr:" + str(dag_run.id)) is None
             ):
                 # If the dag_run has been previously scheduled by another job and there is no active span,
                 # then check if the job is still healthy.

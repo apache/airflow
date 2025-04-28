@@ -2258,7 +2258,7 @@ class TestSchedulerJob:
         assert dr.run_id is not None
         assert dr.state == State.RUNNING
         assert dr.span_status == SpanStatus.ACTIVE
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
 
         assert self.job_runner.active_spans.get("ti:" + ti.id) is None
         assert ti.state == ti_state
@@ -2266,7 +2266,7 @@ class TestSchedulerJob:
 
         self.job_runner._recreate_unhealthy_scheduler_spans_if_needed(dr, session)
 
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is not None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
 
         if final_ti_span_status == SpanStatus.ACTIVE:
             assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
@@ -2312,13 +2312,13 @@ class TestSchedulerJob:
         dr_span = Trace.start_root_span(span_name="dag_run_span", start_as_current=False)
         ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
 
-        self.job_runner.active_spans.set("dr:" + dr.run_id, dr_span)
+        self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
         self.job_runner.active_spans.set("ti:" + ti.id, ti_span)
 
         assert dr.span_status == SpanStatus.SHOULD_END
         assert ti.span_status == SpanStatus.SHOULD_END
 
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is not None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
         assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
 
         self.job_runner._end_spans_of_externally_ended_ops(session)
@@ -2326,7 +2326,7 @@ class TestSchedulerJob:
         assert dr.span_status == SpanStatus.ENDED
         assert ti.span_status == SpanStatus.ENDED
 
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
         assert self.job_runner.active_spans.get("ti:" + ti.id) is None
 
     @pytest.mark.parametrize(
@@ -2369,13 +2369,13 @@ class TestSchedulerJob:
         dr_span = Trace.start_root_span(span_name="dag_run_span", start_as_current=False)
         ti_span = Trace.start_child_span(span_name="ti_span", start_as_current=False)
 
-        self.job_runner.active_spans.set("dr:" + dr.run_id, dr_span)
+        self.job_runner.active_spans.set("dr:" + str(dr.id), dr_span)
         self.job_runner.active_spans.set("ti:" + ti.id, ti_span)
 
         assert dr.span_status == SpanStatus.ACTIVE
         assert ti.span_status == SpanStatus.ACTIVE
 
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is not None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is not None
         assert self.job_runner.active_spans.get("ti:" + ti.id) is not None
         assert len(self.job_runner.active_spans.get_all()) == 2
 
@@ -2384,7 +2384,7 @@ class TestSchedulerJob:
         assert dr.span_status == final_span_status
         assert ti.span_status == final_span_status
 
-        assert self.job_runner.active_spans.get("dr:" + dr.run_id) is None
+        assert self.job_runner.active_spans.get("dr:" + str(dr.id)) is None
         assert self.job_runner.active_spans.get("ti:" + ti.id) is None
         assert len(self.job_runner.active_spans.get_all()) == 0
 
