@@ -56,7 +56,7 @@ export const Stats = () => {
         </Heading>
       </Flex>
 
-      <HStack columns={{ base: 1, lg: 6, md: 3 }} gap={4}>
+      <HStack gap={4}>
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
