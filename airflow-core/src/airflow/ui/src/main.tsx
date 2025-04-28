@@ -28,7 +28,7 @@ import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
-import { queryClient } from "./queryClient";
+import { client } from "./queryClient";
 import { system } from "./theme";
 import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
@@ -65,7 +65,7 @@ createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
     <ChakraProvider value={system}>
       <ColorModeProvider>
-        <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={client}>
           <TimezoneProvider>
             <RouterProvider router={router} />
           </TimezoneProvider>
