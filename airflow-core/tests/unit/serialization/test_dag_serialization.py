@@ -686,10 +686,6 @@ class TestStringifiedDAGs:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field, None)
 
-            if field == "max_consecutive_failed_dag_runs":
-                # TaskSDK sets -1 default to max_consecutive_failed_dag_runs
-                assert actual in [expected, 0], f"{dag.dag_id}.{field} does not match"
-                continue
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path

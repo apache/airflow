@@ -185,8 +185,17 @@ class TestLocalExecutor:
                 },
                 "http://custom-server/execution/",
             ),
+            ({}, "http://localhost:8080/execution/"),
+            ({("api", "base_url"): "/"}, "http://localhost:8080/execution/"),
+            ({("api", "base_url"): "/airflow/"}, "http://localhost:8080/airflow/execution/"),
         ],
-        ids=["base_url_fallback", "custom_server"],
+        ids=[
+            "base_url_fallback",
+            "custom_server",
+            "no_base_url_no_custom",
+            "base_url_no_custom",
+            "relative_base_url",
+        ],
     )
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution_api_server_url_config(self, mock_supervise, conf_values, expected_server):

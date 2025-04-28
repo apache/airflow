@@ -14,19 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from pathlib import Path
 
-from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from rich.syntax import Syntax
+
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.console import MessageType, get_console
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 
-class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
-    """Middleware that automatically generates and includes auth header for simple auth manager."""
-
-    async def dispatch(self, request: Request, call_next):
-        token = SimpleAuthManagerLogin.create_token_all_admins()
-        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
-        return await call_next(request)
+def debug_pyproject_tomls(pyproject_toml_paths: list[Path]) -> None:
+    if get_verbose() or get_dry_run():
+        for pyproject_toml_path in pyproject_toml_paths:
+            with ci_group(f"Updated {pyproject_toml_path} content", message_type=MessageType.INFO):
+                # Format the content to make it more readable with rich
+                syntax = Syntax(pyproject_toml_path.read_text(), "toml", theme="ansi_dark", line_numbers=True)
+                get_console().print(syntax)

@@ -95,6 +95,7 @@ def run_docker_compose_tests(
     image_name: str,
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
+    include_success_outputs: bool,
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
@@ -106,8 +107,11 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
+    if include_success_outputs:
+        env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
+    # since we are only running one test, we can print output directly with pytest -s
     command_result = run_command(
-        ["uv", "run", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+        ["uv", "run", "pytest", str(test_path), "-s", *pytest_args, *extra_pytest_args],
         env=env,
         check=False,
         cwd=DOCKER_TESTS_ROOT_PATH.as_posix(),

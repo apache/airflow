@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.utils.provider_dependencies import get_related_providers
+from airflow_breeze.utils.provider_dependencies import (
+    get_related_providers,
+)
 
 
 def test_get_downstream_only():
