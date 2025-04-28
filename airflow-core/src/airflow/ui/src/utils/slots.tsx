@@ -23,13 +23,42 @@ import { FiXCircle } from "react-icons/fi";
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 
-export const slots = {
-  open_slots: { color: "success", icon: <StateIcon color="white" state="success" /> },
-  occupied_slots: { color: "up_for_retry", icon: <FiXCircle color="white" /> },
-  running_slots: { color: "running", icon: <StateIcon color="white" state="running" /> },
-  queued_slots: { color: "queued", icon: <StateIcon color="white" state="queued" /> },
-  scheduled_slots: { color: "scheduled", icon: <StateIcon color="white" state="scheduled" /> },
-  deferred_slots: { color: "deferred", icon: <StateIcon color="white" state="deferred" /> },
+export type Slots = Omit<PoolResponse, "description" | "include_deferred" | "name" | "slots">;
+export type SlotConfig = {
+  color: string;
+  icon: JSX.Element;
+  key: keyof Slots;
 };
 
-export type Slots = Omit<PoolResponse, "description" | "include_deferred" | "name" | "slots">;
+export const slotConfigs: Array<SlotConfig> = [
+  {
+    key: "open_slots",
+    color: "success",
+    icon: <StateIcon color="white" state="success" />,
+  },
+  {
+    key: "occupied_slots",
+    color: "up_for_retry",
+    icon: <FiXCircle color="white" />,
+  },
+  {
+    key: "running_slots",
+    color: "running",
+    icon: <StateIcon color="white" state="running" />,
+  },
+  {
+    key: "queued_slots",
+    color: "queued",
+    icon: <StateIcon color="white" state="queued" />,
+  },
+  {
+    key: "scheduled_slots",
+    color: "scheduled",
+    icon: <StateIcon color="white" state="scheduled" />,
+  },
+  {
+    key: "deferred_slots",
+    color: "deferred",
+    icon: <StateIcon color="white" state="deferred" />,
+  },
+];

@@ -20,7 +20,7 @@ import { Flex } from "@chakra-ui/react";
 
 import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
-import { type Slots, slots } from "src/utils/slots";
+import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const PoolBar = ({
   pool,
@@ -32,21 +32,20 @@ export const PoolBar = ({
   readonly totalSlots: number;
 }) => (
   <>
-    {Object.entries(slots).map(([slotKey, { color, icon }]) => {
-      const typedKey = slotKey as keyof Slots;
-      const slotValue = pool[typedKey];
+    {slotConfigs.map(({ color, icon, key }) => {
+      const slotValue = pool[key];
       const flexValue = slotValue / totalSlots || 0;
 
       if (flexValue === 0) {
         return undefined;
       }
 
-      const tooltipContent = `${capitalize(slotKey.replace("_", " "))}: ${slotValue}${
-        poolsWithSlotType ? ` (${poolsWithSlotType[typedKey]} pools)` : ""
+      const tooltipContent = `${capitalize(key.replace("_", " "))}: ${slotValue}${
+        poolsWithSlotType ? ` (${poolsWithSlotType[key]} pools)` : ""
       }`;
 
       return (
-        <Tooltip content={tooltipContent} key={slotKey}>
+        <Tooltip content={tooltipContent} key={key}>
           <Flex
             alignItems="center"
             bg={`${color}.solid`}
