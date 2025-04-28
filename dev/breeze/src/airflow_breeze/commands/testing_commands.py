@@ -987,6 +987,13 @@ def integration_providers_tests(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
+@option_use_airflow_version
+@option_airflow_constraints_reference
+@option_clean_airflow_installation
+@option_force_lowest_dependencies
+@option_install_airflow_with_constraints
+@option_distribution_format
+@option_use_distributions_from_dist
 @option_postgres_version
 @option_python
 @option_skip_docker_compose_down
@@ -1010,6 +1017,13 @@ def system_tests(
     python: str,
     skip_docker_compose_down: bool,
     test_timeout: int,
+    use_airflow_version: str,
+    airflow_constraints_reference: str,
+    clean_airflow_installation: bool,
+    force_lowest_dependencies: bool,
+    install_airflow_with_constraints: bool,
+    distribution_format: str,
+    use_distributions_from_dist: bool,
 ):
     shell_params = ShellParams(
         test_group=GroupOfTests.SYSTEM,
@@ -1030,6 +1044,7 @@ def system_tests(
         force_sa_warnings=force_sa_warnings,
         run_tests=True,
         db_reset=db_reset,
+        use_airflow_version=use_airflow_version,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()

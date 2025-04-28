@@ -348,23 +348,28 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
+function initialize_db() {
+    # If we are going to start the api server OR we are a system test (which may or may not start the api server,
+    # depending on the Airflow version being used to run the tests), then migrate the DB.
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} == "true" || ${TEST_GROUP:=""} == "system" ]]; then
+        echo
+        echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
+        echo
+        airflow db migrate
+        echo
+        echo "${COLOR_BLUE}Database initialized${COLOR_RESET}"
+    fi
+}
+
 function start_api_server_with_examples(){
-    # check if we should not start the api server with examples by checking if both
-    # START_API_SERVER_WITH_EXAMPLES is false AND the TEST_GROUP env var is not equal to "system"
-    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
+    USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    # Do not start the api server if either START_API_SERVER_WITH_EXAMPLES is false or the TEST_GROUP env var is not
+    # equal to "system" or the Airflow version is <= 3.0.0 (which does not have the API server anyway).
+    if [[ (${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system") || ! "${USE_AIRFLOW_VERSION}" =~ ^3.*  ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
     export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-    echo
-    echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
-    echo
-    airflow db migrate
-    echo
-    echo "${COLOR_BLUE}Database initialized${COLOR_RESET}"
-    echo
-    echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
-    echo
     airflow dags reserialize
     echo "Example dags parsing finished"
     if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
@@ -401,6 +406,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
+initialize_db
 start_api_server_with_examples
 check_run_tests "${@}"
 
