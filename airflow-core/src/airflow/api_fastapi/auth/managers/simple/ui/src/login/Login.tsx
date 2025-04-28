@@ -34,8 +34,7 @@ export type LoginBody = {
 
 const isSafeUrl = (targetUrl: string): boolean => {
   try {
-    // eslint-disable-next-line no-restricted-globals
-    const base = new URL(window.location.origin);
+    const base = new URL(globalThis.location.origin);
     const target = new URL(targetUrl, base);
 
     return (target.protocol === "http:" || target.protocol === "https:") && target.origin === base.origin;
@@ -54,20 +53,20 @@ export const Login = () => {
   );
 
   const onSuccess = (data: LoginResponse) => {
-    // Redirect to appropriate page with the token
-    const next = searchParams.get("next");
-
     // Fallback similar to FabAuthManager, strip off the next
     const fallback = "/";
+
+    // Redirect to appropriate page with the token
+    const next = searchParams.get("next") ?? fallback;
 
     setCookie("_token", data.access_token, {
       path: "/",
       secure: globalThis.location.protocol !== "http:",
     });
 
-    const redirectTarget = isSafeUrl(next!) ? next : fallback;
+    const redirectTarget = isSafeUrl(next) ? next : fallback;
 
-    globalThis.location.replace(redirectTarget!);
+    globalThis.location.replace(redirectTarget);
   };
   const { createToken, error, isPending, setError } = useCreateToken({
     onSuccess,
