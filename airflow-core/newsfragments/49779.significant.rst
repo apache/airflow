@@ -10,3 +10,11 @@ SecretCache class has been moved to ``airflow.sdk.execution_time.cache``
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.secrets.cache`` → ``airflow.sdk.execution_time.cache``
