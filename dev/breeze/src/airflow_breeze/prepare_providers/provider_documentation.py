@@ -114,11 +114,12 @@ class TypeOfChange(Enum):
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > BUGFIX > MIN_AIRFLOW_VERSION_BUMP > MISC > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
     TypeOfChange.MISC: 2,
+    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: 2.5,
     TypeOfChange.BUGFIX: 3,
     TypeOfChange.FEATURE: 4,
     TypeOfChange.BREAKING_CHANGE: 5,
