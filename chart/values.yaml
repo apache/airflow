@@ -138,7 +138,8 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
+  # Enable all ingress resources
+  # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
 
   # Configs for the Ingress of the API Server
