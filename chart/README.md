@@ -36,7 +36,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Features
 
-* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
 * Supported AWS executors with AWS provider version ``8.21.0+``:
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
