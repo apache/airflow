@@ -31,7 +31,7 @@ from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -309,13 +309,6 @@ class TestFlowerCommand:
             mock.call(
                 process="flower",
                 pid="/tmp/flower.pid",
-                stdout="/tmp/flower-stdout.log",
-                stderr="/tmp/flower-stderr.log",
-                log="/tmp/flower.log",
-            )
-            if AIRFLOW_V_2_10_PLUS
-            else mock.call(
-                process="flower",
                 stdout="/tmp/flower-stdout.log",
                 stderr="/tmp/flower-stderr.log",
                 log="/tmp/flower.log",
