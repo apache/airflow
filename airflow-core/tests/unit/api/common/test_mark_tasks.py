@@ -56,7 +56,9 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker):
     assert "teardown" not in task_dict
 
 
-@pytest.mark.parametrize("unfinished_state", list(State.unfinished))
+@pytest.mark.parametrize(
+    "unfinished_state", sorted([state for state in State.unfinished if state is not None])
+)
 def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, unfinished_state):
     with dag_maker("TEST_DAG_1"):
         with EmptyOperator(task_id="teardown").as_teardown():
@@ -86,7 +88,7 @@ def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, u
 
 
 @pytest.mark.parametrize(
-    "finished_state", [state for state in State.finished if state != TaskInstanceState.SUCCESS]
+    "finished_state", sorted([state for state in State.finished if state != TaskInstanceState.SUCCESS])
 )
 def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker, finished_state):
     with dag_maker("TEST_DAG_1"):
