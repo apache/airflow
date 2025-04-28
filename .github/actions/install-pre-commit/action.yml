@@ -24,7 +24,7 @@ inputs:
     default: "3.9"
   uv-version:
     description: 'uv version to use'
-    default: "0.6.13"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.6.17"  # Keep this comment to allow automatic replacement of uv version
   pre-commit-version:
     description: 'pre-commit version to use'
     default: "4.2.0"  # Keep this comment to allow automatic replacement of pre-commit version
@@ -61,6 +61,16 @@ runs:
         key: cache-pre-commit-v4-${{ inputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-pre-commit-cache
+    - name: "Check if pre-commit cache tarball exists"
+      shell: bash
+      run: |
+        if [ -f /tmp/cache-pre-commit.tar.gz ]; then
+          echo "✅ Cache tarball found: /tmp/cache-pre-commit.tar.gz"
+        else
+          echo "❌ Cache tarball missing. Expected /tmp/cache-pre-commit.tar.gz"
+          exit 1
+        fi
+      if: steps.restore-pre-commit-cache.outputs.stash-hit == 'true'
     - name: "Restore .cache from the tar file"
       run: tar -C ~ -xzf /tmp/cache-pre-commit.tar.gz
       shell: bash

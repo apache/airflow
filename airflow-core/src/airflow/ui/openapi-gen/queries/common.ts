@@ -270,7 +270,7 @@ export const UseBackfillServiceGetBackfillKeyFn = (
   {
     backfillId,
   }: {
-    backfillId: string;
+    backfillId: number;
   },
   queryKey?: Array<unknown>,
 ) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
@@ -921,6 +921,32 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     },
   ]),
 ];
+export type TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getTaskInstanceDependenciesByMapIndex>
+>;
+export type TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexQueryResult<
+  TData = TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKey =
+  "TaskInstanceServiceGetTaskInstanceDependenciesByMapIndex";
+export const UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
+];
 export type TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstanceDependencies>
 >;
@@ -939,38 +965,12 @@ export const UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn = (
   }: {
     dagId: string;
     dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useTaskInstanceServiceGetTaskInstanceDependenciesKey,
-  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
-];
-export type TaskInstanceServiceGetTaskInstanceDependencies1DefaultResponse = Awaited<
-  ReturnType<typeof TaskInstanceService.getTaskInstanceDependencies1>
->;
-export type TaskInstanceServiceGetTaskInstanceDependencies1QueryResult<
-  TData = TaskInstanceServiceGetTaskInstanceDependencies1DefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useTaskInstanceServiceGetTaskInstanceDependencies1Key =
-  "TaskInstanceServiceGetTaskInstanceDependencies1";
-export const UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn = (
-  {
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  }: {
-    dagId: string;
-    dagRunId: string;
     mapIndex?: number;
     taskId: string;
   },
   queryKey?: Array<unknown>,
 ) => [
-  useTaskInstanceServiceGetTaskInstanceDependencies1Key,
+  useTaskInstanceServiceGetTaskInstanceDependenciesKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
 ];
 export type TaskInstanceServiceGetTaskInstanceTriesDefaultResponse = Awaited<
@@ -1228,6 +1228,33 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
   useTaskInstanceServiceGetLogKey,
   ...(queryKey ?? [{ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }]),
 ];
+export type TaskInstanceServiceGetExternalLogUrlDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getExternalLogUrl>
+>;
+export type TaskInstanceServiceGetExternalLogUrlQueryResult<
+  TData = TaskInstanceServiceGetExternalLogUrlDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetExternalLogUrlKey = "TaskInstanceServiceGetExternalLogUrl";
+export const UseTaskInstanceServiceGetExternalLogUrlKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    tryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    tryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetExternalLogUrlKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, tryNumber }]),
+];
 export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
   ReturnType<typeof ImportErrorService.getImportError>
 >;
@@ -1334,6 +1361,16 @@ export const UsePluginServiceGetPluginsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type PluginServiceImportErrorsDefaultResponse = Awaited<ReturnType<typeof PluginService.importErrors>>;
+export type PluginServiceImportErrorsQueryResult<
+  TData = PluginServiceImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceImportErrorsKey = "PluginServiceImportErrors";
+export const UsePluginServiceImportErrorsKeyFn = (queryKey?: Array<unknown>) => [
+  usePluginServiceImportErrorsKey,
+  ...(queryKey ?? []),
+];
 export type PoolServiceGetPoolDefaultResponse = Awaited<ReturnType<typeof PoolService.getPool>>;
 export type PoolServiceGetPoolQueryResult<
   TData = PoolServiceGetPoolDefaultResponse,
@@ -1862,14 +1899,14 @@ export type DagServicePatchDagMutationResult = Awaited<ReturnType<typeof DagServ
 export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstance>
 >;
-export type TaskInstanceServicePatchTaskInstance1MutationResult = Awaited<
-  ReturnType<typeof TaskInstanceService.patchTaskInstance1>
+export type TaskInstanceServicePatchTaskInstanceByMapIndexMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstanceByMapIndex>
+>;
+export type TaskInstanceServicePatchTaskInstanceDryRunByMapIndexMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRunByMapIndex>
 >;
 export type TaskInstanceServicePatchTaskInstanceDryRunMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRun>
->;
-export type TaskInstanceServicePatchTaskInstanceDryRun1MutationResult = Awaited<
-  ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRun1>
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;

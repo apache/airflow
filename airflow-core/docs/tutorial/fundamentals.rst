@@ -210,7 +210,7 @@ times.
 Working with Time Zones
 -----------------------
 
-Creating a time zone aware DAG straightforward. Just ensure you use time zone aware dates
+Creating a time zone aware DAG is straightforward. Just ensure you use time zone aware dates
 with ``pendulum``. Avoid using the standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they have known limitations.
 
@@ -252,8 +252,8 @@ Let's validate your script further by running a few commands:
     # prints the list of tasks in the "tutorial" DAG
     airflow tasks list tutorial
 
-    # prints the hierarchy of tasks in the "tutorial" DAG
-    airflow tasks list tutorial --tree
+    # prints the graphviz representation of "tutorial" DAG
+    airflow dags show tutorial
 
 
 Testing Task Instances and DAG Runs

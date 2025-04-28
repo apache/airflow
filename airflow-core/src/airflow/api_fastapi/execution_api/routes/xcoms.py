@@ -21,13 +21,12 @@ import logging
 import sys
 from typing import Annotated, Any
 
-from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
@@ -57,7 +56,7 @@ async def has_xcom_access(
     return True
 
 
-router = AirflowRouter(
+router = APIRouter(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
@@ -95,7 +94,7 @@ async def xcom_query(
             "description": "Metadata about the number of matching XCom values",
             "headers": {
                 "Content-Range": {
-                    "pattern": r"^map_indexes \d+$",
+                    "schema": {"pattern": r"^map_indexes \d+$"},
                     "description": "The number of (mapped) XCom values found for this task.",
                 },
             },

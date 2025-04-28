@@ -1267,7 +1267,7 @@ class TestRuntimeTaskInstance:
     ):
         """
         Test that a task makes an expected call to the Supervisor to pull XCom values
-        based on various task_ids and map_indexes configurations.
+        based on various task_ids, map_indexes, and xcom_values configurations.
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
@@ -1312,6 +1312,54 @@ class TestRuntimeTaskInstance:
                         map_index=map_index,
                     ),
                 )
+
+    @pytest.mark.parametrize(
+        "task_ids, map_indexes, expected_value",
+        [
+            pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
+            pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
+            pytest.param("task_a", None, {"a": 1, "b": 2}, id="task_id is str, map_index is None"),
+            pytest.param("task_a", NOTSET, {"a": 1, "b": 2}, id="task_id is str, map_index is ArgNotSet"),
+            pytest.param(["task_a"], 0, [{"a": 1, "b": 2}], id="task_id is list, map_index is int"),
+            pytest.param(["task_a"], [0], [{"a": 1, "b": 2}], id="task_id is list, map_index is list"),
+            pytest.param(["task_a"], None, [{"a": 1, "b": 2}], id="task_id is list, map_index is None"),
+            pytest.param(
+                ["task_a"], NOTSET, [{"a": 1, "b": 2}], id="task_id is list, map_index is ArgNotSet"
+            ),
+            pytest.param(None, 0, {"a": 1, "b": 2}, id="task_id is None, map_index is int"),
+            pytest.param(None, [0], [{"a": 1, "b": 2}], id="task_id is None, map_index is list"),
+            pytest.param(None, None, {"a": 1, "b": 2}, id="task_id is None, map_index is None"),
+            pytest.param(None, NOTSET, {"a": 1, "b": 2}, id="task_id is None, map_index is ArgNotSet"),
+        ],
+    )
+    def test_xcom_pull_return_values(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        task_ids,
+        map_indexes,
+        expected_value,
+    ):
+        """
+        Tests return value of xcom_pull under various combinations of task_ids and map_indexes.
+        The above test covers the expected calls to supervisor comms.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                print("This is a custom operator")
+
+        test_task_id = "pull_task"
+        task = CustomOperator(task_id=test_task_id)
+        runtime_ti = create_runtime_ti(task=task)
+
+        value = {"a": 1, "b": 2}
+        # API server returns serialised value for xcom result, staging it in that way
+        xcom_value = BaseXCom.serialize_value(value)
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value=xcom_value)
+
+        returned_xcom = runtime_ti.xcom_pull(key="key", task_ids=task_ids, map_indexes=map_indexes)
+        assert returned_xcom == expected_value
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti

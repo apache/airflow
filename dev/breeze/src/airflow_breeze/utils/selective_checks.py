@@ -32,7 +32,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -189,7 +188,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
-            r"^\.github/SECURITY\.rst$",
+            r"^\.github/SECURITY\.md",
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
@@ -204,9 +203,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-ctl/docs",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
-            r"^chart/RELEASE_NOTES\.txt",
+            r"^chart/RELEASE_NOTES\.rst",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
+            r"^RELEASE_NOTES\.rst",
         ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
@@ -1390,11 +1390,6 @@ class SelectiveChecks:
     @cached_property
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
-
-    @cached_property
-    def chicken_egg_providers(self) -> str:
-        """Space separated list of providers with chicken-egg problem and should be built from sources."""
-        return CHICKEN_EGG_PROVIDERS
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

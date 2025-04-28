@@ -33,21 +33,21 @@ Those are all of the available release management commands:
 Airflow release commands
 ........................
 
-Running airflow release commands is part of the release procedure performed by the release managers
+Running Airflow release commands is part of the release procedure performed by the release managers
 and it is described in detail in `dev <dev/README_RELEASE_AIRFLOW.md>`_ .
 
-Preparing airflow distributions
+Preparing Airflow distributions
 """"""""""""""""""""""""""
 
-You can prepare airflow distributions using Breeze:
+You can prepare Airflow distributions using Breeze:
 
 .. code-block:: bash
 
      breeze release-management prepare-airflow-distributions
 
-This prepares airflow .whl package in the dist folder.
+This prepares Airflow .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of airflow distributions,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of Airflow distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
 .. code-block:: bash
@@ -60,10 +60,10 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-airflow-distributions
 
 
-Preparing airflow tarball
+Preparing Airflow tarball
 """""""""""""""""""""""""
 
-You can prepare airflow source tarball using Breeze:
+You can prepare Airflow source tarball using Breeze:
 
 .. code-block:: bash
 
@@ -127,10 +127,10 @@ When we prepare final release, we automate some of the steps we need to do.
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
-Generating airflow core Issue
+Generating Airflow core Issue
 """""""""""""""""""""""""
 
-You can use Breeze to generate a airflow core issue when you release new airflow.
+You can use Breeze to generate a Airflow core issue when you release new airflow.
 
 .. image:: ./images/output_release-management_generate-issue-content-providers.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
@@ -192,7 +192,7 @@ These are all of the available flags for the ``release-prod-images`` command:
 Adding git tags for providers
 """""""""""""""""""""""""""""
 
-This command can be utilized to manage git tags for providers within the airflow remote repository during provider releases.
+This command can be utilized to manage git tags for providers within the Airflow remote repository during provider releases.
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
@@ -302,7 +302,7 @@ Preparing providers
 You can use Breeze to prepare providers.
 
 The distributions are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
-before running, so you should run it before generating airflow package below as it will be removed.
+before running, so you should run it before generating Airflow package below as it will be removed.
 
 The below example builds providers in the wheel format.
 
@@ -332,7 +332,7 @@ You can see all providers available by running this command:
 Installing providers
 """"""""""""""""""""
 
-In some cases we want to just see if the providers generated can be installed with airflow without
+In some cases we want to just see if the providers generated can be installed with Airflow without
 verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
@@ -340,7 +340,7 @@ just prepared providers and they are present in ``dist`` folder.
 
      breeze release-management install-provider-distributions
 
-You can also run the verification with an earlier airflow version to check for compatibility.
+You can also run the verification with an earlier Airflow version to check for compatibility.
 
 .. code-block:: bash
 
@@ -364,7 +364,7 @@ just prepared providers and they are present in ``dist`` folder.
 
      breeze release-management verify-provider-distributions
 
-You can also run the verification with an earlier airflow version to check for compatibility.
+You can also run the verification with an earlier Airflow version to check for compatibility.
 
 .. code-block:: bash
 
@@ -381,7 +381,7 @@ Generating Providers Metadata
 """""""""""""""""""""""""""""
 
 The release manager can generate providers metadata per provider version - information about provider versions
-including the associated Airflow version for the provider version (i.e first airflow version released after the
+including the associated Airflow version for the provider version (i.e first Airflow version released after the
 provider has been released) and date of the release of the provider version.
 
 These are all of the available flags for the ``generate-providers-metadata`` command:
@@ -446,17 +446,17 @@ all or selected python version and single constraint mode like this:
 
 Constraints are generated separately for each python version and there are separate constraints modes:
 
-* 'constraints' - those are constraints generated by matching the current airflow version from sources
+* 'constraints' - those are constraints generated by matching the current Airflow version from sources
    and providers that are installed from PyPI. Those are constraints used by the users who want to
-   install airflow with pip.
+   install Airflow with pip.
 
 * "constraints-source-providers" - those are constraints generated by using providers installed from
   current sources. While adding new providers their dependencies might change, so this set of providers
-  is the current set of the constraints for airflow and providers from the current main sources.
+  is the current set of the constraints for Airflow and providers from the current main sources.
   Those providers are used by CI system to keep "stable" set of constraints.
 
 * "constraints-no-providers" - those are constraints generated from only Apache Airflow, without any
-  providers. If you want to manage airflow separately and then add providers individually, you can
+  providers. If you want to manage Airflow separately and then add providers individually, you can
   use those.
 
 These are all available flags of ``generate-constraints`` command:
@@ -541,7 +541,7 @@ while publishing the documentation.
      breeze release-management publish-docs --airflow-site-directory
 
 You can also use shorthand names as arguments instead of using the full names
-for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+for Airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
 
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
@@ -561,7 +561,7 @@ Adding back referencing HTML for the documentation
 
 To add back references to the documentation generated by ``build-docs`` in Breeze to ``airflow-site``,
 use the ``release-management add-back-references`` command. This is important to support backward compatibility
-the airflow documentation.
+the Airflow documentation.
 
 You have to specify which distributions you run it on. For example you can run it for all providers:
 
@@ -616,7 +616,7 @@ Generating Provider requirements
 
 In order to generate SBOM information for providers, we need to generate requirements for them. This is
 done by the ``generate-providers-requirements`` command. This command generates requirements for the
-selected provider and python version, using the airflow version specified.
+selected provider and python version, using the Airflow version specified.
 
 .. image:: ./images/output_sbom_generate-providers-requirements.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom_generate-providers-requirements.svg
@@ -638,17 +638,17 @@ These are all of the available flags for the ``update-sbom-information`` command
   :width: 100%
   :alt: Breeze update sbom information
 
-Build all airflow images
+Build all Airflow images
 """"""""""""""""""""""""
 
-In order to generate providers requirements, we need docker images with all airflow versions pre-installed,
+In order to generate providers requirements, we need docker images with all Airflow versions pre-installed,
 such images are built with the ``build-all-airflow-images`` command.
-This command will build one docker image per python version, with all the airflow versions >=2.0.0 compatible.
+This command will build one docker image per python version, with all the Airflow versions >=2.0.0 compatible.
 
 .. image:: ./images/output_sbom_build-all-airflow-images.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom_build-all-airflow-images.svg
   :width: 100%
-  :alt: Breeze build all airflow images
+  :alt: Breeze build all Airflow images
 
 
 Exporting SBOM information
@@ -667,16 +667,16 @@ properties of the dependencies. This is done by the ``export-dependency-informat
 Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
 learn more about Breeze internals.
 
-Preparing airflow Task SDK distributions
+Preparing Airflow Task SDK distributions
 """""""""""""""""""""""""""""""""""
 
-You can prepare airflow distributions using Breeze:
+You can prepare Airflow distributions using Breeze:
 
 .. code-block:: bash
 
      breeze release-management prepare-task-sdk-distributions
 
-This prepares airflow Task SDK .whl package in the dist folder.
+This prepares Airflow Task SDK .whl package in the dist folder.
 
 Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Task SDK distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
@@ -691,18 +691,18 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :alt: Breeze release-management prepare-task-sdk-distributions
 
 
-Preparing airflow ctl distributions
+Preparing Airflow ctl distributions
 """""""""""""""""""""""""""""""""""
 
-You can prepare airflow distributions using Breeze:
+You can prepare Airflow distributions using Breeze:
 
 .. code-block:: bash
 
      breeze release-management prepare-airflow-ctl-distributions
 
-This prepares airflow Task SDK .whl package in the dist folder.
+This prepares Airflow Task SDK .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of the airflow ctl distributions,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Airflow ctl distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
 .. code-block:: bash
@@ -713,3 +713,57 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-ctl-distributions
+
+Publishing the documentation to S3
+""""""""""""""""""""""""""""""""""
+
+To publish the documentation generated by ``build-docs`` in Breeze to ``S3``,
+use the ``release-management publish-docs-to-s3`` command:
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3
+
+The documentation publish to S3 should be done after the ``breeze release-management publish-docs`` command.
+Once documentation is available in ``docs-archive`` directory of airflow-site, it can be published to S3.
+
+The publishing documentation to S3 consists of the following steps:
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --source-dir-path <> --destination-location <>
+
+Where ``--source-dir-path`` is a doc-archive location path and ``--destination-location`` is the S3 bucket path.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
+     --destination-location s3://airflow-docs/docs
+
+To exclude any documentation from publishing to S3, you can use the ``--exclude`` flag.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
+     --destination-location s3://airflow-docs/docs --exclude "amazon,apache.kafka"
+
+To override the versioned directories while publishing the documentation to S3, you can use the ``--overwrite`` flag.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
+     --destination-location s3://airflow-docs/docs --overwrite
+
+To check what documents will be published to S3, you can use the ``--dry-run`` flag.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
+     --destination-location s3://airflow-docs/docs --dry-run
+
+These are all available flags of ``release-management publish-docs-to-s3`` command:
+
+.. image:: ./images/output_release-management_publish-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-docs-to-s3.svg
+  :width: 100%
+  :alt: Breeze Publish documentation to S3

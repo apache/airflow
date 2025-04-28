@@ -21,18 +21,18 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from pathlib import Path
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+from common_precommit_utils import AIRFLOW_ROOT_PATH
+
 # This is the target of a symlink in airflow/www/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
-os.makedirs(AIRFLOW_SOURCES / "docs" / "_build" / "html", exist_ok=True)
+os.makedirs(AIRFLOW_ROOT_PATH / "docs" / "_build" / "html", exist_ok=True)
 
 cmd = [
     "docker",
     "run",
     "-v",
-    f"{AIRFLOW_SOURCES}:/opt/airflow",
+    f"{AIRFLOW_ROOT_PATH}:/opt/airflow",
     "-t",
     "--user",
     f"{os.getuid()}:{os.getgid()}",

@@ -384,7 +384,13 @@ class DagRunInfo(InfoJsonEncodable):
         "end_date",
     ]
 
-    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+    casts = {
+        "duration": lambda dagrun: DagRunInfo.duration(dagrun),
+        "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
+        "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
+        "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
+        "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+    }
 
     @classmethod
     def duration(cls, dagrun: DagRun) -> float | None:
@@ -394,15 +400,33 @@ class DagRunInfo(InfoJsonEncodable):
             return None
         return (dagrun.end_date - dagrun.start_date).total_seconds()
 
+    @classmethod
+    def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+        if not getattr(dagrun, "dag_versions", []):
+            return None
+        current_version = dagrun.dag_versions[-1]
+        if key == "bundle_name":
+            return current_version.bundle_name
+        if key == "bundle_version":
+            return current_version.bundle_version
+        if key == "version_id":
+            return str(current_version.id)
+        if key == "version_number":
+            return current_version.version_number
+        raise ValueError(f"Unsupported key: {key}`")
+
 
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
     includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
-        "map_index": lambda ti: (
-            ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
-        )
+        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
+        "dag_bundle_version": lambda ti: (
+            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        ),
+        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
 

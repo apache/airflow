@@ -118,18 +118,18 @@ import type {
   PatchTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
+  GetTaskInstanceDependenciesByMapIndexData,
+  GetTaskInstanceDependenciesByMapIndexResponse,
   GetTaskInstanceDependenciesData,
   GetTaskInstanceDependenciesResponse,
-  GetTaskInstanceDependencies1Data,
-  GetTaskInstanceDependencies1Response,
   GetTaskInstanceTriesData,
   GetTaskInstanceTriesResponse,
   GetMappedTaskInstanceTriesData,
   GetMappedTaskInstanceTriesResponse,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
-  PatchTaskInstance1Data,
-  PatchTaskInstance1Response,
+  PatchTaskInstanceByMapIndexData,
+  PatchTaskInstanceByMapIndexResponse,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
   GetTaskInstancesBatchData,
@@ -140,12 +140,14 @@ import type {
   GetMappedTaskInstanceTryDetailsResponse,
   PostClearTaskInstancesData,
   PostClearTaskInstancesResponse,
+  PatchTaskInstanceDryRunByMapIndexData,
+  PatchTaskInstanceDryRunByMapIndexResponse,
   PatchTaskInstanceDryRunData,
   PatchTaskInstanceDryRunResponse,
-  PatchTaskInstanceDryRun1Data,
-  PatchTaskInstanceDryRun1Response,
   GetLogData,
   GetLogResponse,
+  GetExternalLogUrlData,
+  GetExternalLogUrlResponse,
   GetImportErrorData,
   GetImportErrorResponse,
   GetImportErrorsData,
@@ -154,6 +156,7 @@ import type {
   GetJobsResponse,
   GetPluginsData,
   GetPluginsResponse,
+  ImportErrorsResponse,
   DeletePoolData,
   DeletePoolResponse,
   GetPoolData,
@@ -2029,9 +2032,9 @@ export class TaskInstanceService {
    * @returns TaskDependencyCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getTaskInstanceDependencies(
-    data: GetTaskInstanceDependenciesData,
-  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
+  public static getTaskInstanceDependenciesByMapIndex(
+    data: GetTaskInstanceDependenciesByMapIndexData,
+  ): CancelablePromise<GetTaskInstanceDependenciesByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
@@ -2061,9 +2064,9 @@ export class TaskInstanceService {
    * @returns TaskDependencyCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getTaskInstanceDependencies1(
-    data: GetTaskInstanceDependencies1Data,
-  ): CancelablePromise<GetTaskInstanceDependencies1Response> {
+  public static getTaskInstanceDependencies(
+    data: GetTaskInstanceDependenciesData,
+  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
@@ -2194,9 +2197,9 @@ export class TaskInstanceService {
    * @returns TaskInstanceResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstance1(
-    data: PatchTaskInstance1Data,
-  ): CancelablePromise<PatchTaskInstance1Response> {
+  public static patchTaskInstanceByMapIndex(
+    data: PatchTaskInstanceByMapIndexData,
+  ): CancelablePromise<PatchTaskInstanceByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
@@ -2439,9 +2442,9 @@ export class TaskInstanceService {
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstanceDryRun(
-    data: PatchTaskInstanceDryRunData,
-  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
+  public static patchTaskInstanceDryRunByMapIndex(
+    data: PatchTaskInstanceDryRunByMapIndexData,
+  ): CancelablePromise<PatchTaskInstanceDryRunByMapIndexResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
@@ -2479,9 +2482,9 @@ export class TaskInstanceService {
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchTaskInstanceDryRun1(
-    data: PatchTaskInstanceDryRun1Data,
-  ): CancelablePromise<PatchTaskInstanceDryRun1Response> {
+  public static patchTaskInstanceDryRun(
+    data: PatchTaskInstanceDryRunData,
+  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
@@ -2540,6 +2543,41 @@ export class TaskInstanceService {
         token: data.token,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get External Log Url
+   * Get external log URL for a specific task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.tryNumber
+   * @param data.mapIndex
+   * @returns ExternalLogUrlResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExternalLogUrl(data: GetExternalLogUrlData): CancelablePromise<GetExternalLogUrlResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/externalLogUrl/{try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        try_number: data.tryNumber,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2671,6 +2709,22 @@ export class PluginService {
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Import Errors
+   * @returns PluginImportErrorCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static importErrors(): CancelablePromise<ImportErrorsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v2/plugins/importErrors",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
       },
     });
   }
