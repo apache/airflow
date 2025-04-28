@@ -21,9 +21,9 @@ import logging
 import os
 import signal
 import sys
-from getpass import getuser
 from dataclasses import asdict
 from datetime import datetime
+from getpass import getuser
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
@@ -56,8 +56,8 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.net import getfqdn
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
@@ -627,6 +627,7 @@ def stop(args):
 @provide_session
 def _fetch_edge_hosts_from_db(session: Session = NEW_SESSION) -> list:
     from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+
     return session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
 
 
@@ -639,23 +640,29 @@ def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
     """
     all_hosts_iter = _fetch_edge_hosts_from_db(session)
     # Format and print worker info on the screen
-    fields = ["worker_name", "state", "queues", "jobs_active", "jobs_success", "jobs_failed", "jobs_taken", "maintenance_comment"]
-    all_hosts =  [{f: str(host.__getattribute__(f)) for f in fields} for host in all_hosts_iter]
+    fields = [
+        "worker_name",
+        "state",
+        "queues",
+        "jobs_active",
+        "jobs_success",
+        "jobs_failed",
+        "jobs_taken",
+        "maintenance_comment",
+    ]
+    all_hosts = [{f: str(host.__getattribute__(f)) for f in fields} for host in all_hosts_iter]
     # Filter hosts by state
     if args.state:
-        all_hosts = [host for host in all_hosts if host['state'] in args.state]
-    AirflowConsole().print_as(
-        data=all_hosts,
-        output=args.output
-    )
+        all_hosts = [host for host in all_hosts if host["state"] in args.state]
+    AirflowConsole().print_as(data=all_hosts, output=args.output)
 
 
 @providers_configuration_loaded
 @provide_session
 def _valid_host(hostname, session: Session = NEW_SESSION) -> bool:
-    '''
+    """
     Query the database to check if provided hostname exists
-    '''
+    """
     all_hosts_iter = _fetch_edge_hosts_from_db(session)
     for host in all_hosts_iter:
         if hostname == host.worker_name:
@@ -672,6 +679,7 @@ def put_remote_worker_on_maintainance(args) -> None:
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import request_maintenance
+
     maintenance_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {getuser()} put node into maintenance mode\nComment: {args.comments}"
     request_maintenance(args.edge_hostname, args.comments)
     logging.info(f"{args.edge_hostname} has been put on maintenance by {getuser()}!")
@@ -686,6 +694,7 @@ def remove_remote_worker_from_maintainance(args) -> None:
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import exit_maintenance
+
     exit_maintenance(args.edge_hostname)
     logging.info(f"{args.edge_hostname} has removed maintenance by {getuser()}!")
 
@@ -699,6 +708,7 @@ def remote_worker_update_maintenance_comment(args) -> None:
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
+
     change_maintenance_comment(args.edge_hostname, args.comments)
     logging.info(f"Maintenance comments updated for {args.edge_hostname} by {getuser()}!")
 
@@ -712,6 +722,7 @@ def remove_remote_worker(args) -> None:
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import remove_worker
+
     remove_worker(args.edge_hostname)
     logging.info(f"Edge Worker host {args.edge_hostname} removed by {getuser()}!")
 
@@ -772,7 +783,7 @@ ARG_STATE = Arg(
         "-s",
         "--state",
     ),
-    nargs='+',
+    nargs="+",
     help="State of the edge worker",
 )
 
@@ -842,9 +853,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         name="remote-edge-worker-exit-maintenance",
         help=remove_remote_worker_from_maintainance.__doc__,
         func=remove_remote_worker_from_maintainance,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-        ),
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
     ActionCommand(
         name="remote-edge-worker-update-maintenance-comment",
@@ -859,8 +868,6 @@ EDGE_COMMANDS: list[ActionCommand] = [
         name="remove-remote-edge-worker",
         help=remove_remote_worker.__doc__,
         func=remove_remote_worker,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-        ),
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
 ]
