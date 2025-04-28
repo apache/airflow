@@ -62,3 +62,12 @@ export const slotConfigs: Array<SlotConfig> = [
     icon: <StateIcon color="white" state="deferred" />,
   },
 ];
+
+export const slotKeys: Array<keyof Slots> = [
+  "deferred_slots",
+  "occupied_slots",
+  "open_slots",
+  "queued_slots",
+  "running_slots",
+  "scheduled_slots",
+];

@@ -16,24 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, Skeleton } from "@chakra-ui/react";
+import { Box, Heading, Flex, Skeleton, Link, Text } from "@chakra-ui/react";
 import { BiTargetLock } from "react-icons/bi";
+import { FiExternalLink } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
+import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { usePoolServiceGetPools } from "openapi/queries/queries";
-import { PoolBar } from "src/pages/PoolBar";
+import { PoolBar } from "src/components/PoolBar";
 import { useAutoRefresh } from "src/utils";
-import type { Slots } from "src/utils/slots";
+import { type Slots, slotKeys } from "src/utils/slots";
 
 export const PoolSummary = () => {
   const refetchInterval = useAutoRefresh({});
   const { data, isLoading } = usePoolServiceGetPools(undefined, undefined, {
     refetchInterval,
   });
+  const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
+  const hasPoolsAccess = authLinks?.authorized_menu_items.includes("Pools");
 
   const pools = data?.pools;
   const totalSlots = pools?.reduce((sum, pool) => sum + pool.slots, 0) ?? 0;
-
-  const slotTotals: Slots = {
+  const aggregatePool: Slots = {
     deferred_slots: 0,
     occupied_slots: 0,
     open_slots: 0,
@@ -52,34 +56,41 @@ export const PoolSummary = () => {
   };
 
   pools?.forEach((pool) => {
-    Object.keys(slotTotals).forEach((slotKey) => {
-      const typedKey = slotKey as keyof Slots;
-      const slotValue = pool[typedKey];
+    slotKeys.forEach((slotKey) => {
+      const slotValue = pool[slotKey];
 
       if (slotValue > 0) {
-        slotTotals[typedKey] += slotValue;
-        poolsWithSlotType[typedKey] += 1;
+        aggregatePool[slotKey] += slotValue;
+        poolsWithSlotType[slotKey] += 1;
       }
     });
   });
 
   return (
     <Box w="100%">
-      <Flex color="fg.muted" mb={2} w="100%">
-        <BiTargetLock />
-        <Heading ml={1} size="xs">
-          Pool Slots
-        </Heading>
+      <Flex color="fg.muted" justifyContent="space-between" mb={2} w="100%">
+        <Flex alignItems="center">
+          <BiTargetLock />
+          <Heading ml={1} size="xs">
+            Pool Slots
+          </Heading>
+        </Flex>
+        {hasPoolsAccess ? (
+          <Link asChild color="fg.info" display="flex" gap={1}>
+            <RouterLink to="/pools">
+              <Text fontSize="xs">Manage Pools</Text>
+              <FiExternalLink size={12} />
+            </RouterLink>
+          </Link>
+        ) : undefined}
       </Flex>
 
       {isLoading ? (
         <Skeleton borderRadius="full" h={8} w="100%" />
       ) : (
-        <Box>
-          <Flex bg="white" borderRadius="full" overflow="hidden" w="100%">
-            <PoolBar pool={slotTotals} poolsWithSlotType={poolsWithSlotType} totalSlots={totalSlots} />
-          </Flex>
-        </Box>
+        <Flex bg="white" borderRadius="full" display="flex" overflow="hidden" w="100%">
+          <PoolBar pool={aggregatePool} poolsWithSlotType={poolsWithSlotType} totalSlots={totalSlots} />
+        </Flex>
       )}
     </Box>
   );
