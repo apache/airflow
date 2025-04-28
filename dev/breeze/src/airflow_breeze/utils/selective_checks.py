@@ -748,7 +748,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        if self.providers_test_types_list_as_strings_in_json is None:
+        if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
         return (
             "amazon" in self.providers_test_types_list_as_strings_in_json
@@ -964,9 +964,9 @@ class SelectiveChecks:
         return json.dumps(_get_test_list_as_json([current_test_types]))
 
     @cached_property
-    def providers_test_types_list_as_strings_in_json(self) -> str | None:
+    def providers_test_types_list_as_strings_in_json(self) -> str:
         if not self.run_tests:
-            return None
+            return "[]"
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
