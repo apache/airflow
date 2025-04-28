@@ -54,7 +54,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``vertica-python``                       ``>=0.6.0``
 =======================================  ==================
 
