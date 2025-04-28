@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-27T22:33:45.120556
+# This constraints file was automatically generated on 2025-04-28T10:07:08.648939
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -123,7 +123,7 @@ apache-airflow-providers-atlassian-jira==3.0.2
 apache-airflow-providers-celery==3.10.6
 apache-airflow-providers-cncf-kubernetes==10.4.3
 apache-airflow-providers-cohere==1.4.3
-apache-airflow-providers-common-compat==1.6.0
+apache-airflow-providers-common-compat==1.6.1
 apache-airflow-providers-common-io==1.5.4
 apache-airflow-providers-common-messaging==1.0.0
 apache-airflow-providers-common-sql==1.26.0
@@ -181,7 +181,7 @@ apache-airflow-providers-smtp==2.0.3
 apache-airflow-providers-snowflake==6.2.2
 apache-airflow-providers-sqlite==4.0.2
 apache-airflow-providers-ssh==4.0.1
-apache-airflow-providers-standard==1.0.0
+apache-airflow-providers-standard==1.1.0
 apache-airflow-providers-tableau==5.0.2
 apache-airflow-providers-telegram==4.7.2
 apache-airflow-providers-teradata==3.0.3
