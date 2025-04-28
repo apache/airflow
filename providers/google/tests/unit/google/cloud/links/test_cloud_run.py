@@ -24,7 +24,9 @@ import pytest
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.comms import XComResult
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 TEST_LOG_URI = (
     "https://console.cloud.google.com/run/jobs/logs?project=test-project&region=test-region&job=test-job"
