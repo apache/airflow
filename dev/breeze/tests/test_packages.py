@@ -36,8 +36,6 @@ from airflow_breeze.utils.packages import (
     get_long_package_name,
     get_min_airflow_version,
     get_pip_package_name,
-    get_previous_documentation_distribution_path,
-    get_previous_source_providers_distribution_path,
     get_provider_details,
     get_provider_info_dict,
     get_provider_requirements,
@@ -47,25 +45,12 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 
 def test_get_available_packages():
     assert len(get_available_distributions()) > 70
     assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_distributions())
-
-
-def test_get_source_package_path():
-    assert get_previous_source_providers_distribution_path("apache.hdfs") == AIRFLOW_ROOT_PATH.joinpath(
-        "providers", "src", "airflow", "providers", "apache", "hdfs"
-    )
-
-
-def test_get_old_documentation_package_path():
-    assert (
-        get_previous_documentation_distribution_path("apache.hdfs")
-        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
-    )
 
 
 def test_expand_all_provider_distributions():

@@ -325,9 +325,7 @@ def _get_all_changes_for_package(
     )
     providers_folder_paths_for_git_commit_retrieval = [
         provider_details.root_provider_path,
-        provider_details.previous_source_provider_distribution_path,
-        provider_details.previous_documentation_provider_distribution_path,
-        provider_details.original_source_provider_distribution_path,
+        *provider_details.possible_old_provider_paths,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
