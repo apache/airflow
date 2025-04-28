@@ -31,7 +31,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import delete, func, insert, select, tuple_
+from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -296,13 +296,15 @@ def _update_import_errors(
                 get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             except Exception:
                 log.exception("error calling listener")
-        session.query(DagModel).filter(DagModel.fileloc == filename).update(
-            {
-                "has_import_errors": True,
-                "bundle_name": bundle_name,
-                "is_stale": True,
-            },
-            synchronize_session="fetch",
+        session.execute(
+            update(DagModel)
+            .where(DagModel.fileloc == filename)
+            .values(
+                has_import_errors=True,
+                bundle_name=bundle_name,
+                is_stale=True,
+            )
+            .execution_options(synchronize_session="fetch")
         )
 
 
