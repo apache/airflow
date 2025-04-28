@@ -356,7 +356,11 @@ class CommandFactory:
                     )
                 )
             else:
-                annotation = field_type.annotation.__args__[0]
+                try:
+                    annotation = field_type.annotation.__args__[0]
+                except AttributeError:
+                    annotation = field_type.annotation
+
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
