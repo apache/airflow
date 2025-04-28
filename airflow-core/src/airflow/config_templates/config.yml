@@ -1236,7 +1236,7 @@ traces:
     otel_debug_traces_on:
       description: |
         If True, then traces from Airflow internal methods are exported. Defaults to False.
-      version_added: 3.0.0
+      version_added: 3.1.0
       type: string
       example: ~
       default: "False"
