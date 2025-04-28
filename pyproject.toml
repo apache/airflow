@@ -380,7 +380,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -508,10 +508,10 @@ packages = []
     "python-ldap>=3.4.4",
 ]
 "pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    "pandas>=2.1.2,<2.3",
+    "apache-airflow-providers-common-sql[pandas]",
+]
+"polars" = [
+    "apache-airflow-providers-common-sql[polars]",
 ]
 "rabbitmq" = [
     "amqp>=5.2.0",
@@ -785,7 +785,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas"]
+banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Direct import from the airflow package modules and constraints

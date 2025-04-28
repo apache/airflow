@@ -139,7 +139,7 @@ dependencies = [
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-common-io>=1.5.3",
-    "apache-airflow-providers-common-sql>=1.25.0",
+    "apache-airflow-providers-common-sql>=1.26.0",
     "apache-airflow-providers-smtp>=2.0.2",
     "apache-airflow-providers-standard>=0.4.0",
 ]
@@ -238,7 +238,7 @@ dev = [
     "apache-airflow-task-sdk",
     # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
     # airflow-core tests
-    "apache-airflow[pandas]",
+    "apache-airflow[pandas,polars]",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",

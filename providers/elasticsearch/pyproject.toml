@@ -58,7 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.26.0",
     "elasticsearch>=8.10,<9",
 ]
 
@@ -69,7 +69,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-common-sql[pandas,polars]",
 ]
 
 # To build docs:

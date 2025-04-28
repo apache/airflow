@@ -166,9 +166,9 @@ class TestElasticsearchSQLHook:
         self.spy_agency.assert_spy_called(self.cur.close)
         self.spy_agency.assert_spy_called(self.cur.execute)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SELECT * FROM hollywood.actors"
-        df = self.db_hook.get_pandas_df(statement)
+        df = self.db_hook.get_df(statement, df_type="pandas")
 
         assert list(df.columns) == ["index", "name", "firstname", "age"]
         assert df.values.tolist() == ROWS

@@ -266,16 +266,29 @@ class TestPinotDbApiHook:
         self.cur.fetchone.return_value = result_sets[0]
         assert result_sets[0] == self.db_hook().get_first(statement)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook().get_pandas_df(statement)
+        df = self.db_hook().get_df(statement, df_type="pandas")
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
             assert item[0] == df.values.tolist()[i][0]
+
+    def test_get_df_polars(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_execute = mock.MagicMock()
+        mock_execute.description = [(column, None, None, None, None, None, None)]
+        mock_execute.fetchall.return_value = result_sets
+        self.cur.execute.return_value = mock_execute
+        df = self.db_hook().get_df(statement, df_type="polars")
+        assert column == df.columns[0]
+        assert result_sets[0][0] == df.row(0)[0]
+        assert result_sets[1][0] == df.row(1)[0]
 
 
 class TestPinotAdminHookWithAuth:
