@@ -77,10 +77,10 @@ if TYPE_CHECKING:
 
     import jinja2
 
-    from airflow.models.xcom_arg import XComArg
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
@@ -1389,7 +1389,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self._dag is not None
 
     def _set_xcomargs_dependencies(self) -> None:
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for f in self.template_fields:
             arg = getattr(self, f, NOTSET)
@@ -1418,7 +1418,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 generate_content >> send_email
 
         """
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         if field not in self.template_fields:
             return
@@ -1465,10 +1465,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @property
     def output(self) -> XComArg:
         """Returns reference to XCom pushed by current operator."""
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
-        # TODO: Task-SDK: remove this type ignore once XComArg is ported over
-        return XComArg(operator=self)  # type: ignore[call-overload]
+        return XComArg(operator=self)
 
     @classmethod
     def get_serialized_fields(cls):
