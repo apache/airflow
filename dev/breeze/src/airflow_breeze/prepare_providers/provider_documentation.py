@@ -801,6 +801,7 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
+            bump = False
             if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                 bump = True
                 type_of_change = TypeOfChange.MISC
@@ -860,6 +861,7 @@ def update_release_notes(
             TypeOfChange.BREAKING_CHANGE,
             TypeOfChange.MISC,
         ]:
+            bump = False
             if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                 bump = True
                 type_of_change = TypeOfChange.MISC
