@@ -117,7 +117,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.9.0", "asana>=5.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.10.0", "asana>=5.0.0"]
 
 
 def test_get_removed_providers():
@@ -264,7 +264,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.9.0"),
+        ("amazon", "2.10.0"),
         ("fab", "3.0.0"),
     ],
 )
