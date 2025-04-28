@@ -61,6 +61,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 EDGE_WORKER_PROCESS_NAME = "edge-worker"
@@ -635,9 +636,7 @@ def _fetch_edge_hosts_from_db(session: Session = NEW_SESSION) -> list:
 @providers_configuration_loaded
 @provide_session
 def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
-    """
-    Query the db to list all registered edge workers
-    """
+    """Query the db to list all registered edge workers."""
     all_hosts_iter = _fetch_edge_hosts_from_db(session)
     # Format and print worker info on the screen
     fields = [
@@ -660,9 +659,7 @@ def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 @provide_session
 def _valid_host(hostname, session: Session = NEW_SESSION) -> bool:
-    """
-    Query the database to check if provided hostname exists
-    """
+    """Query the database to check if provided hostname exists."""
     all_hosts_iter = _fetch_edge_hosts_from_db(session)
     for host in all_hosts_iter:
         if hostname == host.worker_name:
@@ -673,58 +670,50 @@ def _valid_host(hostname, session: Session = NEW_SESSION) -> bool:
 @cli_utils.action_cli
 @providers_configuration_loaded
 def put_remote_worker_on_maintainance(args) -> None:
-    """
-    Put remote edge worker on maintenance
-    """
+    """Put remote edge worker on maintenance."""
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import request_maintenance
 
     maintenance_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {getuser()} put node into maintenance mode\nComment: {args.comments}"
     request_maintenance(args.edge_hostname, args.comments)
-    logging.info(f"{args.edge_hostname} has been put on maintenance by {getuser()}!")
+    logger.info(f"{args.edge_hostname} has been put on maintenance by {getuser()}!")
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def remove_remote_worker_from_maintainance(args) -> None:
-    """
-    Remove remote edge worker from maintenance
-    """
+    """Remove remote edge worker from maintenance."""
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import exit_maintenance
 
     exit_maintenance(args.edge_hostname)
-    logging.info(f"{args.edge_hostname} has removed maintenance by {getuser()}!")
+    logger.info(f"{args.edge_hostname} has removed maintenance by {getuser()}!")
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def remote_worker_update_maintenance_comment(args) -> None:
-    """
-    Update maintainence comments of the remote edge worker
-    """
+    """Update maintainence comments of the remote edge worker."""
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
 
     change_maintenance_comment(args.edge_hostname, args.comments)
-    logging.info(f"Maintenance comments updated for {args.edge_hostname} by {getuser()}!")
+    logger.info(f"Maintenance comments updated for {args.edge_hostname} by {getuser()}!")
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def remove_remote_worker(args) -> None:
-    """
-    Remove remote edge worker entry from db
-    """
+    """Remove remote edge worker entry from db."""
     if not _valid_host(args.edge_hostname):
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import remove_worker
 
     remove_worker(args.edge_hostname)
-    logging.info(f"Edge Worker host {args.edge_hostname} removed by {getuser()}!")
+    logger.info(f"Edge Worker host {args.edge_hostname} removed by {getuser()}!")
 
 
 ARG_CONCURRENCY = Arg(
