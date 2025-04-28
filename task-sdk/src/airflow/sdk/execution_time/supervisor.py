@@ -428,7 +428,7 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
-    start_time: float | None = None
+    start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
 
     @classmethod
