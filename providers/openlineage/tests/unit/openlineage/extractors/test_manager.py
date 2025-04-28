@@ -38,7 +38,7 @@ from airflow.utils.state import State
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     try:
@@ -53,21 +53,19 @@ if TYPE_CHECKING:
         AssetEventDagRunReference = TIRunContext = Any  # type: ignore[misc, assignment]
 
 
-if AIRFLOW_V_2_10_PLUS:
+@pytest.fixture
+def hook_lineage_collector():
+    from airflow.lineage import hook
+    from airflow.providers.common.compat.lineage.hook import (
+        get_hook_lineage_collector,
+    )
 
-    @pytest.fixture
-    def hook_lineage_collector():
-        from airflow.lineage import hook
-        from airflow.providers.common.compat.lineage.hook import (
-            get_hook_lineage_collector,
-        )
+    hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = hook.HookLineageCollector()
 
-        hook._hook_lineage_collector = None
-        hook._hook_lineage_collector = hook.HookLineageCollector()
+    yield get_hook_lineage_collector()
 
-        yield get_hook_lineage_collector()
-
-        hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = None
 
 
 if AIRFLOW_V_3_0_PLUS:
@@ -281,7 +279,6 @@ def test_convert_to_ol_dataset_table():
 
 
 @skip_if_force_lowest_dependencies_marker
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     dagrun = MagicMock()
     task = MagicMock()
@@ -300,7 +297,6 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector,
 ):
@@ -330,8 +326,8 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
 
 @pytest.mark.db_test
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS,
-    reason="Test for hook level lineage in Airflow >= 2.10.0 < 3.0",
+    AIRFLOW_V_3_0_PLUS,
+    reason="Test for hook level lineage in Airflow < 3.0",
 )
 def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hook_lineage_collector):
     path = None

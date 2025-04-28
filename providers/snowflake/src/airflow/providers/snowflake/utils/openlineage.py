@@ -23,9 +23,8 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, urlparse, urlunparse
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.providers.snowflake.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.snowflake.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import RunEvent
@@ -122,21 +121,12 @@ def _get_ol_run_id(task_instance) -> str:
 
         return date
 
-    def _get_try_number_success():
-        """We are running this in the _on_complete, so need to adjust for try_num changes."""
-        # todo: remove when min airflow version >= 2.10.0
-        if AIRFLOW_V_2_10_PLUS:
-            return task_instance.try_number
-        if task_instance.state == TaskInstanceState.SUCCESS:
-            return task_instance.try_number - 1
-        return task_instance.try_number
-
     # Generate same OL run id as is generated for current task instance
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
         logical_date=_get_logical_date(),
-        try_number=_get_try_number_success(),
+        try_number=task_instance.try_number,
         map_index=task_instance.map_index,
     )
 

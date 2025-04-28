@@ -70,7 +70,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -936,11 +936,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "conn",  # Accessor for Connection.
             "map_index_template",
         }
-        if AIRFLOW_V_2_10_PLUS:
-            intentionally_excluded_context_keys |= {
-                "inlet_events",
-                "outlet_events",
-            }
+        intentionally_excluded_context_keys |= {
+            "inlet_events",
+            "outlet_events",
+        }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()

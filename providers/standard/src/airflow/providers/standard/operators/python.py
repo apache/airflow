@@ -44,12 +44,12 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
-from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
+from airflow.utils.process_utils import execute_in_subprocess
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BranchMixIn
@@ -200,12 +200,10 @@ class PythonOperator(BaseOperator):
                 from airflow.sdk.execution_time.context import context_get_outlet_events
 
                 return create_executable_runner, context_get_outlet_events(context)
-            if AIRFLOW_V_2_10_PLUS:
-                from airflow.utils.context import context_get_outlet_events  # type: ignore
-                from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
+            from airflow.utils.context import context_get_outlet_events  # type: ignore
+            from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
 
-                return ExecutionCallableRunner, context_get_outlet_events(context)
-            return None
+            return ExecutionCallableRunner, context_get_outlet_events(context)
 
         self.__prepare_execution = __prepare_execution
 
@@ -560,16 +558,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(termination_log_path),
                     os.fspath(airflow_context_path),
                 ]
-                if AIRFLOW_V_2_10_PLUS:
-                    execute_in_subprocess(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
-                else:
-                    execute_in_subprocess_with_kwargs(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
+                execute_in_subprocess(
+                    cmd=cmd,
+                    env=env_vars,
+                )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")

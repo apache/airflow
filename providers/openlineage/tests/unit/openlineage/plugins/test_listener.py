@@ -44,18 +44,17 @@ from airflow.utils.state import DagRunState, State
 from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
-EXPECTED_TRY_NUMBER_1 = 1 if AIRFLOW_V_2_10_PLUS else 0
+EXPECTED_TRY_NUMBER_1 = 1
 
-TRY_NUMBER_BEFORE_EXECUTION = 0 if AIRFLOW_V_2_10_PLUS else 1
-TRY_NUMBER_RUNNING = 0 if AIRFLOW_V_2_10_PLUS else 1
-TRY_NUMBER_FAILED = 0 if AIRFLOW_V_2_10_PLUS else 1
-TRY_NUMBER_SUCCESS = 0 if AIRFLOW_V_2_10_PLUS else 2
-TRY_NUMBER_AFTER_EXECUTION = 0 if AIRFLOW_V_2_10_PLUS else 2
-
+TRY_NUMBER_BEFORE_EXECUTION = 0
+TRY_NUMBER_RUNNING = 0
+TRY_NUMBER_FAILED = 0
+TRY_NUMBER_SUCCESS = 0
+TRY_NUMBER_AFTER_EXECUTION = 0
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -356,8 +355,8 @@ class TestOpenLineageListenerAirflow2:
         mock_disabled.return_value = False
 
         err = ValueError("test")
-        on_task_failed_listener_kwargs = {"error": err} if AIRFLOW_V_2_10_PLUS else {}
-        expected_err_kwargs = {"error": err if AIRFLOW_V_2_10_PLUS else None}
+        on_task_failed_listener_kwargs = {"error": err}
+        expected_err_kwargs = {"error": err}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_listener_kwargs, session=None
@@ -460,7 +459,7 @@ class TestOpenLineageListenerAirflow2:
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs, session=None
@@ -582,7 +581,7 @@ class TestOpenLineageListenerAirflow2:
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
         mock_disabled.return_value = True
 
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs, session=None
@@ -1011,8 +1010,8 @@ class TestOpenLineageListenerAirflow3:
         mock_disabled.return_value = False
 
         err = ValueError("test")
-        on_task_failed_listener_kwargs = {"error": err} if AIRFLOW_V_2_10_PLUS else {}
-        expected_err_kwargs = {"error": err if AIRFLOW_V_2_10_PLUS else None}
+        on_task_failed_listener_kwargs = {"error": err}
+        expected_err_kwargs = {"error": err}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_listener_kwargs
@@ -1054,8 +1053,8 @@ class TestOpenLineageListenerAirflow3:
         mock_get_job_name.return_value = "job_name"
 
         err = ValueError("test")
-        on_task_failed_listener_kwargs = {"error": err} if AIRFLOW_V_2_10_PLUS else {}
-        expected_err_kwargs = {"error": err if AIRFLOW_V_2_10_PLUS else None}
+        on_task_failed_listener_kwargs = {"error": err}
+        expected_err_kwargs = {"error": err}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_listener_kwargs
@@ -1185,7 +1184,7 @@ class TestOpenLineageListenerAirflow3:
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs
@@ -1248,7 +1247,7 @@ class TestOpenLineageListenerAirflow3:
         mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
         mock_disabled.return_value = True
 
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs
@@ -1427,7 +1426,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
         if enable_task:
             enable_lineage(self.task_1)
 
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
@@ -1485,7 +1484,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
         if enable_task:
             enable_lineage(self.task_1)
 
-        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+        on_task_failed_kwargs = {"error": ValueError("test")}
 
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
