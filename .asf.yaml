@@ -137,12 +137,6 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_signatures: false
-    v2-10-test:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_conversation_resolution: true
-      required_signatures: false
     v3-0-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
