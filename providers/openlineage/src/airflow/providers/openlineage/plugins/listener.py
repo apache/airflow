@@ -33,7 +33,6 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
-    AIRFLOW_V_2_10_PLUS,
     AIRFLOW_V_3_0_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
@@ -57,13 +56,6 @@ if TYPE_CHECKING:
     from airflow.settings import Session
 
 _openlineage_listener: OpenLineageListener | None = None
-
-
-def _get_try_number_success(val):
-    # todo: remove when min airflow version >= 2.10.0
-    if AIRFLOW_V_2_10_PLUS:
-        return val.try_number
-    return val.try_number - 1
 
 
 def _executor_initializer():
@@ -304,7 +296,7 @@ class OpenLineageListener:
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
-                try_number=_get_try_number_success(task_instance),
+                try_number=task_instance.try_number,
                 logical_date=date,
                 map_index=task_instance.map_index,
             )
@@ -366,8 +358,7 @@ class OpenLineageListener:
             dagrun = context["dag_run"]
             dag = context["dag"]
             self._on_task_instance_failed(task_instance, dag, dagrun, task, error)
-
-    elif AIRFLOW_V_2_10_PLUS:
+    else:
 
         @hookimpl
         def on_task_instance_failed(
@@ -382,19 +373,6 @@ class OpenLineageListener:
             if TYPE_CHECKING:
                 assert task
             self._on_task_instance_failed(task_instance, task.dag, task_instance.dag_run, task, error)
-    else:
-
-        @hookimpl
-        def on_task_instance_failed(
-            self,
-            previous_state: TaskInstanceState,
-            task_instance: TaskInstance,
-            session: Session,  # type: ignore[valid-type]
-        ) -> None:
-            task = task_instance.task
-            if TYPE_CHECKING:
-                assert task
-            self._on_task_instance_failed(task_instance, task.dag, task_instance.dag_run, task)
 
     def _on_task_instance_failed(
         self,
@@ -651,10 +629,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_success`")
                 return
 
-            if AIRFLOW_V_2_10_PLUS:
-                task_ids = DagRun._get_partial_task_ids(dag_run.dag)
-            else:
-                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+            task_ids = DagRun._get_partial_task_ids(dag_run.dag)
 
             date = dag_run.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
@@ -690,10 +665,7 @@ class OpenLineageListener:
                 self.log.debug("Executor have not started before `on_dag_run_failed`")
                 return
 
-            if AIRFLOW_V_2_10_PLUS:
-                task_ids = DagRun._get_partial_task_ids(dag_run.dag)
-            else:
-                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+            task_ids = DagRun._get_partial_task_ids(dag_run.dag)
 
             date = dag_run.logical_date
             if AIRFLOW_V_3_0_PLUS and date is None:
