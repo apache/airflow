@@ -875,11 +875,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            if (active_ti_span := cls.active_spans.get("ti:" + ti.id)) is not None:
+            if (active_ti_span := cls.active_spans.get("ti:" + str(ti.id))) is not None:
                 cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                cls.active_spans.delete("ti:" + ti.id)
+                cls.active_spans.delete("ti:" + str(ti.id))
                 ti.span_status = SpanStatus.ENDED
             else:
                 if ti.span_status == SpanStatus.ACTIVE:
