@@ -154,6 +154,7 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
+    default_args: abc.MutableMapping | None
 
     @field_validator("timezone", mode="before")
     @classmethod
