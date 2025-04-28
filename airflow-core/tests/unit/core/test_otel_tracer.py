@@ -42,8 +42,6 @@ def name():
 class TestOtelTrace:
     def test_get_otel_tracer_from_trace_metaclass(self):
         """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        if conf.getsection("traces") is None:
-            conf.add_section("traces")
         conf.set("traces", "otel_on", "True")
         conf.set("traces", "otel_debugging_on", "True")
 
@@ -63,8 +61,6 @@ class TestOtelTrace:
 
     def test_debug_trace_metaclass(self):
         """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
-        if conf.getsection("traces") is None:
-            conf.add_section("traces")
         conf.set("traces", "otel_on", "True")
         conf.set("traces", "otel_debug_traces_on", "False")
 
