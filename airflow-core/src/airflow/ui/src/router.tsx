@@ -54,7 +54,7 @@ import { XCom } from "src/pages/XCom";
 
 import { Configs } from "./pages/Configs";
 import { Security } from "./pages/Security";
-import { queryClient } from "./queryClient";
+import { client } from "./queryClient";
 
 const taskInstanceRoutes = [
   { element: <Logs />, index: true },
@@ -193,7 +193,7 @@ export const routerConfig = [
     ),
     // Use react router loader to ensure we have the config before any other requests are made
     loader: async () => {
-      const data = await queryClient.ensureQueryData(
+      const data = await client.ensureQueryData(
         queryOptions({
           queryFn: ConfigService.getConfigs,
           queryKey: UseConfigServiceGetConfigsKeyFn(),
