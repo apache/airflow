@@ -2255,6 +2255,17 @@ export const $DAGRunResponse = {
       type: "array",
       title: "Dag Versions",
     },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
   },
   type: "object",
   required: [
@@ -2274,6 +2285,7 @@ export const $DAGRunResponse = {
     "conf",
     "note",
     "dag_versions",
+    "bundle_version",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -4086,6 +4098,10 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Task Display Name",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
     hostname: {
       anyOf: [
         {
@@ -4223,6 +4239,7 @@ export const $TaskInstanceHistoryResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",
@@ -4336,6 +4353,10 @@ export const $TaskInstanceResponse = {
     task_display_name: {
       type: "string",
       title: "Task Display Name",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
     },
     hostname: {
       anyOf: [
@@ -4524,6 +4545,7 @@ export const $TaskInstanceResponse = {
     "try_number",
     "max_tries",
     "task_display_name",
+    "dag_display_name",
     "hostname",
     "unixname",
     "pool",

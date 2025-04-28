@@ -53,8 +53,8 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow``                       ``>=2.10.0``
+``apache-airflow-providers-common-sql``  ``>=1.21.0``
 ``requests``                             ``>=2.31.0,<3``
 ``databricks-sql-connector``             ``>=3.0.0``
 ``aiohttp``                              ``>=3.9.2,<4``

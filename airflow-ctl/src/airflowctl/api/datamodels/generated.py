@@ -1219,6 +1219,7 @@ class DAGRunResponse(BaseModel):
     conf: Annotated[dict[str, Any], Field(title="Conf")]
     note: Annotated[str | None, Field(title="Note")] = None
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
@@ -1409,6 +1410,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     max_tries: Annotated[int, Field(title="Max Tries")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
     pool: Annotated[str, Field(title="Pool")]
@@ -1443,6 +1445,7 @@ class TaskInstanceResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     max_tries: Annotated[int, Field(title="Max Tries")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     unixname: Annotated[str | None, Field(title="Unixname")] = None
     pool: Annotated[str, Field(title="Pool")]

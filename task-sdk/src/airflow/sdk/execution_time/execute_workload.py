@@ -54,7 +54,10 @@ def execute_workload(workload: ExecuteTask) -> None:
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
 
     log.info("Executing workload", workload=workload)
-    server = conf.get("core", "execution_api_server_url")
+
+    base_url = conf.get("api", "base_url", fallback="/")
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
     log.info("Connecting to server:", server=server)
 
     supervise(

@@ -577,6 +577,7 @@ export type DAGRunResponse = {
   };
   note: string | null;
   dag_versions: Array<DagVersionResponse>;
+  bundle_version: string | null;
 };
 
 /**
@@ -1106,6 +1107,7 @@ export type TaskInstanceHistoryResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
@@ -1139,6 +1141,7 @@ export type TaskInstanceResponse = {
   try_number: number;
   max_tries: number;
   task_display_name: string;
+  dag_display_name: string;
   hostname: string | null;
   unixname: string | null;
   pool: string;
