@@ -3111,6 +3111,10 @@
         "1.6.0": {
             "associated_airflow_version": "2.10.5",
             "date_released": "2025-03-31T07:51:21Z"
+        },
+        "1.6.1": {
+            "associated_airflow_version": "2.10.5",
+            "date_released": "2025-04-28T07:39:18Z"
         }
     },
     "common.io": {
