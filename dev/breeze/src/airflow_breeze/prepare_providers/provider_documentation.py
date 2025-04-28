@@ -189,6 +189,7 @@ TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
     TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
+    TypeOfChange.MIN_AIRFLOW_VERSION_BUMP: "Airflow version bump change - bump in MINOR version needed",
 }
 
 
@@ -514,7 +515,7 @@ def _update_version_in_provider_yaml(
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
     :param provider_id: provider package
-    :param min_airflow_version_bump: if set, ensure that the version bump is at least min version.
+    :param min_airflow_version_bump: if set, ensure that the version bump is at least feature version.
     :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
     provider_details = get_provider_details(provider_id)
