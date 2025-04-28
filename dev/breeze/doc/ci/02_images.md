@@ -442,8 +442,8 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                            | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                            | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                            | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `25.0.1`                   | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.6.13`                   | `uv` version used.                                                                                                |
+| `AIRFLOW_PIP_VERSION`             | `25.1`                     | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.6.17`                   | `uv` version used.                                                                                                |
 | `AIRFLOW_PRE_COMMIT_VERSION`      | `4.2.0`                    | `pre-commit` version used.                                                                                        |
 | `AIRFLOW_PRE_COMMIT_UV_VERSION`   | `4.1.4`                    | `pre-commit-uv` version used.                                                                                     |
 | `AIRFLOW_USE_UV`                  | `true`                     | Whether to use UV for installation.                                                                               |

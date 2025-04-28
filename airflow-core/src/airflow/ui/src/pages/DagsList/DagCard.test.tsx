@@ -29,6 +29,7 @@ import { DagCard } from "./DagCard";
 const mockDag = {
   asset_expression: null,
   bundle_name: "dags-folder",
+  bundle_version: "1",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
   description: null,
@@ -101,6 +102,6 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText(", +2 more")).toBeInTheDocument();
+    expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 });

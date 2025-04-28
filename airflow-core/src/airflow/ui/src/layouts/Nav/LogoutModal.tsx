@@ -20,6 +20,7 @@ import { Text } from "@chakra-ui/react";
 import React from "react";
 
 import { ConfirmationModal } from "src/components/ConfirmationModal";
+import { getRedirectPath } from "src/utils/links.ts";
 import { TOKEN_STORAGE_KEY } from "src/utils/tokenHandler";
 
 type LogoutModalProps = {
@@ -31,8 +32,10 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (
   <ConfirmationModal
     header="Logout"
     onConfirm={() => {
+      const logoutPath = getRedirectPath("api/v2/auth/logout");
+
       localStorage.removeItem(TOKEN_STORAGE_KEY);
-      globalThis.location.replace(`/api/v2/auth/logout`);
+      globalThis.location.replace(logoutPath);
     }}
     onOpenChange={onClose}
     open={isOpen}

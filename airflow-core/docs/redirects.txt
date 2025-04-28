@@ -75,7 +75,7 @@ start/index.rst start.rst
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst public-airflow-interface.rst
-rest-api-ref.rst deprecated-rest-api-ref.rst
+deprecated-rest-api-ref.rst rest-api-ref.rst
 macros-ref.rst templates-ref.rst
 
 # Concepts
@@ -85,7 +85,6 @@ scheduler.rst administration-and-deployment/scheduler.rst
 # Installation
 installation.rst installation/index.rst
 upgrade-check.rst installation/upgrade-check.rst
-upgrading-to-2.rst howto/upgrading-from-1-10/index.rst
 
 # Release Notes
 changelog.rst release_notes.rst
@@ -137,7 +136,7 @@ concepts/scheduler.rst administration-and-deployment/scheduler.rst
 concepts/pools.rst administration-and-deployment/pools.rst
 concepts/priority-weight.rst administration-and-deployment/priority-weight.rst
 concepts/deferring.rst authoring-and-scheduling/deferring.rst
-concepts/datasets.rst authoring-and-scheduling/datasets.rst
+concepts/datasets.rst authoring-and-scheduling/asset-scheduling.rst
 concepts/cluster-policies.rst administration-and-deployment/cluster-policies.rst
 concepts/dags.rst core-concepts/dags.rst
 executor/local_kubernetes.rst core-concepts/executor/local_kubernetes.rst
@@ -151,6 +150,7 @@ core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 core-concepts/executor/debug.rst core-concepts/debug.rst
 concepts/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
 authoring-and-scheduling/dagfile-processing.rst administration-and-deployment/dagfile-processing.rst
+authoring-and-scheduling/datasets.rst authoring-and-scheduling/asset-scheduling.rst
 
 # Moving provider executor docs to providers
 ## The ``../`` indicates that it will move to the root of the docs directory, unlike the rest of
@@ -173,3 +173,13 @@ howto/define_extra_link.rst howto/define-extra-link.rst
 
 # Use test config (it's not a howto for users but a howto for developers so we redirect it back to index)
 howto/use-test-config.rst index.rst
+
+# Operators/Sensors moved to standard providers
+
+howto/operator/bash.rst ../apache-airflow-providers-standard/stable/operators/bash.rst
+howto/operator/datetime.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst
+howto/operator/external_task_sensor.rst ../apache-airflow-providers-standard/stable/sensors/external_task_sensor.rst
+howto/operator/file.rst ../apache-airflow-providers-standard/stable/sensors/file.rst
+howto/operator/python.rst ../apache-airflow-providers-standard/stable/operators/python.rst
+howto/operator/time.rst ../apache-airflow-providers-standard/stable/sensors/datetime.rst
+howto/operator/weekday.rst ../apache-airflow-providers-standard/stable/operators/datetime.rst#branchdayofweekoperator

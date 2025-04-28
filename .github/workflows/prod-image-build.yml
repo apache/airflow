@@ -100,10 +100,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to attempt to upgrade image to newer dependencies (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "Space-separated list of providers that should be installed from context files"
-        required: true
-        type: string
       docker-cache:
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
@@ -126,7 +122,6 @@ jobs:
     if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -153,20 +148,9 @@ jobs:
         run: >
           breeze release-management prepare-provider-distributions
           --distributions-list-file ./prod_image_installed_providers.txt
-          --distribution-format wheel --include-not-ready-providers
+          --distribution-format wheel --include-not-ready-providers --skip-tag-check
         if: >
-          inputs.upload-package-artifact == 'true' &&
-          inputs.build-provider-distributions == 'true'
-      - name: "Prepare chicken-eggs provider distributions"
-        shell: bash
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
-        run: >
-          breeze release-management prepare-provider-distributions
-          --distribution-format wheel ${CHICKEN_EGG_PROVIDERS}
-        if: >
-          inputs.upload-package-artifact == 'true' &&
-          inputs.chicken-egg-providers != ''
+          inputs.upload-package-artifact == 'true' && inputs.build-provider-distributions == 'true'
       - name: "Prepare airflow package"
         shell: bash
         run: >
@@ -206,7 +190,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
-      VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
       # Airflow one is going to be used
@@ -240,11 +223,23 @@ jobs:
         with:
           name: prod-packages
           path: ./docker-context-files
+      - name: "Show downloaded packages"
+        run: ls -la ./docker-context-files
       - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./docker-context-files
+      - name: "Show constraints"
+        run: |
+          for file in ./docker-context-files/constraints*/constraints*.txt
+          do
+            echo "=== ${file} ==="
+            echo
+            cat ${file}
+            echo
+            echo "=== END ${file} ==="
+          done
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

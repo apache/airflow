@@ -17,3 +17,4 @@
 
 # Administration and deployment security -> security
 howto/create-update-providers.rst index.rst
+authoring-and-scheduling/datasets.rst authoring-and-scheduling/assets.rst

@@ -46,6 +46,7 @@ from airflow_breeze.global_constants import (
     EDGE_EXECUTOR,
     FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
+    GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -146,7 +147,6 @@ class ShellParams:
     builder: str = "autodetect"
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
-    chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -219,7 +219,7 @@ class ShellParams:
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     verbose: bool = False
     verbose_commands: bool = False
-    version_suffix_for_pypi: str = ""
+    version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
@@ -560,7 +560,6 @@ class ShellParams:
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
-        _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
@@ -581,6 +580,7 @@ class ShellParams:
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
@@ -639,7 +639,7 @@ class ShellParams:
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
-        _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
+        _set_var(_env, "VERSION_SUFFIX", self.version_suffix)
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
