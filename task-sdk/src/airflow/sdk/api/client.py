@@ -222,7 +222,6 @@ class TaskInstanceOperations:
         """Get count of task instances matching the given criteria."""
         params = {
             "dag_id": dag_id,
-            "map_index": map_index,
             "task_ids": task_ids,
             "task_group_id": task_group_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
@@ -232,6 +231,9 @@ class TaskInstanceOperations:
 
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
+
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
 
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
@@ -248,7 +250,6 @@ class TaskInstanceOperations:
         """Get task states given criteria."""
         params = {
             "dag_id": dag_id,
-            "map_index": map_index,
             "task_ids": task_ids,
             "task_group_id": task_group_id,
             "logical_dates": [d.isoformat() for d in logical_dates] if logical_dates is not None else None,
@@ -257,6 +258,9 @@ class TaskInstanceOperations:
 
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
+
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())

@@ -619,9 +619,10 @@ def get_task_instance_count(
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
         # Get unique (task_id, map_index) pairs
-        if map_index is None:
-            task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-        else:
+
+        task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
+
+        if map_index is not None:
             task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks if ti.map_index == map_index]
 
         if not task_map_pairs:
@@ -676,10 +677,7 @@ def get_task_instance_states(
     if task_group_id:
         group_tasks = _get_group_tasks(dag_id, task_group_id, session, logical_dates, run_ids)
 
-        if task_ids:
-            results = results + group_tasks
-        else:
-            results = group_tasks
+        results = results + group_tasks if task_ids else group_tasks
 
     if map_index is not None:
         results = [task for task in results if task.map_index == map_index]
