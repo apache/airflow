@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, Annotated, Any, Generic, Literal, TextIO, Type
 
 import aiologic
 import attrs
-import jinja2
 import lazy_object_proxy
 import structlog
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
@@ -98,6 +97,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.timezone import coerce_datetime
 
 if TYPE_CHECKING:
+    import jinja2
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
@@ -833,17 +833,18 @@ def run(
                 msg = early_exit
                 ti.state = state = TaskInstanceState.FAILED
                 return state, msg, error
-            jinja_env = ti.task.dag.get_template_env()
 
             try:
                 result = _execute_task(context, ti, log)
             except Exception:
+                import jinja2
+
                 # If the task failed, swallow rendering error so it doesn't mask the main error.
                 with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                    ti.rendered_map_index = _render_map_index(context, jinja_env=jinja_env, log=log)
+                    ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
-                ti.rendered_map_index = _render_map_index(context, jinja_env=jinja_env, log=log)
+                ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -1124,10 +1125,14 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     return result
 
 
-def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None, log: Logger) -> str | None:
+def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
     """Render named map index if the DAG author defined map_index_template at the task level."""
-    if jinja_env is None or (template := context.get("map_index_template")) is None:
+    if template := context.get("map_index_template") is None:
         return None
+    if not isinstance(template, str):
+        log.error("Expected `template` to be a string, but got %s", type(template).__name__)
+        return None
+    jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
     log.info("Map index rendered as %s", rendered_map_index)
     return rendered_map_index
