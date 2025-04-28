@@ -53,7 +53,7 @@ Requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.9.0``
+``apache-airflow``       ``>=2.10.0``
 ``tableauserverclient``  ``>=0.25``
 =======================  ==================
 

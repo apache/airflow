@@ -53,7 +53,7 @@ Requirements
 ================================  ==================
 PIP package                       Version required
 ================================  ==================
-``apache-airflow``                ``>=2.9.0``
+``apache-airflow``                ``>=2.10.0``
 ``apache-airflow-providers-ssh``  ``>=2.1.0``
 ``paramiko``                      ``>=2.9.0``
 ``asyncssh``                      ``>=2.12.0``

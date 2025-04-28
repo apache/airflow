@@ -53,7 +53,7 @@ Requirements
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.9.0``
+``apache-airflow``   ``>=2.10.0``
 ``influxdb-client``  ``>=1.19.0``
 ``requests``         ``>=2.31.0,<3``
 ===================  ==================

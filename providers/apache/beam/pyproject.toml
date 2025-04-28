@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
     'apache-beam>=2.53.0; python_version < "3.12"',
     'apache-beam>=2.57.0; python_version >= "3.12"',

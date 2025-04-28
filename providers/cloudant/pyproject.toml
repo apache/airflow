@@ -56,7 +56,7 @@ requires-python = "~=3.9,!=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     # Even though 3.9 is excluded below, we need to make this python_version aware so that `uv` can generate a
     # full lock file when building lock file from provider sources
     "ibmcloudant==0.9.1;python_version>=\"3.10\"",

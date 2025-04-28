@@ -55,7 +55,7 @@ Requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.9.0``
+``apache-airflow``       ``>=2.10.0``
 ``yandexcloud``          ``>=0.308.0``
 ``yandex-query-client``  ``>=0.1.4``
 =======================  ==================

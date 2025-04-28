@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.20.0",
     # The mysqlclient package creates friction when installing on MacOS as it needs pkg-config to
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS

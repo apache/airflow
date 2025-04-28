@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     "apache-airflow-providers-common-sql>=1.23.0",
     # pymssql 2.3.3 release to PyPI has been broken on 1st of April 2025
     # and it is not possible to install it on Linux. We need to exclude it

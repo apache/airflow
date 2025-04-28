@@ -53,7 +53,7 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``teradatasqlalchemy``                   ``>=17.20.0.0``
 ``teradatasql``                          ``>=17.20.0.28``
