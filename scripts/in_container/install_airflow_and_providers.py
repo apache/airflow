@@ -797,7 +797,7 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-git",
             ]
             if version.minor < 10:
-                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edgeexecutor")
+                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge3")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
                 github_actions=github_actions,

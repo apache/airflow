@@ -27,7 +27,6 @@ mock_config_response = {
     "navbar_text_color": "#51504f",
     "navbar_hover_color": "#eee",
     "navbar_text_hover_color": "#51504f",
-    "navbar_logo_text_color": "#51504f",
     "page_size": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": False,
@@ -41,6 +40,8 @@ mock_config_response = {
     "audit_view_included_events": "",
     "test_connection": "Disabled",
     "dashboard_alert": [],
+    "show_external_log_redirect": False,
+    "external_log_name": None,
 }
 
 
@@ -56,7 +57,6 @@ def mock_config_data():
                 "navbar_text_color": "#51504f",
                 "navbar_hover_color": "#eee",
                 "navbar_text_hover_color": "#51504f",
-                "navbar_logo_text_color": "#51504f",
                 "page_size": "100",
                 "auto_refresh_interval": "3",
                 "hide_paused_dags_by_default": "false",

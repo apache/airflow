@@ -74,7 +74,7 @@ Step 4: Run Pre-commit Hooks
 -----------------------------
 1. Ensure all code meets the project's quality standards by running pre-commit hooks.
 2. Pre-commit hooks include static code checks, formatting, and other validations.
-3. Persisted openapi spec is located in ``v1-generated.yaml`` and a hook will take care of updating it based on your new endpoint, you just need to add and commit the change.
+3. Persisted openapi spec is located in ``v1-rest-api-generated.yaml` and a hook will take care of updating it based on your new endpoint, you just need to add and commit the change.
 4. Run the following command to execute all pre-commit hooks:
 
 .. code-block:: bash
@@ -100,14 +100,6 @@ In some cases, you may need to define additional models for new data structures.
 These models are defined to structure and validate the data handled by the API. Once defined, these models will automatically be added to the OpenAPI spec file as long as they are actually used by one endpoint.
 
 After adding or modifying Pydantic models, make sure to run the pre-commit hooks again to update any generated files.
-
-Situational: Legacy Endpoint Migration
---------------------------------------
-When migrating legacy endpoint to the new FastAPI API:
-
-1. Implement a feature complete endpoint in comparison to the legacy one or explain why this is not possible in your context.
-2. Make sure to have a good test coverage by copying over the legacy test cases to the new endpoint. This will guarantee an isofunctional new endpoint.
-3. Mark the legacy endpoint with the ``@mark_fastapi_migration_done`` decorator. This will help maintainers keep track of the endpoints remaining for the migration and those already migrated.
 
 ------
 

@@ -334,7 +334,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         assert response.status_code == 200
         # Explicit add the 2 users on setUp
         assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
-        assert len(response.json["users"]) == 100
+        assert len(response.json["users"]) == 50
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):

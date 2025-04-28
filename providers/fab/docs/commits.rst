@@ -34,6 +34,47 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.2
+.....
+
+Latest change: 2025-04-23
+
+==================================================================================================  ===========  ====================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================
+`b01e534195 <https://github.com/apache/airflow/commit/b01e534195fff5dea03d000051e6469b83852f6c>`__  2025-04-23   ``Remove some lingering subdag references (#49663)``
+`d2755fc52e <https://github.com/apache/airflow/commit/d2755fc52e13db4816fa69409c16ac777b5f7c9f>`__  2025-04-23   ``Bump stylelint (#49638)``
+`998f70036b <https://github.com/apache/airflow/commit/998f70036b919a434edd086c0233991c5ff1c736>`__  2025-04-23   ``Add read config permission to viewer role in 'FabAuthManager' (#49581)``
+`1ec1e68f6b <https://github.com/apache/airflow/commit/1ec1e68f6bcd18affa2cad5e72408b7463fa81c0>`__  2025-04-23   ``Adding flask app configuration docs to FAB provider (#49492)``
+`5595ded129 <https://github.com/apache/airflow/commit/5595ded129e00553df0af735e2513f996b1b524d>`__  2025-04-22   ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#49511)``
+`223a741869 <https://github.com/apache/airflow/commit/223a741869505ad31c38310f307bf2f0f0f193fb>`__  2025-04-19   ``capitalize the term airflow (#49450)``
+`f65eeb05f4 <https://github.com/apache/airflow/commit/f65eeb05f48d9ad67cdbbeb81a5db085c519aaba>`__  2025-04-18   ``Add note in FAB migration doc (#49423)``
+==================================================================================================  ===========  ====================================================================================
+
+2.0.1
+.....
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ===================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
+`ade9fb185a <https://github.com/apache/airflow/commit/ade9fb185a92530001e23fb6391163a300463c36>`__  2025-04-16   ``refactor: remove 'navbar_logo_text_color' (#49161)``
+`47bd8961a9 <https://github.com/apache/airflow/commit/47bd8961a9ce4e2cea0dbabd400d2508eb291948>`__  2025-04-15   ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+`a45c32971c <https://github.com/apache/airflow/commit/a45c32971ce1f91a985af57d0b186295e6fae887>`__  2025-04-15   ``Add possibility to have extra project metadata in providers (#49306)``
+`9d6cca74b4 <https://github.com/apache/airflow/commit/9d6cca74b4c9e97a3aef19a35c0018f701997c7c>`__  2025-04-15   ``Quickly bumpv FAB version to 2.0.1 (#49308)``
+`95b2715a19 <https://github.com/apache/airflow/commit/95b2715a19b051d3f20f973907f8a951c44f5076>`__  2025-04-16   ``Change default page_size from 100 to 50 (#49243)``
+`bd6b429b8b <https://github.com/apache/airflow/commit/bd6b429b8b09e884fd555abde5ddeacb6655be44>`__  2025-04-15   ``Update FAB changelog (#49069)``
+`4c65dc6bc2 <https://github.com/apache/airflow/commit/4c65dc6bc285ad4728c02756d45bc10f9876192b>`__  2025-04-15   ``Remove FAB entry from 'NOTICE' (#49063)``
+`90dbd241f0 <https://github.com/apache/airflow/commit/90dbd241f0efb06ba535b0df8a9ef51b45538042>`__  2025-04-15   ``Make sure all openapi schemes have distinct names (#49290)``
+`3512e8cbe8 <https://github.com/apache/airflow/commit/3512e8cbe8279488fb8fabf98a613b0e1034f62e>`__  2025-04-15   ``Fix fab auth manager login (#49292)``
+`09854ff306 <https://github.com/apache/airflow/commit/09854ff30691168663abf32e34249aa836f0c847>`__  2025-04-15   ``AIP-38: remove 'default_ui_timezone' (#49176)``
+`647de21d4c <https://github.com/apache/airflow/commit/647de21d4cb02c9c4513bd9a5e3a43f2677c2261>`__  2025-04-14   ``Remove 'STATE_COLORS' from Airflow Local Setting (#49228)``
+`cb295c351a <https://github.com/apache/airflow/commit/cb295c351a016c0a10cab07f2a628b865cff3ca3>`__  2025-04-14   ``remove superfluous else block (#49199)``
+`7eb03ead82 <https://github.com/apache/airflow/commit/7eb03ead82f872b2def823943447982c62c29ddc>`__  2025-04-10   ``Bump eslint-config-prettier (#49077)``
+==================================================================================================  ===========  ===================================================================================================
+
 2.0.0
 .....
 
@@ -42,6 +83,7 @@ Latest change: 2025-04-10
 ==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `b58f027cbf <https://github.com/apache/airflow/commit/b58f027cbf39e5eea982a5560b22024e2de328a8>`__  2025-04-10   ``Fix default base value (#49013)``
 `00aec39a4c <https://github.com/apache/airflow/commit/00aec39a4c4987496ee365eca212657dec45be5e>`__  2025-04-10   ``Bring back serve_logs to be in the core (#49031)``
 `b9ee31cd81 <https://github.com/apache/airflow/commit/b9ee31cd81dcd22a50509633da7713be7dad6fc5>`__  2025-04-09   ``Force use of symetric JWT algorithm for internal logs server (#49029)``

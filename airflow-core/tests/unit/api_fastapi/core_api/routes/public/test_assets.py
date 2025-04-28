@@ -504,9 +504,10 @@ class TestGetAssetsEndpointPagination(TestAssets):
             ("/assets?limit=1", ["s3://bucket/key/1"]),
             ("/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ("/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 52)]),
+            ("/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 54)]),
             # Limit and offset test data
+            ("/assets?offset=50&limit=50", [f"s3://bucket/key/{i}" for i in range(51, 101)]),
             ("/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
@@ -525,7 +526,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         response = test_client.get("/assets")
 
         assert response.status_code == 200
-        assert len(response.json()["assets"]) == 100
+        assert len(response.json()["assets"]) == 50
 
 
 class TestAssetAliases:
@@ -605,8 +606,8 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
             ("/assets/aliases?limit=1", ["simple1"]),
             ("/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
-            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            ("/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 52)]),
+            ("/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 54)]),
             # Limit and offset test data
             ("/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
         ],
@@ -624,7 +625,7 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
         self.create_asset_aliases(num=110)
         response = test_client.get("/assets/aliases")
         assert response.status_code == 200
-        assert len(response.json()["asset_aliases"]) == 100
+        assert len(response.json()["asset_aliases"]) == 50
 
 
 class TestGetAssetEvents(TestAssets):
@@ -791,8 +792,8 @@ class TestGetAssetEvents(TestAssets):
             ({"limit": "1"}, [1]),
             ({"limit": "100"}, list(range(1, 101))),
             # Offset test data
-            ({"offset": "1"}, list(range(2, 102))),
-            ({"offset": "3"}, list(range(4, 104))),
+            ({"offset": "1"}, list(range(2, 52))),
+            ({"offset": "3"}, list(range(4, 54))),
         ],
     )
     def test_limit_and_offset(self, test_client, params, expected_asset_ids):
@@ -1143,6 +1144,7 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
+            "bundle_version": None,
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,

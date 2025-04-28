@@ -32,7 +32,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -102,6 +101,7 @@ class FileGroupForCi(Enum):
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
     API_FILES = "api_files"
+    GIT_PROVIDER_FILES = "git_provider_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
@@ -169,8 +169,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-core/tests/unit/api/",
             r"^airflow-core/tests/unit/api_fastapi/",
         ],
+        FileGroupForCi.GIT_PROVIDER_FILES: [
+            r"^providers/git/src/",
+        ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
@@ -185,7 +188,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
-            r"^\.github/SECURITY\.rst$",
+            r"^\.github/SECURITY\.md",
             r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
             r"^providers/.*/src/",
@@ -200,9 +203,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow-ctl/docs",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
-            r"^chart/RELEASE_NOTES\.txt",
+            r"^chart/RELEASE_NOTES\.rst",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
+            r"^RELEASE_NOTES\.rst",
         ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
@@ -530,6 +534,16 @@ class SelectiveChecks:
             CI_FILE_GROUP_MATCHES,
         ):
             get_console().print("[warning]Running full set of tests because api files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.GIT_PROVIDER_FILES,
+            CI_FILE_GROUP_MATCHES,
+        ):
+            # TODO(potiuk): remove me when we get rid of the dependency
+            get_console().print(
+                "[warning]Running full set of tests because git provider files changed "
+                "and for now we have core tests depending on them.[/]"
+            )
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
@@ -1376,11 +1390,6 @@ class SelectiveChecks:
     @cached_property
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
-
-    @cached_property
-    def chicken_egg_providers(self) -> str:
-        """Space separated list of providers with chicken-egg problem and should be built from sources."""
-        return CHICKEN_EGG_PROVIDERS
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

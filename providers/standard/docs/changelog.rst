@@ -35,6 +35,60 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add fail_when_dag_is_paused param to TriggerDagRunOperator (#48214)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make LatestOnlyOperator work for default data-interval-less DAGs (#49554)``
+
+Misc
+~~~~
+
+* ``Move DagIsPaused exception to standard provider (#49500)``
+* ``Fix static check re removing unnecessary else condition (#49415)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update standard provider doc operators in core operators-and-hooks-ref.rst (#49401)``
+* ``Update standard provider docs with correct imports (#49395)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix wrong link in standard provider yaml file (#49660)``
+   * ``Add extra-links section to standard provider (#49447)``
+   * ``Use unused pytest params in standard provider tests (#49422)``
+   * ``Move test_sensor_helper.py to standard provider tests (#49396)``
+
+1.0.0
+.....
+
+.. note::
+  Stable release of the provider.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove dag_version as a create_dagrun argument (#49148)``
+* ``Fix ExternalTaskSensor task_group_id check condition (#49027)``
+* ``Ensure that TI.id is unique per try. (#48749)``
+* ``Conditionally add session related imports in standard provider (#49218)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.0
 .....
 

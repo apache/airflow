@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.0.2
+.....
+
+Latest change: 2025-04-16
+
+==================================================================================================  ===========  ============================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ============================================================
+`2ae12c815b <https://github.com/apache/airflow/commit/2ae12c815bc704eff6890df56f7387da513d14f2>`__  2025-04-16   ``Update documentation for edge3 and git provider (#49365)``
+`dd0efe348b <https://github.com/apache/airflow/commit/dd0efe348b6ce94243ec7a727f9aa908eeafbc82>`__  2025-04-16   ``Use 'git_default' if the user defines nothing (#49359)``
+`ca3e4e75c6 <https://github.com/apache/airflow/commit/ca3e4e75c634afdceb23a86b7e0b0ff74614a7f1>`__  2025-04-16   ``Prepare docs for Apr 3rd wave of providers (#49338)``
+`192b337c86 <https://github.com/apache/airflow/commit/192b337c86eede5636f802d6f354fa97fe0f9030>`__  2025-04-16   ``Don't log repo_url in git dag bundle (#48909)``
+`2c7b56ee74 <https://github.com/apache/airflow/commit/2c7b56ee742409f65463534e34fa5f444d651af9>`__  2025-04-15   ``Make git connection optional for git dag bundle (#49270)``
+`b9052eed42 <https://github.com/apache/airflow/commit/b9052eed423f5f7f20c58815cce89e6cc659903c>`__  2025-04-15   ``Include subdir in Gitbundle view url (#49239)``
+==================================================================================================  ===========  ============================================================
+
 0.0.1
 .....
 
-Latest change: 2025-04-09
+Latest change: 2025-04-10
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`4a8567b20b <https://github.com/apache/airflow/commit/4a8567b20bdd6555cbdc936d6674bf4fa390b0d5>`__  2025-04-10   ``Prepare docs for Apr 2nd wave of providers (#49051)``
 `4a1e2ff8ab <https://github.com/apache/airflow/commit/4a1e2ff8ab8e6abca1cb273dc55d651d971e49f2>`__  2025-04-09   ``Mark git provider as ready (#48860)``
 `c68f31d3db <https://github.com/apache/airflow/commit/c68f31d3db6b957b4aeede7a257cc0ba59f12ce1>`__  2025-04-08   ``Remove dev0 suffix from Airlfow version (#48934)``
 `7b2ec33c7a <https://github.com/apache/airflow/commit/7b2ec33c7ad4998d9c9735b79593fcdcd3b9dd1f>`__  2025-04-08   ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``

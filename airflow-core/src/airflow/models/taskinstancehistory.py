@@ -33,6 +33,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -62,7 +63,11 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    task_instance_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
+    task_instance_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        nullable=False,
+        primary_key=True,
+    )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -106,6 +111,13 @@ class TaskInstanceHistory(Base):
         primaryjoin="TaskInstanceHistory.dag_version_id == DagVersion.id",
         viewonly=True,
         foreign_keys=[dag_version_id],
+    )
+
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="TaskInstanceHistory.run_id == DagRun.run_id",
+        viewonly=True,
+        foreign_keys=[run_id],
     )
 
     def __init__(

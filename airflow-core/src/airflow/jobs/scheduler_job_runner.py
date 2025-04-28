@@ -961,7 +961,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "airflow.task.task_id": ti.task_id,
                 "airflow.task.dag_id": ti.dag_id,
                 "airflow.task.state": ti.state,
-                "airflow.task.error": True if state == TaskInstanceState.FAILED else False,
+                "airflow.task.error": state == TaskInstanceState.FAILED,
                 "airflow.task.start_date": str(ti.start_date),
                 "airflow.task.end_date": str(ti.end_date),
                 "airflow.task.duration": ti.duration,

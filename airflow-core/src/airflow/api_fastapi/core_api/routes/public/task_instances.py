@@ -96,6 +96,7 @@ def get_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     task_instance = session.scalar(query)
 
@@ -171,6 +172,7 @@ def get_mapped_task_instances(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -220,11 +222,13 @@ def get_mapped_task_instances(
     task_instances_prefix + "/{task_id}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies",
 )
 @task_instances_router.get(
     task_instances_prefix + "/{task_id}/{map_index}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="get_task_instance_dependencies_by_map_index",
 )
 def get_task_instance_dependencies(
     dag_id: str,
@@ -296,6 +300,7 @@ def get_task_instance_tries(
                 orm_object.map_index == map_index,
             )
             .options(joinedload(orm_object.dag_version))
+            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
         )
         return query
 
@@ -356,6 +361,7 @@ def get_mapped_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
     )
     task_instance = session.scalar(query)
 
@@ -429,7 +435,13 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    query = select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(joinedload(TI.dag_version))
+    query = (
+        select(TI)
+        .join(TI.dag_run)
+        .outerjoin(TI.dag_version)
+        .options(joinedload(TI.dag_version))
+        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+    )
 
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -553,7 +565,9 @@ def get_task_instances_batch(
         session=session,
     )
     task_instance_select = task_instance_select.options(
-        joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
+        joinedload(TI.rendered_task_instance_fields),
+        joinedload(TI.task_instance_note),
+        joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)),
     )
 
     task_instances = session.scalars(task_instance_select)
@@ -775,6 +789,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
@@ -782,6 +797,7 @@ def _patch_ti_validate_request(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_instance_dry_run_by_map_index",
 )
 def patch_task_instance_dry_run(
     dag_id: str,
@@ -840,6 +856,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance",
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
@@ -850,6 +867,7 @@ def patch_task_instance_dry_run(
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
+    operation_id="patch_task_instance_by_map_index",
 )
 def patch_task_instance(
     dag_id: str,

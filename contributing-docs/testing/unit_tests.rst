@@ -1018,14 +1018,14 @@ Those tests are skipped by default. You can enable them with ``--include-quarant
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
 
-Compatibility Provider unit tests against older airflow releases
+Compatibility Provider unit tests against older Airflow releases
 ----------------------------------------------------------------
 
 Why we run provider compatibility tests
 .......................................
 
-Our CI runs provider tests for providers with previous compatible airflow releases. This allows to check
-if the providers still work when installed for older airflow versions.
+Our CI runs provider tests for providers with previous compatible Airflow releases. This allows to check
+if the providers still work when installed for older Airflow versions.
 
 The back-compatibility tests based on the configuration specified in the
 ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
@@ -1058,7 +1058,7 @@ directly to the container.
 
    breeze ci-image build --python 3.9
 
-2. Enter breeze environment by selecting the appropriate airflow version and choosing
+2. Enter breeze environment by selecting the appropriate Airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
 
 .. code-block:: bash
@@ -1079,7 +1079,7 @@ directly to the container.
 .. note::
 
    Since providers are installed from sources rather than from packages, plugins from providers are not
-   recognised by ProvidersManager for airflow < 2.10 and tests that expect plugins to work might not work.
+   recognised by ProvidersManager for Airflow < 2.10 and tests that expect plugins to work might not work.
    In such case you should follow the ``CI`` way of running the tests (see below).
 
 Implementing compatibility for provider tests for older Airflow versions
@@ -1091,7 +1091,7 @@ Note that some of the tests, if written without taking care about the compatibil
 versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that
 are not part of the public API. We deal with it in one of the following ways:
 
-1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
+1) If the whole provider is supposed to only work for later Airflow version, we remove the whole provider
    by excluding it from compatibility test configuration (see below)
 
 2) Some compatibility shims are defined in ``devel-common/src/tests_common/test_utils/compat.py`` - and
@@ -1101,7 +1101,7 @@ are not part of the public API. We deal with it in one of the following ways:
    ``ParseImportError`` should import it from the ``tests_common.tests_utils.compat`` module. There are few
    other compatibility shims defined there and you can add more if needed in a similar way.
 
-3) If only some tests are not compatible and use features that are available only in newer airflow version,
+3) If only some tests are not compatible and use features that are available only in newer Airflow version,
    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``version_compat.py``
    For example:
 
@@ -1114,7 +1114,7 @@ are not part of the public API. We deal with it in one of the following ways:
   def some_test_that_only_works_for_airflow_2_10_plus():
       pass
 
-4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
+4) Sometimes, the tests should only be run when Airflow is installed from the sources in main.
    In this case you can add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES``
    to the test. For example:
 
@@ -1143,7 +1143,7 @@ are not part of the public API. We deal with it in one of the following ways:
    with ignore_provider_compatibility_error("2.8.0", __file__):
        from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 
-6) In some cases in order to enable collection of pytest on older airflow version you might need to convert
+6) In some cases in order to enable collection of pytest on older Airflow version you might need to convert
    top-level import into a local import, so that Pytest parser does not fail on collection.
 
 Running provider compatibility tests in CI
@@ -1153,13 +1153,13 @@ In CI those tests are run in a slightly more complex way because we want to run 
 providers, rather than mounted from sources.
 
 In case of canary runs we add ``--clean-airflow-installation`` flag that removes all packages before
-installing older airflow version, and then installs development dependencies
-from latest airflow - in order to avoid case where a provider depends on a new dependency added in latest
+installing older Airflow version, and then installs development dependencies
+from latest Airflow - in order to avoid case where a provider depends on a new dependency added in latest
 version of Airflow. This clean removal and re-installation takes quite some time though and in order to
 speed up the tests in regular PRs we only do that in the canary runs.
 
 The exact way CI tests are run can be reproduced locally building providers from selected tag/commit and
-using them to install and run tests against the selected airflow version.
+using them to install and run tests against the selected Airflow version.
 
 Herr id how to reproduce it.
 
@@ -1175,7 +1175,7 @@ Herr id how to reproduce it.
 
    rm dist/*
    breeze release-management prepare-provider-distributions --include-not-ready-providers \
-      --version-suffix-for-pypi dev0 --distribution-format wheel
+      --skip-tag-check --distribution-format wheel
 
 3. Prepare provider constraints
 
@@ -1187,7 +1187,7 @@ Herr id how to reproduce it.
    the incompatible providers in the ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the
    ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
 
-5. Enter breeze environment, installing selected airflow version and the providers prepared from main
+5. Enter breeze environment, installing selected Airflow version and the providers prepared from main
 
 .. code-block:: bash
 
@@ -1212,9 +1212,9 @@ In case you want to reproduce canary run, you need to add ``--clean-airflow-inst
 
 The tests are run using:
 
-* airflow installed from PyPI
-* tests coming from the current airflow sources (they are mounted inside the breeze image)
-* providers built from the current airflow sources and placed in dist
+* Airflow installed from PyPI
+* tests coming from the current Airflow sources (they are mounted inside the breeze image)
+* providers built from the current Airflow sources and placed in dist
 
 This means that you can modify and run tests and re-run them because sources are mounted from the host,
 but if you want to modify provider code you need to exit breeze, rebuild the provider package and
@@ -1225,7 +1225,7 @@ Rebuilding single provider package can be done using this command:
 .. code-block:: bash
 
   breeze release-management prepare-provider-distributions \
-    --version-suffix-for-pypi dev0 --distribution-format wheel <provider>
+    --skip-tag-check --distribution-format wheel <provider>
 
 Lowest direct dependency resolution tests
 -----------------------------------------
@@ -1317,7 +1317,7 @@ reproduce the same set of dependencies in your local virtual environment by:
     cd airflow-core
     uv sync --resolution lowest-direct
 
-for airflow core, and
+for Airflow core, and
 
 .. code-block:: bash
 

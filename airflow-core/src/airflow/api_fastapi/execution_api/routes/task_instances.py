@@ -131,13 +131,17 @@ def ti_run(
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
 
+    # don't update start date when resuming from deferral
+    if ti.next_kwargs:
+        data.pop("start_date")
+
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     previous_state = ti.state
 
     # If we are already running, but this is a duplicate request from the same client return the same OK
     # -- it's possible there was a network glitch and they never got the response
-    if previous_state == TaskInstanceState.RUNNING and (ti["hostname"], ti["unixname"], ti["pid"]) == (
+    if previous_state == TaskInstanceState.RUNNING and (ti.hostname, ti.unixname, ti.pid) == (
         ti_run_payload.hostname,
         ti_run_payload.unixname,
         ti_run_payload.pid,
@@ -586,7 +590,7 @@ def get_previous_successful_dagrun(
 
 
 @router.get("/count", status_code=status.HTTP_200_OK)
-def get_count(
+def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -636,7 +640,7 @@ def get_count(
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
-def get_task_states(
+def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -644,7 +648,7 @@ def get_task_states(
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> TaskStatesResponse:
-    """Get the task states for the given criteria."""
+    """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     query = select(TI).where(TI.dag_id == dag_id)

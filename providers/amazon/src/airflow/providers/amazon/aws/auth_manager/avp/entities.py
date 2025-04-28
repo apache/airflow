@@ -35,7 +35,7 @@ class AvpEntities(Enum):
     # Resource types
     ASSET = "Asset"
     ASSET_ALIAS = "AssetAlias"
-    BACKFILL = "Backfills"
+    BACKFILL = "Backfill"
     CONFIGURATION = "Configuration"
     CONNECTION = "Connection"
     CUSTOM = "Custom"

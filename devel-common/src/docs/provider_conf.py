@@ -80,7 +80,6 @@ PROVIDER_PATH = (AIRFLOW_REPO_ROOT_PATH / "providers").joinpath(*PACKAGE_ID.spli
 BASE_PROVIDER_SRC_PATH = PROVIDER_PATH / "src" / "airflow"
 PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
 SYSTEM_TESTS_DIR = PROVIDER_PATH / "tests" / "system"
-conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
@@ -221,6 +220,8 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = get_html_theme_options()
 
+
+conf_py_path = f"/providers/{PACKAGE_ID.replace('.', '/')}/docs/"
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = get_html_context(conf_py_path)
 
@@ -364,9 +365,11 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     )
     from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
 
-    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath("v1.yaml")
+    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath(
+        "v1-flask-api.yaml"
+    )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v1-generated.yaml"
+        "v1-fab-auth-manager-generated.yaml"
     )
     redoc = [
         {

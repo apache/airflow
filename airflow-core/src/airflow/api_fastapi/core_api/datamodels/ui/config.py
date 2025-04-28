@@ -28,7 +28,6 @@ class ConfigResponse(BaseModel):
     navbar_text_color: str
     navbar_hover_color: str
     navbar_text_hover_color: str
-    navbar_logo_text_color: str
     page_size: int
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool
@@ -42,3 +41,5 @@ class ConfigResponse(BaseModel):
     audit_view_included_events: str
     test_connection: str
     dashboard_alert: list[UIAlert]
+    show_external_log_redirect: bool
+    external_log_name: str | None = None

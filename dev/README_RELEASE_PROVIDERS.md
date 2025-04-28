@@ -26,7 +26,6 @@
 - [Decide when to release](#decide-when-to-release)
 - [Provider distributions versioning](#provider-distributions-versioning)
 - [Possible states of Provider distributions](#possible-states-of-provider-distributions)
-- [Chicken-egg providers](#chicken-egg-providers)
 - [Prepare Regular Provider distributions (RC)](#prepare-regular-provider-distributions-rc)
   - [Move provider into remove state](#move-provider-into-remove-state)
   - [Increasing version number](#increasing-version-number)
@@ -190,26 +189,6 @@ graph TD;
     gone[\gone\]
     removed -- Remove from the code --> gone;
 ```
-
-# Chicken-egg providers
-
-Sometimes (rare) we release providers that have dependencies on future version of Airflow - which means that
-they are released long before they are actually usable and it also means that versions in PyPI should be
-released with `apache-airflow >= x.y.z.dev0` version, such providers should have the .dev0 suffix included
-in the `apache-airflow` dependency specification, only the final release, just before the final Airflow x.y.z
-release should get it changed to `>= x.y.z`. This is a rare case and should be handled with care.
-
-We call such case chicken-egg providers as it's not clear who should be released first - the provider or
-the Airflow.
-
-Similar case is when provider depends on another provider (usually `common.*`) that is not yet released
-because you it contains new feature and you want to release the providers together.
-
-In such case the "common" provider should be added to the list of "chicken-egg" providers in the
-`./dev/breeze/src/airflow_breeze/global_constants.py` file and version of the provider should be bumped
-in the PR by author of the PR that adds both the functionality. This will make sure that the
-provider is build in CI from sources, when CI jobs are run rather than latest version downloaded from PyPI
-when constraints are generated.
 
 # Prepare Regular Provider distributions (RC)
 
@@ -440,7 +419,7 @@ svn commit -m "delete old providers"
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
-so you need to use `--version-suffix-for-pypi` switch to prepare those packages.
+so you need to use `--version-suffix` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
@@ -451,14 +430,14 @@ you should clean up dist folder before generating the packages, so you will only
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
 breeze release-management prepare-provider-distributions  --include-removed-providers \
- --version-suffix-for-pypi rc1 --distribution-format both
+ --version-suffix rc1 --distribution-format both
 ```
 
 If you only build few packages, run:
 
 ```shell script
 breeze release-management prepare-provider-distributions \
---version-suffix-for-pypi rc1 --distribution-format both PACKAGE PACKAGE ....
+--version-suffix rc1 --distribution-format both PACKAGE PACKAGE ....
 ```
 
 Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
