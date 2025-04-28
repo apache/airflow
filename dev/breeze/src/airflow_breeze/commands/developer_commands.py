@@ -90,6 +90,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
@@ -678,6 +679,7 @@ def start_airflow(
     "if they are already downloaded. With `--clean-build` - everything is cleaned..",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
+@click.option("--include-commits", help="Include commits in the documentation.", is_flag=True)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers
@@ -715,6 +717,7 @@ def build_docs(
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
+    include_commits: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
@@ -728,7 +731,9 @@ def build_docs(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     build_params = BuildCiParams(
-        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
@@ -767,6 +772,7 @@ def build_docs(
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
+        include_commits=include_commits,
         short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
@@ -779,6 +785,7 @@ def build_docs(
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        mount_sources=MOUNT_ALL,
     )
     result = execute_command_in_shell(shell_params, project_name="docs", command=cmd)
     fix_ownership_using_docker()

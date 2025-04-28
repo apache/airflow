@@ -518,7 +518,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers
+breeze build-docs --clean-build apache-airflow-providers all-providers --include-removed-providers --include-commits
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -529,20 +529,20 @@ If we want to just release some providers you can release them using package nam
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
+breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build --include-commits
 ```
 
 Alternatively, if you have set the environment variable: `DISTRIBUTIONS_LIST` above, just run the command:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build
+breeze build-docs --clean-build --include-commits
 ```
 
 Or using `--distributions-list` argument:
 
 ```shell script
-breeze build-docs --distributions-list PACKAGE1,PACKAGE2
+breeze build-docs --distributions-list PACKAGE1,PACKAGE2 --include-commits
 ```
 
 - Now you can preview the documentation.
