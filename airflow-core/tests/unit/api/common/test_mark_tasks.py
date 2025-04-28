@@ -59,9 +59,9 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker):
 @pytest.mark.parametrize("unfinished_state", list(State.unfinished))
 def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, unfinished_state):
     with dag_maker("TEST_DAG_1"):
-        running = EmptyOperator(task_id="running")
-        pending = EmptyOperator(task_id="pending")
-        [running, pending] >> EmptyOperator(task_id="teardown").as_teardown()
+        with EmptyOperator(task_id="teardown").as_teardown():
+            EmptyOperator(task_id="running")
+            EmptyOperator(task_id="pending")
 
     dr = dag_maker.create_dagrun()
     for ti in dr.get_task_instances():
@@ -90,9 +90,9 @@ def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, u
 )
 def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker, finished_state):
     with dag_maker("TEST_DAG_1"):
-        running = EmptyOperator(task_id="running")
-        pending = EmptyOperator(task_id="pending")
-        [running, pending] >> EmptyOperator(task_id="teardown").as_teardown()
+        with EmptyOperator(task_id="teardown").as_teardown():
+            EmptyOperator(task_id="running")
+            EmptyOperator(task_id="pending")
     dr = dag_maker.create_dagrun()
     for ti in dr.get_task_instances():
         if ti.task_id == "running":
