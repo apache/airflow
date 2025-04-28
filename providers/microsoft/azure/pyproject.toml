@@ -81,17 +81,12 @@ dependencies = [
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
     "flask-appbuilder>=4.0.0",
-    # msgraph-core 1.1.8 has a bug which causes ABCMeta object is not subscriptable error
-    # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/781
     "msgraph-core>=1.3.3",
-    # msgraph-core has transient import failures with microsoft-kiota-http==1.3.4
-    # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/706
-    "microsoft-kiota-http>=1.8.0,<2.0.0",
-    "microsoft-kiota-serialization-json>=1.8.0",
-    "microsoft-kiota-serialization-text>=1.8.0",
-    # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
-    # see https://github.com/apache/airflow/issues/43036
-    "microsoft-kiota-abstractions>=1.8.0,<2.0.0",
+    "microsoft-kiota-http>=1.9.0,<2.0.0",
+    "microsoft-kiota-serialization-json>=1.9.0",
+    "microsoft-kiota-serialization-text>=1.9.0",
+    "microsoft-kiota-abstractions>=1.9.0,<2.0.0",
+    "microsoft-kiota-authentication-azure>=1.9.0,<2.0.0",
     "msal-extensions>=1.1.0",
 ]
 
