@@ -21,6 +21,7 @@ import logging
 import os
 import signal
 import sys
+from getpass import getuser
 from dataclasses import asdict
 from datetime import datetime
 from http import HTTPStatus
@@ -33,9 +34,11 @@ from typing import TYPE_CHECKING
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
 from requests import HTTPError
+from sqlalchemy import select
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
@@ -54,6 +57,7 @@ from airflow.utils.net import getfqdn
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
@@ -508,7 +512,7 @@ def worker(args):
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def status(args):
-    """Check for Airflow Edge Worker status."""
+    """Check for Airflow Local Edge Worker status."""
     pid = _get_pid(args.pid)
 
     # Send Signal as notification to drop status JSON
@@ -534,7 +538,7 @@ def status(args):
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def maintenance(args):
-    """Set or Unset maintenance mode of worker."""
+    """Set or Unset maintenance mode of local edge worker."""
     if args.maintenance == "on" and not args.comments:
         logger.error("Comments are required when setting maintenance mode.")
         sys.exit(4)
@@ -605,7 +609,7 @@ def maintenance(args):
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def stop(args):
-    """Stop a running Airflow Edge Worker."""
+    """Stop a running local Airflow Edge Worker."""
     pid = _get_pid(args.pid)
     # Send SIGINT
     logger.info("Sending SIGINT to worker pid %i.", pid)
@@ -617,6 +621,99 @@ def stop(args):
         while psutil.pid_exists(pid):
             sleep(0.1)
         logger.info("Worker has been shut down.")
+
+
+@providers_configuration_loaded
+@provide_session
+def _fetch_edge_hosts_from_db(session: Session = NEW_SESSION) -> list:
+    from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+    return session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
+    """
+    Query the db to list all registered edge workers
+    """
+    all_hosts_iter = _fetch_edge_hosts_from_db(session)
+    # Format and print worker info on the screen
+    fields = ["worker_name", "state", "queues", "jobs_active", "jobs_success", "jobs_failed", "jobs_taken", "maintenance_comment"]
+    all_hosts =  [{f: str(host.__getattribute__(f)) for f in fields} for host in all_hosts_iter]
+    # Filter hosts by state
+    if args.state:
+        all_hosts = [host for host in all_hosts if host['state'] in args.state]
+    AirflowConsole().print_as(
+        data=all_hosts,
+        output=args.output
+    )
+
+
+@providers_configuration_loaded
+@provide_session
+def _valid_host(hostname, session: Session = NEW_SESSION) -> bool:
+    '''
+    Query the database to check if provided hostname exists
+    '''
+    all_hosts_iter = _fetch_edge_hosts_from_db(session)
+    for host in all_hosts_iter:
+        if hostname == host.worker_name:
+            return True
+    return False
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def put_remote_worker_on_maintainance(args) -> None:
+    """
+    Put remote edge worker on maintenance
+    """
+    if not _valid_host(args.edge_hostname):
+        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    from airflow.providers.edge3.models.edge_worker import request_maintenance
+    maintenance_comment = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - {getuser()} put node into maintenance mode\nComment: {args.comments}"
+    request_maintenance(args.edge_hostname, args.comments)
+    logging.info(f"{args.edge_hostname} has been put on maintenance by {getuser()}!")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def remove_remote_worker_from_maintainance(args) -> None:
+    """
+    Remove remote edge worker from maintenance
+    """
+    if not _valid_host(args.edge_hostname):
+        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    from airflow.providers.edge3.models.edge_worker import exit_maintenance
+    exit_maintenance(args.edge_hostname)
+    logging.info(f"{args.edge_hostname} has removed maintenance by {getuser()}!")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def remote_worker_update_maintenance_comment(args) -> None:
+    """
+    Update maintainence comments of the remote edge worker
+    """
+    if not _valid_host(args.edge_hostname):
+        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
+    change_maintenance_comment(args.edge_hostname, args.comments)
+    logging.info(f"Maintenance comments updated for {args.edge_hostname} by {getuser()}!")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def remove_remote_worker(args) -> None:
+    """
+    Remove remote edge worker entry from db
+    """
+    if not _valid_host(args.edge_hostname):
+        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    from airflow.providers.edge3.models.edge_worker import remove_worker
+    remove_worker(args.edge_hostname)
+    logging.info(f"Edge Worker host {args.edge_hostname} removed by {getuser()}!")
 
 
 ARG_CONCURRENCY = Arg(
@@ -633,10 +730,20 @@ ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
 )
+ARG_REQUIRED_EDGE_HOSTNAME = Arg(
+    ("-H", "--edge-hostname"),
+    help="Set the hostname of worker if you have multiple workers on a single machine",
+    required=True,
+)
 ARG_MAINTENANCE = Arg(("maintenance",), help="Desired maintenance state", choices=("on", "off"))
 ARG_MAINTENANCE_COMMENT = Arg(
     ("-c", "--comments"),
     help="Maintenance comments to report reason. Required if maintenance is turned on.",
+)
+ARG_REQUIRED_MAINTENANCE_COMMENT = Arg(
+    ("-c", "--comments"),
+    help="Maintenance comments to report reason. Required if enabling maintainance",
+    required=True,
 )
 ARG_WAIT_MAINT = Arg(
     ("-w", "--wait"),
@@ -650,6 +757,25 @@ ARG_WAIT_STOP = Arg(
     help="Wait until edge worker is shut down.",
     action="store_true",
 )
+ARG_OUTPUT = Arg(
+    (
+        "-o",
+        "--output",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="table",
+)
+ARG_STATE = Arg(
+    (
+        "-s",
+        "--state",
+    ),
+    nargs='+',
+    help="State of the edge worker",
+)
+
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
         name=worker.__name__,
@@ -692,6 +818,49 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_WAIT_STOP,
             ARG_PID,
             ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="list-workers",
+        help=list_edge_workers.__doc__,
+        func=list_edge_workers,
+        args=(
+            ARG_OUTPUT,
+            ARG_STATE,
+        ),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-request-maintenance",
+        help=put_remote_worker_on_maintainance.__doc__,
+        func=put_remote_worker_on_maintainance,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_REQUIRED_MAINTENANCE_COMMENT,
+        ),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-exit-maintenance",
+        help=remove_remote_worker_from_maintainance.__doc__,
+        func=remove_remote_worker_from_maintainance,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+        ),
+    ),
+    ActionCommand(
+        name="remote-edge-worker-update-maintenance-comment",
+        help=remote_worker_update_maintenance_comment.__doc__,
+        func=remote_worker_update_maintenance_comment,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
+            ARG_REQUIRED_MAINTENANCE_COMMENT,
+        ),
+    ),
+    ActionCommand(
+        name="remove-remote-edge-worker",
+        help=remove_remote_worker.__doc__,
+        func=remove_remote_worker,
+        args=(
+            ARG_REQUIRED_EDGE_HOSTNAME,
         ),
     ),
 ]
