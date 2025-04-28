@@ -1065,9 +1065,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             prefix, sep, key = prefixed_key.partition(":")
 
             if prefix == "ti":
-                ti: TaskInstance | None = session.scalars(
-                    select(TaskInstance).where(TaskInstance.id == key)
-                ).one_or_none()
+                ti: TaskInstance | None = session.get(TaskInstance, key)
 
                 if ti is not None:
                     if ti.state in State.finished:
