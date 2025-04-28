@@ -224,7 +224,7 @@ class TestIngressAPIServer:
 
         assert (
             jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
-            == "release-name-apiserver"
+            == "release-name-api-server"
         )
 
     def test_backend_service_name_with_fullname_override(self):
@@ -240,5 +240,5 @@ class TestIngressAPIServer:
 
         assert (
             jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
-            == "test-basic-apiserver"
+            == "test-basic-api-server"
         )
