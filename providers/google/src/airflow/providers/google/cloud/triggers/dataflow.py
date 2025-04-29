@@ -788,3 +788,125 @@ class DataflowJobMessagesTrigger(BaseTrigger):
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
         )
+
+
+class DataflowJobStateCompleteTrigger(BaseTrigger):
+    """
+    Trigger that monitors if a Dataflow job has reached any of successful terminal state meant for that job.
+
+    :param job_id: Required. ID of the job.
+    :param project_id: Required. The Google Cloud project ID in which the job was started.
+    :param location: Optional. The location where the job is executed. If set to None then
+        the value of DEFAULT_DATAFLOW_LOCATION will be used.
+    :param wait_until_finished: Optional. Dataflow option to block pipeline until completion.
+    :param gcp_conn_id: The connection ID to use for connecting to Google Cloud.
+    :param poll_sleep: Time (seconds) to wait between two consecutive calls to check the job.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        job_id: str,
+        project_id: str | None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        wait_until_finished: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        poll_sleep: int = 10,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.job_id = job_id
+        self.project_id = project_id
+        self.location = location
+        self.wait_until_finished = wait_until_finished
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_sleep = poll_sleep
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize class arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStateCompleteTrigger",
+            {
+                "job_id": self.job_id,
+                "project_id": self.project_id,
+                "location": self.location,
+                "wait_until_finished": self.wait_until_finished,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_sleep": self.poll_sleep,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    async def run(self):
+        """
+        Loop until the job reaches  successful final or error state.
+
+        Yields a TriggerEvent with success status, if the job reaches successful state for own type.
+
+        Yields a TriggerEvent with error status, if the client returns an unexpected terminal
+        job status or any exception is raised while looping.
+
+        In any other case the Trigger will wait for a specified amount of time
+        stored in self.poll_sleep variable.
+        """
+        try:
+            while True:
+                job = await self.async_hook.get_job(
+                    project_id=self.project_id,
+                    job_id=self.job_id,
+                    location=self.location,
+                )
+                job_state = job.current_state.name
+                job_type_name = job.type_.name
+
+                FAILED_STATES = DataflowJobStatus.FAILED_END_STATES | {DataflowJobStatus.JOB_STATE_DRAINED}
+                if job_state in FAILED_STATES:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": (
+                                f"Job with id '{self.job_id}' is in failed terminal state: {job_state}"
+                            ),
+                        }
+                    )
+                    return
+
+                if self.async_hook.job_reached_terminal_state(
+                    job={"id": self.job_id, "currentState": job_state, "type": job_type_name},
+                    wait_until_finished=self.wait_until_finished,
+                ):
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": (
+                                f"Job with id '{self.job_id}' has reached successful final state: {job_state}"
+                            ),
+                        }
+                    )
+                    return
+                self.log.info("Sleeping for %s seconds.", self.poll_sleep)
+                await asyncio.sleep(self.poll_sleep)
+        except Exception as e:
+            self.log.error("Exception occurred while checking for job state!")
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(e),
+                }
+            )
+
+    @cached_property
+    def async_hook(self) -> AsyncDataflowHook:
+        return AsyncDataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+        )
