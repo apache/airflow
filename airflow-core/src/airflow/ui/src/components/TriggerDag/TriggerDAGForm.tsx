@@ -18,27 +18,22 @@
  */
 import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import tz from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
-import { useTimezone } from "src/context/timezone";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
+import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
-
-dayjs.extend(utc);
-dayjs.extend(tz);
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -57,7 +52,6 @@ export type DagRunTriggerParams = {
 const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
-  const { selectedTimezone } = useTimezone();
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
@@ -69,7 +63,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
       conf,
       dagRunId: "",
       // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
       note: "",
     },
   });
@@ -90,10 +84,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         },
       });
     }
-    triggerDagRun({
-      ...data,
-      logicalDate: dayjs(data.logicalDate).tz(selectedTimezone, true).toISOString(),
-    });
+    triggerDagRun(data);
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -154,7 +145,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
                       </Field.Label>
                     </Stack>
                     <Stack css={{ flexBasis: "70%" }}>
-                      <Input {...field} onBlur={resetDateError} size="sm" type="datetime-local" />
+                      <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
                     </Stack>
                   </Field.Root>
                 )}

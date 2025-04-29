@@ -28,6 +28,7 @@ import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { pluralize } from "src/utils";
 
+import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
@@ -143,12 +144,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
                   <Field.Label>From</Field.Label>
-                  <Input
+                  <DateTimeInput
                     {...field}
                     max={dataIntervalEnd || today}
                     onBlur={resetDateError}
                     size="sm"
-                    type="datetime-local"
                   />
                 </Field.Root>
               )}
@@ -159,13 +159,12 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date)}>
                   <Field.Label>To</Field.Label>
-                  <Input
+                  <DateTimeInput
                     {...field}
                     max={today}
                     min={dataIntervalStart || undefined}
                     onBlur={resetDateError}
                     size="sm"
-                    type="datetime-local"
                   />
                 </Field.Root>
               )}

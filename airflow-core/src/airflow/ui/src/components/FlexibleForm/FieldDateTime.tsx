@@ -21,6 +21,7 @@ import { Input, type InputProps } from "@chakra-ui/react";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
+import { DateTimeInput } from "../DateTimeInput";
 
 export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & InputProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
@@ -40,6 +41,18 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
 
     setParamsDict(paramsDict);
   };
+
+  if (rest.type === "datetime-local") {
+    return (
+      <DateTimeInput
+        id={`element_${name}`}
+        name={`element_${name}`}
+        onChange={(event) => handleChange(event.target.value)}
+        size="sm"
+        value={((param.value ?? "") as string).slice(0, 16)}
+      />
+    );
+  }
 
   return (
     <Input
