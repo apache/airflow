@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -29,14 +29,13 @@ if TYPE_CHECKING:
 
 def init_wsgi_middleware(flask_app: Flask) -> None:
     """Handle X-Forwarded-* headers and base_url support."""
-
     # Apply ProxyFix middleware
-    if conf.getboolean("webserver", "ENABLE_PROXY_FIX"):
+    if conf.getboolean("fab", "ENABLE_PROXY_FIX"):
         flask_app.wsgi_app = ProxyFix(  # type: ignore
             flask_app.wsgi_app,
-            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1),
+            x_for=conf.getint("fab", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.getint("fab", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.getint("fab", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.getint("fab", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.getint("fab", "PROXY_FIX_X_PREFIX", fallback=1),
         )
