@@ -64,8 +64,10 @@ dependencies = [
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
     # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
     # in the `devel-dependencies` section to be the same minimum version.
-    "boto3>=1.37.0",
-    "botocore>=1.37.0",
+    # Apparently latest boto is causing OOM (143) issues in our CI
+    # we limit it for now - see https://github.com/apache/airflow/issues/49937
+    "boto3>=1.37.0,!=1.38.4",
+    "botocore>=1.37.0,!=1.38.4",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users
     "watchtower>=3.3.1,<4",
