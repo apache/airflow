@@ -17,12 +17,12 @@
  * under the License.
  */
 import { VStack, Text, Box } from "@chakra-ui/react";
-import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
+import { getDuration } from "src/utils";
 
 type Props = {
   readonly endDate?: string | null;
@@ -52,9 +52,7 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
             End Date: <Time datetime={endDate} />
           </Text>
         ) : undefined}
-        {Boolean(startDate) ? (
-          <Text>Duration: {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s</Text>
-        ) : undefined}
+        {Boolean(startDate) ? <Text>Duration: {getDuration(startDate, endDate)}</Text> : undefined}
       </VStack>
     }
   >

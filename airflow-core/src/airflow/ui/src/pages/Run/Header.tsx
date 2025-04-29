@@ -104,7 +104,7 @@ export const Header = ({
           },
           { label: "Start", value: <Time datetime={dagRun.start_date} /> },
           { label: "End", value: <Time datetime={dagRun.end_date} /> },
-          { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+          { label: "Duration", value: getDuration(dagRun.start_date, dagRun.end_date) },
           {
             label: "Dag Version(s)",
             value: (
