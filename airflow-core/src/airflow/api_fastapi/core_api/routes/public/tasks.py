@@ -22,6 +22,7 @@ from typing import cast
 
 from fastapi import Depends, HTTPException, Request, status
 
+from airflow.api.common.utils import get_dag_from_dag_bag
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
@@ -49,7 +50,7 @@ def get_tasks(
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     try:
@@ -74,7 +75,7 @@ def get_tasks(
 )
 def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
     """Get simplified representation of a task."""
-    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    dag: DAG = get_dag_from_dag_bag(request.app.state.dag_bag, dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
     try:
