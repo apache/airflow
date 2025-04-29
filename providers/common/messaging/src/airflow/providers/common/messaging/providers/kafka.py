@@ -57,6 +57,7 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
     You can also provide ``topics`` directly in kwargs instead of in the URI.
 
     .. code-block:: python
+
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
         trigger = MessageQueueTrigger(
