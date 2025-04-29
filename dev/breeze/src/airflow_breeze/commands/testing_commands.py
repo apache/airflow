@@ -1045,6 +1045,12 @@ def system_tests(
         run_tests=True,
         db_reset=db_reset,
         use_airflow_version=use_airflow_version,
+        airflow_constraints_reference=airflow_constraints_reference,
+        clean_airflow_installation=clean_airflow_installation,
+        force_lowest_dependencies=force_lowest_dependencies,
+        install_airflow_with_constraints=install_airflow_with_constraints,
+        distribution_format=distribution_format,
+        use_distributions_from_dist=use_distributions_from_dist,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()
