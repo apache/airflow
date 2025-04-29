@@ -102,8 +102,13 @@ LogHandlerOutputStream: TypeAlias = Union[StructuredLogStream, chain["Structured
 ParsedLog: TypeAlias = tuple[Optional[datetime], int, "StructuredLogMessage"]
 """Parsed log record, containing timestamp, line_num and the structured log message."""
 ParsedLogStream: TypeAlias = Generator[ParsedLog, None, None]
-LegacyEsOsLogType: TypeAlias = Union[list["StructuredLogMessage"], str]
-"""Legacy Elasticsearch/OpenSearch _read method return type, containing a list of structured log messages or a single string."""
+LegacyProvidersLogType: TypeAlias = Union[list["StructuredLogMessage"], str]
+"""Return type used by legacy `_read` methods for Alibaba Cloud, Elasticsearch, OpenSearch, and Redis log handlers.
+
+- For Elasticsearch and OpenSearch: returns either a list of structured log messages.
+- For Alibaba Cloud and Redis: returns a string.
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -640,7 +645,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: LogMetadata | None = None,
-    ) -> tuple[LogHandlerOutputStream | LegacyEsOsLogType, LogMetadata]:
+    ) -> tuple[LogHandlerOutputStream | LegacyProvidersLogType, LogMetadata]:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
