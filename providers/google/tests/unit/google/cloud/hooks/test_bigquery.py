@@ -52,8 +52,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     split_tablename,
 )
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-
 pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 PROJECT_ID = "bq-project"
@@ -1933,7 +1931,6 @@ class TestBigQueryAsyncHookMethods:
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
 @pytest.mark.db_test
 class TestHookLevelLineage(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")

@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any, cast
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.helpers import prune_dict
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
 try:
     # ImportError has been renamed to ParseImportError in airflow 2.10.0, and since our provider tests should
     # run on all supported versions of Airflow, this compatibility shim falls back to the old ImportError so
@@ -86,35 +84,27 @@ else:
     except ModuleNotFoundError:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.models.dataset import (
+            DagScheduleDatasetAliasReference as DagScheduleAssetAliasReference,
             DagScheduleDatasetReference as DagScheduleAssetReference,
+            DatasetAliasModel as AssetAliasModel,
             DatasetDagRunQueue as AssetDagRunQueue,
             DatasetEvent as AssetEvent,
             DatasetModel as AssetModel,
             TaskOutletDatasetReference as TaskOutletAssetReference,
         )
 
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import (
-                DagScheduleDatasetAliasReference as DagScheduleAssetAliasReference,
-                DatasetAliasModel as AssetAliasModel,
-            )
-
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
-    if AIRFLOW_V_2_10_PLUS:
-        # In airflow 2.10+ we can deserialize operator using regular deserialize method.
-        # We do not need to use deserialize_operator method explicitly but some tests are deserializing the
-        # operator and in the future they could use regular ``deserialize`` method. This method is a shim
-        # to make deserialization of operator works for tests run against older Airflow versions and tests
-        # should use that method instead of calling ``BaseSerialization.deserialize`` directly.
-        # We can remove this method and switch to the regular ``deserialize`` method as long as all providers
-        # are updated to airflow 2.10+.
-        from airflow.serialization.serialized_objects import BaseSerialization
+    # In airflow 2.10+ we can deserialize operator using regular deserialize method.
+    # We do not need to use deserialize_operator method explicitly but some tests are deserializing the
+    # operator and in the future they could use regular ``deserialize`` method. This method is a shim
+    # to make deserialization of operator works for tests run against older Airflow versions and tests
+    # should use that method instead of calling ``BaseSerialization.deserialize`` directly.
+    # We can remove this method and switch to the regular ``deserialize`` method as long as all providers
+    # are updated to airflow 2.10+.
+    from airflow.serialization.serialized_objects import BaseSerialization
 
-        return BaseSerialization.deserialize(serialized_operator)
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    return SerializedBaseOperator.deserialize_operator(serialized_operator)
+    return BaseSerialization.deserialize(serialized_operator)
 
 
 def connection_to_dict(

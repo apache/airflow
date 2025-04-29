@@ -22,7 +22,7 @@ import re
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -46,13 +46,6 @@ def _get_logical_date(task_instance):
         date = task_instance.execution_date
 
     return date
-
-
-def _get_try_number(val):
-    # todo: remove when min airflow version >= 2.10.0
-    if AIRFLOW_V_2_10_PLUS:
-        return val.try_number
-    return val.try_number - 1
 
 
 @require_openlineage_version(provider_min_version="2.0.0")
@@ -144,7 +137,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         dag_id=task_instance.dag_id,
         task_id=operator.task_id,
         logical_date=_get_logical_date(task_instance),
-        try_number=_get_try_number(task_instance),
+        try_number=task_instance.try_number,
         map_index=task_instance.map_index,
     )
 
