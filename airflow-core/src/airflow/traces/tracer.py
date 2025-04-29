@@ -44,7 +44,7 @@ def gen_links_from_kv_list(list):
     return gen_links_from_kv_list(list)
 
 
-def add_span(func):
+def add_debug_span(func):
     """Decorate a function with span."""
     func_name = func.__name__
     qual_name = func.__qualname__

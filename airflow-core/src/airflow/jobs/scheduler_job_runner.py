@@ -67,7 +67,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import DebugTrace, Trace, add_span
+from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
@@ -1489,7 +1489,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
-    @add_span
+    @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and logical_date same
@@ -1674,7 +1674,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
         return True
 
-    @add_span
+    @add_debug_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
@@ -1691,7 +1691,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
-        @add_span
+        @add_debug_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
             span.set_attributes(
