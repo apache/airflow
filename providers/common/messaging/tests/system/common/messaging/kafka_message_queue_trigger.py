@@ -16,13 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 # [START howto_trigger_message_queue]
 from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, Asset, AssetWatcher
 
+
+def apply_function(message):
+    val = json.loads(message.value())
+    print(f"Value in message is {val}")
+    return True
+
+
 # Define a trigger that listens to an external message queue (Apache Kafka in this case)
-trigger = MessageQueueTrigger(queue="kafka://localhost:9092/test")
+trigger = MessageQueueTrigger(
+    queue="kafka://localhost:9092/test",
+    apply_function="kafka_message_queue_trigger.apply_function",
+)
 
 # Define an asset that watches for messages on the queue
 asset = Asset("kafka_queue_asset", watchers=[AssetWatcher(name="kafka_watcher", trigger=trigger)])
