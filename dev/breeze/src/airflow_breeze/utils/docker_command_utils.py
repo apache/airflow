@@ -561,7 +561,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker(quiet: bool = False):
+def fix_ownership_using_docker(quiet: bool = True):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -585,7 +585,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, capture_output=quiet)
+    run_command(cmd, text=True, check=False, quiet=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -602,6 +602,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
             ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
+            quiet=True,
         )
     else:
         for network in networks:
@@ -609,6 +610,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 ["docker", "network", "rm", network],
                 check=False,
                 stderr=DEVNULL,
+                quiet=True,
             )
 
 
@@ -893,6 +895,7 @@ def is_docker_rootless() -> bool:
             capture_output=True,
             check=False,
             text=True,
+            quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
             get_console().print("[info]Docker is running in rootless mode.[/]\n")
