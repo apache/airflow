@@ -2029,6 +2029,8 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             # and also write it to the config file so that same key will be used next time
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
+            if not conf.has_section("core"):
+                conf.add_section("core")
             conf.set("core", "fernet_key", FERNET_KEY)
             conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
 
