@@ -73,6 +73,7 @@ airflow-core/src/airflow/ui/src/i18n/locales/zh_TW/ @Lee-W
 /providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
+/providers/keycloak/ @vincbeck
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala
