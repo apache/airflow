@@ -116,7 +116,9 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   # Check that after earlier cache push, breeze command will build quickly
   check-that-image-builds-quickly:

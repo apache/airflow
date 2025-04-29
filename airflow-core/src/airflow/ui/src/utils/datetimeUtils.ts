@@ -17,9 +17,22 @@
  * under the License.
  */
 import dayjs from "dayjs";
+import dayjsDuration from "dayjs/plugin/duration";
 
-export const getDuration = (startDate: string | null, endDate: string | null) =>
-  dayjs
-    .duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined))
-    .asSeconds()
-    .toFixed(2);
+dayjs.extend(dayjsDuration);
+
+export const getDuration = (startDate?: string | null, endDate?: string | null) => {
+  const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
+
+  if (!seconds) {
+    return "00:00:00";
+  }
+
+  if (seconds < 10) {
+    return `${seconds.toFixed(2)}s`;
+  }
+
+  return seconds < 86_400
+    ? dayjs.duration(seconds, "seconds").format("HH:mm:ss")
+    : dayjs.duration(seconds, "seconds").format("D[d]HH:mm:ss");
+};
