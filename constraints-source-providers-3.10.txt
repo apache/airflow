@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-28T19:45:29.023993
+# This constraints file was automatically generated on 2025-04-29T02:22:59.889991
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -255,7 +255,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
 google-cloud-secret-manager==2.23.3
-google-cloud-spanner==3.53.0
+google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
@@ -569,7 +569,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.14.1
+snowflake-connector-python==3.15.0
 snowflake-snowpark-python==1.31.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
@@ -593,7 +593,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.13.0
+sqlalchemy-bigquery==1.14.0
 sqlalchemy-spanner==1.10.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
@@ -628,7 +628,7 @@ tqdm==4.67.1
 traitlets==5.14.3
 trino==0.333.0
 twine==6.1.0
-typer==0.15.2
+typer==0.15.3
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
 types-PyMySQL==1.1.0.20241103
