@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import contextlib
 import importlib
 import json
@@ -132,6 +133,8 @@ class _MockPopen(Popen):
 
 
 class TestEdgeWorkerCli:
+    parser: argparse.ArgumentParser
+
     @classmethod
     def setup_class(cls):
         with conf_vars(
@@ -443,10 +446,6 @@ class TestEdgeWorkerCli:
             "worker_name",
             "state",
             "queues",
-            "jobs_active",
-            "jobs_success",
-            "jobs_failed",
-            "jobs_taken",
             "maintenance_comment",
         ]:
             assert key in edge_workers[0]
