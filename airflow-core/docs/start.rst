@@ -94,7 +94,7 @@ and create the "airflow.cfg" file with defaults that will get you going fast.
 You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
-in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
+in ``$AIRFLOW_HOME/airflow-api-server.pid`` or in ``/run/airflow/airflow-webserver.pid``
 if started by systemd.
 
 As you grow and deploy Airflow to production, you will also want to move away

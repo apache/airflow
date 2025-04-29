@@ -16,6 +16,7 @@ airflow/git_version
 airflow/ui/coverage/
 logs/
 airflow-webserver.pid
+airflow-api-server.pid
 standalone_admin_password.txt
 warnings.txt
 warn-summary-*.txt
