@@ -53,6 +53,7 @@ from airflow_breeze.commands.common_options import (
     option_debug_resources,
     option_dry_run,
     option_github_repository,
+    option_github_token,
     option_historical_python_version,
     option_include_not_ready_providers,
     option_include_removed_providers,
@@ -2641,7 +2642,9 @@ def generate_issue_content_core(
 
 
 def get_all_constraint_files(
-    refresh_constraints: bool, python_version: str
+    refresh_constraints: bool,
+    python_version: str,
+    github_token: str | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
@@ -2653,6 +2656,7 @@ def get_all_constraint_files(
                 if not download_constraints_file(
                     airflow_version=airflow_version,
                     python_version=python_version,
+                    github_token=github_token,
                     include_provider_dependencies=True,
                     output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
@@ -2687,15 +2691,18 @@ def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     is_flag=True,
     help="Refresh constraints before generating metadata",
 )
+@option_github_token
 @option_historical_python_version
 @option_dry_run
 @option_verbose
-def generate_providers_metadata(refresh_constraints: bool, python: str | None):
+def generate_providers_metadata(refresh_constraints: bool, github_token: str | None, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:
         python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     all_airflow_releases, airflow_release_dates = get_all_constraint_files(
-        refresh_constraints=refresh_constraints, python_version=python
+        refresh_constraints=refresh_constraints,
+        python_version=python,
+        github_token=github_token,
     )
     constraints = load_constraints(python_version=python)
 

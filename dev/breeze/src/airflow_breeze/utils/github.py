@@ -40,13 +40,16 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
+def download_file_from_github(
+    tag: str, path: str, output_file: Path, github_token: str | None = None, timeout: int = 60
+) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
+    :param github_token: GitHub token to use for authentication
     :param timeout: timeout in seconds for the download request, default is 60 seconds
     :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
     """
@@ -56,7 +59,12 @@ def download_file_from_github(tag: str, path: str, output_file: Path, timeout: i
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
         try:
-            response = requests.get(url, timeout=timeout)
+            # add github token to the request if provided
+            headers = {}
+            if github_token:
+                headers["Authorization"] = f"Bearer {github_token}"
+                headers["X-GitHub-Api-Version"] = "2022-11-28"
+            response = requests.get(url, headers=headers, timeout=timeout)
             if response.status_code == 403:
                 get_console().print(
                     f"[error]The {url} is not accessible.This may be caused by either of:\n"
@@ -139,13 +147,18 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
 
 
 def download_constraints_file(
-    airflow_version: str, python_version: str, include_provider_dependencies: bool, output_file: Path
+    airflow_version: str,
+    python_version: str,
+    github_token: str | None,
+    include_provider_dependencies: bool,
+    output_file: Path,
 ) -> bool:
     """
     Downloads constraints file from GitHub repository of Apache Airflow
 
     :param airflow_version: airflow version
     :param python_version: python version
+    :param github_token: GitHub token
     :param include_provider_dependencies: whether to include provider dependencies
     :param output_file: the file where to store the constraint file
     :return: true if the file was successfully downloaded
@@ -158,6 +171,7 @@ def download_constraints_file(
     return download_file_from_github(
         tag=constraints_tag,
         path=constraints_file_path,
+        github_token=github_token,
         output_file=output_file,
     )
 
