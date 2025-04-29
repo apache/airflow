@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-28T10:16:50.176242
+# This constraints file was automatically generated on 2025-04-29T07:24:36.757356
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -191,7 +191,7 @@ apache-airflow-providers-weaviate==3.0.3
 apache-airflow-providers-yandex==4.0.3
 apache-airflow-providers-ydb==2.1.1
 apache-airflow-providers-zendesk==4.9.1
-apache-beam==2.64.0
+apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.3
 argcomplete==3.6.2
@@ -216,7 +216,7 @@ azure-identity==1.21.0
 azure-keyvault-secrets==4.9.0
 azure-kusto-data==5.0.2
 azure-mgmt-containerinstance==10.1.0
-azure-mgmt-containerregistry==13.0.0
+azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.5.0
 azure-mgmt-cosmosdb==9.7.0
 azure-mgmt-datafactory==9.2.0
@@ -241,8 +241,8 @@ bitarray==2.9.3
 black==25.1.0
 bleach==6.2.0
 blinker==1.9.0
-boto3==1.38.3
-botocore==1.38.3
+boto3==1.38.4
+botocore==1.38.4
 cachelib==0.13.0
 cachetools==5.5.2
 cadwyn==5.3.3
@@ -361,7 +361,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
 google-cloud-secret-manager==2.23.3
-google-cloud-spanner==3.53.0
+google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
@@ -383,7 +383,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.5
+grpcio==1.71.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
@@ -670,7 +670,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.14.1
+snowflake-connector-python==3.15.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
@@ -693,7 +693,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.13.0
+sqlalchemy-bigquery==1.14.0
 sqlalchemy-spanner==1.10.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
@@ -727,7 +727,7 @@ tqdm==4.67.1
 traitlets==5.14.3
 trino==0.333.0
 twine==6.1.0
-typer==0.15.2
+typer==0.15.3
 types-Deprecated==1.2.15.20250304
 types-Markdown==3.8.0.20250415
 types-PyMySQL==1.1.0.20241103
@@ -745,7 +745,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20250326
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250328
-types-setuptools==79.0.0.20250422
+types-setuptools==80.0.0.20250429
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
