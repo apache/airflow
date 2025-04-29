@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { capitalize } from "src/utils";
 
@@ -31,7 +31,7 @@ type MetricSectionProps = {
   readonly kind: string;
   readonly runs: number;
   readonly startDate: string;
-  readonly state: TaskInstanceState;
+  readonly state: keyof TaskInstanceStateCount;
   readonly total: number;
 };
 
@@ -53,7 +53,8 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
       <Flex justify="space-between">
         <HStack>
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
-            <StateBadge fontSize="md" state={state}>
+            {/* eslint-disable-next-line unicorn/no-null */}
+            <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {runs}
             </StateBadge>
           </RouterLink>
@@ -68,7 +69,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={`${state}.solid`}
+          bg={`${state === "no_status" ? "none" : state}.solid`}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
