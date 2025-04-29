@@ -312,9 +312,5 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         return self._num_open_sockets == 0
 
-    @property
-    def start_time(self) -> float:
-        return self._process.create_time()
-
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
