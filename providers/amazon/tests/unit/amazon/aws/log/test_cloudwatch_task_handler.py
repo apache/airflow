@@ -263,10 +263,10 @@ class TestCloudwatchTaskHandler:
             ],
         )
         monkeypatch.setattr(
-                self.cloudwatch_task_handler,
-                "_read_from_logs_server",
-                lambda ti, worker_log_rel_path, log_metadata: ([], []),
-            )
+            self.cloudwatch_task_handler,
+            "_read_from_logs_server",
+            lambda ti, worker_log_rel_path, log_metadata: ([], []),
+        )
         msg_template = textwrap.dedent("""
              INFO - ::group::Log message source details
             *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
