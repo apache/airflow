@@ -257,6 +257,7 @@ def _run_test(
                 check=False,
                 env=env,
                 verbose_override=False,
+                quiet=True,
             )
             remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {shell_params.test_type}"
