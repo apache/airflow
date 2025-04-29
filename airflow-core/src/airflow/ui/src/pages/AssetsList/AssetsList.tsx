@@ -105,7 +105,7 @@ export const AssetsList = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  
+
   const orderBy = getOrderBy();
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
