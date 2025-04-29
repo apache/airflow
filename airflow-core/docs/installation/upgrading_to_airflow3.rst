@@ -56,19 +56,19 @@ for dag incompatibilities that will need to be fixed before they will work as ex
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301
+    ruff check dag/ --select AIR301 --preview
 
 To preview the recommended fixes, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --show-fixes
+    ruff check dag/ --select AIR301 --show-fixes --preview
 
 Some changes can be automatically fixed. To do so, run the following command:
 
 .. code-block:: bash
 
-    ruff check dag/ --select AIR301 --fix
+    ruff check dag/ --select AIR301 --fix --preview
 
 Step 4: Install the Standard Providers
 --------------------------------------

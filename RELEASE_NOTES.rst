@@ -537,7 +537,7 @@ Airflow 3.0 includes improved support for upgrade validation. Use the following 
 configs or deprecated usage patterns:
 
 - ``airflow config lint``: Identifies removed or invalid config keys
-- ``ruff check --select AIR30``: Flags removed interfaces and common migration issues
+- ``ruff check --select AIR30 --preview``: Flags removed interfaces and common migration issues
 
 CLI & API Changes
 ^^^^^^^^^^^^^^^^^
@@ -775,8 +775,8 @@ compatible with Airflow 3.0. These checks are packaged under the ``AIR30x`` rule
 
 .. code-block:: bash
 
-    ruff check dags/ --select AIR301
-    ruff check dags/ --select AIR301 --fix
+    ruff check dags/ --select AIR301  --preview
+    ruff check dags/ --select AIR301 --fix  --preview
 
 These checks can automatically fix many common issues such as renamed arguments, removed imports, or legacy context
 variable usage.
