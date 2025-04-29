@@ -74,6 +74,7 @@ def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, u
 
     dag_maker.session.flush()
     assert dr.dag
+    assert dr.state == DagRunState.RUNNING
 
     updated_tis: list[TaskInstance] = set_dag_run_state_to_success(
         dag=dr.dag, run_id=dr.run_id, commit=True, session=dag_maker.session
@@ -87,21 +88,19 @@ def test_set_dag_run_state_to_success_unfinished_teardown(dag_maker: DagMaker, u
     assert "teardown" not in task_dict
 
 
-@pytest.mark.parametrize(
-    "finished_state", sorted([state for state in State.finished if state != TaskInstanceState.SUCCESS])
-)
+@pytest.mark.parametrize("finished_state", sorted(list(State.finished)))
 def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker, finished_state):
     with dag_maker("TEST_DAG_1"):
         with EmptyOperator(task_id="teardown").as_teardown():
-            EmptyOperator(task_id="running")
-            EmptyOperator(task_id="pending")
+            EmptyOperator(task_id="failed")
     dr = dag_maker.create_dagrun()
     for ti in dr.get_task_instances():
-        if ti.task_id == "running":
-            ti.set_state(TaskInstanceState.RUNNING)
+        if ti.task_id == "failed":
+            ti.set_state(TaskInstanceState.FAILED)
         if ti.task_id == "teardown":
             ti.set_state(finished_state)
     dag_maker.session.flush()
+    dr.set_state(DagRunState.FAILED)
     assert dr.dag
 
     updated_tis: list[TaskInstance] = set_dag_run_state_to_success(
@@ -109,8 +108,11 @@ def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker, fin
     )
     run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
     assert run.state == DagRunState.SUCCESS
-    assert len(updated_tis) == 3
+    if finished_state == TaskInstanceState.SUCCESS:
+        assert len(updated_tis) == 1
+    else:
+        assert len(updated_tis) == 2
     task_dict = {ti.task_id: ti for ti in updated_tis}
-    assert task_dict["running"].state == TaskInstanceState.SUCCESS
-    assert task_dict["pending"].state == TaskInstanceState.SUCCESS
-    assert task_dict["teardown"].state == TaskInstanceState.SUCCESS
+    assert task_dict["failed"].state == TaskInstanceState.SUCCESS
+    if finished_state != TaskInstanceState.SUCCESS:
+        assert task_dict["teardown"].state == TaskInstanceState.SUCCESS

@@ -218,22 +218,23 @@ def set_dag_run_state_to_success(
     # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
     normal_tasks = [task for task in dag.tasks if not task.is_teardown]
     teardown_tasks = [task for task in dag.tasks if task.is_teardown]
-    unfinished_teardown_tis: list[TaskInstance] = session.scalars(
-        select(TaskInstance).where(
-            TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id.in_([task.task_id for task in teardown_tasks]),
-            or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
-        )
-    ).all()
+    unfinished_teardown_task_ids = set(
+        session.scalars(
+            select(TaskInstance.task_id).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id.in_([task.task_id for task in teardown_tasks]),
+                or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
+            )
+        ).all()
+    )
 
     # Mark the dag run to success if there are no unfinished teardown tasks.
-    if commit and len(unfinished_teardown_tis) == 0:
+    if commit and len(unfinished_teardown_task_ids) == 0:
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
 
-    task_ids_of_unfinished_teardown_tis = [ti.task_id for ti in unfinished_teardown_tis]
     tasks_to_mark_success = normal_tasks + [
-        task for task in teardown_tasks if task.task_id not in task_ids_of_unfinished_teardown_tis
+        task for task in teardown_tasks if task.task_id not in unfinished_teardown_task_ids
     ]
     for task in tasks_to_mark_success:
         task.dag = dag
