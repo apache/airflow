@@ -41,7 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
-from airflow.providers.fab.www.extensions.init_wsgi_middleware import init_wsgi_middleware
+from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
