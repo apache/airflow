@@ -444,6 +444,7 @@ class TestDagRunOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
         logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),

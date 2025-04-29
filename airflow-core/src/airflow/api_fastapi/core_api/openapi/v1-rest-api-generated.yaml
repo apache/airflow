@@ -8342,6 +8342,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_run_id
@@ -8361,6 +8364,7 @@ components:
       - note
       - dag_versions
       - bundle_version
+      - dag_display_name
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -9623,6 +9627,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9696,6 +9703,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool
@@ -9768,6 +9776,9 @@ components:
         task_display_name:
           type: string
           title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
         hostname:
           anyOf:
           - type: string
@@ -9866,6 +9877,7 @@ components:
       - try_number
       - max_tries
       - task_display_name
+      - dag_display_name
       - hostname
       - unixname
       - pool

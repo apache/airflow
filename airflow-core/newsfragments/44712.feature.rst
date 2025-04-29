@@ -1,1 +1,0 @@
-Add a new table to the db for the Deadline Alerts feature.
