@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-29T13:53:40.606196
+# This constraints file was automatically generated on 2025-04-29T16:23:21.815405
 # via `uv pip install --resolution highest` for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -324,7 +324,7 @@ gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.168.0
+google-api-python-client==2.169.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.39.0
@@ -524,7 +524,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.1.0
 ordered-set==4.1.0
-orjson==3.10.16
+orjson==3.10.17
 oss2==2.19.1
 packaging==25.0
 pandas-gbq==0.28.0
