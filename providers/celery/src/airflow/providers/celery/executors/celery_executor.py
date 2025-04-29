@@ -366,12 +366,7 @@ class CeleryExecutor(BaseExecutor):
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
     ) -> None:
-        try:
-            super().change_state(key, state, info, remove_running=remove_running)
-        except (AttributeError, TypeError):
-            # Earlier versions of the BaseExecutor don't accept the remove_running parameter for this method
-            # TODO: Remove when min airflow version >= 2.9.2
-            super().change_state(key, state, info)
+        super().change_state(key, state, info, remove_running=remove_running)
         self.tasks.pop(key, None)
 
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
