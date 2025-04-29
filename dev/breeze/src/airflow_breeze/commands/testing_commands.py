@@ -129,6 +129,7 @@ def group_for_testing():
     is_flag=True,
 )
 @option_github_repository
+@option_include_success_outputs
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
@@ -137,6 +138,7 @@ def docker_compose_tests(
     image_name: str,
     skip_docker_compose_deletion: bool,
     github_repository: str,
+    include_success_outputs: bool,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
@@ -147,6 +149,7 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
     )

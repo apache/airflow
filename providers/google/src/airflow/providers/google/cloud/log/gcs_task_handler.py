@@ -61,13 +61,15 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
     remote_base: str
     base_log_folder: Path = attrs.field(converter=Path)
     delete_local_copy: bool
+    project_id: str
 
     gcp_key_path: str | None
     gcp_keyfile_dict: dict | None
     scopes: Collection[str] | None
-    project_id: str
 
-    def upload(self, path: os.PathLike, ti: RuntimeTI):
+    processors = ()
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
         """Upload the given log path to the remote storage."""
         path = Path(path)
         if path.is_absolute():

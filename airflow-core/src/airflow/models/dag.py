@@ -116,6 +116,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from pydantic import NonNegativeInt
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
@@ -257,7 +258,7 @@ def _create_orm_dagrun(
     state: DagRunState | None,
     run_type: DagRunType,
     creating_job_id: int | None,
-    backfill_id: int | None,
+    backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
@@ -1549,6 +1550,8 @@ class DAG(TaskSDKDag, LoggingMixin):
     ):
         all_tis = []
         for dag in dags:
+            if not isinstance(dag, DAG):
+                dag = DAG.from_sdk_dag(dag)
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
@@ -1575,6 +1578,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if do_it:
             for dag in dags:
+                if not isinstance(dag, DAG):
+                    dag = DAG.from_sdk_dag(dag)
                 dag.clear(
                     start_date=start_date,
                     end_date=end_date,
@@ -1795,7 +1800,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         state: DagRunState,
         start_date: datetime | None = None,
         creating_job_id: int | None = None,
-        backfill_id: int | None = None,
+        backfill_id: NonNegativeInt | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2041,16 +2046,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             if not field.init or field.name in ["edge_info"]:
                 continue
 
-            value = getattr(dag, field.name)
-
-            # Handle special cases where values need conversion
-            if field.name == "max_consecutive_failed_dag_runs":
-                # SchedulerDAG requires this to be >= 0, while TaskSDKDag allows -1
-                if value == -1:
-                    # If it is -1, we get the default value from the DAG
-                    continue
-
-            kwargs[field.name] = value
+            kwargs[field.name] = getattr(dag, field.name)
 
         new_dag = cls(**kwargs)
 

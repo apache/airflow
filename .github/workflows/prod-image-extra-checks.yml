@@ -48,10 +48,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "Space-separated list of providers that should be installed from context files"
-        required: true
-        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -84,7 +80,6 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -109,7 +104,6 @@ jobs:
       use-uv: "false"
       build-provider-distributions: ${{ inputs.build-provider-distributions }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}

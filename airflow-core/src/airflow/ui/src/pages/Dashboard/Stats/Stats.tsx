@@ -22,6 +22,7 @@ import { FiClipboard, FiZap } from "react-icons/fi";
 import { useDagServiceGetDags } from "openapi/queries";
 
 import { DAGImportErrors } from "./DAGImportErrors";
+import { PluginImportErrors } from "./PluginImportErrors";
 import { StatsCard } from "./StatsCard";
 
 export const Stats = () => {
@@ -55,7 +56,7 @@ export const Stats = () => {
         </Heading>
       </Flex>
 
-      <HStack columns={{ base: 1, lg: 5, md: 3 }} gap={4}>
+      <HStack gap={4}>
         <StatsCard
           colorScheme="failed"
           count={failedDagsCount}
@@ -66,6 +67,8 @@ export const Stats = () => {
         />
 
         <DAGImportErrors />
+
+        <PluginImportErrors />
 
         {queuedDagsCount > 0 ? (
           <StatsCard

@@ -203,7 +203,7 @@ To do this we need to:
 
 ```shell script
 rm dist/*
-breeze release-management prepare-python-client --distribution-format both --version-suffix-for-pypi "${VERSION_SUFFIX}"
+breeze release-management prepare-python-client --distribution-format both --version-suffix "${VERSION_SUFFIX}"
 ```
 
 - Verify the artifacts that would be uploaded:

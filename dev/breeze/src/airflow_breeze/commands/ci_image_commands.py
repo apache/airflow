@@ -76,6 +76,7 @@ from airflow_breeze.commands.common_options import (
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -237,14 +238,6 @@ option_upgrade_on_failure = click.option(
     default=not os.environ.get("CI", "") if not generating_command_images() else True,
 )
 
-option_version_suffix_for_pypi_ci = click.option(
-    "--version-suffix-for-pypi",
-    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
-    default="dev0",
-    show_default=True,
-    envvar="VERSION_SUFFIX_FOR_PYPI",
-)
-
 option_ci_image_file_to_save = click.option(
     "--image-file",
     required=False,
@@ -305,7 +298,7 @@ option_ci_image_file_to_load = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
-@option_version_suffix_for_pypi_ci
+@option_version_suffix
 def build(
     additional_airflow_extras: str | None,
     additional_dev_apt_command: str | None,
@@ -343,7 +336,7 @@ def build(
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
     uv_http_timeout: int,
-    version_suffix_for_pypi: str,
+    version_suffix: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
 
@@ -390,7 +383,7 @@ def build(
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
-        version_suffix_for_pypi=version_suffix_for_pypi,
+        version_suffix=version_suffix,
     )
     if platform:
         base_build_params.platform = platform
