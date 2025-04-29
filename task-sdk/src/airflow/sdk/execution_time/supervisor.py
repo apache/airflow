@@ -428,6 +428,9 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
+    start_time: float = attrs.field(factory=time.monotonic)
+    """The start time of the child process."""
+
     @classmethod
     def start(
         cls,
@@ -481,6 +484,7 @@ class WatchedSubprocess:
             process=psutil.Process(pid),
             requests_fd=requests_fd,
             process_log=logger,
+            start_time=time.monotonic(),
             **constructor_kwargs,
         )
 
