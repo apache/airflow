@@ -22,6 +22,8 @@ from unittest import mock
 
 import pytest
 import time_machine
+from fastapi import status
+from sqlalchemy import select, update
 
 from airflow.models import DagModel
 from airflow.models.asset import (
@@ -33,10 +35,12 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -1162,6 +1166,37 @@ class TestPostAssetMaterialize(TestAssets):
             "conf": {},
             "note": None,
         }
+
+    def test_materialize_asset_missing_dag_id_in_serialized_data(self, test_client):
+        DAG1_ID = "test_dag_missing_dag_id"
+
+        test_dag = DAG(dag_id=DAG1_ID, start_date=datetime(2025, 4, 15), schedule="@once")
+        EmptyOperator(task_id="test_task", dag=test_dag)
+        test_dag.sync_to_db()
+        SerializedDagModel.write_dag(test_dag, bundle_name=DAG1_ID)
+
+        with create_session() as session:
+            dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG1_ID))
+            if not dag_model:
+                pytest.fail("Failed to find serialized DAG in database")
+            data = dag_model.data
+            del data["dag"]["dag_id"]
+            session.execute(
+                update(SerializedDagModel).where(SerializedDagModel.dag_id == DAG1_ID).values(_data=data)
+            )
+            session.commit()
+
+        with create_session() as session:
+            asset = AssetModel(name="test_asset", uri="s3://bucket/key/1")
+            session.add(asset)
+            session.flush()
+            asset_id = asset.id
+            session.add(TaskOutletAssetReference(dag_id=DAG1_ID, task_id="test_task", asset_id=asset.id))
+            session.commit()
+
+        response = test_client.post(f"/assets/{asset_id}/materialize")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "An unexpected error occurred" in response.json()["detail"]
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/2/materialize")
