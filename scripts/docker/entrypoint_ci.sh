@@ -363,9 +363,16 @@ function initialize_db() {
 
 function start_api_server_with_examples(){
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
+    echo "USE_AIRFLOW_VERSION=${USE_AIRFLOW_VERSION}"
+    echo "TEST_GROUP=${TEST_GROUP}"
+    echo "START_API_SERVER_WITH_EXAMPLES=${START_API_SERVER_WITH_EXAMPLES}"
     # Do not start the api server if either START_API_SERVER_WITH_EXAMPLES is false or the TEST_GROUP env var is not
-    # equal to "system" or the Airflow version is <= 3.0.0 (which does not have the API server anyway).
-    if [[ (${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system") || ! "${USE_AIRFLOW_VERSION}" =~ ^3.*  ]]; then
+    # equal to "system".
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
+        return
+    fi
+    # If the use Airflow version is set and it is <= 3.0.0 (which does not have the API server anyway) also return
+    if [[ ${USE_AIRFLOW_VERSION} != "" && ${USE_AIRFLOW_VERSION} < "3.0.0" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
