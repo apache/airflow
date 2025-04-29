@@ -214,6 +214,7 @@ import type {
   GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
+  DagStatsResponse2,
   StructureDataData,
   StructureDataResponse2,
   GridDataData,
@@ -3550,6 +3551,22 @@ export class DashboardService {
       errors: {
         400: "Bad Request",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Dag Stats
+   * Return basic DAG stats with counts of DAGs in various states.
+   * @returns DashboardDagStatsResponse Successful Response
+   * @throws ApiError
+   */
+  public static dagStats(): CancelablePromise<DagStatsResponse2> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/dag_stats",
+      errors: {
+        400: "Bad Request",
       },
     });
   }
