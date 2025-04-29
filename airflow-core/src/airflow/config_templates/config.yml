@@ -2088,7 +2088,7 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
+        This is used by the health check in the **/api/v2/monitor/health** endpoint and in ``airflow jobs check`` CLI
         for SchedulerJob.
       version_added: 1.10.2
       type: integer
@@ -2323,7 +2323,7 @@ triggerer:
       description: |
         If the last triggerer heartbeat happened more than ``[triggerer] triggerer_health_check_threshold``
         ago (in seconds), triggerer is considered unhealthy.
-        This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
+        This is used by the health check in the **/api/v2/monitor/health** endpoint and in ``airflow jobs check`` CLI
         for TriggererJob.
       version_added: 2.7.0
       type: float
