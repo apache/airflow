@@ -508,7 +508,7 @@ def bump_version(v: Version, index: int) -> Version:
 
 def _update_version_in_provider_yaml(
     provider_id: str, type_of_change: TypeOfChange, min_airflow_version_bump: bool = False
-) -> tuple[bool, bool, str]:
+) -> tuple[bool, bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
@@ -543,7 +543,12 @@ def _update_version_in_provider_yaml(
     )
     provider_yaml_path.write_text(updated_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
-    return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
+    return (
+        with_breaking_changes,
+        min_airflow_version_bump,
+        maybe_with_new_features,
+        original_provider_yaml_content,
+    )
 
 
 def _update_source_date_epoch_in_provider_yaml(
@@ -739,6 +744,7 @@ def update_release_notes(
         only_min_version_update=only_min_version_update,
     )
     with_breaking_changes = False
+    maybe_with_change_min_airflow_version = False
     maybe_with_new_features = False
     original_provider_yaml_content: str | None = None
     marked_for_release = False
@@ -811,10 +817,13 @@ def update_release_notes(
                 TypeOfChange.BREAKING_CHANGE,
                 TypeOfChange.MISC,
             ]:
-                with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
-                    _update_version_in_provider_yaml(
-                        provider_id=provider_id, type_of_change=type_of_change, min_airflow_version_bump=bump
-                    )
+                (
+                    with_breaking_changes,
+                    maybe_with_change_min_airflow_version,
+                    maybe_with_new_features,
+                    original_provider_yaml_content,
+                ) = _update_version_in_provider_yaml(
+                    provider_id=provider_id, type_of_change=type_of_change, min_airflow_version_bump=bump
                 )
                 if not reapply_templates_only:
                     _update_source_date_epoch_in_provider_yaml(provider_id)
@@ -865,10 +874,12 @@ def update_release_notes(
             if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                 bump = True
                 type_of_change = TypeOfChange.MISC
-            with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
-                provider_id=provider_id,
-                type_of_change=type_of_change,
-                min_airflow_version_bump=bump,
+            with_breaking_changes, maybe_with_change_min_airflow_version, maybe_with_new_features, _ = (
+                _update_version_in_provider_yaml(
+                    provider_id=provider_id,
+                    type_of_change=type_of_change,
+                    min_airflow_version_bump=bump,
+                )
             )
             if not reapply_templates_only:
                 _update_source_date_epoch_in_provider_yaml(provider_id)
@@ -888,6 +899,7 @@ def update_release_notes(
         provider_id=provider_id,
         with_breaking_changes=with_breaking_changes,
         maybe_with_new_features=maybe_with_new_features,
+        maybe_with_change_min_airflow_version=only_min_version_update,
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes_as_table
     jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes_as_table)
@@ -1056,7 +1068,10 @@ def _update_index_rst(
 
 
 def get_provider_documentation_jinja_context(
-    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
+    provider_id: str,
+    with_breaking_changes: bool,
+    maybe_with_new_features: bool,
+    maybe_with_change_min_airflow_version: bool,
 ) -> dict[str, Any]:
     provider_details = get_provider_details(provider_id)
     jinja_context = get_provider_jinja_context(
@@ -1066,6 +1081,7 @@ def get_provider_documentation_jinja_context(
     )
     jinja_context["WITH_BREAKING_CHANGES"] = with_breaking_changes
     jinja_context["MAYBE_WITH_NEW_FEATURES"] = maybe_with_new_features
+    jinja_context["MAYBE_WITH_CHANGE_MIN_AIRFLOW_VERSION"] = maybe_with_change_min_airflow_version
 
     jinja_context["ADDITIONAL_INFO"] = (
         _get_additional_distribution_info(provider_distribution_path=provider_details.root_provider_path),
@@ -1080,6 +1096,7 @@ def update_changelog(
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
     only_min_version_update: bool,
+    maybe_with_change_min_airflow_version: bool,
 ):
     """Internal update changelog method.
 
@@ -1095,6 +1112,7 @@ def update_changelog(
         provider_id=package_id,
         with_breaking_changes=with_breaking_changes,
         maybe_with_new_features=maybe_with_new_features,
+        maybe_with_change_min_airflow_version=maybe_with_change_min_airflow_version,
     )
     proceed, changes, _ = _get_all_changes_for_package(
         provider_id=package_id,
@@ -1207,13 +1225,18 @@ def _replace_min_airflow_version_in_provider_yaml(
 
 
 def update_min_airflow_version_and_build_files(
-    provider_id: str, with_breaking_changes: bool, maybe_with_new_features: bool, skip_readme: bool
+    provider_id: str,
+    with_breaking_changes: bool,
+    maybe_with_new_features: bool,
+    maybe_with_change_min_airflow_version: bool,
+    skip_readme: bool,
 ):
     """Updates min airflow version in provider yaml and __init__.py
 
     :param provider_id: provider package id
     :param with_breaking_changes: whether there are any breaking changes
     :param maybe_with_new_features: whether there are any new features
+    :params maybe_with_change_min_airflow_version: whether min airflow version bump
     :param skip_readme: skip updating readme: skip_readme
     :return:
     """
@@ -1224,6 +1247,7 @@ def update_min_airflow_version_and_build_files(
         provider_id=provider_id,
         with_breaking_changes=with_breaking_changes,
         maybe_with_new_features=maybe_with_new_features,
+        maybe_with_change_min_airflow_version=maybe_with_change_min_airflow_version,
     )
     _generate_build_files_for_provider(
         context=jinja_context,

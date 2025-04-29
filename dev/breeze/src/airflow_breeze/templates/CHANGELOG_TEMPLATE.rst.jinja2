@@ -20,6 +20,14 @@
 {{ version }}
 {{ version_header }}
 
+{%- if MAYBE_WITH_CHANGE_MIN_AIRFLOW_VERSION %}
+
+.. note::
+    This release of provider is only available for Airflow X.X+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+{%- endif %}
+
 {%- if WITH_BREAKING_CHANGES and classified_changes.breaking_changes %}
 
 Breaking changes

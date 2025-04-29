@@ -861,6 +861,7 @@ def prepare_provider_documentation(
                     provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    maybe_with_change_min_airflow_version=only_min_version_update,
                     skip_readme=skip_readme,
                 )
             if not only_min_version_update and not reapply_templates_only and not skip_changelog:
@@ -875,6 +876,7 @@ def prepare_provider_documentation(
                         with_breaking_changes=with_breaking_changes,
                         maybe_with_new_features=maybe_with_new_features,
                         only_min_version_update=only_min_version_update,
+                        maybe_with_change_min_airflow_version=only_min_version_update,
                     )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
