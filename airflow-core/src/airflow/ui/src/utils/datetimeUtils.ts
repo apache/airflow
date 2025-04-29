@@ -22,31 +22,13 @@ import dayjsDuration from "dayjs/plugin/duration";
 dayjs.extend(dayjsDuration);
 
 export const getDuration = (startDate?: string | null, endDate?: string | null) => {
-  const segments = [];
-
   const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
 
   if (seconds < 10) {
     return `${seconds.toFixed(2)}s`;
   }
 
-  const day = Math.floor(seconds / 60 / 60 / 24);
-
-  if (day) {
-    segments.push(`${day}d`);
-  }
-
-  const hr = Math.floor((seconds / 60 / 60) % 24);
-
-  segments.push(`${hr || "00"}:`);
-
-  const min = Math.floor((seconds / 60) % 60);
-
-  segments.push(`${min || "00"}:`);
-
-  const sec = Math.round(seconds % 60);
-
-  segments.push(Math.round(sec) || "00");
-
-  return segments.join("");
+  return seconds < 86_400
+    ? dayjs.duration(seconds, "seconds").format("HH:mm:ss")
+    : dayjs.duration(seconds, "seconds").format("D[d]HH:mm:ss");
 };
