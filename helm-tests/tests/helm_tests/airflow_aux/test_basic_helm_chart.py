@@ -401,7 +401,7 @@ class TestBaseChartTest:
         }
 
         kind_names_tuples = [
-            (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
+            (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
             (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
