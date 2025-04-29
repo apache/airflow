@@ -557,7 +557,6 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
 
 @pytest.mark.integration("redis")
 @pytest.mark.backend("postgres")
-@pytest.mark.timeout("100")  # timeout for each test in secs.
 class TestOtelIntegration:
     """
     This test is using a ConsoleSpanExporter so that it can capture
@@ -706,6 +705,7 @@ class TestOtelIntegration:
 
         self.dags = self.serialize_and_get_dags()
 
+    @pytest.mark.execution_timeout(90)
     def test_dag_execution_succeeds(self, monkeypatch, celery_worker_env_vars, capfd, session):
         """The same scheduler will start and finish the dag processing."""
         celery_worker_process = None
@@ -778,6 +778,7 @@ class TestOtelIntegration:
         log.info("out-start --\n%s\n-- out-end", out)
         log.info("err-start --\n%s\n-- err-end", err)
 
+    @pytest.mark.execution_timeout(90)
     def test_same_scheduler_processing_the_entire_dag(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
@@ -854,6 +855,7 @@ class TestOtelIntegration:
             # Dag run should have succeeded. Test the spans from the output.
             check_spans_without_continuance(output=out, dag=dag)
 
+    @pytest.mark.execution_timeout(90)
     def test_scheduler_change_after_the_first_task_finishes(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
@@ -959,6 +961,7 @@ class TestOtelIntegration:
             # Dag run should have succeeded. Test the spans in the output.
             check_spans_without_continuance(output=out, dag=dag)
 
+    @pytest.mark.execution_timeout(90)
     @pytest.mark.xfail(reason="Tests with a control file are flaky when running on the remote CI.")
     def test_scheduler_change_in_the_middle_of_first_task_until_the_end(
         self, monkeypatch, celery_worker_env_vars, capfd, session
@@ -1085,6 +1088,7 @@ class TestOtelIntegration:
             # Dag run should have succeeded. Test the spans in the output.
             check_spans_without_continuance(output=out, dag=dag)
 
+    @pytest.mark.execution_timeout(90)
     @pytest.mark.xfail(reason="Tests with a control file are flaky when running on the remote CI.")
     def test_scheduler_exits_gracefully_in_the_middle_of_the_first_task(
         self, monkeypatch, celery_worker_env_vars, capfd, session
@@ -1188,6 +1192,7 @@ class TestOtelIntegration:
             # Dag run should have succeeded. Test the spans in the output.
             check_spans_with_continuance(output=out, dag=dag)
 
+    @pytest.mark.execution_timeout(90)
     @pytest.mark.xfail(reason="Tests with a control file are flaky when running on the remote CI.")
     def test_scheduler_exits_forcefully_in_the_middle_of_the_first_task(
         self, monkeypatch, celery_worker_env_vars, capfd, session
@@ -1291,6 +1296,7 @@ class TestOtelIntegration:
             # Dag run should have succeeded. Test the spans in the output.
             check_spans_without_continuance(output=out, dag=dag, is_recreated=True, check_t1_sub_spans=False)
 
+    @pytest.mark.execution_timeout(90)
     @pytest.mark.xfail(reason="Tests with a control file are flaky when running on the remote CI.")
     def test_scheduler_exits_forcefully_after_the_first_task_finishes(
         self, monkeypatch, celery_worker_env_vars, capfd, session
