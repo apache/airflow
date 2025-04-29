@@ -42,7 +42,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = "~=3.8"
+requires-python = "~=3.9"
 
 dependencies = [
     "black>=23.11.0",
