@@ -25,6 +25,7 @@ import { useConfig } from "src/queries/useConfig";
 
 import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
+import { PoolSummary } from "./PoolSummary";
 import { Stats } from "./Stats";
 
 export const Dashboard = () => {
@@ -61,8 +62,9 @@ export const Dashboard = () => {
       <Box>
         <Stats />
       </Box>
-      <Box mt={8}>
+      <Box display="flex" gap={8} mt={8}>
         <Health />
+        <PoolSummary />
       </Box>
       <Box mt={8}>
         <HistoricalMetrics />
