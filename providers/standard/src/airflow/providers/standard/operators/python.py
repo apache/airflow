@@ -52,11 +52,11 @@ from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.branch import BranchMixIn
+    from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
 else:
     from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BranchMixIn  # type: ignore[no-redef]
+    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
 
 
 log = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class PythonOperator(BaseOperator):
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
-class BranchPythonOperator(PythonOperator, BranchMixIn):
+class BranchPythonOperator(BaseBranchOperator, PythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -247,10 +247,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
-    inherits_from_skipmixin = True
-
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonOperator.execute(self, context)
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -855,7 +853,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
-class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
+class BranchPythonVirtualenvOperator(BaseBranchOperator, PythonVirtualenvOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task in a virtual environment.
 
@@ -873,10 +871,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
-    inherits_from_skipmixin = True
-
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonVirtualenvOperator.execute(self, context)
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
@@ -1072,7 +1068,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
+class BranchExternalPythonOperator(BaseBranchOperator, ExternalPythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -1085,8 +1081,8 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
         :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return ExternalPythonOperator.execute(self, context)
 
 
 def get_current_context() -> Mapping[str, Any]:
