@@ -27,11 +27,11 @@ import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar, Toaster } from "src/components/ui";
+import { getOrderBy } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
-import { getOrderBy } from "src/utils";
 
 export const Asset = () => {
   const { assetId } = useParams();

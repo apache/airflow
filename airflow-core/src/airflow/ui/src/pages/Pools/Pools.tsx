@@ -31,10 +31,10 @@ import { SearchBar } from "src/components/SearchBar";
 import { Select } from "src/components/ui";
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { getOrderBy } from "src/utils";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBar from "./PoolBar";
-import { getOrderBy } from "src/utils";
 
 const cardDef = (): CardDef<PoolResponse> => ({
   card: ({ row }) => <PoolBar key={row.name} pool={row} />,

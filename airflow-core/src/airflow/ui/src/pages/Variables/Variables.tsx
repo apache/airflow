@@ -33,6 +33,7 @@ import { Button, Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { getOrderBy } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 import { downloadJson } from "src/utils/downloadJson";
 
@@ -41,7 +42,6 @@ import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
-import { getOrderBy } from "src/utils";
 
 const getColumns = ({
   allRowsSelected,
@@ -119,7 +119,7 @@ export const Variables = () => {
   );
   const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
   const { pagination, sorting } = tableURLState;
-  const orderBy = getOrderBy("-key").map(el => el.replace("value", "_val"));
+  const orderBy = getOrderBy("-key").map((el) => el.replace("value", "_val"));
 
   const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,
