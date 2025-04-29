@@ -142,6 +142,7 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
     assert run_list[0] | undeterministic == undeterministic | {
         "conf": {},
         "bundle_version": None,
+        "dag_display_name": "asset1_producer",
         "dag_id": "asset1_producer",
         "end_date": None,
         "last_scheduling_decision": None,

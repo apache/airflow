@@ -945,6 +945,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Version
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - dag_run_id
@@ -964,6 +967,7 @@ components:
       - note
       - dag_versions
       - bundle_version
+      - dag_display_name
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
