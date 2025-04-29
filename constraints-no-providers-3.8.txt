@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-23T19:53:30.780260
+# This constraints file was automatically generated on 2025-04-28T22:00:11.099060
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -54,7 +54,7 @@ bcrypt==4.3.0
 blinker==1.8.2
 botocore==1.37.1
 cachelib==0.13.0
-certifi==2025.1.31
+certifi==2025.4.26
 cffi==1.17.1
 cgroupspy==0.2.3
 charset-normalizer==3.4.1
@@ -88,9 +88,9 @@ greenlet==3.1.1
 grpcio==1.70.0
 gssapi==1.9.0
 gunicorn==23.0.0
-h11==0.14.0
+h11==0.16.0
 hdfs==2.7.3
-httpcore==1.0.8
+httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
 importlib_metadata==8.5.0
@@ -165,7 +165,7 @@ rich-argparse==1.7.0
 rich==13.9.4
 rpds-py==0.20.1
 s3fs==2024.10.0
-sentry-sdk==2.26.1
+sentry-sdk==2.27.0
 setproctitle==1.3.5
 six==1.17.0
 sniffio==1.3.1

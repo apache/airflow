@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-23T20:02:08.161222
+# This constraints file was automatically generated on 2025-04-28T22:08:18.526017
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -242,8 +242,8 @@ cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
 cattrs==24.1.3
-celery==5.5.1
-certifi==2025.1.31
+celery==5.5.2
+certifi==2025.4.26
 cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.26.1
@@ -318,7 +318,7 @@ gitdb==4.0.12
 google-ads==25.2.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.167.0
+google-api-python-client==2.168.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.39.0
@@ -334,7 +334,7 @@ google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.26.1
+google-cloud-datacatalog==3.27.0
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
 google-cloud-dataplex==2.10.1
@@ -353,7 +353,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
 google-cloud-secret-manager==2.23.3
-google-cloud-spanner==3.53.0
+google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
@@ -379,14 +379,14 @@ grpcio-tools==1.62.3
 grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
-h11==0.14.0
+h11==0.16.0
 h2==4.1.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.0.0
-httpcore==1.0.8
+httpcore==1.0.9
 httplib2==0.22.0
 httpx==0.27.0
 humanize==4.10.0
@@ -464,14 +464,14 @@ more-itertools==10.5.0
 moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.3.0
-msal==1.32.0
+msal==1.32.3
 msgraph-core==1.1.7
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.0
+mypy-boto3-rds==1.38.2
 mypy-boto3-redshift-data==1.38.0
 mypy-boto3-s3==1.38.0
 mypy==1.9.0
@@ -545,7 +545,7 @@ prometheus_client==0.21.1
 prompt_toolkit==3.0.51
 propcache==0.2.0
 proto-plus==1.26.1
-protobuf==4.25.6
+protobuf==4.25.7
 psutil==7.0.0
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
@@ -554,7 +554,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.5.5
 py4j==0.10.9.7
 pyOpenSSL==25.0.0
-pyarrow-hotfix==0.6
+pyarrow-hotfix==0.7
 pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.0
@@ -632,7 +632,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.26.1
+sentry-sdk==2.27.0
 setproctitle==1.3.5
 shapely==2.0.7
 shellingham==1.5.4
@@ -662,7 +662,7 @@ sympy==1.13.3
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.29
+teradatasql==20.0.0.30
 teradatasqlalchemy==20.0.0.4
 termcolor==2.4.0
 text-unidecode==1.3
@@ -727,7 +727,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.15.2
-ydb==3.21.0
+ydb==3.21.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.20.2

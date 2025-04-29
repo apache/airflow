@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-23T19:53:20.000234
+# This constraints file was automatically generated on 2025-04-28T22:00:01.160653
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -31,7 +31,7 @@ Jinja2==3.1.6
 Mako==1.3.10
 Markdown==3.8
 MarkupSafe==3.0.2
-PyAthena==3.12.2
+PyAthena==3.13.0
 PyGithub==2.6.1
 PyHive==0.7.0
 PyJWT==2.10.1
@@ -129,11 +129,11 @@ cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
 cattrs==24.1.3
-celery==5.5.1
-certifi==2025.1.31
+celery==5.5.2
+certifi==2025.4.26
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.34.1
+cfn-lint==1.34.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -200,12 +200,12 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.4.0
 gcsfs==2025.3.2
 geomet==0.2.1.post1
-gevent==25.4.1
+gevent==25.4.2
 gitdb==4.0.12
 google-ads==26.1.0
 google-analytics-admin==0.24.0
 google-api-core==2.24.2
-google-api-python-client==2.167.0
+google-api-python-client==2.168.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2
 google-auth==2.39.0
@@ -221,7 +221,7 @@ google-cloud-build==3.31.1
 google-cloud-compute==1.30.0
 google-cloud-container==2.56.1
 google-cloud-core==2.4.3
-google-cloud-datacatalog==3.26.1
+google-cloud-datacatalog==3.27.0
 google-cloud-dataflow-client==0.8.17
 google-cloud-dataform==0.6.1
 google-cloud-dataplex==2.10.1
@@ -240,7 +240,7 @@ google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
 google-cloud-secret-manager==2.23.3
-google-cloud-spanner==3.53.0
+google-cloud-spanner==3.54.0
 google-cloud-speech==2.32.0
 google-cloud-storage-transfer==1.16.1
 google-cloud-storage==2.19.0
@@ -266,14 +266,14 @@ grpcio-tools==1.62.3
 grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
-h11==0.14.0
+h11==0.16.0
 h2==4.2.0
 hatch==1.14.1
 hatchling==1.27.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.1.0
-httpcore==1.0.8
+httpcore==1.0.9
 httplib2==0.22.0
 httpx==0.27.0
 humanize==4.12.2
@@ -350,14 +350,14 @@ more-itertools==10.7.0
 moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.3.1
-msal==1.32.0
+msal==1.32.3
 msgraph-core==1.2.1
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.4.3
 mypy-boto3-appflow==1.38.0
-mypy-boto3-rds==1.38.0
+mypy-boto3-rds==1.38.2
 mypy-boto3-redshift-data==1.38.0
 mypy-boto3-s3==1.38.0
 mypy==1.9.0
@@ -377,9 +377,9 @@ objsize==0.7.1
 openai==1.76.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.31.0
-openlineage-python==1.31.0
-openlineage_sql==1.31.0
+openlineage-integration-common==1.32.0
+openlineage-python==1.32.0
+openlineage_sql==1.32.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
@@ -409,7 +409,7 @@ pbr==6.1.1
 pdpyras==5.4.0
 pendulum==3.1.0
 pexpect==4.9.0
-pgvector==0.4.0
+pgvector==0.4.1
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
@@ -427,7 +427,7 @@ prometheus_client==0.21.1
 prompt_toolkit==3.0.51
 propcache==0.3.1
 proto-plus==1.26.1
-protobuf==4.25.6
+protobuf==4.25.7
 psutil==7.0.0
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
@@ -436,7 +436,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.5.5
 py4j==0.10.9.7
 pyOpenSSL==25.0.0
-pyarrow-hotfix==0.6
+pyarrow-hotfix==0.7
 pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
@@ -484,7 +484,7 @@ python3-saml==1.16.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==26.4.0
-qdrant-client==1.14.1
+qdrant-client==1.14.2
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -515,7 +515,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.26.1
+sentry-sdk==2.27.0
 setproctitle==1.3.5
 shapely==2.0.7
 shellingham==1.5.4
@@ -530,12 +530,12 @@ snowflake-connector-python==3.14.1
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
-sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.4.0
 sphinx-autoapi==3.6.0
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==3.0.2
+sphinx_airflow_theme==0.2.2
 sphinx_design==0.6.1
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
@@ -560,11 +560,11 @@ statsd==4.0.1
 std-uritemplate==2.0.3
 stdlib-list==0.11.1
 strictyaml==1.7.3
-sympy==1.13.3
+sympy==1.14.0
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.29
+teradatasql==20.0.0.30
 teradatasqlalchemy==20.0.0.4
 termcolor==3.0.1
 text-unidecode==1.3
@@ -629,7 +629,7 @@ yamllint==1.37.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.20.0
-ydb==3.21.0
+ydb==3.21.1
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
