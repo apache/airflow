@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-28T22:08:18.526017
+# This constraints file was automatically generated on 2025-04-29T11:26:36.188559
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -289,7 +289,7 @@ docstring_parser==0.16
 docutils==0.20.1
 duckdb==1.2.2
 elastic-transport==8.17.1
-elasticsearch==8.18.0
+elasticsearch==8.18.1
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -647,7 +647,7 @@ snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.7
 spython==0.3.14
-sqlalchemy-bigquery==1.13.0
+sqlalchemy-bigquery==1.14.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.10.0
 sqlalchemy_drill==1.1.8
@@ -677,7 +677,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2025.4.11.15
+trove-classifiers==2025.4.28.22
 twine==6.1.0
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20241204
