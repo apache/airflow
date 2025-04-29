@@ -24,6 +24,10 @@ dayjs.extend(dayjsDuration);
 export const getDuration = (startDate?: string | null, endDate?: string | null) => {
   const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
 
+  if (!seconds) {
+    return "00:00:00";
+  }
+
   if (seconds < 10) {
     return `${seconds.toFixed(2)}s`;
   }
