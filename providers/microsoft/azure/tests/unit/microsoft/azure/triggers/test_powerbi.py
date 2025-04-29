@@ -26,7 +26,11 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshStatus,
 )
-from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.providers.microsoft.azure.triggers.powerbi import (
+    PowerBIDatasetListTrigger,
+    PowerBITrigger,
+    PowerBIWorkspaceListTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
@@ -35,6 +39,8 @@ POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
+DATASET_IDS = "dataset_ids"
+WORKSPACE_IDS = "workspace_ids"
 TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 1
@@ -56,6 +62,30 @@ def powerbi_trigger(timeout=TIMEOUT, check_interval=CHECK_INTERVAL) -> PowerBITr
         timeout=timeout,
     )
 
+
+@pytest.fixture
+def powerbi_dataset_list_trigger(timeout=TIMEOUT, group_id=GROUP_ID) -> PowerBIDatasetListTrigger:
+    """Fixture for creating a PowerBIDatasetListTrigger with customizable timeout."""
+    return PowerBIDatasetListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        group_id=group_id,
+        dataset_ids=None,
+        timeout=timeout,
+    )
+
+
+@pytest.fixture
+def powerbi_workspace_list_trigger(timeout=TIMEOUT) -> PowerBIWorkspaceListTrigger:
+    """Fixture for creating a PowerBIWorkspaceListTrigger with customizable timeout."""
+    return PowerBIWorkspaceListTrigger(
+        conn_id=POWERBI_CONN_ID,
+        proxies=None,
+        api_version=API_VERSION,
+        workspace_ids=None,
+        timeout=timeout,
+    )
 
 class TestPowerBITrigger:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
@@ -314,3 +344,87 @@ class TestPowerBITrigger:
         )
 
         assert expected == actual
+
+
+class TestPowerBIDatasetListTrigger:
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    def test_powerbi_dataset_list_trigger_serialization(self, connection):
+        """Asserts that the PowerBI Dataset List Trigger correctly serializes its arguments and classpath."""
+        powerbi_dataset_list_trigger = PowerBIDatasetListTrigger(
+            conn_id=POWERBI_CONN_ID,
+            proxies=None,
+            api_version=API_VERSION,
+            group_id=GROUP_ID,
+            dataset_ids=DATASET_IDS,
+            timeout=TIMEOUT,
+        )
+
+        classpath, kwargs = powerbi_dataset_list_trigger.serialize()
+        assert classpath == f"{MODULE}.triggers.powerbi.PowerBIDatasetListTrigger"
+        assert kwargs == {
+            "conn_id": POWERBI_CONN_ID,
+            "dataset_ids": DATASET_IDS,
+            "timeout": TIMEOUT,
+            "group_id": GROUP_ID,
+            "proxies": None,
+            "api_version": API_VERSION,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_dataset_list")
+    async def test_powerbi_dataset_list_trigger_run_get_dataset_list(
+        self, mock_trigger_get_dataset_list, powerbi_dataset_list_trigger
+    ):
+        """Assert event is triggered upon successful trigger."""
+        powerbi_dataset_list_trigger.group_id = GROUP_ID
+        mock_trigger_get_dataset_list.return_value = DATASET_IDS
+
+        task = [i async for i in powerbi_dataset_list_trigger.run()]
+        response = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"The dataset list get request from workspace {GROUP_ID} has been successful.",
+                "dataset_ids": DATASET_IDS,
+            }
+        )
+        assert response in task
+
+class TestPowerBIWorkspaceListTrigger:
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    def test_powerbi_workspace_list_trigger_serialization(self, connection):
+        """Asserts that the PowerBI Dataset List Trigger correctly serializes its arguments and classpath."""
+        powerbi_workspace_list_trigger = PowerBIWorkspaceListTrigger(
+            conn_id=POWERBI_CONN_ID,
+            proxies=None,
+            api_version=API_VERSION,
+            workspace_ids=WORKSPACE_IDS,
+            timeout=TIMEOUT,
+        )
+
+        classpath, kwargs = powerbi_workspace_list_trigger.serialize()
+        assert classpath == f"{MODULE}.triggers.powerbi.PowerBIWorkspaceListTrigger"
+        assert kwargs == {
+            "conn_id": POWERBI_CONN_ID,
+            "workspace_ids": WORKSPACE_IDS,
+            "timeout": TIMEOUT,
+            "proxies": None,
+            "api_version": API_VERSION,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_workspace_list")
+    async def test_powerbi_workspace_list_trigger_run_get_workspace_list(
+        self, mock_trigger_get_workspace_list, powerbi_workspace_list_trigger
+    ):
+        """Assert event is triggered upon successful trigger."""
+        mock_trigger_get_workspace_list.return_value = WORKSPACE_IDS
+
+        task = [i async for i in powerbi_workspace_list_trigger.run()]
+        response = TriggerEvent(
+            {
+                "status": "success",
+                "message": "The workspace list get request has been successful.",
+                "workspace_ids": WORKSPACE_IDS,
+            }
+        )
+        assert response in task

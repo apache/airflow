@@ -51,6 +51,14 @@ class PowerBIDatasetRefreshException(AirflowException):
     """An exception that indicates a dataset refresh failed to complete."""
 
 
+class PowerBIWorkspaceListException(AirflowException):
+    """An exception that indicates a failure in getting the list of groups (workspaces)."""
+
+
+class PowerBIDatasetListException(AirflowException):
+    """An exception that indicates a failure in getting the list of datasets."""
+
+
 class PowerBIHook(KiotaRequestAdapterHook):
     """
     A async hook to interact with Power BI.
@@ -199,6 +207,40 @@ class PowerBIHook(KiotaRequestAdapterHook):
             return request_id
         except AirflowException:
             raise PowerBIDatasetRefreshException("Failed to trigger dataset refresh.")
+
+    async def get_workspace_list(self) -> list[str]:
+        """
+        Triggers a request to get all available workspaces for the service principal.
+
+        :return: List of workspace IDs.
+        """
+        try:
+            response = await self.run(url="myorg/groups", method="GET")
+
+            list_of_workspaces = response.get("value", [])
+
+            return [ws["id"] for ws in list_of_workspaces if "id" in ws]
+
+        except AirflowException:
+            raise PowerBIWorkspaceListException("Failed to get workspace ID list.")
+
+    async def get_dataset_list(self, *, group_id: str) -> list[str]:
+        """
+        Triggers a request to get all datasets within a group (workspace).
+
+        :param group_id: Workspace ID.
+
+        :return: List of dataset IDs.
+        """
+        try:
+            response = await self.run(url=f"myorg/groups/{group_id}/datasets", method="GET")
+
+            list_of_datasets = response.get("value", [])
+
+            return [ds["id"] for ds in list_of_datasets if "id" in ds]
+
+        except AirflowException:
+            raise PowerBIDatasetListException("Failed to get dataset ID list.")
 
     async def cancel_dataset_refresh(self, dataset_id: str, group_id: str, dataset_refresh_id: str) -> None:
         """
