@@ -29,9 +29,14 @@ export type FlexibleFormProps = {
   flexibleFormDefaultSection: string;
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
+  setError: () => void;
 };
 
-export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: FlexibleFormProps) => {
+export const FlexibleForm = ({
+  flexibleFormDefaultSection,
+  initialParamsDict,
+  setError,
+}: FlexibleFormProps) => {
   const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
 
@@ -76,7 +81,7 @@ export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: 
                           (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                       )
                       .map(([name]) => (
-                        <Row key={name} name={name} />
+                        <Row key={name} name={name} onUpdate={setError} />
                       ))}
                   </Stack>
                 </Box>

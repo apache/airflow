@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Field, Stack } from "@chakra-ui/react";
+import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -33,19 +34,31 @@ const isRequired = (param: ParamSpec) =>
   Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
 
 /** Render a normal form row with a field that is auto-selected */
-export const FieldRow = ({ name }: FlexibleFormElementProps) => {
+export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
+  const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
+
+  console.log(param);
+
+  const onUpdate = (value?: string) => {
+    if (isRequired(param) && (!Boolean(value) || value === "")) {
+      setIsValid(false);
+    } else {
+      setIsValid(true);
+    }
+    rowOnUpdate === undefined ? undefined : rowOnUpdate();
+  };
 
   return (
-    <Field.Root orientation="horizontal" required={isRequired(param)}>
+    <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
       <Stack>
         <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
       </Stack>
       <Stack css={{ flexBasis: "70%" }}>
-        <FieldSelector name={name} />
+        <FieldSelector name={name} onUpdate={onUpdate} />
         {param.description === null ? (
           param.schema.description_md === undefined ? undefined : (
             <Field.HelperText>
@@ -55,6 +68,7 @@ export const FieldRow = ({ name }: FlexibleFormElementProps) => {
         ) : (
           <Field.HelperText>{param.description}</Field.HelperText>
         )}
+        {isValid ? undefined : <Field.ErrorText>This field is required</Field.ErrorText>}
       </Stack>
     </Field.Root>
   );

@@ -24,7 +24,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
+export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const [error, setError] = useState<unknown>(undefined);
@@ -68,6 +68,7 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         setError(expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
       }
     }
+    onUpdate === undefined ? undefined : onUpdate(String(error));
   };
 
   return (

@@ -51,6 +51,7 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
+  const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
@@ -129,6 +130,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         <FlexibleForm
           flexibleFormDefaultSection={flexibleFormDefaultSection}
           initialParamsDict={initialParamsDict}
+          setError={() => setFormError(true)}
         />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
@@ -211,7 +213,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || Boolean(errors.date) || isPending}
+            disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger
