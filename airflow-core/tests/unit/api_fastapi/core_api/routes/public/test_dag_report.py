@@ -23,6 +23,7 @@ import pytest
 
 from airflow.utils.file import list_py_file_paths
 
+import system.standard
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, parse_and_sync_to_db
 
@@ -37,8 +38,10 @@ TEST_DAG_FOLDER_INVALID_2 = "/root/airflow/tests/dags/"
 def get_corresponding_dag_file_count(dir: str, include_examples: bool = True) -> int:
     from airflow import example_dags
 
-    return len(list_py_file_paths(directory=dir)) + (
-        len(list_py_file_paths(next(iter(example_dags.__path__)))) if include_examples else 0
+    return (
+        len(list_py_file_paths(directory=dir))
+        + (len(list_py_file_paths(next(iter(example_dags.__path__)))) if include_examples else 0)
+        + (len(list_py_file_paths(next(iter(system.standard.__path__)))) if include_examples else 0)
     )
 
 

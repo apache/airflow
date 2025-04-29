@@ -177,6 +177,12 @@ function environment_initialization() {
 
     cd "${AIRFLOW_SOURCES}"
 
+    # Temporarily add /opt/airflow/providers/standard/tests to PYTHONPATH in order to see example dags
+    # in the UI when testing in Breeze. This might be solved differently in the future
+    if [[ -d /opt/airflow/providers/standard/tests  ]]; then
+        export PYTHONPATH=${PYTHONPATH=}:/opt/airflow/providers/standard/tests
+    fi
+
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
