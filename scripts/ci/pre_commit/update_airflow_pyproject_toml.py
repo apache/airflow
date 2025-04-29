@@ -30,9 +30,8 @@ from pathlib import Path
 from packaging.version import Version, parse as parse_version
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import console, get_all_provider_ids, insert_documentation
+from common_precommit_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, insert_documentation
 
-AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_PYPROJECT_TOML_FILE = AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
@@ -53,18 +52,23 @@ END_PROVIDER_WORKSPACE_MEMBERS = "    # End of automatically generated provider 
 
 CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 
+# Temporary override for providers that are not yet included in constraints or when they need
+# minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
+    "amazon": parse_version("2.1.3"),
     "fab": parse_version("2.0.0"),
-    "openlineage": parse_version("2.1.2"),
+    "openlineage": parse_version("2.1.3"),
+    "git": parse_version("0.0.1"),
+    "common.messaging": parse_version("1.0.0"),
 }
 
 
-def get_optional_dependencies_from_airflow_core() -> list[str]:
+def get_optional_dependencies(pyproject_toml_path: Path) -> list[str]:
     try:
         import tomllib
     except ImportError:
         import tomli as tomllib
-    airflow_core_toml_dict = tomllib.loads(AIRFLOW_CORE_PYPROJECT_TOML_FILE.read_text())
+    airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
     return airflow_core_toml_dict["project"]["optional-dependencies"].keys()
 
 
@@ -86,29 +90,34 @@ all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
 
 def find_min_provider_version(provider_id: str) -> Version | None:
     metadata = all_providers_metadata.get(provider_id)
-    if not metadata:
-        return None
     # We should periodically update the starting date to avoid pip install resolution issues
+    # TODO: when min Python version is 3.11 change back the code to fromisoformat
+    # https://github.com/apache/airflow/pull/49155/files
     cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc
     )
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
-    versions: list[Version] = sorted([parse_version(version) for version in metadata])
-    for version in reversed(versions):
-        provider_info = metadata[str(version)]
-        date_released = datetime.strptime(provider_info["date_released"], "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
-        if date_released < cut_off_date:
-            break
-        last_version_newer_than_cutoff = version
+    min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
+    if not metadata:
+        if not min_version_override:
+            return None
+        last_version_newer_than_cutoff = min_version_override
+    else:
+        versions: list[Version] = sorted([parse_version(version) for version in metadata], reverse=True)
+        for version in versions:
+            provider_info = metadata[str(version)]
+            date_released = datetime.strptime(provider_info["date_released"], "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=timezone.utc
+            )
+            if date_released < cut_off_date:
+                break
+            last_version_newer_than_cutoff = version
     console.print(
         f"[bright_blue]Provider id {provider_id} min version found:[/] "
         f"{last_version_newer_than_cutoff} (date {date_released}"
     )
     if last_version_newer_than_cutoff:
-        min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
         if min_version_override and min_version_override > last_version_newer_than_cutoff:
             console.print(
                 f"[yellow]Overriding provider id {provider_id} min version:[/] {min_version_override} "
@@ -122,7 +131,7 @@ PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
 
 if __name__ == "__main__":
     all_optional_dependencies = []
-    optional_airflow_core_dependencies = get_optional_dependencies_from_airflow_core()
+    optional_airflow_core_dependencies = get_optional_dependencies(AIRFLOW_CORE_PYPROJECT_TOML_FILE)
     for optional in sorted(optional_airflow_core_dependencies):
         if optional == "all":
             all_optional_dependencies.append('"all-core" = [\n    "apache-airflow-core[all]"\n]\n')
@@ -141,7 +150,15 @@ if __name__ == "__main__":
         else:
             all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
             all_provider_lines.append(f'    "{distribution_name}",\n')
-    all_optional_dependencies.append('"all" = [\n    "apache-airflow-core[all]",\n')
+    all_optional_dependencies.append('"all" = [\n')
+    optional_apache_airflow_dependencies = get_optional_dependencies(AIRFLOW_PYPROJECT_TOML_FILE)
+    all_local_extras = [
+        extra
+        for extra in sorted(optional_apache_airflow_dependencies)
+        if extra not in all_providers and not extra.startswith("all")
+    ]
+    all_optional_dependencies.append(f'    "apache-airflow[{",".join(all_local_extras)}]",\n')
+    all_optional_dependencies.append('    "apache-airflow-core[all]",\n')
     all_optional_dependencies.extend(all_provider_lines)
     all_optional_dependencies.append("]\n")
     insert_documentation(

@@ -16,6 +16,8 @@
 # under the License.
 """Serialized DAG and BaseOperator."""
 
+# TODO: update test_recursive_serialize_calls_must_forward_kwargs and re-enable RET505
+# ruff: noqa: RET505
 from __future__ import annotations
 
 import collections.abc
@@ -49,7 +51,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
-from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions.asset import (
@@ -115,26 +116,6 @@ if TYPE_CHECKING:
         pass
 
 log = logging.getLogger(__name__)
-
-_OPERATOR_EXTRA_LINKS: set[str] = {
-    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
-    "airflow.providers.standard.sensors.external_task.ExternalDagLink",
-    # Deprecated names, so that existing serialized dags load straight away.
-    "airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink",
-    "airflow.operators.dagrun_operator.TriggerDagRunLink",
-    "airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensorLink",
-}
-
-
-@cache
-def get_operator_extra_links() -> set[str]:
-    """
-    Get the operator extra links.
-
-    This includes both the built-in ones, and those come from the providers.
-    """
-    _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
-    return _OPERATOR_EXTRA_LINKS
 
 
 @cache
@@ -580,7 +561,7 @@ class BaseSerialization:
 
     _CONSTRUCTOR_PARAMS: dict[str, Parameter] = {}
 
-    SERIALIZER_VERSION = 1
+    SERIALIZER_VERSION = 2
 
     @classmethod
     def to_json(cls, var: DAG | BaseOperator | dict | list | set | tuple) -> str:
@@ -1135,7 +1116,6 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-
         yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
@@ -1220,7 +1200,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :raise ValueError: The error message of a ValueError will be passed on through to
             the fronted to show up as a tooltip on the disabled link.
         :param ti: The TaskInstance for the URL being searched for.
-        :param link_name: The name of the link we're looking for the URL for. Should be
+        :param name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
@@ -1296,10 +1276,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op["_operator_name"] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
-        serialize_op["_is_empty"] = op.inherits_from_empty_operator
+        if op.inherits_from_empty_operator:
+            serialize_op["_is_empty"] = True
 
         # Used to determine if an Operator is inherited from SkipMixin or BranchMixin
-        serialize_op["_can_skip_downstream"] = op.inherits_from_skipmixin
+        if op.inherits_from_skipmixin:
+            serialize_op["_can_skip_downstream"] = True
 
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
@@ -1394,7 +1376,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "label":
                 # Label shouldn't be set anymore --  it's computed from task_id now
                 continue
-            elif k == "downstream_task_ids":
+            if k == "downstream_task_ids":
                 v = set(v)
             elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
                 # If operator's execution_timeout is None and core.default_task_execution_timeout is not None,
@@ -1787,12 +1769,139 @@ class SerializedDAG(DAG, BaseSerialization):
         cls.validate_schema(json_dict)
         return json_dict
 
+    @staticmethod
+    def conversion_v1_to_v2(ser_obj: dict):
+        dag_dict = ser_obj["dag"]
+        dag_renames = [
+            ("_dag_id", "dag_id"),
+            ("_task_group", "task_group"),
+            ("_access_control", "access_control"),
+        ]
+        task_renames = [("_task_type", "task_type")]
+        #
+        tasks_remove = [
+            "_log_config_logger_name",
+            "deps",
+            "sla",
+            # Operator extra links from Airflow 2 won't work anymore, only new ones, so remove these
+            "_operator_extra_links",
+        ]
+
+        ser_obj["__version"] = 2
+
+        def replace_dataset_in_str(s):
+            return s.replace("Dataset", "Asset").replace("dataset", "asset")
+
+        def _replace_dataset_with_asset_in_timetables(obj, parent_key=None):
+            if isinstance(obj, dict):
+                new_obj = {}
+                for k, v in obj.items():
+                    new_key = replace_dataset_in_str(k) if isinstance(k, str) else k
+                    # Don't replace uri values
+                    if new_key == "uri":
+                        new_obj[new_key] = v
+                    else:
+                        new_value = (
+                            replace_dataset_in_str(v)
+                            if isinstance(v, str)
+                            else _replace_dataset_with_asset_in_timetables(v, parent_key=new_key)
+                        )
+                        new_obj[new_key] = new_value
+                # Insert "name" and "group" if this is inside the 'objects' list
+                if parent_key == "objects":
+                    new_obj["name"] = None
+                    new_obj["group"] = None
+                return new_obj
+
+            elif isinstance(obj, list):
+                return [_replace_dataset_with_asset_in_timetables(i, parent_key=parent_key) for i in obj]
+
+            return obj
+
+        def _create_compat_timetable(value):
+            from airflow import settings
+            from airflow.sdk.definitions.dag import _create_timetable
+
+            if tzs := dag_dict.get("timezone"):
+                timezone = decode_timezone(tzs)
+            else:
+                timezone = settings.TIMEZONE
+            timetable = _create_timetable(value, timezone)
+            return encode_timetable(timetable)
+
+        for old, new in dag_renames:
+            if old in dag_dict:
+                dag_dict[new] = dag_dict.pop(old)
+
+        if default_args := dag_dict.get("default_args"):
+            for k in tasks_remove:
+                default_args["__var"].pop(k, None)
+
+        if timetable := dag_dict.get("timetable"):
+            if timetable["__type"] in {
+                "airflow.timetables.simple.DatasetTriggeredTimetable",
+                "airflow.timetables.datasets.DatasetOrTimeSchedule",
+            }:
+                dag_dict["timetable"] = _replace_dataset_with_asset_in_timetables(dag_dict["timetable"])
+        elif (sched := dag_dict.pop("schedule_interval", None)) is None:
+            dag_dict["timetable"] = _create_compat_timetable(None)
+        elif isinstance(sched, str):
+            dag_dict["timetable"] = _create_compat_timetable(sched)
+        elif sched.get("__type") == "timedelta":
+            dag_dict["timetable"] = _create_compat_timetable(datetime.timedelta(seconds=sched["__var"]))
+        elif sched.get("__type") == "relativedelta":
+            dag_dict["timetable"] = _create_compat_timetable(decode_relativedelta(sched["__var"]))
+        else:
+            # We should maybe convert this to None and warn instead
+            raise ValueError(f"Unknown schedule_interval field {sched!r}")
+
+        if "dag_dependencies" in dag_dict:
+            for dep in dag_dict["dag_dependencies"]:
+                dep_type = dep.get("dependency_type")
+                if dep_type in ("dataset", "dataset-alias"):
+                    dep["dependency_type"] = dep_type.replace("dataset", "asset")
+
+                if not dep.get("label"):
+                    dep["label"] = dep["dependency_id"]
+
+                for fld in ("target", "source"):
+                    val = dep.get(fld)
+                    if val == dep_type and val in ("dataset", "dataset-alias"):
+                        dep[fld] = dep[fld].replace("dataset", "asset")
+                    elif val.startswith("dataset:"):
+                        dep[fld] = dep[fld].replace("dataset:", "asset:")
+                    elif val.startswith("dataset-alias:"):
+                        dep[fld] = dep[fld].replace("dataset-alias:", "asset-alias:")
+
+        for task in dag_dict["tasks"]:
+            task_var: dict = task["__var"]
+            if "airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep" in task_var.get("deps", []):
+                task_var["_is_sensor"] = True
+            for k in tasks_remove:
+                task_var.pop(k, None)
+            for old, new in task_renames:
+                task_var[new] = task_var.pop(old)
+            for item in itertools.chain(*(task_var.get(key, []) for key in ("inlets", "outlets"))):
+                original_item_type = item["__type"]
+                if isinstance(item, dict) and "__type" in item:
+                    item["__type"] = replace_dataset_in_str(original_item_type)
+
+                var_ = item["__var"]
+                if original_item_type == "dataset":
+                    var_["name"] = var_["uri"]
+                var_["group"] = "asset"
+
+        # Set on the root TG
+        dag_dict["task_group"]["group_display_name"] = ""
+
     @classmethod
     def from_dict(cls, serialized_obj: dict) -> SerializedDAG:
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get("__version", "<not present>")
-        if ver != cls.SERIALIZER_VERSION:
+        if ver not in (1, 2):
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
+        if ver == 1:
+            cls.conversion_v1_to_v2(serialized_obj)
         return cls.deserialize_dag(serialized_obj["dag"])
 
 
@@ -1846,8 +1955,9 @@ class TaskGroupSerialization(BaseSerialization):
         group_id = cls.deserialize(encoded_group["_group_id"])
         kwargs = {
             key: cls.deserialize(encoded_group[key])
-            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor", "group_display_name"]
+            for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
         if not encoded_group.get("is_mapped"):
             group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
@@ -1967,7 +2077,11 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     @property
     def has_task_concurrency_limits(self) -> bool:
         return any(
-            task[Encoding.VAR].get("max_active_tis_per_dag") is not None for task in self.data["dag"]["tasks"]
+            task[Encoding.VAR].get("max_active_tis_per_dag") is not None
+            or task[Encoding.VAR].get("max_active_tis_per_dagrun") is not None
+            or task[Encoding.VAR].get("partial_kwargs", {}).get("max_active_tis_per_dag") is not None
+            or task[Encoding.VAR].get("partial_kwargs", {}).get("max_active_tis_per_dagrun") is not None
+            for task in self.data["dag"]["tasks"]
         )
 
     @property
@@ -1975,6 +2089,14 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         return ", ".join(
             set(filter(None, (task[Encoding.VAR].get("owner") for task in self.data["dag"]["tasks"])))
         )
+
+    @staticmethod
+    def _get_mapped_operator_ports(task: dict, direction: str):
+        return task["partial_kwargs"][direction]
+
+    @staticmethod
+    def _get_base_operator_ports(task: dict, direction: str):
+        return task[direction]
 
     def get_task_assets(
         self,
@@ -1984,13 +2106,18 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     ) -> Generator[tuple[str, AssetT], None, None]:
         for task in self.data["dag"]["tasks"]:
             task = task[Encoding.VAR]
+            if task.get("_is_mapped"):
+                ports_getter = self._get_mapped_operator_ports
+            else:
+                ports_getter = self._get_base_operator_ports
             directions = ("inlets",) if inlets else ()
             if outlets:
                 directions += ("outlets",)
             for direction in directions:
-                if not (ports := task.get(direction)):
+                try:
+                    ports = ports_getter(task, direction)
+                except KeyError:
                     continue
-
                 for port in ports:
                     obj = BaseSerialization.deserialize(port)
                     if isinstance(obj, of_type):

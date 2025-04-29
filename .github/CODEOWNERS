@@ -23,7 +23,7 @@
 
 # API
 /airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
-/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
+/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93 @shubhamraj-git
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # Airflow CTL
@@ -33,7 +33,7 @@
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
 # UI
-/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
+/airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl @shubhamraj-git
 
 # Security/Permissions
 /airflow-core/src/airflow/security/permissions.py @vincbeck
@@ -66,7 +66,7 @@
 /providers/common/messaging/ @vincbeck
 /providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
-/providers/edge/ @jscheffl
+/providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/openlineage/ @mobuchowski

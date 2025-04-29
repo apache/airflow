@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TextIO
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
@@ -29,33 +29,11 @@ from airflow_breeze.utils.packages import (
     get_latest_provider_tag,
     get_not_ready_provider_ids,
     get_provider_details,
-    get_provider_jinja_context,
     get_removed_provider_ids,
-    regenerate_pyproject_toml,
-    render_template,
     tag_exists_for_provider,
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
-
-LICENCE_RST = """
-.. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
-
-..   http://www.apache.org/licenses/LICENSE-2.0
-
-.. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied.  See the License for the
-   specific language governing permissions and limitations
-   under the License.
-"""
 
 
 class PrepareReleasePackageTagExistException(Exception):
@@ -68,65 +46,6 @@ class PrepareReleasePackageWrongSetupException(Exception):
 
 class PrepareReleasePackageErrorBuildingPackageException(Exception):
     """Error when building the package."""
-
-
-def get_provider_distribution_jinja_context(provider_id: str, version_suffix: str) -> dict[str, Any]:
-    provider_details = get_provider_details(provider_id)
-    jinja_context = get_provider_jinja_context(
-        provider_id=provider_id,
-        current_release_version=provider_details.versions[0],
-        version_suffix=version_suffix,
-    )
-    return jinja_context
-
-
-def _prepare_get_provider_info_py_file(context: dict[str, Any], provider_id: str, target_path: Path):
-    from airflow_breeze.utils.black_utils import black_format
-
-    get_provider_template_name = "get_provider_info"
-    get_provider_content = render_template(
-        template_name=get_provider_template_name,
-        context=context,
-        extension=".py",
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
-    target_provider_specific_path = (target_path / "airflow" / "providers").joinpath(*provider_id.split("."))
-    (target_provider_specific_path / "get_provider_info.py").write_text(black_format(get_provider_content))
-    get_console().print(f"[info]Generated get_provider_info.py in {target_provider_specific_path}[/]")
-
-
-def _prepare_pyproject_toml_file(context: dict[str, Any], target_path: Path):
-    manifest_content = render_template(
-        template_name="pyproject",
-        context=context,
-        extension=".toml",
-        autoescape=False,
-        lstrip_blocks=True,
-        trim_blocks=True,
-        keep_trailing_newline=True,
-    )
-    (target_path / "pyproject.toml").write_text(manifest_content)
-    get_console().print(f"[info]Generated pyproject.toml in {target_path}[/]")
-
-
-def _prepare_readme_file(context: dict[str, Any], target_path: Path):
-    readme_content = LICENCE_RST + render_template(
-        template_name="PROVIDER_README", context=context, extension=".rst"
-    )
-    (target_path / "README.rst").write_text(readme_content)
-    get_console().print(f"[info]Generated README.rst in {target_path}[/]")
-
-
-def generate_build_files(provider_id: str, version_suffix: str, target_provider_root_sources_path: Path):
-    get_console().print(f"\n[info]Generate build files for {provider_id}\n")
-    jinja_context = get_provider_distribution_jinja_context(
-        provider_id=provider_id, version_suffix=version_suffix
-    )
-    _prepare_get_provider_info_py_file(jinja_context, provider_id, target_provider_root_sources_path)
-    _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
-    _prepare_readme_file(jinja_context, target_provider_root_sources_path)
-    get_console().print(f"\n[info]Generated package build files for {provider_id}[/]\n")
 
 
 def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool, str]:
@@ -169,29 +88,6 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
     shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
     get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
-
-
-def apply_version_suffix_to_pyproject_toml(
-    provider_id: str, target_provider_root_sources_path: Path, version_suffix: str
-) -> str:
-    pyproject_toml_path = target_provider_root_sources_path / "pyproject.toml"
-    original_pyproject_toml_content = pyproject_toml_path.read_text()
-    if not version_suffix:
-        return original_pyproject_toml_content
-    get_console().print(f"\n[info]Applying version suffix {version_suffix} to {pyproject_toml_path}")
-    jinja_context = get_provider_distribution_jinja_context(
-        provider_id=provider_id, version_suffix=version_suffix
-    )
-    provider_details = get_provider_details(provider_id)
-    regenerate_pyproject_toml(jinja_context, provider_details, version_suffix)
-    _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
-    return original_pyproject_toml_content
-
-
-def restore_pyproject_toml(target_provider_root_sources_path: Path, original_pyproject_toml_content: str):
-    pyproject_toml_path = target_provider_root_sources_path / "pyproject.toml"
-    get_console().print(f"\n[info]Restoring original pyproject.toml in {pyproject_toml_path}")
-    pyproject_toml_path.write_text(original_pyproject_toml_content)
 
 
 def build_provider_distribution(
@@ -294,6 +190,6 @@ def get_packages_list_to_act_on(
             and (package.strip() not in removed_provider_ids or include_removed)
             and (package.strip() not in not_ready_provider_ids or include_not_ready)
         ]
-    elif provider_distributions:
+    if provider_distributions:
         return list(provider_distributions)
     return get_available_distributions(include_removed=include_removed, include_not_ready=include_not_ready)

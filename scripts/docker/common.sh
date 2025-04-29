@@ -48,6 +48,9 @@ function common::get_packaging_tool() {
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
         export UV_CONCURRENT_DOWNLOADS
+        if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --prerelease if-necessary"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -58,6 +61,9 @@ function common::get_packaging_tool() {
         export EXTRA_UNINSTALL_FLAGS="--yes"
         export UPGRADE_TO_HIGHEST_RESOLUTION="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
+        if [[ ${INCLUDE_PRE_RELEASE=} == "true" ]]; then
+            EXTRA_INSTALL_FLAGS="${EXTRA_INSTALL_FLAGS} --pre"
+        fi
     fi
 }
 

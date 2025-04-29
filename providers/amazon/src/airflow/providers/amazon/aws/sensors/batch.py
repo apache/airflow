@@ -226,8 +226,7 @@ class BatchJobQueueSensor(AwsBaseSensor[BatchClientHook]):
         if not response["jobQueues"]:
             if self.treat_non_existing_as_deleted:
                 return True
-            else:
-                raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
+            raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
 
         status = response["jobQueues"][0]["status"]
 

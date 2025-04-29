@@ -226,6 +226,10 @@ class OracleHook(DbApiHook):
         elif purity == "default":
             conn_config["purity"] = oracledb.PURITY_DEFAULT
 
+        expire_time = conn.extra_dejson.get("expire_time")
+        if expire_time:
+            conn_config["expire_time"] = expire_time
+
         conn = oracledb.connect(**conn_config)  # type: ignore[assignment]
         if mod is not None:
             conn.module = mod
@@ -458,11 +462,11 @@ class OracleHook(DbApiHook):
         if sid and service_name:
             raise ValueError("At most one allowed for 'sid', and 'service name'.")
 
-        uri = f"oracle://{login}:{password}@{host}:{port}"
-        if sid:
+        uri = f"oracle+oracledb://{login}:{password}@{host}:{port}"
+        if service_name:
+            uri = f"{uri}?service_name={service_name}"
+        elif sid:
             uri = f"{uri}/{sid}"
-        elif service_name:
-            uri = f"{uri}/{service_name}"
         elif conn.schema:
             uri = f"{uri}/{conn.schema}"
 

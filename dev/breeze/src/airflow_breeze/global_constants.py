@@ -20,6 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
+import itertools
 import json
 import platform
 import subprocess
@@ -27,7 +28,11 @@ from enum import Enum
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+)
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -64,6 +69,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "gremlin",
     "kafka",
     "mongo",
     "mssql",
@@ -193,8 +199,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.13"
+PIP_VERSION = "25.1"
+UV_VERSION = "0.6.17"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -343,7 +349,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
-    machine = {"x86_64": "amd64"}.get(machine, machine)
+    machine = {"x86_64": "amd64", "aarch64": "arm64"}.get(machine, machine)
     return machine
 
 
@@ -353,6 +359,7 @@ DOCKER_BUILDKIT = 1
 
 DRILL_HOST_PORT = "28047"
 FLOWER_HOST_PORT = "25555"
+GREMLIN_HOST_PORT = "8182"
 MSSQL_HOST_PORT = "21433"
 MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
@@ -551,16 +558,60 @@ def get_airflow_extras():
 
 # Initialize integrations
 ALL_PYPROJECT_TOML_FILES = AIRFLOW_ROOT_PATH.rglob("pyproject.toml")
+ALL_PROVIDER_YAML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
+ALL_PROVIDER_PYPROJECT_TOML_FILES = AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
+    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
+)
+
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
 )
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
-    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 
-with AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.open() as f:
-    PROVIDER_DEPENDENCIES = json.load(f)
+
+def _calculate_provider_deps_hash():
+    import hashlib
+
+    hasher = hashlib.sha256()
+    for file in sorted(itertools.chain(ALL_PROVIDER_PYPROJECT_TOML_FILES, ALL_PROVIDER_YAML_FILES)):
+        hasher.update(file.read_bytes())
+    return hasher.hexdigest()
+
+
+def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
+    if calculated_hash is None:
+        calculated_hash = _calculate_provider_deps_hash()
+    AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
+    # We use regular print there as rich console might not be initialized yet here
+    print("Regenerating provider dependencies file")
+    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+    return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
+
+
+if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation()
+else:
+    PROVIDER_DEPENDENCIES = json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
+
+
+def generate_provider_dependencies_if_needed():
+    regenerate_provider_dependencies = False
+    if (
+        not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
+        or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
+    ):
+        regenerate_provider_dependencies = True
+        calculated_hash = _calculate_provider_deps_hash()
+    else:
+        calculated_hash = _calculate_provider_deps_hash()
+        if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
+            regenerate_provider_dependencies = True
+    if regenerate_provider_dependencies:
+        global PROVIDER_DEPENDENCIES
+        PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation(calculated_hash)
+
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 
@@ -605,6 +656,7 @@ DEFAULT_EXTRAS = [
     "celery",
     "cncf-kubernetes",
     "common-io",
+    "common-messaging",
     "docker",
     "elasticsearch",
     "fab",
@@ -634,28 +686,17 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "amazon",
-        "common.messaging",
-        "fab",
-        "git",
-        "openlineage",
-    ]
-)
-
-
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.9",
-        "airflow-version": "2.9.3",
-        "remove-providers": "cloudant common.messaging fab edge git",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.9",
         "airflow-version": "2.10.5",
         "remove-providers": "cloudant common.messaging fab git",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.9",
+        "airflow-version": "3.0.0",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]

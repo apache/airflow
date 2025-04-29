@@ -34,6 +34,7 @@
     :caption: Guides
 
     Operators <operators>
+    Apache Pinot Hooks <hooks>
 
 .. toctree::
     :hidden:

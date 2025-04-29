@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``15.0.1``
+Release: ``15.1.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0/>`_.
 
 Installation
 ------------
@@ -57,78 +57,81 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==========================================  ======================================
-PIP package                                 Version required
-==========================================  ======================================
-``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.4.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``asgiref``                                 ``>=3.5.2``
-``dill``                                    ``>=0.2.3``
-``gcloud-aio-auth``                         ``>=5.2.0``
-``gcloud-aio-bigquery``                     ``>=6.1.2``
-``gcloud-aio-storage``                      ``>=9.0.0``
-``gcsfs``                                   ``>=2023.10.0``
-``google-ads``                              ``>=26.0.0``
-``google-analytics-admin``                  ``>=0.9.0``
-``google-api-core``                         ``>=2.11.0,!=2.16.0,!=2.18.0``
-``google-api-python-client``                ``>=2.0.2``
-``google-auth``                             ``>=2.29.0``
-``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.73.0``
-``google-cloud-alloydb``                    ``>=0.4.0``
-``google-cloud-automl``                     ``>=2.12.0``
-``google-cloud-bigquery``                   ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``
-``google-cloud-bigquery-datatransfer``      ``>=3.13.0``
-``google-cloud-bigtable``                   ``>=2.17.0``
-``google-cloud-build``                      ``>=3.31.0``
-``google-cloud-compute``                    ``>=1.10.0``
-``google-cloud-container``                  ``>=2.52.0``
-``google-cloud-datacatalog``                ``>=3.23.0``
-``google-cloud-dataflow-client``            ``>=0.8.6``
-``google-cloud-dataform``                   ``>=0.5.0``
-``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.12.0``
-``google-cloud-dataproc-metastore``         ``>=1.12.0``
-``google-cloud-dlp``                        ``>=3.12.0``
-``google-cloud-kms``                        ``>=2.15.0``
-``google-cloud-language``                   ``>=2.9.0``
-``google-cloud-logging``                    ``>=3.5.0``
-``google-cloud-managedkafka``               ``>=0.1.6``
-``google-cloud-memcache``                   ``>=1.7.0``
-``google-cloud-monitoring``                 ``>=2.18.0``
-``google-cloud-orchestration-airflow``      ``>=1.10.0``
-``google-cloud-os-login``                   ``>=2.9.1``
-``google-cloud-pubsub``                     ``>=2.21.3``
-``google-cloud-redis``                      ``>=2.12.0``
-``google-cloud-secret-manager``             ``>=2.16.0``
-``google-cloud-spanner``                    ``>=3.11.1,!=3.49.0``
-``google-cloud-speech``                     ``>=2.18.0``
-``google-cloud-storage``                    ``>=2.7.0``
-``google-cloud-storage-transfer``           ``>=1.4.1``
-``google-cloud-tasks``                      ``>=2.13.0``
-``google-cloud-texttospeech``               ``>=2.14.1``
-``google-cloud-translate``                  ``>=3.16.0``
-``google-cloud-videointelligence``          ``>=2.11.0``
-``google-cloud-vision``                     ``>=3.4.0``
-``google-cloud-workflows``                  ``>=1.10.0``
-``google-cloud-run``                        ``>=0.10.0``
-``google-cloud-batch``                      ``>=0.13.0``
-``grpcio-gcp``                              ``>=0.2.2``
-``httpx``                                   ``>=0.25.0``
-``looker-sdk``                              ``>=22.4.0,!=24.18.0``
-``pandas-gbq``                              ``>=0.7.0``
-``pandas``                                  ``>=2.1.2,<2.2``
-``proto-plus``                              ``>=1.19.6``
-``pyarrow``                                 ``>=14.0.1``
-``python-slugify``                          ``>=7.0.0``
-``PyOpenSSL``                               ``>=23.0.0``
-``sqlalchemy-bigquery``                     ``>=1.2.1``
-``sqlalchemy-spanner``                      ``>=1.6.2``
-``tenacity``                                ``>=8.1.0``
-``immutabledict``                           ``>=4.2.0``
-``types-protobuf``                          ``!=5.29.1.20250402``
-==========================================  ======================================
+===========================================  ======================================
+PIP package                                  Version required
+===========================================  ======================================
+``apache-airflow``                           ``>=2.10.0``
+``apache-airflow-providers-common-compat``   ``>=1.4.0``
+``apache-airflow-providers-common-sql``      ``>=1.20.0``
+``asgiref``                                  ``>=3.5.2``
+``dill``                                     ``>=0.2.3``
+``gcloud-aio-auth``                          ``>=5.2.0``
+``gcloud-aio-bigquery``                      ``>=6.1.2``
+``gcloud-aio-storage``                       ``>=9.0.0``
+``gcsfs``                                    ``>=2023.10.0``
+``google-ads``                               ``>=26.0.0``
+``google-analytics-admin``                   ``>=0.9.0``
+``google-api-core``                          ``>=2.11.0,!=2.16.0,!=2.18.0``
+``google-api-python-client``                 ``>=2.0.2``
+``google-auth``                              ``>=2.29.0``
+``google-auth-httplib2``                     ``>=0.0.1``
+``google-cloud-aiplatform[evaluation,ray]``  ``>=1.73.0; python_version < "3.12"``
+``google-cloud-aiplatform[evaluation]``      ``>=1.73.0; python_version >= "3.12"``
+``ray[default]``                             ``==2.42.0; python_version >= "3.12"``
+``google-cloud-bigquery-storage``            ``==2.31.0; python_version >= "3.12"``
+``google-cloud-alloydb``                     ``>=0.4.0``
+``google-cloud-automl``                      ``>=2.12.0``
+``google-cloud-bigquery``                    ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``
+``google-cloud-bigquery-datatransfer``       ``>=3.13.0``
+``google-cloud-bigtable``                    ``>=2.17.0``
+``google-cloud-build``                       ``>=3.31.0``
+``google-cloud-compute``                     ``>=1.10.0``
+``google-cloud-container``                   ``>=2.52.0``
+``google-cloud-datacatalog``                 ``>=3.23.0``
+``google-cloud-dataflow-client``             ``>=0.8.6``
+``google-cloud-dataform``                    ``>=0.5.0``
+``google-cloud-dataplex``                    ``>=2.6.0``
+``google-cloud-dataproc``                    ``>=5.12.0``
+``google-cloud-dataproc-metastore``          ``>=1.12.0``
+``google-cloud-dlp``                         ``>=3.12.0``
+``google-cloud-kms``                         ``>=2.15.0``
+``google-cloud-language``                    ``>=2.9.0``
+``google-cloud-logging``                     ``>=3.5.0``
+``google-cloud-managedkafka``                ``>=0.1.6``
+``google-cloud-memcache``                    ``>=1.7.0``
+``google-cloud-monitoring``                  ``>=2.18.0``
+``google-cloud-orchestration-airflow``       ``>=1.10.0``
+``google-cloud-os-login``                    ``>=2.9.1``
+``google-cloud-pubsub``                      ``>=2.21.3``
+``google-cloud-redis``                       ``>=2.12.0``
+``google-cloud-secret-manager``              ``>=2.16.0``
+``google-cloud-spanner``                     ``>=3.11.1,!=3.49.0``
+``google-cloud-speech``                      ``>=2.18.0``
+``google-cloud-storage``                     ``>=2.7.0``
+``google-cloud-storage-transfer``            ``>=1.4.1``
+``google-cloud-tasks``                       ``>=2.13.0``
+``google-cloud-texttospeech``                ``>=2.14.1``
+``google-cloud-translate``                   ``>=3.16.0``
+``google-cloud-videointelligence``           ``>=2.11.0``
+``google-cloud-vision``                      ``>=3.4.0``
+``google-cloud-workflows``                   ``>=1.10.0``
+``google-cloud-run``                         ``>=0.10.0``
+``google-cloud-batch``                       ``>=0.13.0``
+``grpcio-gcp``                               ``>=0.2.2``
+``httpx``                                    ``>=0.25.0``
+``looker-sdk``                               ``>=22.4.0,!=24.18.0``
+``pandas-gbq``                               ``>=0.7.0``
+``pandas``                                   ``>=2.1.2,<2.2``
+``proto-plus``                               ``>=1.19.6``
+``pyarrow``                                  ``>=14.0.1``
+``python-slugify``                           ``>=7.0.0``
+``PyOpenSSL``                                ``>=23.0.0``
+``sqlalchemy-bigquery``                      ``>=1.2.1``
+``sqlalchemy-spanner``                       ``>=1.6.2``
+``tenacity``                                 ``>=8.1.0``
+``immutabledict``                            ``>=4.2.0``
+``types-protobuf``                           ``!=5.29.1.20250402``
+===========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -167,4 +170,4 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/15.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/15.1.0/changelog.html>`_.

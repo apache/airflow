@@ -165,13 +165,10 @@ class SageMakerBaseOperator(BaseOperator):
             # in case there is collision.
             if fail_if_exists:
                 raise AirflowException(f"A SageMaker {resource_type} with name {name} already exists.")
-            else:
-                max_name_len = 63
-                timestamp = str(
-                    time.time_ns() // 1000000000
-                )  # only keep the relevant datetime (first 10 digits)
-                name = f"{proposed_name[: max_name_len - len(timestamp) - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
-                self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
+            max_name_len = 63
+            timestamp = str(time.time_ns() // 1000000000)  # only keep the relevant datetime (first 10 digits)
+            name = f"{proposed_name[: max_name_len - len(timestamp) - 1]}-{timestamp}"  # we subtract one to make provision for the dash between the truncated name and timestamp
+            self.log.info("Changed %s name to '%s' to avoid collision.", resource_type, name)
         return name
 
     def _check_resource_type(self, resource_type: str):
@@ -197,8 +194,7 @@ class SageMakerBaseOperator(BaseOperator):
         except ClientError as e:
             if e.response["Error"]["Code"] == "ValidationException":
                 return False  # ValidationException is thrown when the resource could not be found
-            else:
-                raise e
+            raise e
 
     def execute(self, context: Context):
         raise NotImplementedError("Please implement execute() in sub class!")
@@ -326,7 +322,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             status = response["ProcessingJobStatus"]
             if status in self.hook.failed_states:
                 raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
-            elif status == "Completed":
+            if status == "Completed":
                 self.log.info("%s completed successfully.", self.task_id)
                 return {"Processing": serialize(response)}
 
@@ -430,12 +426,9 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         response = self.hook.create_endpoint_config(self.config)
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker endpoint config creation failed: {response}")
-        else:
-            return {
-                "EndpointConfig": serialize(
-                    self.hook.describe_endpoint_config(self.config["EndpointConfigName"])
-                )
-            }
+        return {
+            "EndpointConfig": serialize(self.hook.describe_endpoint_config(self.config["EndpointConfigName"]))
+        }
 
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
@@ -1038,8 +1031,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         response = self.hook.create_model(self.config)
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker model creation failed: {response}")
-        else:
-            return {"Model": serialize(self.hook.describe_model(self.config["ModelName"]))}
+        return {"Model": serialize(self.hook.describe_model(self.config["ModelName"]))}
 
 
 class SageMakerTrainingOperator(SageMakerBaseOperator):
@@ -1177,7 +1169,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             if status in self.hook.failed_states:
                 reason = description.get("FailureReason", "(No reason provided)")
                 raise AirflowException(f"SageMaker job failed because {reason}")
-            elif status == "Completed":
+            if status == "Completed":
                 log_message = f"{self.task_id} completed successfully."
                 if self.print_log:
                     billable_seconds = SageMakerHook.count_billable_seconds(

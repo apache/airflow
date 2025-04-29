@@ -233,7 +233,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
-        with folder.joinpath("openapi", "v1.yaml").open() as f:
+        with folder.joinpath("openapi", "v1-flask-api.yaml").open() as f:
             specification = safe_load(f)
         return FlaskApi(
             specification=specification,
@@ -329,24 +329,23 @@ class FabAuthManager(BaseAuthManager[User]):
         if not access_entity:
             # Scenario 1
             return self._is_authorized_dag(method=method, details=details, user=user)
-        else:
-            # Scenario 2
-            resource_types = self._get_fab_resource_types(access_entity)
-            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+        # Scenario 2
+        resource_types = self._get_fab_resource_types(access_entity)
+        dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
 
-            if (details and details.id) and not self._is_authorized_dag(
-                method=dag_method, details=details, user=user
-            ):
-                return False
+        if (details and details.id) and not self._is_authorized_dag(
+            method=dag_method, details=details, user=user
+        ):
+            return False
 
-            return all(
-                (
-                    self._is_authorized(method=method, resource_type=resource_type, user=user)
-                    if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                    else self._is_authorized_dag_run(method=method, details=details, user=user)
-                )
-                for resource_type in resource_types
+        return all(
+            (
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(method=method, details=details, user=user)
             )
+            for resource_type in resource_types
+        )
 
     def is_authorized_backfill(
         self,
@@ -567,7 +566,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG
-            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG)
+            resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
@@ -593,7 +592,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG Run permission on a DAG Level
-            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG_RUN)
+            resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG_RUN)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
@@ -625,19 +624,6 @@ class FabAuthManager(BaseAuthManager[User]):
             raise AirflowException(f"Unknown DAG access entity: {dag_access_entity}")
         return _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[dag_access_entity]
 
-    def _resource_name(self, dag_id: str, resource_type: str) -> str:
-        """
-        Return the FAB resource name for a DAG id.
-
-        :param dag_id: the DAG id
-
-        :meta private:
-        """
-        root_dag_id = self._get_root_dag_id(dag_id)
-        if hasattr(permissions, "resource_name"):
-            return getattr(permissions, "resource_name")(root_dag_id, resource_type)
-        return getattr(permissions, "resource_name_for_dag")(root_dag_id)
-
     @staticmethod
     def _get_user_permissions(user: User):
         """
@@ -651,23 +637,6 @@ class FabAuthManager(BaseAuthManager[User]):
         if not user:
             return []
         return getattr(user, "perms") or []
-
-    def _get_root_dag_id(self, dag_id: str) -> str:
-        """
-        Return the root DAG id in case of sub DAG, return the DAG id otherwise.
-
-        :param dag_id: the DAG id
-
-        :meta private:
-        """
-        if not self.appbuilder:
-            raise AirflowException("AppBuilder is not initialized.")
-
-        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
-            return self.appbuilder.get_session.scalar(
-                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
-            )
-        return dag_id
 
     def _sync_appbuilder_roles(self):
         """

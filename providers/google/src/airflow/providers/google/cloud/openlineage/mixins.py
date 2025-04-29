@@ -207,15 +207,14 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
                 name=dataset_name,
                 facets=dataset_facets,
             )
-        elif dataset_type == "output":
+        if dataset_type == "output":
             # Logic specific to creating OutputDataset (if needed)
             return OutputDataset(
                 namespace=BIGQUERY_NAMESPACE,
                 name=dataset_name,
                 facets=dataset_facets,
             )
-        else:
-            raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
+        raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
 
     def _get_table_facets_safely(self, table_name: str) -> dict[str, DatasetFacet]:
         try:

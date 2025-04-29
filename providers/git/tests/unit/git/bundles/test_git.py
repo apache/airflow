@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from unittest import mock
@@ -115,17 +116,17 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url == f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow"
+        assert bundle.repo_url == "https://github.com/apache/zzzairflow"
 
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
-        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         assert bundle.repo_url == bundle.hook.repo_url
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
-        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
 
         bundle.initialize()
 
@@ -146,6 +147,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
+            git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -174,6 +176,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
+            git_conn_id=CONN_HTTPS,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -195,7 +198,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() != starting_commit.hexsha
@@ -221,7 +224,7 @@ class TestGitDagBundle:
             writer.set_value("user", "name", "Test User")
             writer.set_value("user", "email", "test@example.com")
 
-        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -252,7 +255,7 @@ class TestGitDagBundle:
         # add tag
         repo.create_tag("test123")
 
-        bundle = GitDagBundle(name="test", tracking_ref="test123")
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="test123")
         bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -279,7 +282,7 @@ class TestGitDagBundle:
         mock_githook.return_value.repo_url = repo_path
 
         repo.create_head("test")
-        bundle = GitDagBundle(name="test", tracking_ref="test")
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="test")
         bundle.initialize()
         assert bundle.repo.head.ref.name == "test"
 
@@ -289,6 +292,7 @@ class TestGitDagBundle:
         mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(
             name="test",
+            git_conn_id=CONN_HTTPS,
             version="not_found",
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
@@ -313,6 +317,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(
             name="test",
+            git_conn_id=CONN_HTTPS,
             tracking_ref=GIT_DEFAULT_BRANCH,
             subdir=subdir,
         )
@@ -408,6 +413,93 @@ class TestGitDagBundle:
     def test_view_url(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
         session.query(Connection).delete()
         conn = Connection(
+            conn_id="my_git_connection",
+            host=repo_url,
+            conn_type="git",
+            **(extra_conn_kwargs or {}),
+        )
+        session.add(conn)
+        session.commit()
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="my_git_connection",
+            tracking_ref="main",
+        )
+        bundle.initialize = mock.MagicMock()
+        view_url = bundle.view_url("0f0f0f")
+        assert view_url == expected_url
+        bundle.initialize.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "repo_url, extra_conn_kwargs, expected_url",
+        [
+            (
+                "git@github.com:apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f/subdir"),
+            (
+                "https://github.com/apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "git@gitlab.com:apache/airflow.git",
+                None,
+                "https://gitlab.com/apache/airflow/-/tree/0f0f0f/subdir",
+            ),
+            (
+                "git@bitbucket.org:apache/airflow.git",
+                None,
+                "https://bitbucket.org/apache/airflow/src/0f0f0f/subdir",
+            ),
+            (
+                "git@myorg.github.com:apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123"},
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123", "password": "def456"},
+                "https://github.com/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                None,
+                "https://github.com:443/apache/airflow/tree/0f0f0f/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com:443/apache/airflow/tree/0f0f0f/subdir",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_view_url_subdir(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
+        session.query(Connection).delete()
+        conn = Connection(
             conn_id="git_default",
             host=repo_url,
             conn_type="git",
@@ -418,6 +510,8 @@ class TestGitDagBundle:
         bundle = GitDagBundle(
             name="test",
             tracking_ref="main",
+            subdir="subdir",
+            git_conn_id="git_default",
         )
         bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
@@ -440,7 +534,7 @@ class TestGitDagBundle:
 
         with mock.patch("airflow.providers.git.bundles.git.Repo.clone_from") as mock_clone:
             mock_clone.side_effect = GitCommandError("clone", "Simulated error")
-            bundle = GitDagBundle(name="test", tracking_ref="main")
+            bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
             with pytest.raises(
                 AirflowException,
                 match=re.escape("Error cloning repository"),
@@ -461,25 +555,46 @@ class TestGitDagBundle:
                 assert "Repository path: %s not found" in str(exc_info.value)
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
-    @pytest.mark.parametrize("conn_id, should_find", [("my_test_git", True), ("something-else", False)])
-    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, should_find):
+    @pytest.mark.parametrize(
+        "conn_id, expected_hook_type",
+        [("my_test_git", GitHook), ("something-else", type(None))],
+    )
+    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, expected_hook_type):
         bundle = GitDagBundle(
             name="testa",
             tracking_ref="main",
             git_conn_id=conn_id,
-            repo_url="some_repo_url",
         )
-        assert bundle.repo_url == "some_repo_url"
-        if should_find:
-            assert isinstance(bundle.hook, GitHook)
-        else:
-            assert not hasattr(bundle, "hook")
+        assert isinstance(bundle.hook, expected_hook_type)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
-        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         with mock.patch("airflow.providers.git.bundles.git.GitDagBundle.lock") as mock_lock:
             bundle.initialize()
             assert mock_lock.call_count == 2  # both initialize and refresh
+
+    @pytest.mark.parametrize(
+        "conn_json, repo_url, expected",
+        [
+            (
+                {"host": "git@github.com:apache/airflow.git"},
+                "git@github.com:apache/hello.git",
+                "git@github.com:apache/hello.git",
+            ),
+            ({"host": "git@github.com:apache/airflow.git"}, None, "git@github.com:apache/airflow.git"),
+            ({}, "git@github.com:apache/hello.git", "git@github.com:apache/hello.git"),
+        ],
+    )
+    def test_repo_url_precedence(self, conn_json, repo_url, expected):
+        conn_str = json.dumps(conn_json)
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": conn_str}):
+            bundle = GitDagBundle(
+                name="test",
+                tracking_ref="main",
+                git_conn_id="my_test_git",
+                repo_url=repo_url,
+            )
+            assert bundle.repo_url == expected

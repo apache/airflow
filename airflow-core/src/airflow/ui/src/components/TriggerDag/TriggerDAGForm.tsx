@@ -18,10 +18,13 @@
  */
 import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
+import { useTimezone } from "src/context/timezone";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -33,6 +36,9 @@ import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
+
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -51,6 +57,7 @@ export type DagRunTriggerParams = {
 const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
+  const { selectedTimezone } = useTimezone();
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
@@ -61,8 +68,8 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
     defaultValues: {
       conf,
       dagRunId: "",
-      // Default logical date to now
-      logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      // Default logical date to now, show it in the selected timezone
+      logicalDate: dayjs().tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS"),
       note: "",
     },
   });
@@ -83,7 +90,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         },
       });
     }
-    triggerDagRun(data);
+    triggerDagRun({
+      ...data,
+      logicalDate: dayjs(data.logicalDate).tz(selectedTimezone, true).toISOString(),
+    });
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -121,7 +131,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         collapsible
         defaultValue={[flexibleFormDefaultSection]}
         mb={4}
-        mt={4}
+        mt={8}
         size="lg"
         variant="enclosed"
       >
@@ -132,7 +142,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
-            <Box p={5}>
+            <Box p={4}>
               <Controller
                 control={control}
                 name="logicalDate"

@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+1.8.1
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Fix false friends in implicit string concatenation (#48871)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+   * ``Prepare docs for Apr 1st wave of providers (#48828)``
+   * ``Simplify tooling by switching completely to uv (#48223)``
+
 1.8.0
 .....
 

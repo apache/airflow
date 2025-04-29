@@ -41,6 +41,7 @@ body:
         - apache-pig
         - apache-pinot
         - apache-spark
+        - apache-tinkerpop
         - apprise
         - arangodb
         - asana
@@ -59,7 +60,7 @@ body:
         - dingding
         - discord
         - docker
-        - edge
+        - edge3
         - elasticsearch
         - exasol
         - fab

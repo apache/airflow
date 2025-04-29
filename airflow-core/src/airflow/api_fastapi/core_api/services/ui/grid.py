@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from functools import cache
 from operator import methodcaller
 from typing import Callable
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select
 from typing_extensions import Any
 
@@ -41,11 +43,15 @@ from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import NotMapped
+from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import task_group_to_dict
+
+log = structlog.get_logger(logger_name=__name__)
 
 
 @cache
@@ -137,19 +143,14 @@ def get_child_task_map(parent_task_id: str, task_node_map: dict[str, dict[str, A
     return [task_id for task_id, task_map in task_node_map.items() if task_map["parent_id"] == parent_task_id]
 
 
-def _get_total_task_count(
-    run_id: str, task_count: list[int | MappedTaskGroup | MappedOperator], session: SessionDep
-) -> int:
-    return sum(
-        node
-        if isinstance(node, int)
-        else (
-            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
-            if isinstance(node, (MappedTaskGroup, MappedOperator))
-            else node
-        )
-        for node in task_count
-    )
+def _count_tis(node: int | MappedTaskGroup | MappedOperator, run_id: str, session: SessionDep) -> int:
+    if not isinstance(node, (MappedTaskGroup, MappedOperator)):
+        return node
+    with contextlib.suppress(NotFullyPopulated, NotMapped):
+        return DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session)
+    # If the downstream is not actually mapped, or we don't have information to
+    # determine the length yet, simply return 1 to represent the stand-in ti.
+    return 1
 
 
 def fill_task_instance_summaries(
@@ -185,6 +186,9 @@ def fill_task_instance_summaries(
     task_group_map_cache: dict[UUID, dict[str, dict[str, Any]]] = {}
 
     for (task_id, run_id), tis in grouped_task_instances.items():
+        if not tis:
+            continue
+
         sdm = _get_serdag(tis[0], session)
         serdag_cache[sdm.id] = serdag_cache.get(sdm.id) or sdm.dag
         dag = serdag_cache[sdm.id]
@@ -247,7 +251,7 @@ def fill_task_instance_summaries(
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
                 child_states=child_states,
-                task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
+                task_count=sum(_count_tis(n, run_id, session) for n in task_node_map[task_id]["task_count"]),
                 state=TaskInstanceState[overall_ti_state.upper()]
                 if overall_ti_state != "no_status"
                 else None,
@@ -275,6 +279,13 @@ def _get_serdag(ti, session):
         )
     if not dag_version:
         raise RuntimeError("No dag_version object could be found.")
+    if not dag_version.serialized_dag:
+        log.error(
+            "No serialized dag found",
+            dag_id=dag_version.dag_id,
+            version_id=dag_version.id,
+            version_number=dag_version.version_number,
+        )
     return dag_version.serialized_dag
 
 
@@ -283,7 +294,10 @@ def get_combined_structure(task_instances, session):
     merged_nodes = []
     # we dedup with serdag, as serdag.dag varies somehow?
     serdags = {_get_serdag(ti, session) for ti in task_instances}
-    dags = [serdag.dag for serdag in serdags]
+    dags = []
+    for serdag in serdags:
+        if serdag:
+            dags.append(serdag.dag)
     for dag in dags:
         nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
         _merge_node_dicts(merged_nodes, nodes)

@@ -20,7 +20,7 @@ requires = [
     "GitPython==3.1.44",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
-    "packaging==24.2",
+    "packaging==25.0",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.2",
@@ -59,40 +59,22 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0"
+version = "3.1.0"
 
 dependencies = [
-    "apache-airflow-task-sdk",
-    "apache-airflow-core==3.0.0",
+    "apache-airflow-task-sdk<1.2.0,>=1.0.0",
+    "apache-airflow-core==3.1.0",
 ]
 
 packages = []
 
 [project.optional-dependencies]
 # Automatically generated airflow optional dependencies
-"aiobotocore" = [
-    "apache-airflow-core[aiobotocore]"
-]
 "all-core" = [
     "apache-airflow-core[all]"
 ]
-"apache-atlas" = [
-    "apache-airflow-core[apache-atlas]"
-]
-"apache-webhdfs" = [
-    "apache-airflow-core[apache-webhdfs]"
-]
 "async" = [
     "apache-airflow-core[async]"
-]
-"cloudpickle" = [
-    "apache-airflow-core[cloudpickle]"
-]
-"github-enterprise" = [
-    "apache-airflow-core[github-enterprise]"
-]
-"google-auth" = [
-    "apache-airflow-core[google-auth]"
 ]
 "graphviz" = [
     "apache-airflow-core[graphviz]"
@@ -100,29 +82,14 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
-"ldap" = [
-    "apache-airflow-core[ldap]"
-]
 "otel" = [
     "apache-airflow-core[otel]"
-]
-"pandas" = [
-    "apache-airflow-core[pandas]"
-]
-"rabbitmq" = [
-    "apache-airflow-core[rabbitmq]"
-]
-"s3fs" = [
-    "apache-airflow-core[s3fs]"
 ]
 "sentry" = [
     "apache-airflow-core[sentry]"
 ]
 "statsd" = [
     "apache-airflow-core[statsd]"
-]
-"uv" = [
-    "apache-airflow-core[uv]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -178,6 +145,9 @@ packages = []
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
+"apache.tinkerpop" = [
+    "apache-airflow-providers-apache-tinkerpop"
+]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
 ]
@@ -209,7 +179,7 @@ packages = []
     "apache-airflow-providers-common-io>=1.4.2"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging"
+    "apache-airflow-providers-common-messaging>=1.0.0"
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql>=1.18.0"
@@ -232,8 +202,8 @@ packages = []
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
-"edge" = [
-    "apache-airflow-providers-edge"
+"edge3" = [
+    "apache-airflow-providers-edge3"
 ]
 "elasticsearch" = [
     "apache-airflow-providers-elasticsearch>=5.5.2"
@@ -251,7 +221,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0"
 ]
 "git" = [
-    "apache-airflow-providers-git"
+    "apache-airflow-providers-git>=0.0.1"
 ]
 "github" = [
     "apache-airflow-providers-github>=2.8.0"
@@ -311,7 +281,7 @@ packages = []
     "apache-airflow-providers-openfaas>=3.7.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.1.2"
+    "apache-airflow-providers-openlineage>=2.1.3"
 ]
 "opensearch" = [
     "apache-airflow-providers-opensearch>=1.5.0"
@@ -410,6 +380,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
+    "apache-airflow[aiobotocore,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -429,6 +400,7 @@ packages = []
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
+    "apache-airflow-providers-apache-tinkerpop",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -439,7 +411,7 @@ packages = []
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
-    "apache-airflow-providers-common-messaging",
+    "apache-airflow-providers-common-messaging>=1.0.0",
     "apache-airflow-providers-common-sql>=1.18.0",
     "apache-airflow-providers-databricks>=6.11.0",
     "apache-airflow-providers-datadog>=3.8.0",
@@ -447,13 +419,13 @@ packages = []
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-edge",
+    "apache-airflow-providers-edge3",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
     "apache-airflow-providers-fab>=2.0.0",
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
-    "apache-airflow-providers-git",
+    "apache-airflow-providers-git>=0.0.1",
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
@@ -473,7 +445,7 @@ packages = []
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
-    "apache-airflow-providers-openlineage>=2.1.2",
+    "apache-airflow-providers-openlineage>=2.1.3",
     "apache-airflow-providers-opensearch>=1.5.0",
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
@@ -508,6 +480,51 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0",
 ]
 # End of automatically generated airflow optional dependencies
+# Aiobotocore required for AWS deferrable operators.
+# There is conflict between boto3 and aiobotocore dependency botocore.
+# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+# boto3 have native aync support and we move away from aio aiobotocore
+"aiobotocore" =  [
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
+]
+"apache-atlas" = [
+    "atlasclient>=0.1.2",
+]
+"apache-webhdfs" = [
+    "apache-airflow-providers-apache-hdfs",
+]
+"cloudpickle" = [
+    "cloudpickle>=2.2.1",
+]
+"github-enterprise" = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+"google-auth" = [
+    "apache-airflow-providers-fab",
+    "authlib>=1.0.0",
+]
+"ldap" = [
+    "python-ldap>=3.4.4",
+]
+"pandas" = [
+    "apache-airflow-providers-common-sql[pandas]",
+]
+"polars" = [
+    "apache-airflow-providers-common-sql[polars]",
+]
+"rabbitmq" = [
+    "amqp>=5.2.0",
+]
+"s3fs" = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned in aiobotocore extra
+    "apache-airflow-providers-amazon[s3fs]",
+]
+"uv" = [
+    "uv>=0.6.17",
+]
+
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -588,6 +605,11 @@ extend-select = [
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "RET505", # Unnecessary {branch} after return statement
+    "RET506", # Unnecessary {branch} after raise statement
+    "RET507", # Unnecessary {branch} after continue statement
+    "RET508", # Unnecessary {branch} after break statement
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -763,7 +785,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas"]
+banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Direct import from the airflow package modules and constraints
@@ -993,6 +1015,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apprise/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/arangodb/src",
@@ -1029,8 +1053,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/discord/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/src",
     "$MYPY_CONFIG_FILE_DIR/providers/docker/tests",
-    "$MYPY_CONFIG_FILE_DIR/providers/edge/src",
-    "$MYPY_CONFIG_FILE_DIR/providers/edge/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/edge3/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/edge3/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/src",
     "$MYPY_CONFIG_FILE_DIR/providers/elasticsearch/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/exasol/src",
@@ -1185,6 +1209,11 @@ module=[
 ]
 ignore_errors = true
 
+# airflowctl autogenered datamodels
+[[tool.mypy.overrides]]
+module="airflowctl.api.datamodels.*"
+ignore_errors = true
+
 [dependency-groups]
 dev = [
     "apache-airflow[all]",
@@ -1258,6 +1287,7 @@ apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
@@ -1276,7 +1306,7 @@ apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
-apache-airflow-providers-edge = { workspace = true }
+apache-airflow-providers-edge3 = { workspace = true }
 apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-fab = { workspace = true }
@@ -1369,6 +1399,7 @@ members = [
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/apache/tinkerpop",
     "providers/apprise",
     "providers/arangodb",
     "providers/asana",
@@ -1387,7 +1418,7 @@ members = [
     "providers/dingding",
     "providers/discord",
     "providers/docker",
-    "providers/edge",
+    "providers/edge3",
     "providers/elasticsearch",
     "providers/exasol",
     "providers/fab",

@@ -20,7 +20,7 @@ requires = [
     "GitPython==3.1.44",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
-    "packaging==24.2",
+    "packaging==25.0",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.2",
@@ -59,7 +59,7 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.0.0"
+version = "3.1.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
@@ -86,11 +86,11 @@ dependencies = [
     "fastapi[standard]>=0.115.0,!=0.115.10",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "flask>=2.1.1",
-    "gitpython>=3.1.40",
     # We could get rid of flask and gunicorn if we replace serve_logs with a starlette + unicorn
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
+    'importlib_metadata>=7.0;python_version>="3.12"',
     "itsdangerous>=2.0",
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
@@ -98,10 +98,9 @@ dependencies = [
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
-    "marshmallow-oneofschema>=2.0.1",
     "methodtools>=0.4.7",
-    "opentelemetry-api>=1.24.0",
-    "opentelemetry-exporter-otlp>=1.24.0",
+    "opentelemetry-api>=1.26.0",
+    "opentelemetry-exporter-otlp>=1.26.0",
     "packaging>=23.2",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
@@ -125,7 +124,7 @@ dependencies = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.49,<2.0",
+    "sqlalchemy[asyncio]>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
@@ -136,44 +135,21 @@ dependencies = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
+    "apache-airflow-task-sdk<1.2.0,>=1.0.0",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-io>=1.5.2",
-    "apache-airflow-providers-common-sql>=1.24.1",
-    "apache-airflow-providers-smtp>=2.0.1",
-    "apache-airflow-providers-standard>=0.2.0",
+    "apache-airflow-providers-common-io>=1.5.3",
+    "apache-airflow-providers-common-sql>=1.26.0",
+    "apache-airflow-providers-smtp>=2.0.2",
+    "apache-airflow-providers-standard>=0.4.0",
 ]
 
 
 [project.optional-dependencies]
-# Aiobotocore required for AWS deferrable operators.
-# There is conflict between boto3 and aiobotocore dependency botocore.
-# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-# boto3 have native aync support and we move away from aio aiobotocore
-"aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
-]
 "async" = [
     "eventlet>=0.37.0",
     "gevent>=24.2.1",
     "greenlet>=0.4.9",
-]
-"apache-atlas" = [
-    "atlasclient>=0.1.2",
-]
-"apache-webhdfs" = [
-    "apache-airflow-providers-apache-hdfs",
-]
-"cloudpickle" = [
-    "cloudpickle>=2.2.1",
-]
-"github-enterprise" = [
-    "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
-]
-"google-auth" = [
-    "apache-airflow-providers-fab",
-    "authlib>=1.0.0",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
@@ -186,26 +162,8 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
-"ldap" = [
-    "python-ldap>=3.4.4",
-]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
-]
-
-"pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    "pandas>=2.1.2,<2.3",
-]
-"rabbitmq" = [
-    "amqp>=5.2.0",
-]
-"s3fs" = [
-    # This is required for support of S3 file system which uses aiobotocore
-    # which can have a conflict with boto3 as mentioned in aiobotocore extra
-    "apache-airflow-providers-amazon[s3fs]",
 ]
 "sentry" = [
     "blinker>=1.1",
@@ -216,11 +174,8 @@ dependencies = [
 "statsd" = [
     "statsd>=3.3.0",
 ]
-"uv" = [
-    "uv>=0.6.13",
-]
 "all" = [
-    "apache-airflow-core[aiobotocore,async,apache-atlas,apache-webhdfs,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,rabbitmq,s3fs,sentry,statsd,uv]"
+    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
 ]
 
 [project.scripts]
@@ -281,11 +236,14 @@ dev = [
     "apache-airflow-ctl",
     "apache-airflow-devel-common",
     "apache-airflow-task-sdk",
+    # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
+    # airflow-core tests
+    "apache-airflow[pandas,polars]",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-celery",
     "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-fab",
     "apache-airflow-providers-git",
-    # TODO(potiuk): check if this is really needed
     "apache-airflow-providers-ftp",
 ]
 

@@ -127,14 +127,6 @@ def task_reschedules_for_ti():
     return wrapper
 
 
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
-
-
 class CallbackWrapper:
     task_id: str | None = None
     dag_id: str | None = None
@@ -4731,11 +4723,12 @@ class TestMappedTaskInstanceReceiveValue:
             show.expand(value=[1, 2, 3])
         # ensure that there is a dag_version record in the db
         dag_version = session.merge(DagVersion(dag_id="test", bundle_name="test"))
-        dag_maker.create_dagrun()
+        session.commit()
+        dag_maker.create_dagrun(session=session)
         task = dag.get_task("show")
         for ti in session.scalars(select(TI)):
             ti.refresh_from_task(task)
-            ti.run()
+            ti.run(session=session)
         # verify that we only saw the dag version we created
         assert known_versions == [dag_version.id] * 3
 
@@ -4861,22 +4854,21 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.`key` = 'xxx'",
         ]
-    elif backend == "postgres":
+    if backend == "postgres":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
         ]
-    elif backend == "sqlite":
+    if backend == "sqlite":
         return [
             "SELECT xcom.value",
             "FROM xcom",
             "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
         ]
-    else:
-        raise RuntimeError(f"unknown backend {backend!r}")
+    raise RuntimeError(f"unknown backend {backend!r}")
 
 
 def test_expand_non_templated_field(dag_maker, session):

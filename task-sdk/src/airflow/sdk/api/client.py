@@ -504,8 +504,7 @@ class DagRunOperations:
 
                 log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
-            else:
-                raise
+            raise
 
         return OKResponse(ok=True)
 

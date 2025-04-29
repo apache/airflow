@@ -325,6 +325,9 @@ class RuntimeTaskInstance(TaskInstance):
         if run_id is None:
             run_id = self.run_id
 
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None), ArgNotSet))
+
         if task_ids is None:
             # default to the current task if not provided
             task_ids = [self.task_id]
@@ -363,8 +366,9 @@ class RuntimeTaskInstance(TaskInstance):
             else:
                 xcoms.append(value)
 
-        if len(xcoms) == 1:
+        if single_task_requested and single_map_index_requested:
             return xcoms[0]
+
         return xcoms
 
     def xcom_push(self, key: str, value: Any):
@@ -535,7 +539,7 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
-def parse(what: StartupDetails) -> RuntimeTaskInstance:
+def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
 
@@ -558,12 +562,28 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
-    dag = bag.dags[what.ti.dag_id]
+    try:
+        dag = bag.dags[what.ti.dag_id]
+    except KeyError:
+        log.error(
+            "DAG not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
+        )
+        exit(1)
 
     # install_loader()
 
-    # TODO: Handle task not found
-    task = dag.task_dict[what.ti.task_id]
+    try:
+        task = dag.task_dict[what.ti.task_id]
+    except KeyError:
+        log.error(
+            "Task not found in DAG during start up",
+            dag_id=dag.dag_id,
+            task_id=what.ti.task_id,
+            bundle=bundle_info,
+            path=what.dag_rel_path,
+        )
+        exit(1)
+
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
@@ -674,7 +694,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
             setproctitle(f"airflow worker -- {msg.ti.id}")
 
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg)
+            ti = parse(msg, log)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -864,7 +884,7 @@ def run(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.exception("Task failed with exception")
+        log.error("Task exited", exit_code=e.code)
         msg, state = _handle_current_task_failed(ti)
         error = e
     except BaseException as e:
@@ -954,7 +974,7 @@ def _handle_trigger_dag_run(
             method_name="execute_complete",
         )
         return _defer_task(defer, ti, log)
-    elif drte.wait_for_completion:
+    if drte.wait_for_completion:
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",

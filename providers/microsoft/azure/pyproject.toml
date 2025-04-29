@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.3.0"
+version = "12.3.1"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     "adlfs>=2023.10.0",
     "azure-batch>=8.0.0",
     "azure-cosmos>=4.6.0",
@@ -81,17 +81,12 @@ dependencies = [
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
     "flask-appbuilder>=4.0.0",
-    # msgraph-core 1.1.8 has a bug which causes ABCMeta object is not subscriptable error
-    # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/781
     "msgraph-core>=1.3.3",
-    # msgraph-core has transient import failures with microsoft-kiota-http==1.3.4
-    # See https://github.com/microsoftgraph/msgraph-sdk-python-core/issues/706
-    "microsoft-kiota-http>=1.8.0,<2.0.0",
-    "microsoft-kiota-serialization-json>=1.8.0",
-    "microsoft-kiota-serialization-text>=1.8.0",
-    # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
-    # see https://github.com/apache/airflow/issues/43036
-    "microsoft-kiota-abstractions>=1.8.0,<2.0.0",
+    "microsoft-kiota-http>=1.9.0,<2.0.0",
+    "microsoft-kiota-serialization-json>=1.9.0",
+    "microsoft-kiota-serialization-text>=1.9.0",
+    "microsoft-kiota-abstractions>=1.9.0,<2.0.0",
+    "microsoft-kiota-authentication-azure>=1.9.0,<2.0.0",
     "msal-extensions>=1.1.0",
 ]
 
@@ -151,8 +146,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

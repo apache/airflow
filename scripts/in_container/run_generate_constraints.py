@@ -103,7 +103,6 @@ PYPI_PROVIDERS_CONSTRAINTS_PREFIX = f"""
 @dataclass
 class ConfigParams:
     airflow_constraints_mode: str
-    chicken_egg_providers: str
     constraints_github_repository: str
     default_constraints_branch: str
     github_actions: bool
@@ -135,6 +134,9 @@ def install_local_airflow_with_latest_resolution(config_params: ConfigParams) ->
             "sync",
             "--resolution",
             "highest",
+            "--no-dev",
+            "--package",
+            "apache-airflow-core",
         ],
         github_actions=config_params.github_actions,
         cwd=AIRFLOW_ROOT_PATH,
@@ -152,13 +154,32 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
         check=True,
         capture_output=True,
     )
+    stdout = result.stdout
+    if os.environ.get("VERBOSE", "") == "true":
+        if os.environ.get("CI", "") == "true":
+            print("::group::Installed distributions")
+        console.print("[bright_blue]Installed distributions")
+        console.print(stdout)
+        console.print("[bright_blue]End of installed distributions")
+        if os.environ.get("CI", "") == "true":
+            print("::endgroup::")
     count_lines = 0
-    for line in sorted(result.stdout.split("\n")):
-        if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
+    for line in sorted(stdout.split("\n")):
+        if line.startswith(
+            (
+                "apache_airflow",
+                "apache-airflow==",
+                "apache-airflow-core==",
+                "apache-airflow-task-sdk=",
+                "/opt/airflow",
+                "#",
+                "-e",
+            )
+        ):
             continue
         if "@" in line:
             continue
-        if "from file://" in line:
+        if "file://" in line:
             continue
         if line.strip() == "":
             continue
@@ -291,72 +312,21 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     providers are used by our users to install Airflow in reproducible way.
     :return:
     """
-    all_provider_distributions = get_all_active_provider_distributions(python_version=config_params.python)
-    chicken_egg_prefixes = []
-    packages_to_install = []
-    console.print("[bright_blue]Installing Airflow with PyPI providers with eager upgrade")
-    if config_params.chicken_egg_providers:
-        for chicken_egg_provider in config_params.chicken_egg_providers.split(" "):
-            chicken_egg_prefixes.append(f"apache-airflow-providers-{chicken_egg_provider.replace('.', '-')}")
-        console.print(
-            f"[bright_blue]Checking if {chicken_egg_prefixes} are available in local dist folder "
-            f"as chicken egg providers)"
-        )
-    for provider_package in all_provider_distributions:
-        if config_params.chicken_egg_providers and provider_package.startswith(tuple(chicken_egg_prefixes)):
-            glob_pattern = f"{provider_package.replace('-', '_')}-*.whl"
-            console.print(
-                f"[bright_blue]Checking if {provider_package} is available in local dist folder "
-                f"with {glob_pattern} pattern"
-            )
-            files = AIRFLOW_DIST_PATH.glob(glob_pattern)
-            for file in files:
-                console.print(
-                    f"[yellow]Installing {file.name} from local dist folder as it is a chicken egg provider"
-                )
-                packages_to_install.append(f"{provider_package} @ file://{file.as_posix()}")
-                break
-            else:
-                console.print(
-                    f"[yellow]Skipping {provider_package} as it is not found in dist folder to install."
-                )
-            # Skip checking if chicken egg provider is available in PyPI - it does not have to be there
-            continue
-        console.print(f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ", end="")
-        r = requests.get(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
-        if r.status_code == 200:
-            version = r.json()["info"]["version"]
-            console.print("[green]OK")
-            # TODO: In the future we might make it a bit more sophisticated and allow to install
-            # earlier versions of providers here - but for now we just install the latest version
-            # But in practice latest version does not have to be supported by current version of airflow
-            # This should be a very rare case though - such provider distributions should only be released
-            # in pre-release mode
-            packages_to_install.append(f"{provider_package}=={version}")
-        else:
-            console.print("[yellow]NOK. Skipping.")
-    find_airflow_distributions = AIRFLOW_DIST_PATH.glob("apache_airflow-*.whl")
-    airflow_install = "."
-    if find_airflow_distributions:
-        airflow_install = next(find_airflow_distributions).as_posix()
-    airflow_core_install = "./airflow-core[all]"
-    find_airflow_core_distributions = AIRFLOW_DIST_PATH.glob("apache_airflow_core-*.whl")
-    if find_airflow_core_distributions:
-        airflow_core_install = next(find_airflow_core_distributions).as_posix() + "[all]"
     run_command(
         cmd=[
             "uv",
             "pip",
             "install",
             "--no-sources",
-            airflow_install,
-            airflow_core_install,
-            "./task-sdk",
+            "apache-airflow[all]",
+            "apache-airflow-core[all]",
+            "apache-airflow-task-sdk",
             "./airflow-ctl",
-            "--reinstall",  # We need to pull the provider distributions from PyPI - not use the local ones
-            *packages_to_install,
+            "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
+            "--find-links",
+            "file://" + str(AIRFLOW_DIST_PATH),
         ],
         github_actions=config_params.github_actions,
         check=True,
@@ -399,11 +369,6 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     help="Mode of constraints to generate",
 )
 @click.option(
-    "--chicken-egg-providers",
-    envvar="CHICKEN_EGG_PROVIDERS",
-    help="Providers that should be installed from packages built from current sources.",
-)
-@click.option(
     "--constraints-github-repository",
     default="apache/airflow",
     show_default=True,
@@ -439,7 +404,6 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 )
 def generate_constraints(
     airflow_constraints_mode: str,
-    chicken_egg_providers: str,
     constraints_github_repository: str,
     default_constraints_branch: str,
     github_actions: bool,
@@ -448,7 +412,6 @@ def generate_constraints(
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
-        chicken_egg_providers=chicken_egg_providers,
         constraints_github_repository=constraints_github_repository,
         default_constraints_branch=default_constraints_branch,
         github_actions=github_actions,

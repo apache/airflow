@@ -39,6 +39,7 @@ from airflow.api_fastapi.auth.tokens import (
 
 if TYPE_CHECKING:
     import httpx
+    from fastapi.routing import APIRoute
 
 import structlog
 
@@ -113,6 +114,10 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         This is particularly useful for client SDKs that require models for types
         not directly exposed in any endpoint's request or response schema.
 
+        We also replace ``anyOf`` with ``oneOf`` in the API spec as this produces better results for the code
+        generators. This is because anyOf can technically be more than of the given schemas, but 99.9% of the
+        time (perhaps 100% in this API) the types are mutually exclusive, so oneOf is more correct
+
         References:
             - https://fastapi.tiangolo.com/how-to/extending-openapi/#modify-the-openapi-schema
         """
@@ -124,10 +129,22 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         # The `JsonValue` component is missing any info. causes issues when generating models
         openapi_schema["components"]["schemas"]["JsonValue"] = {
             "title": "Any valid JSON value",
-            "anyOf": [
+            "oneOf": [
                 {"type": t} for t in ("string", "number", "integer", "object", "array", "boolean", "null")
             ],
         }
+
+        def replace_any_of_with_one_of(spec):
+            if isinstance(spec, dict):
+                return {
+                    ("oneOf" if key == "anyOf" else key): replace_any_of_with_one_of(value)
+                    for key, value in spec.items()
+                }
+            if isinstance(spec, list):
+                return [replace_any_of_with_one_of(item) for item in spec]
+            return spec
+
+        openapi_schema = replace_any_of_with_one_of(openapi_schema)
 
         for comp in openapi_schema["components"]["schemas"].values():
             for prop in comp.get("properties", {}).values():
@@ -147,11 +164,16 @@ def create_task_execution_api_app() -> FastAPI:
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
 
+    def custom_generate_unique_id(route: APIRoute):
+        # This is called only if the route doesn't provide an explicit operation ID
+        return route.name
+
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
     app = CadwynWithOpenAPICustomization(
         title="Airflow Task Execution API",
         description="The private Airflow Task Execution API.",
         lifespan=lifespan,
+        generate_unique_id_function=custom_generate_unique_id,
         api_version_parameter_name="Airflow-API-Version",
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,

@@ -34,11 +34,11 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_EXTRAS``                       | (see below the table)                    | Default extras with which airflow is        |
+| ``AIRFLOW_EXTRAS``                       | (see below the table)                    | Default extras with which Airflow is        |
 |                                          |                                          | installed.                                  |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
-|                                          |                                          | airflow is installed.                       |
+|                                          |                                          | Airflow is installed.                       |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow's HOME (that's where logs and       |
 |                                          |                                          | SQLite databases are stored).               |
@@ -93,6 +93,7 @@ List of default extras in the production Dockerfile:
 * celery
 * cncf-kubernetes
 * common-io
+* common-messaging
 * docker
 * elasticsearch
 * fab

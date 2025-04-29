@@ -413,9 +413,9 @@ class TaskGroup(DAGNode):
             for down_task in task.downstream_list:
                 if down_task.task_id == exclude:
                     continue
-                elif down_task.task_id not in ids:
+                if down_task.task_id not in ids:
                     continue
-                elif not down_task.is_teardown:
+                if not down_task.is_teardown:
                     return True
             return False
 
@@ -655,7 +655,7 @@ class MappedTaskGroup(TaskGroup):
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op

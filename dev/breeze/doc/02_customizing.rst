@@ -93,6 +93,12 @@ that you may find helpful.
   bind -T root C-S-Up select-pane -U
   bind -T root C-S-Down select-pane -D
 
+  # quickly disable mouse + zoom pane (for easy copying)
+  bind c run-shell "tmux setw mouse off" \; resize-pane -Z \; display-message "🚫 Mouse disabled & pane zoomed"
+
+  # quickly re-enable mouse + unzoom pane (restore normal behavior)
+  bind v run-shell "tmux setw mouse on" \; resize-pane -Z \; display-message "🖱️ Mouse enabled & pane unzoomed"
+
 Some helpful commands:
 
   - ``ctrl-b + z``: zoom into selected pane
@@ -106,6 +112,10 @@ To copy an entire pane:
   - extend selection to end: ``G``
   - copy and clear selection: ``enter``
 
+.. tip::
+
+  You can add the custom bindings (like ``bind c`` and ``bind v``) directly to ``files/airflow-breeze-config/.tmux.conf``.
+  This way they will be automatically loaded when you start a Breeze tmux session.
 
 Additional tools in Breeze container
 ------------------------------------
@@ -143,7 +153,7 @@ When Breeze starts, it can start additional integrations. Those are additional d
 that are started in the same docker-compose command. Those are required by some of the tests
 as described in `</contributing-docs/testing/integration_tests.rst>`_.
 
-By default Breeze starts only airflow container without any integration enabled. If you selected
+By default Breeze starts only Airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags

@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+1.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: integrate 'polars' in 'get_df', 'get_df_by_chunks' (#48875)``
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``feat(secrets_masker): add minimum secret length and skip masking for common terms (#48791)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
 1.25.0
 ......
 

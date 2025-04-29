@@ -10,7 +10,7 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i \"../openapi/v1-simple-auth-manager-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
@@ -23,7 +23,7 @@
     "react-cookie": "^8.0.1",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
-    "react-router-dom": "^7.4.0"
+    "react-router-dom": "^7.5.2"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.2",

@@ -60,10 +60,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "List of providers that should be prepared from sources"
-        required: false
-        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -106,10 +102,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
-      only-pyproject-toml-files-changed:
-        description: "Whether only pyproject.toml files changed in the PR"
         required: true
         type: string
     secrets:
@@ -205,7 +197,6 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
-          ONLY_PYPROJECT_TOML_FILES_CHANGED: ${{ inputs.only-pyproject-toml-files-changed }}
 
   mypy:
     timeout-minutes: 45
@@ -286,19 +277,18 @@ jobs:
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: ./generated/_inventory_cache/
-          # TODO(potiuk): do better with determining the key
-          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
         id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }} --refresh-airflow-inventories
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: ./generated/_inventory_cache/
-          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          key: cache-docs-inventory-v1-${{ hashFiles('**/pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
@@ -434,7 +424,7 @@ jobs:
       - name: "Generate airflow python client"
         run: >
           breeze release-management prepare-python-client --distribution-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          --python-client-repo ./airflow-client-python
       - name: "Show diff"
         run: git diff --color HEAD
         working-directory: ./airflow-client-python

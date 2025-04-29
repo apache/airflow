@@ -46,6 +46,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "apache-airflow-core<=3.1.0,>=3.0.0",
     "aiologic>=0.14.0",
     "attrs>=24.2.0, !=25.2.0",
     "fsspec>=2023.10.0",
@@ -132,14 +133,13 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "apache-airflow>=3.0.0",
     "datamodel-code-generator[http]==0.28.2",
+    "openapi-spec-validator>=0.7.1",
     "svcs>=25.1.0",
     "ruff==0.11.2",
     "rich>=12.4.4",
 ]
 dev = [
-    "apache-airflow",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     "apache-airflow-devel-common",

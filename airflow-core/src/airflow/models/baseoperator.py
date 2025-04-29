@@ -495,8 +495,7 @@ class BaseOperator(TaskSDKBaseOperator):
         """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
-        else:
-            return self.downstream_list
+        return self.downstream_list
 
     @staticmethod
     def xcom_push(
@@ -622,7 +621,7 @@ class BaseOperator(TaskSDKBaseOperator):
             raise NotImplementedError(f"Not implemented for {type(task)}")
 
         # https://github.com/python/cpython/issues/86153
-        # WHile we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
+        # While we support Python 3.9 we can't rely on the type hint, we need to pass the type explicitly to
         # register.
         @get_mapped_ti_count.register(TaskSDKAbstractOperator)
         @classmethod

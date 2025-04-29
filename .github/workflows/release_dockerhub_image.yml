@@ -45,7 +45,6 @@ jobs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
       limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
     env:
@@ -144,22 +143,6 @@ jobs:
         run: docker run --privileged --rm tonistiigi/binfmt --install all
       - name: "Create airflow_cache builder"
         run: docker buildx create --name airflow_cache
-      - name: "Prepare chicken-eggs provider distributions"
-        # In case of provider distributions which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        shell: bash
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
-        run: >
-          breeze release-management prepare-provider-distributions
-          --distribution-format wheel
-          --version-suffix-for-pypi dev0 ${CHICKEN_EGG_PROVIDERS}
-        if: needs.build-info.outputs.chicken-egg-providers != ''
-      - name: "Copy dist packages to docker-context files"
-        shell: bash
-        run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
-        if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: >
           Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:
@@ -169,15 +152,10 @@ jobs:
           AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
           SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest }}
           LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
-          CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo "${REPOSITORY}"
-          --airflow-version "${AIRFLOW_VERSION}"
-          ${SKIP_LATEST}
-          ${LIMIT_PLATFORM}
+          breeze release-management release-prod-images --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}" ${SKIP_LATEST} ${LIMIT_PLATFORM}
           --limit-python ${PYTHON_VERSION}
-          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:

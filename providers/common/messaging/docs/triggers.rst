@@ -29,11 +29,25 @@ queue. Parameters of the trigger are:
 
 - ``queue`` - the queue identifier
 
-Additional parameters can be provided depending on the queue provider.
+Additional parameters can be provided depending on the queue provider. Connections needs to be provided with the relevant
+default connection ID, for example, when connecting to a queue in AWS SQS, the connection ID should be
+``aws_default``.
 
-The example below shows how to schedule a DAG using MessageQueueTrigger.
+Below is an example of how you can configure an Airflow DAG to be triggered by a message in Amazon SQS.
 
 .. exampleinclude:: /../tests/system/common/messaging/example_message_queue_trigger.py
     :language: python
     :start-after: [START howto_trigger_message_queue]
     :end-before: [END howto_trigger_message_queue]
+
+How it works
+------------
+1. **Message Queue Trigger**: The ``MessageQueueTrigger`` listens for messages from an external queue
+(e.g., AWS SQS, Kafka, or another messaging system).
+
+2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the SQS queue in this example.
+The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
+asset.
+
+3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
+(e.g., a new message in the queue).

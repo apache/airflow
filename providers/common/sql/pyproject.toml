@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "1.25.0"
+version = "1.26.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
     # The methodtools dependency is necessary since the introduction of dialects:
@@ -78,6 +78,9 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
+"polars" = [
+    "polars>=1.26.0"
+]
 
 [dependency-groups]
 dev = [
@@ -87,6 +90,7 @@ dev = [
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
+    "apache-airflow-providers-common-sql[polars]",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-odbc",
@@ -118,8 +122,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.25.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.25.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.26.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.26.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

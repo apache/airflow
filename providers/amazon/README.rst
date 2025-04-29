@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.6.0``
+Release: ``9.6.1``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.1/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 ==========================================  =====================
 PIP package                                 Version required
 ==========================================  =====================
-``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.1``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.37.0``
@@ -68,7 +68,9 @@ PIP package                                 Version required
 ``jmespath``                                ``>=0.7.0``
 ``python3-saml``                            ``>=1.16.0``
 ``xmlsec``                                  ``>=1.3.14,!=1.3.15``
+``lxml``                                    ``>=5.3.2,<5.4.0``
 ``sagemaker-studio``                        ``>=1.0.9``
+``marshmallow``                             ``>=3``
 ==========================================  =====================
 
 Cross provider package dependencies
@@ -104,4 +106,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.6.1/changelog.html>`_.

@@ -57,7 +57,9 @@ const PoolBar = ({ pool }: PoolBarProps) => (
           </Text>
           <HStack gap={0}>
             <EditPoolButton pool={pool} />
-            {pool.name === "default_pool" ? undefined : <DeletePoolButton poolName={pool.name} />}
+            {pool.name === "default_pool" ? undefined : (
+              <DeletePoolButton poolName={pool.name} withText={false} />
+            )}
           </HStack>
         </HStack>
         {pool.description ?? (
@@ -85,11 +87,13 @@ const PoolBar = ({ pool }: PoolBarProps) => (
                 alignItems="center"
                 bg={`${color}.solid`}
                 flex={flexValue}
+                gap={0.5}
                 h="100%"
                 justifyContent="center"
                 position="relative"
               >
                 {icon}
+                {slotValue}
               </Flex>
             </Tooltip>
           );

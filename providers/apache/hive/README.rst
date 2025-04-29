@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hive``
 
-Release: ``9.0.5``
+Release: ``9.0.6``
 
 
 `Apache Hive <https://hive.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.hive`` provider. All classes for this pr
 are in ``airflow.providers.apache.hive`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.6/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow``                       ``>=2.10.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``hmsclient``                            ``>=0.1.0``
 ``pandas``                               ``>=2.1.2,<2.2``
@@ -89,4 +89,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.0.6/changelog.html>`_.

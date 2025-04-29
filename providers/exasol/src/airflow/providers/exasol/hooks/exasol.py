@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 import pyexasol
 from pyexasol import ExaConnection, ExaStatement
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -257,8 +258,7 @@ class ExasolHook(DbApiHook):
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_columns]
             return _last_result
-        else:
-            return results
+        return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """

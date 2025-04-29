@@ -42,7 +42,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
-    TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
     TIStateUpdate,
     TISuccessStatePayload,
@@ -51,7 +50,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks, _update_rtif
+from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
@@ -132,13 +131,17 @@ def ti_run(
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
 
+    # don't update start date when resuming from deferral
+    if ti.next_kwargs:
+        data.pop("start_date")
+
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     previous_state = ti.state
 
     # If we are already running, but this is a duplicate request from the same client return the same OK
     # -- it's possible there was a network glitch and they never got the response
-    if previous_state == TaskInstanceState.RUNNING and (ti["hostname"], ti["unixname"], ti["pid"]) == (
+    if previous_state == TaskInstanceState.RUNNING and (ti.hostname, ti.unixname, ti.pid) == (
         ti_run_payload.hostname,
         ti_run_payload.unixname,
         ti_run_payload.pid,
@@ -545,7 +548,7 @@ def ti_put_rtif(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    _update_rtif(task_instance, put_rtif_payload, session)
+    task_instance.update_rtif(put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
 
@@ -587,7 +590,7 @@ def get_previous_successful_dagrun(
 
 
 @router.get("/count", status_code=status.HTTP_200_OK)
-def get_count(
+def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -637,7 +640,7 @@ def get_count(
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
-def get_task_states(
+def get_task_instance_states(
     dag_id: str,
     session: SessionDep,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -645,7 +648,7 @@ def get_task_states(
     logical_dates: Annotated[list[UtcDateTime] | None, Query()] = None,
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> TaskStatesResponse:
-    """Get the task states for the given criteria."""
+    """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     query = select(TI).where(TI.dag_id == dag_id)
@@ -669,34 +672,6 @@ def get_task_states(
         [run_id_task_state_map[task.run_id].update({task.task_id: task.state}) for task in group_tasks]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
-
-
-@ti_id_router.only_exists_in_older_versions
-@ti_id_router.post(
-    "/{task_instance_id}/runtime-checks",
-    status_code=status.HTTP_204_NO_CONTENT,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
-    responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "Task Instance failed the runtime checks."},
-        status.HTTP_409_CONFLICT: {
-            "description": "Task Instance isn't in a running state. Cannot perform runtime checks."
-        },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
-            "description": "Invalid payload for requested runtime checks on the Task Instance."
-        },
-    },
-)
-def ti_runtime_checks(
-    task_instance_id: UUID,
-    payload: TIRuntimeCheckPayload,
-    session: SessionDep,
-):
-    ti_id_str = str(task_instance_id)
-    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if task_instance.state != TaskInstanceState.RUNNING:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT)
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

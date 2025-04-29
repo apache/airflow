@@ -29,7 +29,6 @@ from typing import Callable, NamedTuple, Union
 
 import lazy_object_proxy
 
-from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.utils.cli import ColorMode
@@ -157,15 +156,6 @@ ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
     help="The logical date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
-ARG_SUBDIR = Arg(
-    ("-S", "--subdir"),
-    help=(
-        "File location or directory from which to look for the dag. "
-        "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
-        "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "
-    ),
-    default="[AIRFLOW_HOME]/dags" if BUILD_DOCS else settings.DAGS_FOLDER,
-)
 ARG_BUNDLE_NAME = Arg(
     (
         "-B",
@@ -241,6 +231,13 @@ ARG_SKIP_SERVE_LOGS = Arg(
     default=False,
     help="Don't start the serve logs process along with the workers",
     action="store_true",
+)
+
+# list_dags
+ARG_LIST_LOCAL = Arg(
+    ("-l", "--local"),
+    action="store_true",
+    help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
 )
 
 # list_dag_runs
@@ -812,6 +809,18 @@ ARG_UPDATE_CONFIG_IGNORE_OPTION = Arg(
     help="The option name(s) to ignore to update in the airflow config.",
     type=string_list_type,
 )
+ARG_UPDATE_CONFIG_FIX = Arg(
+    ("--fix",),
+    help="Automatically apply the configuration changes instead of performing a dry run. (Default: dry-run mode)",
+    action="store_true",
+)
+
+ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
+    ("--all-recommendations",),
+    help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    action="store_true",
+)
+
 
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
@@ -957,13 +966,13 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
-        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL),
     ),
     ActionCommand(
         name="report",
@@ -1164,7 +1173,7 @@ TASKS_COMMANDS = (
         name="list",
         help="List the tasks within a DAG",
         func=lazy_load_command("airflow.cli.commands.task_command.task_list"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="clear",
@@ -1175,7 +1184,7 @@ TASKS_COMMANDS = (
             ARG_TASK_REGEX,
             ARG_START_DATE,
             ARG_END_DATE,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_UPSTREAM,
             ARG_DOWNSTREAM,
             ARG_YES,
@@ -1193,7 +1202,7 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
         ),
@@ -1207,7 +1216,14 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflow.cli.commands.task_command.task_failed_deps"),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
+            ARG_BUNDLE_NAME,
+            ARG_MAP_INDEX,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="render",
@@ -1217,7 +1233,7 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
         ),
@@ -1234,7 +1250,7 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
@@ -1657,8 +1673,9 @@ CONFIG_COMMANDS = (
             ARG_UPDATE_CONFIG_OPTION,
             ARG_UPDATE_CONFIG_IGNORE_SECTION,
             ARG_UPDATE_CONFIG_IGNORE_OPTION,
-            ARG_DRY_RUN,
             ARG_VERBOSE,
+            ARG_UPDATE_CONFIG_FIX,
+            ARG_UPDATE_ALL_RECOMMENDATIONS,
         ),
     ),
 )

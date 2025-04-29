@@ -179,6 +179,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": None,
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -241,6 +242,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_run_id": run_id,
+            "dag_display_name": "dag_with_multiple_versions",
             "map_index": -1,
             "logical_date": mock.ANY,
             "start_date": None,
@@ -274,7 +276,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -308,6 +310,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert data == {
             "dag_id": "example_python_operator",
             "dag_version": None,
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -358,6 +361,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": None,
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -404,6 +408,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": None,
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "logical_date": "2020-01-01T00:00:00Z",
@@ -507,6 +512,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             assert response.json() == {
                 "dag_id": "example_python_operator",
                 "dag_version": None,
+                "dag_display_name": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "logical_date": "2020-01-01T00:00:00Z",
@@ -716,7 +722,7 @@ class TestGetMappedTaskInstances:
 
         assert response.status_code == 200
         assert response.json()["total_entries"] == 110
-        assert len(response.json()["task_instances"]) == 100
+        assert len(response.json()["task_instances"]) == 50
 
     def test_offset_limit(self, test_client, one_task_with_many_mapped_tis):
         response = test_client.get(
@@ -1672,6 +1678,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json() == {
             "dag_id": "example_python_operator",
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -1707,6 +1714,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json() == {
             "dag_id": "example_python_operator",
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -1771,6 +1779,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
             assert response.json() == {
                 "dag_id": "example_python_operator",
+                "dag_display_name": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "executor": None,
@@ -1833,6 +1842,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
         assert data == {
             "dag_id": "example_python_operator",
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -1869,6 +1879,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
         assert response.json() == {
             "dag_id": "example_python_operator",
+            "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
@@ -1934,6 +1945,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.json() == {
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
+            "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -1961,7 +1973,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -2413,6 +2425,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         expected_response = [
             {
                 "dag_id": "example_python_operator",
+                "dag_display_name": "example_python_operator",
                 "dag_version": None,
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
                 "task_id": "print_the_context",
@@ -2760,6 +2773,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
+                    "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -2786,6 +2800,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 },
                 {
                     "dag_id": "example_python_operator",
+                    "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -2845,6 +2860,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
+                    "dag_display_name": "example_python_operator",
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
@@ -2913,6 +2929,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "task_instances": [
                     {
                         "dag_id": "example_python_operator",
+                        "dag_display_name": "example_python_operator",
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
@@ -2939,6 +2956,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     },
                     {
                         "dag_id": "example_python_operator",
+                        "dag_display_name": "example_python_operator",
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
@@ -2996,6 +3014,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         assert response.json()["task_instances"][0] == {
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
+            "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
             "start_date": None,
@@ -3023,7 +3042,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
-                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
                 "created_at": mock.ANY,
             },
         }
@@ -3033,6 +3052,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
     NEW_STATE = "failed"
     DAG_ID = "example_python_operator"
+    DAG_DISPLAY_NAME = "example_python_operator"
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
 
@@ -3091,6 +3111,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json() == {
             "dag_id": self.DAG_ID,
+            "dag_display_name": self.DAG_DISPLAY_NAME,
             "dag_version": None,
             "dag_run_id": self.RUN_ID,
             "logical_date": "2020-01-01T00:00:00Z",
@@ -3307,6 +3328,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 200,
                 {
                     "dag_id": "example_python_operator",
+                    "dag_display_name": "example_python_operator",
                     "dag_version": None,
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "logical_date": "2020-01-01T00:00:00Z",
@@ -3418,6 +3440,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response_data = response.json()
         assert response_data == {
             "dag_id": self.DAG_ID,
+            "dag_display_name": self.DAG_DISPLAY_NAME,
             "dag_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -3463,6 +3486,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response_data = response.json()
         assert response_data == {
             "dag_id": self.DAG_ID,
+            "dag_display_name": self.DAG_DISPLAY_NAME,
             "dag_version": None,
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -3525,6 +3549,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
             assert response_data == {
                 "dag_id": self.DAG_ID,
+                "dag_display_name": self.DAG_DISPLAY_NAME,
                 "dag_version": None,
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
@@ -3604,6 +3629,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     DAG_ID = "example_python_operator"
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
+    DAG_DISPLAY_NAME = "example_python_operator"
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
@@ -3631,6 +3657,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
+                    "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": None,
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
@@ -3872,6 +3899,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "task_instances": [
                         {
                             "dag_id": "example_python_operator",
+                            "dag_display_name": "example_python_operator",
                             "dag_version": None,
                             "dag_run_id": "TEST_DAG_RUN_ID",
                             "logical_date": "2020-01-01T00:00:00Z",

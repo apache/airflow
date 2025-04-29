@@ -25,7 +25,7 @@ predefined time-based schedules.
 This is particularly useful in modern data architectures where workflows need to react to real-time data changes,
 messages, or system signals.
 
-By using assets, as described in :doc:`datasets`, you can configure dags to start execution when specific external events
+By using assets, as described in :doc:`asset-scheduling`, you can configure dags to start execution when specific external events
 occur. Assets provide a mechanism to establish dependencies between external events and DAG execution, ensuring that
 workflows react dynamically to changes in the external environment.
 
@@ -34,40 +34,7 @@ message queue, and triggers an asset update when a relevant event occurs.
 The ``watchers`` parameter in the ``Asset`` definition allows you to associate multiple ``AssetWatcher`` instances with an
 asset, enabling it to respond to various event sources.
 
-Example: Triggering a DAG from an external message queue
---------------------------------------------------------
-
-Below is an example of how you can configure an Airflow DAG to be triggered by an external message queue, such as AWS
-SQS:
-
-.. code-block:: python
-
-    from airflow.sdk import Asset, AssetWatcher
-    from airflow.providers.common.msgq.triggers.msg_queue import MessageQueueTrigger
-    from airflow.sdk import DAG
-    from datetime import datetime
-
-    # Define a trigger that listens to an external message queue (AWS SQS in this case)
-    trigger = MessageQueueTrigger(queue="https://sqs.us-east-1.amazonaws.com/0123456789/my-queue")
-
-    # Define an asset that watches for messages on the queue
-    asset = Asset("sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)])
-
-    # Define the DAG that will be triggered when the asset is updated
-    with DAG(dag_id="event_driven_dag", schedule=[asset], catchup=False) as dag:
-        ...
-
-How it works
-------------
-1. **Message Queue Trigger**: The ``MessageQueueTrigger`` listens for messages from an external queue
-(e.g., AWS SQS, Kafka, or another messaging system).
-
-2. **Asset and Watcher**: The ``Asset`` abstracts the external entity, the SQS queue in this example.
-The ``AssetWatcher`` associate a trigger with a name. This name helps you identify which trigger is associated to which
-asset.
-
-3. **Event-Driven DAG**: Instead of running on a fixed schedule, the DAG executes when the asset receives an update
-(e.g., a new message in the queue).
+See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
 ----------------------------------------------

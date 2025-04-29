@@ -96,14 +96,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (2.10.5)    |
-|------------|------------------------|----------------------------|
-| Python     | 3.9, 3.10, 3.11, 3.12  | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)            |
-| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.27, 1.28, 1.29, 1.30     |
-| PostgreSQL | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation       |
-| SQLite     | 3.15.0+                | 3.15.0+                    |
+|            | Main version (dev)     | Stable version (3.0.0) |
+|------------|------------------------|------------------------|
+| Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
+| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
+| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.29, 1.30, 1.31, 1.32 |
+| PostgreSQL | 13, 14, 15, 16, 17     | 13, 14, 15, 16, 17     |
+| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation   |
+| SQLite     | 3.15.0+                | 3.15.0+                |
 
 \* Experimental
 
@@ -174,15 +174,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow[postgres,google]==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
 For information on installing provider distributions, check
@@ -230,27 +230,31 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/dags.png)
+  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/dags.png)
+
+- **Assets**: Overview of Assets with dependencies.
+
+  ![Asset Dependencies](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/assets_graph.png)
 
 - **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/grid.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
+  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/graph.png)
 
-- **Task Duration**: Total time spent on different tasks over time.
+- **Home**: Summary statistics of your Airflow environment.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
+  ![Home](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/home.png)
 
-- **Gantt**: Duration and overlap of a DAG.
+- **Backfill**: Backfilling a DAG for a specific date range.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
+  ![Backfill](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/backfill.png)
 
 - **Code**: Quick way to view source code of a DAG.
 
-  ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/code.png)
+  ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/code.png)
 
 ## Semantic versioning
 
@@ -285,13 +289,14 @@ Apache Airflow version life cycle:
 <!-- This table is automatically updated by pre-commit scripts/ci/pre_commit/supported_versions.py -->
 <!-- Beginning of auto-generated table -->
 
-| Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
-|-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.10.5                | Supported | Dec 17, 2020    | TBD               | TBD              |
-| 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
-| 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
-| 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
-| 1.7       | 1.7.1.2               | EOL       | Mar 28, 2016    | Mar 19, 2017      | Mar 19, 2017     |
+| Version   | Current Patch/Minor   | State     | First Release   | Limited Maintenance   | EOL/Terminated   |
+|-----------|-----------------------|-----------|-----------------|-----------------------|------------------|
+| 3         | 3.0.0                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
+| 2         | 2.10.5                | Supported | Dec 17, 2020    | TBD                   | TBD              |
+| 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
+| 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
+| 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |
+| 1.7       | 1.7.1.2               | EOL       | Mar 28, 2016    | Mar 19, 2017          | Mar 19, 2017     |
 
 <!-- End of auto-generated table -->
 

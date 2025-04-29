@@ -32,13 +32,13 @@ from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.sensor import BaseSensorOperator
 else:
     from airflow.sensors.base import BaseSensorOperator
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -85,11 +85,10 @@ class ExternalDagLink(BaseOperatorLink):
             from airflow.utils.helpers import build_airflow_dagrun_url
 
             return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
-        else:
-            from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
-            query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
-            return build_airflow_url_with_query(query)
+        query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
+        return build_airflow_url_with_query(query)
 
 
 class ExternalTaskSensor(BaseSensorOperator):
@@ -299,8 +298,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if AIRFLOW_V_3_0_PLUS:
             return self._poke_af3(context, dttm_filter)
-        else:
-            return self._poke_af2(dttm_filter)
+        return self._poke_af2(dttm_filter)
 
     def _poke_af3(self, context: Context, dttm_filter: list[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
@@ -316,19 +314,18 @@ class ExternalTaskSensor(BaseSensorOperator):
                     logical_dates=dttm_filter,
                     states=states,
                 )
-            elif self.external_task_group_id:
+            if self.external_task_group_id:
                 run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
                     logical_dates=dttm_filter,
                 )
                 return _get_count_by_matched_states(run_id_task_state_map, states)
-            else:
-                return ti.get_dr_count(
-                    dag_id=self.external_dag_id,
-                    logical_dates=dttm_filter,
-                    states=states,
-                )
+            return ti.get_dr_count(
+                dag_id=self.external_dag_id,
+                logical_dates=dttm_filter,
+                states=states,
+            )
 
         if self.failed_states:
             count = _get_count(self.failed_states)
@@ -348,8 +345,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Calculate the normalized count based on the type of check."""
         if self.external_task_ids:
             return count / len(self.external_task_ids)
-        else:
-            return count
+        return count
 
     def _handle_failed_states(self, count_failed: float | int) -> None:
         """Handle failed states and raise appropriate exceptions."""
@@ -364,7 +360,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} failed."
                 )
-            elif self.external_task_group_id:
+            if self.external_task_group_id:
                 if self.soft_fail:
                     raise AirflowSkipException(
                         f"The external task_group '{self.external_task_group_id}' "
@@ -374,12 +370,11 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"The external task_group '{self.external_task_group_id}' "
                     f"in DAG '{self.external_dag_id}' failed."
                 )
-            else:
-                if self.soft_fail:
-                    raise AirflowSkipException(
-                        f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
-                    )
-                raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
+            if self.soft_fail:
+                raise AirflowSkipException(
+                    f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
+                )
+            raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
 
     def _handle_skipped_states(self, count_skipped: float | int) -> None:
         """Handle skipped states and raise appropriate exceptions."""
@@ -389,32 +384,33 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
                 )
-            elif self.external_task_group_id:
+            if self.external_task_group_id:
                 raise AirflowSkipException(
                     f"The external task_group '{self.external_task_group_id}' "
                     f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
                 )
-            else:
-                raise AirflowSkipException(
-                    f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
-                    "Skipping."
-                )
+            raise AirflowSkipException(
+                f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
+                "Skipping."
+            )
 
-    @provide_session
-    def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
-        if self.check_existence and not self._has_checked_existence:
-            self._check_for_existence(session=session)
+    if not AIRFLOW_V_3_0_PLUS:
 
-        if self.failed_states:
-            count_failed = self.get_count(dttm_filter, session, self.failed_states)
-            self._handle_failed_states(count_failed)
+        @provide_session
+        def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+            if self.check_existence and not self._has_checked_existence:
+                self._check_for_existence(session=session)
 
-        if self.skipped_states:
-            count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
-            self._handle_skipped_states(count_skipped)
+            if self.failed_states:
+                count_failed = self.get_count(dttm_filter, session, self.failed_states)
+                self._handle_failed_states(count_failed)
 
-        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
-        return count_allowed == len(dttm_filter)
+            if self.skipped_states:
+                count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
+                self._handle_skipped_states(count_skipped)
+
+            count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
+            return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
         """Run on the worker and defer using the triggers if deferrable is set to True."""
@@ -450,11 +446,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             if self.soft_fail:
                 raise AirflowSkipException("External job has failed skipping.")
-            else:
-                raise AirflowException(
-                    "Error occurred while trying to retrieve task status. Please, check the "
-                    "name of executed task and Dag."
-                )
+            raise AirflowException(
+                "Error occurred while trying to retrieve task status. Please, check the "
+                "name of executed task and Dag."
+            )
 
     def _check_for_existence(self, session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)

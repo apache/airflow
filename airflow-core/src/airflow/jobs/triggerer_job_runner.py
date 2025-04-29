@@ -81,14 +81,6 @@ if TYPE_CHECKING:
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.triggers.base import BaseTrigger
 
-HANDLER_SUPPORTS_TRIGGERER = False
-"""
-If this value is true, root handler is configured to log individual trigger messages
-visible in task logs.
-
-:meta private:
-"""
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -786,10 +778,8 @@ class TriggerRunner:
                     last_status = now
 
         except Exception:
-            try:
+            with suppress(BrokenPipeError):
                 await log.aexception("Trigger runner failed")
-            except BrokenPipeError:
-                pass
             self.stop = True
             raise
         # Wait for supporting tasks to complete

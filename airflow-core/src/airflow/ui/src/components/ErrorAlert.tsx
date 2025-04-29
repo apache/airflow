@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
 import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
 
 import { Alert } from "./ui";
 
-type ExpandedApiError = {
+export type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError | undefined;
 } & ApiError;
 
@@ -57,7 +57,11 @@ export const ErrorAlert = ({ error: err }: Props) => {
     <Alert status="error">
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
         {error.status} {error.message}
-        {detailMessage === error.message ? undefined : <span>{detailMessage}</span>}
+        {detailMessage === error.message ? undefined : (
+          <Text whiteSpace="preserve" wordBreak="break-all">
+            {detailMessage}
+          </Text>
+        )}
       </HStack>
     </Alert>
   );

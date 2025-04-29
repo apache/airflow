@@ -73,8 +73,7 @@ def example_bash_decorator():
     def sleep_in(day: str) -> str:
         if day in (WeekDay.SATURDAY, WeekDay.SUNDAY):
             return f"sleep {60 * 60}"
-        else:
-            raise AirflowSkipException("No sleeping in today!")
+        raise AirflowSkipException("No sleeping in today!")
 
     sleep_in(day="{{ dag_run.logical_date.strftime('%A').lower() }}")
     # [END howto_decorator_bash_conditional]

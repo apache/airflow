@@ -182,6 +182,40 @@ Also for this action you can use operator in the deferrable mode:
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
 
+
+Run command in KubernetesPodOperator from TaskFlow
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+With the usage of the ``@task.kubernetes_cmd`` decorator, you can run a command returned by a function
+in a ``KubernetesPodOperator`` simplifying it's connection to the TaskFlow.
+
+Difference between ``@task.kubernetes`` and ``@task.kubernetes_cmd``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``@task.kubernetes`` decorator is designed to run a Python function inside a Kubernetes pod using KPO.
+It does this by serializing the function into a temporary Python script that is executed inside the container.
+This is well-suited for cases where you want to isolate Python code execution and manage complex dependencies,
+as described in the :doc:`TaskFlow documentation <apache-airflow:tutorial/taskflow>`.
+
+In contrast, ``@task.kubernetes_cmd`` decorator allows the decorated function to return
+a shell command (as a list of strings), which is then passed as cmds or arguments to
+``KubernetesPodOperator``.
+This enables executing arbitrary commands available inside a Kubernetes pod --
+without needing to wrap it in Python code.
+
+A key benefit here is that Python excels at composing and templating these commands.
+Shell commands can be dynamically generated using Python's string formatting, templating,
+extra function calls and logic. This makes it a flexible tool for orchestrating complex pipelines
+where the task is to invoke CLI-based operations in containers without the need to leave
+a TaskFlow context.
+
+How does this decorator work?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+See the following examples on how the decorator works:
+
+.. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_cmd_decorator.py
+    :language: python
+    :start-after: [START howto_decorator_kubernetes_cmd]
+    :end-before: [END howto_decorator_kubernetes_cmd]
+
 Include error message in email alert
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -285,7 +319,7 @@ Never use environment variables to pass secrets (for example connection authenti
 Kubernetes Pod Operator. Such environment variables will be visible to anyone who has access
 to see and describe PODs in Kubernetes. Instead, pass your secrets via native Kubernetes ``Secrets`` or
 use Connections and Variables from Airflow. For the latter, you need to have ``apache-airflow`` package
-installed in your image in the same version as airflow you run your Kubernetes Pod Operator from).
+installed in your image in the same version as Airflow you run your Kubernetes Pod Operator from).
 
 Reference
 ^^^^^^^^^

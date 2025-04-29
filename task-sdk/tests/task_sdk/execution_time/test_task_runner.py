@@ -209,12 +209,71 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             ),
         },
     ):
-        ti = parse(what)
+        ti = parse(what, mock.Mock())
 
     assert ti.task
     assert ti.task.dag
     assert isinstance(ti.task, BaseOperator)
     assert isinstance(ti.task.dag, DAG)
+
+
+@pytest.mark.parametrize(
+    ("dag_id", "task_id", "expected_error"),
+    (
+        pytest.param(
+            "madeup_dag_id",
+            "a",
+            mock.call(mock.ANY, dag_id="madeup_dag_id", path="super_basic.py"),
+            id="dag-not-found",
+        ),
+        pytest.param(
+            "super_basic",
+            "no-such-task",
+            mock.call(mock.ANY, task_id="no-such-task", dag_id="super_basic", path="super_basic.py"),
+            id="task-not-found",
+        ),
+    ),
+)
+def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
+    """Check for nice error messages on dag not found."""
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id="c",
+            try_number=1,
+        ),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        requests_fd=0,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+    )
+
+    log = mock.Mock()
+
+    with (
+        patch.dict(
+            os.environ,
+            {
+                "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
+                    [
+                        {
+                            "name": "my-bundle",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                        }
+                    ]
+                ),
+            },
+        ),
+        pytest.raises(SystemExit),
+    ):
+        parse(what, log)
+
+    expected_error.kwargs["bundle"] = what.bundle_info
+    log.error.assert_has_calls([expected_error])
 
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -364,7 +423,8 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    log = mock.MagicMock()
+    run(ti, context=ti.get_template_context(), log=log)
 
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
@@ -373,6 +433,9 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
         ),
         log=mock.ANY,
     )
+
+    log.exception.assert_not_called()
+    log.error.assert_called_with(mock.ANY, exit_code=10)
 
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -1204,7 +1267,7 @@ class TestRuntimeTaskInstance:
     ):
         """
         Test that a task makes an expected call to the Supervisor to pull XCom values
-        based on various task_ids and map_indexes configurations.
+        based on various task_ids, map_indexes, and xcom_values configurations.
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
@@ -1249,6 +1312,54 @@ class TestRuntimeTaskInstance:
                         map_index=map_index,
                     ),
                 )
+
+    @pytest.mark.parametrize(
+        "task_ids, map_indexes, expected_value",
+        [
+            pytest.param("task_a", 0, {"a": 1, "b": 2}, id="task_id is str, map_index is int"),
+            pytest.param("task_a", [0], [{"a": 1, "b": 2}], id="task_id is str, map_index is list"),
+            pytest.param("task_a", None, {"a": 1, "b": 2}, id="task_id is str, map_index is None"),
+            pytest.param("task_a", NOTSET, {"a": 1, "b": 2}, id="task_id is str, map_index is ArgNotSet"),
+            pytest.param(["task_a"], 0, [{"a": 1, "b": 2}], id="task_id is list, map_index is int"),
+            pytest.param(["task_a"], [0], [{"a": 1, "b": 2}], id="task_id is list, map_index is list"),
+            pytest.param(["task_a"], None, [{"a": 1, "b": 2}], id="task_id is list, map_index is None"),
+            pytest.param(
+                ["task_a"], NOTSET, [{"a": 1, "b": 2}], id="task_id is list, map_index is ArgNotSet"
+            ),
+            pytest.param(None, 0, {"a": 1, "b": 2}, id="task_id is None, map_index is int"),
+            pytest.param(None, [0], [{"a": 1, "b": 2}], id="task_id is None, map_index is list"),
+            pytest.param(None, None, {"a": 1, "b": 2}, id="task_id is None, map_index is None"),
+            pytest.param(None, NOTSET, {"a": 1, "b": 2}, id="task_id is None, map_index is ArgNotSet"),
+        ],
+    )
+    def test_xcom_pull_return_values(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        task_ids,
+        map_indexes,
+        expected_value,
+    ):
+        """
+        Tests return value of xcom_pull under various combinations of task_ids and map_indexes.
+        The above test covers the expected calls to supervisor comms.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                print("This is a custom operator")
+
+        test_task_id = "pull_task"
+        task = CustomOperator(task_id=test_task_id)
+        runtime_ti = create_runtime_ti(task=task)
+
+        value = {"a": 1, "b": 2}
+        # API server returns serialised value for xcom result, staging it in that way
+        xcom_value = BaseXCom.serialize_value(value)
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value=xcom_value)
+
+        returned_xcom = runtime_ti.xcom_pull(key="key", task_ids=task_ids, map_indexes=map_indexes)
+        assert returned_xcom == expected_value
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti

@@ -207,13 +207,6 @@ core:
       sensitive: true
       example: ~
       default: "{FERNET_KEY}"
-    donot_pickle:
-      description: |
-        Whether to disable pickling dags
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
     dagbag_import_timeout:
       description: |
         How long before timing out a python file import
@@ -261,17 +254,16 @@ core:
       default: "False"
     allowed_deserialization_classes:
       description: |
-        What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as a pattern to a glob function.
-        Python built-in classes (like dict) are always allowed.
+        Space-separated list of classes that may be imported during deserialization. Items can be glob
+        expressions. Python built-in classes (like dict) are always allowed.
       version_added: 2.5.0
       type: string
       default: 'airflow.*'
-      example: ~
+      example: 'airflow.* my_mod.my_other_mod.TheseClasses*'
     allowed_deserialization_classes_regexp:
       description: |
-        What classes can be imported during deserialization. This is a multi line value.
-        The individual items will be parsed as regexp patterns.
+        Space-separated list of classes that may be imported during deserialization. Items are processed
+        as regex expressions. Python built-in classes (like dict) are always allowed.
         This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
@@ -483,33 +475,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    database_access_isolation:
-      description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "False"
-    internal_api_url:
-      description: |
-        (experimental) Airflow Internal API url.
-        Only used if ``[core] database_access_isolation`` is ``True``.
-      version_added: 2.6.0
-      type: string
-      default: ~
-      example: 'http://localhost:8080'
-    internal_api_secret_key:
-      description: |
-        Secret key used to authenticate internal API clients to core. It should be as random as possible.
-        However, when running more than 1 instances of webserver / internal API services, make sure all
-        of them use the same ``secret_key`` otherwise calls will fail on authentication.
-        The authentication token generated using the secret key has a short expiry time though - make
-        sure that time on ALL the machines that you run airflow components on is synchronized
-        (for example using ntpd) otherwise you might get "forbidden" errors when the logs are accessed.
-      version_added: 2.10.0
-      type: string
-      sensitive: true
-      example: ~
-      default: "{SECRET_KEY}"
     test_connection:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.
@@ -537,11 +502,13 @@ core:
       default: "4096"
     execution_api_server_url:
       description: |
-        The url of the execution api server.
+        The url of the execution api server. Default is ``{BASE_URL}/execution/``
+        where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
+        it will use ``http://localhost:8080`` as the default base url.
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:8080/execution/"
+      default: ~
 database:
   description: ~
   options:
@@ -698,11 +665,20 @@ database:
     external_db_managers:
       description: |
         List of DB managers to use to migrate external tables in airflow database. The managers must inherit
-        from BaseDBManager
+        from BaseDBManager. If ``FabAuthManager`` is configured in the environment,
+        ``airflow.providers.fab.auth_manager.models.db.FABDBManager`` is automatically added.
       version_added: 3.0.0
       type: string
       example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
       default: ~
+    migration_batch_size:
+      description: |
+        The number of rows to process in each batch when performing a migration.
+        This is useful for large tables to avoid locking and failure due to query timeouts.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "10000"
 logging:
   description: ~
   options:
@@ -713,7 +689,7 @@ logging:
         There are a few existing configurations that assume this is set to the default.
         If you choose to override this you may need to update the
         ``[logging] dag_processor_manager_log_location`` and
-        ``[logging] child_process_log_directory settings`` as well.
+        ``[logging] dag_processor_child_process_log_directory settings`` as well.
       version_added: 2.0.0
       type: string
       example: ~
@@ -872,6 +848,13 @@ logging:
       example: ~
       default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
         {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+    dag_processor_child_process_log_directory:
+      description: |
+        Determines the directory where logs for the child processes of the dag processor will be stored
+      version_added: ~
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/logs/dag_processor"
     log_formatter_class:
       description: |
         Determines the formatter class used by Airflow for structuring its log messages
@@ -1378,7 +1361,7 @@ api:
       type: integer
       example: ~
       version_added: 2.0.0
-      default: "100"
+      default: "50"
     access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP
@@ -1708,16 +1691,6 @@ webserver:
       type: string
       example: ~
       default: "Access is Denied"
-    default_ui_timezone:
-      description: |
-        Default timezone to display all dates in the UI, can be UTC, system, or
-        any IANA timezone string (e.g. **Europe/Amsterdam**). If left empty the
-        default value of core/default_timezone will be used
-      version_added: 1.10.10
-      type: string
-      example: "America/New_York"
-      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
-      default: "UTC"
     secret_key:
       description: |
         Secret key used to run your api server. It should be as random as possible. However, when running
@@ -1777,7 +1750,7 @@ webserver:
       version_added: ~
       type: string
       example: ~
-      default: "100"
+      default: "50"
     navbar_color:
       description: |
         Define the color of navigation bar
@@ -1802,13 +1775,6 @@ webserver:
     navbar_text_hover_color:
       description: |
         Define the color of text in the navigation bar when hovered
-      version_added: 2.9.0
-      type: string
-      example: ~
-      default: "#51504f"
-    navbar_logo_text_color:
-      description: |
-        Define the color of the logo text
       version_added: 2.9.0
       type: string
       example: ~
@@ -2159,13 +2125,6 @@ scheduler:
       type: float
       example: ~
       default: "300.0"
-    child_process_log_directory:
-      description: |
-        Determines the directory where logs for the child processes of the scheduler will be stored
-      version_added: ~
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/scheduler"
     task_instance_heartbeat_timeout:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
@@ -2466,22 +2425,23 @@ dag_processor:
       type: string
       example: >
         [
-            {
+              {
                 "name": "my-git-repo",
                 "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
                 "kwargs": {
-                    "subdir": "dags",
-                    "tracking_ref": "main",
-                    "refresh_interval": 0
-            }
+                  "subdir": "dags",
+                  "tracking_ref": "main",
+                  "refresh_interval": 0
+                }
+              }
             ]
       default: >
         [
-            {{
-              "name": "dags-folder",
-              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-              "kwargs": {{}}
-            }}
+              {{
+                "name": "dags-folder",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {{}}
+              }}
             ]
     refresh_interval:
       description: |

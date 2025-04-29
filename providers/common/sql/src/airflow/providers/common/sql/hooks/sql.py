@@ -34,16 +34,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
+from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Inspector, make_url
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -52,7 +55,8 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from sqlalchemy.engine import URL
+    from polars import DataFrame as PolarsDataFrame
+    from sqlalchemy.engine import URL, Engine, Inspector
 
     from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -65,7 +69,9 @@ WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' 
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
+def return_single_query_results(
+    sql: str | Iterable[str], return_last: bool, split_statements: bool | None
+) -> bool:
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
     return handlers.return_single_query_results(sql, return_last, split_statements)
@@ -166,7 +172,7 @@ class DbApiHook(BaseHook):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
-        elif len(args) == 1:
+        if len(args) == 1:
             setattr(self, self.conn_name_attr, args[0])
         elif self.conn_name_attr not in kwargs:
             setattr(self, self.conn_name_attr, self.default_conn_name)
@@ -301,7 +307,7 @@ class DbApiHook(BaseHook):
             msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
         raise NotImplementedError(msg)
 
-    def get_sqlalchemy_engine(self, engine_kwargs=None):
+    def get_sqlalchemy_engine(self, engine_kwargs=None) -> Engine:
         """
         Get an sqlalchemy_engine object.
 
@@ -322,7 +328,7 @@ class DbApiHook(BaseHook):
 
     @property
     def inspector(self) -> Inspector:
-        return Inspector.from_engine(self.get_sqlalchemy_engine())
+        return inspect(self.get_sqlalchemy_engine())
 
     @cached_property
     def dialect_name(self) -> str:
@@ -375,7 +381,63 @@ class DbApiHook(BaseHook):
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
 
+    @deprecated(
+        reason="Replaced by function `get_df`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
     def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
+        """
+        Execute the sql and returns a pandas dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        return self._get_pandas_df(sql, parameters, **kwargs)
+
+    @deprecated(
+        reason="Replaced by function `get_df_by_chunks`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",
+    )
+    def get_pandas_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
+        return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+
+    def get_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> DataFrame | PolarsDataFrame:
+        """
+        Execute the sql and returns a dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df(sql, parameters, **kwargs)
+        if df_type == "polars":
+            return self._get_polars_df(sql, parameters, **kwargs)
+
+    def _get_pandas_df(
         self,
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
@@ -399,7 +461,61 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
-    def get_pandas_df_by_chunks(
+    def _get_polars_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> PolarsDataFrame:
+        """
+        Execute the sql and returns a polars dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into polars.read_database method
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "polars library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[polars]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            execute_options: dict[str, Any] | None = None
+            if parameters is not None:
+                if isinstance(parameters, Mapping):
+                    execute_options = dict(parameters)
+                else:
+                    execute_options = {}
+
+            return pl.read_database(sql, connection=conn, execute_options=execute_options, **kwargs)
+
+    def get_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        df_type: Literal["pandas", "polars"] = "pandas",
+        **kwargs,
+    ) -> Generator[DataFrame | PolarsDataFrame, None, None]:
+        """
+        Execute the sql and return a generator.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with
+        :param chunksize: number of rows to include in each chunk
+        :param df_type: Type of dataframe to return, either "pandas" or "polars"
+        :param kwargs: (optional) passed into `pandas.io.sql.read_sql` or `polars.read_database` method
+        """
+        if df_type == "pandas":
+            return self._get_pandas_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+        if df_type == "polars":
+            return self._get_polars_df_by_chunks(sql, parameters, chunksize=chunksize, **kwargs)
+
+    def _get_pandas_df_by_chunks(
         self,
         sql,
         parameters: list | tuple | Mapping[str, Any] | None = None,
@@ -422,9 +538,42 @@ class DbApiHook(BaseHook):
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
-
         with closing(self.get_conn()) as conn:
             yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
+
+    def _get_polars_df_by_chunks(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[PolarsDataFrame, None, None]:
+        """
+        Execute the sql and return a generator.
+
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param chunksize: number of rows to include in each chunk
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "polars library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[polars]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            execute_options = None
+            if parameters is not None:
+                if isinstance(parameters, Mapping):
+                    execute_options = dict(parameters)
+
+            yield from pl.read_database(
+                sql, connection=conn, execute_options=execute_options, batch_size=chunksize, **kwargs
+            )
 
     def get_records(
         self,
@@ -599,8 +748,7 @@ class DbApiHook(BaseHook):
         if handlers.return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
-        else:
-            return results
+        return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
         """
@@ -742,7 +890,14 @@ class DbApiHook(BaseHook):
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.executemany(sql, values)
+
+                        try:
+                            cur.executemany(sql, values)
+                        except Exception as e:
+                            self.log.error("Generated sql: %s", sql)
+                            self.log.error("Parameters: %s", values)
+                            raise e
+
                         conn.commit()
                         nb_rows += len(chunked_rows)
                         self.log.info("Loaded %s rows into %s so far", nb_rows, table)
@@ -751,7 +906,14 @@ class DbApiHook(BaseHook):
                         values = self._serialize_cells(row, conn)
                         sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.execute(sql, values)
+
+                        try:
+                            cur.execute(sql, values)
+                        except Exception as e:
+                            self.log.error("Generated sql: %s", sql)
+                            self.log.error("Parameters: %s", values)
+                            raise e
+
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)

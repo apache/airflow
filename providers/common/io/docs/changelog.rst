@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+1.5.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use BaseXCom serialize_value when objectstorage_threshold is less than given input (#49173)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.3
 .....
 

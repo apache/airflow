@@ -77,6 +77,7 @@ def create_app(apps: str = "all") -> FastAPI:
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
+        version="2",
     )
 
     dag_bag = get_dag_bag()
@@ -110,9 +111,10 @@ def cached_app(config=None, testing=False, apps="all") -> FastAPI:
 
 
 def purge_cached_app() -> None:
-    """Remove the cached version of the app in global state."""
-    global app
+    """Remove the cached version of the app and auth_manager in global state."""
+    global app, auth_manager
     app = None
+    auth_manager = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:

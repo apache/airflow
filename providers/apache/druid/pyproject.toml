@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-druid"
-version = "4.1.0"
+version = "4.1.1"
 description = "Provider package apache-airflow-providers-apache-druid for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -57,8 +57,8 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow>=2.10.0",
+    "apache-airflow-providers-common-sql>=1.26.0",
     "pydruid>=0.4.1",
 ]
 
@@ -77,6 +77,7 @@ dev = [
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-common-sql[polars]",
 ]
 
 # To build docs:
@@ -105,8 +106,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.1.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.1.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

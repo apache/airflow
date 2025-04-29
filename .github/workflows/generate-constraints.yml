@@ -32,10 +32,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to generate constraints without providers (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "Space-separated list of providers that should be installed from context files"
-        required: true
-        type: string
       debug-resources:
         description: "Whether to run in debug mode (true/false)"
         required: true
@@ -59,7 +55,6 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "true"
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       VERBOSE: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -98,34 +93,27 @@ jobs:
         # The no providers constraints are only needed when we want to update constraints (in canary builds)
         # They slow down the start of PROD image builds so we want to only run them when needed.
         if: inputs.generate-no-providers-constraints == 'true'
-      - name: "Prepare chicken-eggs provider distributions"
-        # In case of provider distributions which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
+      - name: "Prepare updated provider distributions"
+        # In case of provider distributions which are not yet released, we build them from sources
         shell: bash
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --distribution-format wheel --version-suffix-for-pypi dev0
-          ${CHICKEN_EGG_PROVIDERS}
-        if: inputs.chicken-egg-providers != ''
+          --distribution-format wheel
       - name: "Prepare airflow distributions"
         shell: bash
         run: >
-          breeze release-management prepare-airflow-distributions
-          --distribution-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-distributions --distribution-format wheel
+      - name: "Prepare task-sdk distribution"
+        shell: bash
+        run: >
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
-        env:
-          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: |
           for PYTHON in $PYTHON_VERSIONS; do
-            breeze release-management generate-constraints \
-            --airflow-constraints-mode constraints --answer yes \
-            --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" \
-            --python "${PYTHON}"
+            breeze release-management generate-constraints --airflow-constraints-mode constraints \
+            --answer yes --python "${PYTHON}"
           done
       - name: "Dependency upgrade summary"
         shell: bash

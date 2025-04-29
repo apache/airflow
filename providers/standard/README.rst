@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-standard``
 
-Release: ``0.4.0``
+Release: ``1.1.0``
 
 
 Airflow Standard Provider
@@ -36,7 +36,7 @@ This is a provider package for ``standard`` provider. All classes for this provi
 are in ``airflow.providers.standard`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-standard/0.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-standard/1.1.0/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-standard/0.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-standard/1.1.0/changelog.html>`_.
