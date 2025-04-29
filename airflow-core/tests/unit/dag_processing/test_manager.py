@@ -147,6 +147,7 @@ class TestDagFileProcessorManager:
             stdin=write_end,
             requests_fd=123,
             logger_filehandle=logger_filehandle,
+            start_time=160000,
         )
         ret._num_open_sockets = 0
         return ret, read_end
@@ -518,9 +519,7 @@ class TestDagFileProcessorManager:
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
-
         processor, _ = self.mock_processor()
-        processor._process.create_time.return_value = timezone.make_aware(datetime.min).timestamp()
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
