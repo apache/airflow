@@ -262,11 +262,18 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-        monkeypatch.setattr(
-            self.cloudwatch_task_handler,
-            "_read_from_logs_server",
-            lambda ti, worker_log_rel_path, log_metadata: ([], []),
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            monkeypatch.setattr(
+                self.cloudwatch_task_handler,
+                "_read_from_logs_server",
+                lambda ti, worker_log_rel_path, log_metadata: ([], []),
+            )
+        else:
+            monkeypatch.setattr(
+                self.cloudwatch_task_handler,
+                "_read_from_logs_server",
+                lambda ti, worker_log_rel_path: ([], []),
+            )
         msg_template = textwrap.dedent("""
              INFO - ::group::Log message source details
             *** Reading remote log from Cloudwatch log_group: {} log_stream: {}
