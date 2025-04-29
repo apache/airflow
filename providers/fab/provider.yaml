@@ -122,7 +122,7 @@ config:
       enable_proxy_fix:
         description: |
           Enable werkzeug ``ProxyFix`` middleware for reverse proxy
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: boolean
         example: ~
         default: "False"
@@ -131,7 +131,7 @@ config:
           Number of values to trust for ``X-Forwarded-For``.
           See `Werkzeug: X-Forwarded-For Proxy Fix
           <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: integer
         example: ~
         default: "1"
@@ -140,7 +140,7 @@ config:
           Number of values to trust for ``X-Forwarded-Proto``.
           See `Werkzeug: X-Forwarded-For Proxy Fix
           <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: integer
         example: ~
         default: "1"
@@ -149,7 +149,7 @@ config:
           Number of values to trust for ``X-Forwarded-Host``.
           See `Werkzeug: X-Forwarded-For Proxy Fix
           <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: integer
         example: ~
         default: "1"
@@ -158,7 +158,7 @@ config:
           Number of values to trust for ``X-Forwarded-Port``.
           See `Werkzeug: X-Forwarded-For Proxy Fix
           <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: integer
         example: ~
         default: "1"
@@ -167,7 +167,7 @@ config:
           Number of values to trust for ``X-Forwarded-Prefix``.
           See `Werkzeug: X-Forwarded-For Proxy Fix
           <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-        version_added: 3.0.1
+        version_added: 2.1.0
         type: integer
         example: ~
         default: "1"
