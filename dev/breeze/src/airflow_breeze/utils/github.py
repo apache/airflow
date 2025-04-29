@@ -97,7 +97,7 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
     get_console().print(
         "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
-    get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
+    get_console().print("[info]Fetching all released Airflow 2/3 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
@@ -116,7 +116,7 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
     tags = [tag.split("refs/tags/")[1].strip() for tag in ref_tags if "refs/tags/" in tag]
     for tag in tags:
         match = ACTIVE_TAG_MATCH.match(tag)
-        if match and match.group(1) == "2":
+        if match and (match.group(1) == "2" or match.group(1) == "3"):
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=Version)
     for version in airflow_versions:
