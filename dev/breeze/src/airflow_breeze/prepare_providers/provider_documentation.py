@@ -325,9 +325,7 @@ def _get_all_changes_for_package(
     )
     providers_folder_paths_for_git_commit_retrieval = [
         provider_details.root_provider_path,
-        provider_details.previous_source_provider_distribution_path,
-        provider_details.previous_documentation_provider_distribution_path,
-        provider_details.original_source_provider_distribution_path,
+        *provider_details.possible_old_provider_paths,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
@@ -673,7 +671,6 @@ def _update_file(
             f"[info]Please fix them by replacing with double backticks (``).[/]\n"
         )
         raise PrepareReleaseDocsErrorOccurredException()
-
     get_console().print(f"Linting: {target_file_path}")
     import restructuredtext_lint
 
@@ -686,6 +683,8 @@ def _update_file(
                 'No role entry for "doc"' in error.message
                 or 'Unknown interpreted text role "doc"' in error.message
             ):
+                continue
+            if "airflow-providers-commits" in error.message:
                 continue
             real_errors = True
             get_console().print(f"* [red] {error.message}")

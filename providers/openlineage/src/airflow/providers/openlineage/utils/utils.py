@@ -50,7 +50,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
@@ -803,12 +803,6 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
 
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not AIRFLOW_V_2_10_PLUS:
-        return hook.__class__.__name__ not in [
-            "SnowflakeHook",
-            "SnowflakeSqlApiHook",
-            "RedshiftSQLHook",
-        ]
     return True
 
 

@@ -87,11 +87,13 @@ const PoolBar = ({ pool }: PoolBarProps) => (
                 alignItems="center"
                 bg={`${color}.solid`}
                 flex={flexValue}
+                gap={0.5}
                 h="100%"
                 justifyContent="center"
                 position="relative"
               >
                 {icon}
+                {slotValue}
               </Flex>
             </Tooltip>
           );
