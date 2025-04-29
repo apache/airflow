@@ -301,7 +301,8 @@ jobs:
       packages: read
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+      needs.build-info.outputs.latest-versions-only != 'true' &&
+      needs.build-info.outputs.run-tests == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
