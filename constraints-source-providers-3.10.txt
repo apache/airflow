@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-29T16:10:25.483175
+# This constraints file was automatically generated on 2025-04-29T20:57:18.261447
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -393,7 +393,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.76.0
+openai==1.76.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.32.0
@@ -465,8 +465,8 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.3
-pydantic_core==2.33.1
+pydantic==2.11.4
+pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
@@ -530,7 +530,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.7.0
 rich-click==1.8.8
-rich-toolkit==0.14.3
+rich-toolkit==0.14.4
 rich==13.9.4
 rpds-py==0.24.0
 rsa==4.9.1
