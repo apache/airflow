@@ -38,6 +38,7 @@ OBJECTS_STD_NAMING = {
     ("Secret", "test-basic-airflow-metadata"),
     ("Secret", "test-basic-broker-url"),
     ("Secret", "test-basic-fernet-key"),
+    ("Secret", "test-basic-jwt-secret"),
     ("Secret", "test-basic-airflow-webserver-secret-key"),
     ("Secret", "test-basic-redis-password"),
     ("Secret", "test-basic-postgresql"),
