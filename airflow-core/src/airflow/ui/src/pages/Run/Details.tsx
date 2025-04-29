@@ -90,7 +90,7 @@ export const Details = () => {
             </Table.Row>
             <Table.Row>
               <Table.Cell>Run Duration</Table.Cell>
-              <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}s</Table.Cell>
+              <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>Last Scheduling Decision</Table.Cell>
