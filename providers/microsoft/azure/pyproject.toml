@@ -88,6 +88,7 @@ dependencies = [
     "microsoft-kiota-abstractions>=1.9.0,<2.0.0",
     "microsoft-kiota-authentication-azure>=1.9.0,<2.0.0",
     "msal-extensions>=1.1.0",
+    "portalocker>=2.8.1",
 ]
 
 # The optional dependencies should be modified in place in the generated file
