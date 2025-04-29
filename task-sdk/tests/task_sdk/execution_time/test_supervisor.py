@@ -1396,6 +1396,7 @@ class TestHandleRequest:
                 (),
                 {
                     "dag_id": "test_dag",
+                    "map_index": None,
                     "logical_dates": None,
                     "run_ids": None,
                     "states": None,
@@ -1426,6 +1427,7 @@ class TestHandleRequest:
                 (),
                 {
                     "dag_id": "test_dag",
+                    "map_index": None,
                     "task_ids": None,
                     "logical_dates": None,
                     "run_ids": None,
