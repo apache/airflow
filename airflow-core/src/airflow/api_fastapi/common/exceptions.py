@@ -22,7 +22,7 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError, ProgrammingError
 
 T = TypeVar("T", bound=Exception)
 
@@ -61,13 +61,10 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
     def exception_handler(self, request: Request, exc: IntegrityError):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
+            error_message = self._get_user_friendly_message(exc)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "reason": "Unique constraint violation",
-                    "statement": str(exc.statement),
-                    "orig_error": str(exc.orig),
-                },
+                detail=f"{error_message}\nType: unique_constraint_violation"
             )
 
     def _is_dialect_matched(self, exc: IntegrityError) -> bool:
@@ -79,6 +76,47 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
                 return True
         return False
 
+    def _get_user_friendly_message(self, exc: IntegrityError) -> str:
+       """Convert database error to user-friendly message."""
+       exc_orig_str = str(exc.orig)
+      
+       # Handle DAG run unique constraint
+       if "dag_run.dag_id" in exc_orig_str and "dag_run.run_id" in exc_orig_str:
+           return "A DAG run with this ID already exists. Please use a different run ID."
+          
+       # Handle task instance unique constrain
+       if "task_instance.dag_id" in exc_orig_str and "task_instance.task_id" in exc_orig_str:
+           return "A task instance with this ID already exists. Please use a different task ID."
+          
+       # Handle DAG run logical date unique constraint
+       if "dag_run.dag_id" in exc_orig_str and "dag_run.logical_date" in exc_orig_str:
+           return "A DAG run with this logical date already exists. Please use a different logical date."
+          
+       # Generic unique constraint message
+       return "This operation would create a duplicate entry. Please ensure all unique fields have unique values."
+
+class _DatabaseErrorHandler(BaseErrorHandler[SQLAlchemyError]):
+   """Handler for general database errors."""
+
+   def __init__(self):
+       super().__init__(SQLAlchemyError)
+
+   def exception_handler(self, request: Request, exc: SQLAlchemyError):
+       """Handle SQLAlchemyError exception."""
+       error_message = self._get_user_friendly_message(exc)
+       raise HTTPException(
+           status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+           detail=f"{error_message}\nType: database_error"
+       )
+
+   def _get_user_friendly_message(self, exc: SQLAlchemyError) -> str:
+       """Convert database error to user-friendly message."""
+       if isinstance(exc, OperationalError):
+           return "A database operation failed. Please try again later."
+       elif isinstance(exc, ProgrammingError):
+           return "An error occurred while processing your request. Please check your input and try again."
+       else:
+           return "An unexpected database error occurred. Please try again later."
 
 DatabaseErrorHandlers = [
     _UniqueConstraintErrorHandler(),

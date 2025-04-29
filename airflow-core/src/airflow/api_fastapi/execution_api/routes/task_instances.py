@@ -240,10 +240,14 @@ def ti_run(
             context.next_kwargs = ti.next_kwargs
 
         return context
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail= {
+               "message": "Failed to update task instance state. Please try again later.",
+               "type": "database_error"
+           }
         )
 
 
@@ -425,7 +429,11 @@ def ti_update_state(
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail={
+               "message": "Failed to update task instance state. Please try again later.",
+               "type": "database_error"
+           }
         )
 
 
