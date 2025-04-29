@@ -1162,7 +1162,7 @@ def doctor(ctx):
     shell_params.print_badge_info()
 
     perform_environment_checks()
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
 
     given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
     if not get_dry_run() and given_answer == Answer.YES:
