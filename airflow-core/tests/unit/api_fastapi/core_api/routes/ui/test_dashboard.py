@@ -84,10 +84,18 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_3",
         state=DagRunState.RUNNING,
         run_type=DagRunType.SCHEDULED,
-        logical_date=pendulum.DateTime(2023, 2, 3, 0, 0, 0, tzinfo=pendulum.UTC),
-        start_date=pendulum.DateTime(2023, 2, 3, 0, 0, 0, tzinfo=pendulum.UTC),
+        logical_date=date + timedelta(days=2),
+        start_date=date + timedelta(days=2),
     )
+
     run3.end_date = None
+
+    dag_maker.create_dagrun(
+        run_id="run_4",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date + timedelta(days=3),
+    )
 
     for ti in run1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
@@ -208,12 +216,12 @@ class TestHistoricalMetricsDataEndpoint:
             (
                 {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
                 {
-                    "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
-                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
+                    "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 1},
+                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 3},
                     "task_instance_states": {
                         "deferred": 0,
                         "failed": 2,
-                        "no_status": 2,
+                        "no_status": 4,
                         "queued": 0,
                         "removed": 0,
                         "restarting": 0,
@@ -252,12 +260,12 @@ class TestHistoricalMetricsDataEndpoint:
             (
                 {"start_date": "2023-02-02T00:00"},
                 {
-                    "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 0},
-                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 1},
+                    "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 0},
+                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
                     "task_instance_states": {
                         "deferred": 0,
                         "failed": 2,
-                        "no_status": 2,
+                        "no_status": 4,
                         "queued": 0,
                         "removed": 0,
                         "restarting": 0,
