@@ -30,7 +30,7 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Select } from "src/components/ui";
+import { Button, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { system } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
@@ -181,16 +181,25 @@ export const TaskLogHeader = ({
           </Select.Root>
         ) : undefined}
         <HStack>
-          <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-            {wrap ? "Unwrap" : "Wrap"}
-          </Button>
+          <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
+            <Button
+              aria-label={wrap ? "Unwrap" : "Wrap"}
+              bg="bg.panel"
+              onClick={toggleWrap}
+              variant="outline"
+            >
+              {wrap ? "Unwrap" : "Wrap"}
+            </Button>
+          </Tooltip>
           <Button aria-label="Download Log" bg="bg.panel" onClick={downloadLog} variant="outline">
             Download Log
           </Button>
           {!isFullscreen && (
-            <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
-              <MdOutlineOpenInFull />
-            </IconButton>
+            <Tooltip closeDelay={100} content="Press f for fullscreen" openDelay={100}>
+              <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
+                <MdOutlineOpenInFull />
+              </IconButton>
+            </Tooltip>
           )}
         </HStack>
       </HStack>

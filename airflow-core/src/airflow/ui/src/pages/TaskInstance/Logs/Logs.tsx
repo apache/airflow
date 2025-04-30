@@ -18,6 +18,7 @@
  */
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -67,6 +68,13 @@ export const Logs = () => {
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleFullscreen = () => setFullscreen(!fullscreen);
+
+  useHotkeys("w", toggleWrap);
+  useHotkeys("f", toggleFullscreen);
+
+  const onOpenChange = () => {
+    setFullscreen(false);
+  };
 
   const {
     data,
