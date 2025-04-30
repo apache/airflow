@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example of the LatestOnlyOperator"""
-
-from __future__ import annotations
-
-import datetime
-
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
-from airflow.sdk import DAG
-
-with DAG(
-    dag_id="latest_only",
-    schedule=datetime.timedelta(hours=4),
-    start_date=datetime.datetime(2021, 1, 1),
-    catchup=False,
-    tags=["example2", "example3"],
-) as dag:
-    # [START howto_operator_latest_only]
-    latest_only = LatestOnlyOperator(task_id="latest_only")
-    # [END howto_operator_latest_only]
-    task1 = EmptyOperator(task_id="task1")
-
-    latest_only >> task1

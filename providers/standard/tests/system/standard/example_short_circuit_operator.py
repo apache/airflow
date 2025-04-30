@@ -32,7 +32,7 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-):
+) as dag:
     # [START howto_operator_short_circuit]
     cond_true = ShortCircuitOperator(
         task_id="condition_is_True",
@@ -64,3 +64,9 @@ with DAG(
 
     chain(task_1, [task_2, short_circuit], [task_3, task_4], [task_5, task_6], task_7)
     # [END howto_operator_short_circuit_trigger_rules]
+
+
+from tests_common.test_utils.system_tests import get_test_run
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

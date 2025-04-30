@@ -69,7 +69,7 @@ configuration = airflow_client.client.Configuration(
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
 # or AIRFLOW__CORE__LOAD_EXAMPLES environment variable set to True
-DAG_ID = "example_bash_operator"
+DAG_ID = "example_simplest_dag"
 
 
 # Enter a context with an instance of the API client

@@ -39,9 +39,9 @@ API_PREFIX = "/dagSources"
 
 # Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = (
-    AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "example_bash_operator.py"
+    AIRFLOW_REPO_ROOT_PATH / "airflow-core" / "src" / "airflow" / "example_dags" / "example_simplest_dag.py"
 )
-TEST_DAG_ID = "example_bash_operator"
+TEST_DAG_ID = "example_simplest_dag"
 
 
 @pytest.fixture

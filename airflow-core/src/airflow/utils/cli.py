@@ -270,7 +270,6 @@ def get_dag(bundle_names: list | None, dag_id: str, from_db: bool = False) -> DA
 
     bundle_names = bundle_names or []
     dag: DAG | None = None
-
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
         dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested

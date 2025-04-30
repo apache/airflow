@@ -103,3 +103,11 @@ cond3 = BranchDateTimeOperator(
 # Run empty_task_13 if cond3 executes between 2020-10-10 14:00:00 and 2020-10-10 15:00:00
 cond3 >> [empty_task_13, empty_task_23]
 # [END howto_branch_datetime_operator_logical_date]
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag1)
+test_run2 = get_test_run(dag2)
+test_run3 = get_test_run(dag3)

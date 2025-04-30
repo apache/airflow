@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle
 
 _example_dag_bundle_name = "example_dags"
+_example_standard_dag_bundle_name = "example_standard_dags"
 
 
 def _bundle_item_exc(msg):
@@ -80,6 +82,25 @@ def _add_example_dag_bundle(config_list):
     )
 
 
+def _add_example_standard_dag_bundle(config_list):
+    # TODO(potiuk): make it more generic - for now we only add standard example_dags if they are locally available
+    try:
+        from system import standard
+    except ImportError:
+        return
+
+    example_dag_folder = next(iter(standard.__path__))
+    config_list.append(
+        {
+            "name": _example_standard_dag_bundle_name,
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {
+                "path": example_dag_folder,
+            },
+        }
+    )
+
+
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
@@ -112,6 +133,11 @@ class DagBundlesManager(LoggingMixin):
         _validate_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(config_list)
+            if (
+                os.environ.get("BREEZE", "").lower() == "true"
+                or os.environ.get("_IN_UNIT_TESTS", "").lower() == "true"
+            ):
+                _add_example_standard_dag_bundle(config_list)
 
         for cfg in config_list:
             name = cfg["name"]
