@@ -138,8 +138,53 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  # Enable all ingress resources
+  # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
+
+  # Configs for the Ingress of the API Server
+  apiServer:
+    # Enable API Server ingress resource
+    enabled: false
+
+    # Annotations for the API Server Ingress
+    annotations: {}
+
+    # The path for the API Server Ingress
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the API Server Ingress (Deprecated - renamed to `ingress.apiServer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the API Server Ingress
+    hosts: []
+    #   # The hostname for the web Ingress (templated)
+    # - name: ""
+    #   # configs for API Server Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the API Server Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the API Server Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+    # configs for API Server Ingress TLS (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)
+    tls:
+      # Enable TLS termination for the API Server Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the API Server Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the API Server Ingress after the default path
+    succeedingPaths: []
 
   # Configs for the Ingress of the web Service
   web:
