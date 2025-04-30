@@ -58,7 +58,7 @@ def historical_metrics(
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
         .where(
-            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.run_type)
@@ -67,7 +67,7 @@ def historical_metrics(
     dag_run_states = session.execute(
         select(DagRun.state, func.count(DagRun.run_id))
         .where(
-            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.state)
@@ -78,7 +78,7 @@ def historical_metrics(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
         .join(TaskInstance.dag_run)
         .where(
-            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.start_date, current_time) >= start_date,
             func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(TaskInstance.state)
