@@ -74,7 +74,8 @@ dependencies = [
     "twine>=4.0.2",
     "tqdm>=4.67.1",
     "boto3>=1.34.90",
-    "awswrangler>=3.11.0"
+    "awswrangler>=3.11.0",
+    "semver>=3.0.4"
 ]
 
 [project.scripts]
