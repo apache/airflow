@@ -654,7 +654,7 @@ def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
         "queues",
         "maintenance_comment",
     ]
-    all_hosts = [{f: str(host.__getattribute__(f)) for f in fields} for host in all_hosts_iter]
+    all_hosts = [{f: host.__getattribute__(f) for f in fields} for host in all_hosts_iter]
     AirflowConsole().print_as(data=all_hosts, output=args.output)
 
 
@@ -690,8 +690,11 @@ def remote_worker_update_maintenance_comment(args) -> None:
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
 
-    change_maintenance_comment(args.edge_hostname, args.comments)
-    logger.info("Maintenance comments updated for %s by %s.", args.edge_hostname, getuser())
+    try:
+        change_maintenance_comment(args.edge_hostname, args.comments)
+        logger.info("Maintenance comments updated for %s by %s.", args.edge_hostname, getuser())
+    except TypeError:
+        raise SystemExit
 
 
 @cli_utils.action_cli
@@ -702,8 +705,11 @@ def remove_remote_worker(args) -> None:
         raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
     from airflow.providers.edge3.models.edge_worker import remove_worker
 
-    remove_worker(args.edge_hostname)
-    logger.info("Edge Worker host %s removed by %s.", args.edge_hostname, getuser())
+    try:
+        remove_worker(args.edge_hostname)
+        logger.info("Edge Worker host %s removed by %s.", args.edge_hostname, getuser())
+    except TypeError:
+        raise SystemExit
 
 
 ARG_CONCURRENCY = Arg(

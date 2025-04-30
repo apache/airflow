@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -34,6 +35,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -217,7 +220,14 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 @provide_session
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
-    session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    if worker.state == EdgeWorkerState.OFFLINE or worker.state == EdgeWorkerState.OFFLINE_MAINTENANCE:
+        session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+    else:
+        error_message = f"Cannot remove edge worker {worker_name} as it is in {worker.state} state!"
+        logger.error(error_message)
+        raise TypeError(error_message)
 
 
 @provide_session
@@ -227,4 +237,12 @@ def change_maintenance_comment(
     """Write maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    worker.maintenance_comment = maintenance_comment
+    if (
+        worker.state == EdgeWorkerState.MAINTENANCE_MODE
+        or worker.state == EdgeWorkerState.OFFLINE_MAINTENANCE
+    ):
+        worker.maintenance_comment = maintenance_comment
+    else:
+        error_message = f"Cannot change maintenance comment as {worker_name} is not in maintenance!"
+        logger.error(error_message)
+        raise TypeError(error_message)

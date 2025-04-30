@@ -431,6 +431,7 @@ class TestEdgeWorkerCli:
         assert "concurrency" in sysinfo
         assert sysinfo["concurrency"] == concurrency
 
+    @pytest.mark.db_test
     def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
         mock_session = MagicMock()
         args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
