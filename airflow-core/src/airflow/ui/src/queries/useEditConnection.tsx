@@ -92,7 +92,8 @@ export const useEditConnection = (
         conn_type: requestBody.conn_type,
         connection_id: initialConnection.connection_id,
         extra: requestBody.extra === "{}" ? undefined : requestBody.extra,
-        port: Number(requestBody.port),
+        // eslint-disable-next-line unicorn/no-null
+        port: requestBody.port === "" ? null : Number(requestBody.port),
       },
       updateMask,
     });
