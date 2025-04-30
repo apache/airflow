@@ -452,7 +452,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
-            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)misc, (s)kip,(v)airflow_min_version_bump (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -948,7 +948,7 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif type_of_change == TypeOfChange.MISC:
+        elif type_of_change == TypeOfChange.MISC or type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)

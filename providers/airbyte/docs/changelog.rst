@@ -26,6 +26,10 @@
 Changelog
 ---------
 
+
+5.0.2
+.....
+
 .. note::
 
    In this version of the provider, the ``provider_info`` entrypoint returned json has been cleaned up to
@@ -41,13 +45,11 @@ Changelog
    that can be exposed by the provider. The schema is backwards-compatible, it only contains new possible
    entries that can appear there, reflecting new functionality added in Airflow 2 and 3.
 
-5.0.2
-.....
-
 Misc
 ~~~~
 
 * ``remove superfluous else block (#49199)``
+* ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
 
 Doc-only
 ~~~~~~~~
@@ -57,7 +59,6 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs for Apr 2nd wave of providers (#49051)``
-   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
    * ``Remove fab from preinstalled providers (#48457)``
    * ``Improve documentation building iteration (#48760)``
    * ``Prepare docs for Apr 1st wave of providers (#48828)``

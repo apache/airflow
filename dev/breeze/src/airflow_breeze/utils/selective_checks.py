@@ -777,6 +777,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self.full_tests_needed:
+            return True
         if self._is_canary_run():
             return True
         if self.only_new_ui_files:
@@ -1223,6 +1225,8 @@ class SelectiveChecks:
             return False
         if self._get_providers_test_types_to_run():
             return False
+        if not self.run_tests:
+            return True
         return True
 
     @cached_property
@@ -1510,7 +1514,7 @@ class SelectiveChecks:
 
     def _is_canary_run(self):
         return (
-            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
+            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
 

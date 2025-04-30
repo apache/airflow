@@ -1,5 +1,3 @@
-/* eslint-disable perfectionist/sort-objects */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,30 +17,20 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
-import { FiXCircle } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+import { PoolBar } from "src/components/PoolBar";
 import { StateIcon } from "src/components/StateIcon";
 import { Tooltip } from "src/components/ui";
-import { capitalize } from "src/utils";
 
 import DeletePoolButton from "./DeletePoolButton";
 import EditPoolButton from "./EditPoolButton";
 
-const slots = {
-  open_slots: { color: "success", icon: <StateIcon color="white" state="success" /> },
-  occupied_slots: { color: "up_for_retry", icon: <FiXCircle color="white" /> },
-  running_slots: { color: "running", icon: <StateIcon color="white" state="running" /> },
-  queued_slots: { color: "queued", icon: <StateIcon color="white" state="queued" /> },
-  scheduled_slots: { color: "scheduled", icon: <StateIcon color="white" state="scheduled" /> },
-  deferred_slots: { color: "deferred", icon: <StateIcon color="white" state="deferred" /> },
-};
-
-type PoolBarProps = {
+type PoolBarCardProps = {
   readonly pool: PoolResponse;
 };
 
-const PoolBar = ({ pool }: PoolBarProps) => (
+const PoolBarCard = ({ pool }: PoolBarCardProps) => (
   <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} mb={2} overflow="hidden">
     <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
       <VStack align="start" flex="1">
@@ -72,35 +60,10 @@ const PoolBar = ({ pool }: PoolBarProps) => (
 
     <Box margin={4}>
       <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        {Object.entries(slots).map(([slotKey, { color, icon }]) => {
-          const rawSlotValue = pool[slotKey as keyof PoolResponse];
-          const slotValue = typeof rawSlotValue === "number" ? rawSlotValue : 0;
-          const flexValue = slotValue / pool.slots || 0;
-
-          if (flexValue === 0) {
-            return undefined; // Skip rendering if no value for this slot
-          }
-
-          return (
-            <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
-              <Flex
-                alignItems="center"
-                bg={`${color}.solid`}
-                flex={flexValue}
-                gap={0.5}
-                h="100%"
-                justifyContent="center"
-                position="relative"
-              >
-                {icon}
-                {slotValue}
-              </Flex>
-            </Tooltip>
-          );
-        })}
+        <PoolBar pool={pool} totalSlots={pool.slots} />
       </Flex>
     </Box>
   </Box>
 );
 
-export default PoolBar;
+export default PoolBarCard;
