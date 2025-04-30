@@ -121,6 +121,7 @@ class TestListBackfills(TestBackfillEndpoint):
                 {
                     "completed_at": mock.ANY,
                     "created_at": mock.ANY,
+                    "dag_display_name": "TEST_DAG_1",
                     "dag_id": "TEST_DAG_1",
                     "dag_run_conf": {},
                     "from_date": to_iso(from_date),
@@ -149,6 +150,7 @@ class TestGetBackfill(TestBackfillEndpoint):
         assert response.json() == {
             "completed_at": mock.ANY,
             "created_at": mock.ANY,
+            "dag_display_name": "TEST_DAG_1",
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": {},
             "from_date": to_iso(from_date),
@@ -214,6 +216,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.json() == {
             "completed_at": mock.ANY,
             "created_at": mock.ANY,
+            "dag_display_name": "TEST_DAG_1",
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": {"param1": "val1", "param2": True},
             "from_date": from_date_iso,
@@ -715,6 +718,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         assert response.json() == {
             "completed_at": mock.ANY,
             "created_at": mock.ANY,
+            "dag_display_name": "TEST_DAG_1",
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": {},
             "from_date": to_iso(from_date),
@@ -793,6 +797,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         assert response.json() == {
             "completed_at": mock.ANY,
             "created_at": mock.ANY,
+            "dag_display_name": "TEST_DAG_1",
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": {},
             "from_date": to_iso(from_date),
@@ -851,6 +856,7 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         assert response.json() == {
             "completed_at": mock.ANY,
             "created_at": mock.ANY,
+            "dag_display_name": "TEST_DAG_1",
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": {},
             "from_date": to_iso(from_date),

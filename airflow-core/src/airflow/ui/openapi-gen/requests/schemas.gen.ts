@@ -482,6 +482,10 @@ export const $BackfillResponse = {
       format: "date-time",
       title: "Updated At",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -496,6 +500,7 @@ export const $BackfillResponse = {
     "created_at",
     "completed_at",
     "updated_at",
+    "dag_display_name",
   ],
   title: "BackfillResponse",
   description: "Base serializer for Backfill.",
