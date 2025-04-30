@@ -131,6 +131,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     end_date: AwareDatetime | None = None
 
+    state: TaskInstanceState.RUNNING | TerminalTIState | IntermediateTIState | None = None
+
     is_mapped: bool | None = None
     """True if the original task was mapped."""
 
@@ -600,6 +602,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
+        state=TaskInstanceState.RUNNING,
     )
 
 
@@ -827,7 +830,7 @@ def run(
             # catch it and handle it like a normal task failure
             if early_exit := _prepare(ti, log, context):
                 msg = early_exit
-                state = TerminalTIState.FAILED
+                ti.state = state = TerminalTIState.FAILED
                 return state, msg, error
 
             result = _execute_task(context, ti, log)
@@ -898,7 +901,9 @@ def run(
     finally:
         if msg:
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+
     # Return the message to make unit tests easier too
+    ti.state = state
     return state, msg, error
 
 

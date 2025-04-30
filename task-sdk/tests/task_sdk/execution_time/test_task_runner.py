@@ -306,7 +306,9 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
     # Run the task
     ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    state, msg, err = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == IntermediateTIState.DEFERRED
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
@@ -359,7 +361,8 @@ def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_c
     spy = spy_agency.spy_on(task.execute_complete)
     state, msg, err = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
     assert err is None
-    assert state == TaskInstanceState.SUCCESS
+    assert state == TerminalTIState.SUCCESS
+    assert ti.state == TerminalTIState.SUCCESS
 
     spy_agency.assert_spy_called_with(spy, mock.ANY, event=instant)
 
@@ -381,6 +384,8 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TerminalTIState.SKIPPED
+
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(state=TerminalTIState.SKIPPED, end_date=instant), log=mock.ANY
     )
@@ -400,6 +405,8 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
     time_machine.move_to(instant, tick=False)
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TerminalTIState.FAILED
 
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
@@ -425,6 +432,8 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
     log = mock.MagicMock()
     run(ti, context=ti.get_template_context(), log=log)
+
+    assert ti.state == TerminalTIState.FAILED
 
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
@@ -455,6 +464,8 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TerminalTIState.FAILED
+
     mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
@@ -480,6 +491,8 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     time_machine.move_to(instant, tick=False)
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TerminalTIState.FAILED
 
     # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send_request.assert_called_with(
@@ -526,6 +539,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     spy_agency.assert_spy_called(task.prepare_for_execution)
     assert ti.task._lock_for_execution
     assert ti.task is not task, "ti.task should be a copy of the original task"
+    assert ti.state == TerminalTIState.SUCCESS
 
     mock_supervisor_comms.send_request.assert_any_call(
         msg=SetRenderedFields(
@@ -699,6 +713,8 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
+    assert ti.state == TerminalTIState.SUCCESS
+
     # Ensure the task is Successful
     mock_supervisor_comms.send_request.assert_called_once_with(
         msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
@@ -746,6 +762,8 @@ def test_run_basic_failed(
     time_machine.move_to(instant, tick=False)
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TerminalTIState.FAILED
 
     mock_supervisor_comms.send_request.assert_called_once_with(
         msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
