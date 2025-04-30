@@ -3410,6 +3410,8 @@ export const $JobResponse = {
   description: "Job serializer for responses.",
 } as const;
 
+export const $JsonValue = {} as const;
+
 export const $PatchTaskInstanceBody = {
   properties: {
     new_state: {
@@ -5451,8 +5453,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      type: "string",
-      title: "Value",
+      $ref: "#/components/schemas/JsonValue",
     },
     description: {
       anyOf: [
@@ -6394,6 +6395,31 @@ export const $DAGWithLatestDagRunsResponse = {
   ],
   title: "DAGWithLatestDagRunsResponse",
   description: "DAG with latest dag runs response serializer.",
+} as const;
+
+export const $DashboardDagStatsResponse = {
+  properties: {
+    active_dag_count: {
+      type: "integer",
+      title: "Active Dag Count",
+    },
+    failed_dag_count: {
+      type: "integer",
+      title: "Failed Dag Count",
+    },
+    running_dag_count: {
+      type: "integer",
+      title: "Running Dag Count",
+    },
+    queued_dag_count: {
+      type: "integer",
+      title: "Queued Dag Count",
+    },
+  },
+  type: "object",
+  required: ["active_dag_count", "failed_dag_count", "running_dag_count", "queued_dag_count"],
+  title: "DashboardDagStatsResponse",
+  description: "Dashboard DAG Stats serializer for responses.",
 } as const;
 
 export const $EdgeResponse = {

@@ -898,6 +898,8 @@ export type JobResponse = {
   unixname: string | null;
 };
 
+export type JsonValue = unknown;
+
 /**
  * Request body for Clear Task Instances endpoint.
  */
@@ -1323,7 +1325,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string;
+  value: JsonValue;
   description?: string | null;
 };
 
@@ -1590,6 +1592,16 @@ export type DAGWithLatestDagRunsResponse = {
    * Return file token.
    */
   readonly file_token: string;
+};
+
+/**
+ * Dashboard DAG Stats serializer for responses.
+ */
+export type DashboardDagStatsResponse = {
+  active_dag_count: number;
+  failed_dag_count: number;
+  running_dag_count: number;
+  queued_dag_count: number;
 };
 
 /**
@@ -2672,6 +2684,8 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
   dagId: string;
@@ -5532,6 +5546,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/dag_stats": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DashboardDagStatsResponse;
       };
     };
   };
