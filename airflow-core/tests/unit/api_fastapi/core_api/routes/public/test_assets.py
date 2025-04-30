@@ -259,6 +259,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event_id": None,
+                    "last_asset_event_timestamp": None,
                 },
                 {
                     "id": asset2.id,
@@ -271,6 +273,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event_id": None,  # Defaults to None, since there is no asset event
+                    "last_asset_event_timestamp": None,
                 },
             ],
             "total_entries": 2,
@@ -310,6 +314,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event_id": None,
+                    "last_asset_event_timestamp": None,
                 },
                 {
                     "id": asset2.id,
@@ -322,6 +328,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event_id": None,
+                    "last_asset_event_timestamp": None,
                 },
                 {
                     "id": asset3.id,
@@ -334,6 +342,8 @@ class TestGetAssets(TestAssets):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [],
+                    "last_asset_event_id": None,
+                    "last_asset_event_timestamp": None,
                 },
             ],
             "total_entries": 3,
@@ -897,6 +907,8 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event_id": None,  # Defaults to None, since there is no asset event
+            "last_asset_event_timestamp": None,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -930,6 +942,8 @@ class TestGetAssetEndpoint(TestAssets):
             "consuming_dags": [],
             "producing_tasks": [],
             "aliases": [],
+            "last_asset_event_id": None,  # Defaults to None, since there is no asset event
+            "last_asset_event_timestamp": None,
         }
 
 
@@ -1114,6 +1128,17 @@ class TestPostAssetEvents(TestAssets):
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
+
+    def test_should_update_asset_endpoint(self, test_client, session):
+        (asset,) = self.create_assets(session, num=1)
+        event_payload = {"asset_id": asset.id, "extra": {"foo": "bar"}}
+        asset_event_response = test_client.post("/assets/events", json=event_payload)
+
+        # Now, pull the Asset, and get the response
+        asset_response = test_client.get(f"/assets/{asset.id}")
+
+        assert asset_response.json()["last_asset_event_id"] == asset_event_response.json()["id"]
+        assert asset_response.json()["last_asset_event_timestamp"] == asset_event_response.json()["timestamp"]
 
 
 @pytest.mark.need_serialized_dag

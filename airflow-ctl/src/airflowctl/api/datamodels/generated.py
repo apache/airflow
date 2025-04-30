@@ -973,6 +973,8 @@ class AssetResponse(BaseModel):
     consuming_dags: Annotated[list[DagScheduleAssetReference], Field(title="Consuming Dags")]
     producing_tasks: Annotated[list[TaskOutletAssetReference], Field(title="Producing Tasks")]
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
+    last_asset_event_id: Annotated[int | None, Field(title="Last Asset Event Id")] = None
+    last_asset_event_timestamp: Annotated[datetime | None, Field(title="Last Asset Event Timestamp")] = None
 
 
 class BackfillPostBody(BaseModel):

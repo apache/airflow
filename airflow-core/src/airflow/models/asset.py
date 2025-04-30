@@ -276,6 +276,19 @@ class AssetModel(Base):
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
     triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
 
+    # ForeignKey("asset_event.id") -> this was originally in the last_asset_event_id definition
+    # The default value should be None. When an Asset is defined, it is not yet tied to an AssetEvent
+    last_asset_event_id = Column(Integer, default=None)
+    last_asset_event_timestamp = Column(UtcDateTime, default=None)
+
+    last_event = relationship(
+        "AssetEvent",
+        primaryjoin="AssetModel.last_asset_event_id == foreign(AssetEvent.id)",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+
     __tablename__ = "asset"
     __table_args__ = (
         Index("idx_asset_name_uri_unique", name, uri, unique=True),

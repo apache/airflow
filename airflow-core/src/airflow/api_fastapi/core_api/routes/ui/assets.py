@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
 from airflow.models import DagModel
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
+from airflow.models.asset import AssetDagRunQueue, AssetModel, DagScheduleAssetReference
 
 assets_router = AirflowRouter(tags=["Asset"])
 
@@ -56,7 +56,7 @@ def next_run_assets(
                 AssetModel.id,
                 AssetModel.uri,
                 AssetModel.name,
-                func.max(AssetEvent.timestamp).label("lastUpdate"),
+                AssetModel.last_asset_event_timestamp.label("lastUpdate"),
             )
             .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
             .join(
@@ -67,20 +67,13 @@ def next_run_assets(
                 ),
                 isouter=True,
             )
-            .join(
-                AssetEvent,
-                and_(
-                    AssetEvent.asset_id == AssetModel.id,
-                    (
-                        AssetEvent.timestamp >= latest_run.logical_date
-                        if latest_run and latest_run.logical_date
-                        else True
-                    ),
-                ),
-                isouter=True,
+            .where(
+                DagScheduleAssetReference.dag_id == dag_id,
+                AssetModel.active.has(),
+                AssetModel.last_asset_event_timestamp >= latest_run.logical_date
+                if latest_run and latest_run.logical_date
+                else True,
             )
-            .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
-            .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
             .order_by(AssetModel.uri)
         )
     ]
