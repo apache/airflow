@@ -2148,6 +2148,7 @@ def create_runtime_ti(mocked_parse):
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,
+            upstream_map_indexes=upstream_map_indexes,
         )
 
         if upstream_map_indexes is not None:
