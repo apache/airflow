@@ -85,7 +85,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
         pannable
         zoomable
       />
-      <DownloadButton name={asset?.name ??  asset?.uri ?? "asset"} />
+      <DownloadButton name={asset?.name ?? asset?.uri ?? "asset"} />
     </ReactFlow>
   );
 };
