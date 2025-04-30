@@ -55,7 +55,6 @@ from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_task
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -237,7 +236,6 @@ def ti_run(
             or 0
         )
 
-        upstream_map_indexes = _get_upstream_map_indexes(request, ti)
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -247,7 +245,7 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
-            upstream_map_indexes=upstream_map_indexes,
+            upstream_map_indexes=_get_upstream_map_indexes(request, ti.dag_id, ti.task_id, ti.map_index),
         )
 
         # Only set if they are non-null
@@ -263,21 +261,28 @@ def ti_run(
         )
 
 
-def _get_upstream_map_indexes(request, ti):
-    dag = request.app.state.dag_bag.get_dag(ti.dag_id)
+def _get_upstream_map_indexes(
+    request: Request, dag_id: str, task_id: str, ti_map_index
+) -> dict[str, int | list[int] | None] | None:
+    dag = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
         return None
-    task = dag.get_task(ti.task_id)
-    upstream_map_indexes: dict[str, int | list[int] | None] = {}
-    for upstream_task in task.upstream_list:
-        upstream_group = upstream_task.task_group
-        if upstream_group is None:
-            # If upstream is not a task group,
-            upstream_map_indexes[upstream_task.task_id] = None
-        elif isinstance(upstream_group, MappedTaskGroup) and task.task_group != upstream_group:
-            upstream_map_indexes[upstream_task.task_id] = list(
-                range(upstream_group.get_parse_time_mapped_ti_count())
-            )
+
+    task = dag.get_task(task_id)
+    upstream_map_indexes = {
+        upstream_task.task_id: (
+            # regular tasks
+            None
+            if not upstream_task.task_group
+            # tasks in the same mapped task group
+            else ti_map_index
+            if task.task_group == upstream_task.task_group
+            # tasks not in the same mapped task group
+            # the upstream mapped task group should combine the xcom as a list and return it
+            else list(range(upstream_task.task_group.get_parse_time_mapped_ti_count()))
+        )
+        for upstream_task in task.upstream_list
+    }
     return upstream_map_indexes
 
 
