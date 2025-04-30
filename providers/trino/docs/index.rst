@@ -34,8 +34,8 @@
     :maxdepth: 1
     :caption: Guides
 
-    TrinoTransferOperator types <gcs_to_trino>
-    Operators <operators>
+    TrinoTransferOperator types <operators/transfer/gcs_to_trino>
+    TrinoOperator <operators/index>
     Connection types <connections>
 
 .. toctree::
