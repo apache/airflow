@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-29T18:11:17.673934
+# This constraints file was automatically generated on 2025-04-30T10:24:27.185888
 # via "eager-upgrade" mechanism of PIP. For the "v2-11-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -505,7 +505,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.76.1
+openai==1.76.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.32.0
@@ -525,7 +525,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.1.0
 ordered-set==4.1.0
-orjson==3.10.17
+orjson==3.10.18
 oss2==2.19.1
 packaging==25.0
 pandas-gbq==0.28.0
@@ -575,8 +575,8 @@ pyasn1_modules==0.4.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.22.0
-pydantic==2.11.3
-pydantic_core==2.33.1
+pydantic==2.11.4
+pydantic_core==2.33.2
 pydata-google-auth==1.9.1
 pydot==1.4.2
 pydruid==0.6.9
