@@ -133,7 +133,8 @@ def grid_data(
     tis_of_dag_runs, _ = paginated_select(
         statement=select(TaskInstance)
         .join(TaskInstance.task_instance_note, isouter=True)
-        .where(TaskInstance.dag_id == dag.dag_id),
+        .where(TaskInstance.dag_id == dag.dag_id)
+        .where(TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs])),
         filters=[],
         order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value("task_id"),
         offset=offset,
