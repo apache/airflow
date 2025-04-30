@@ -452,11 +452,13 @@ class TestTaskInstanceOperations:
             assert params.get_list("logical_dates") == logical_dates_str
             assert params.get_list("run_ids") == []
             assert params.get_list("states") == states
+            assert params["map_index"] == "0"
             return httpx.Response(200, json=10)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.get_count(
             dag_id="test_dag",
+            map_index=0,
             task_ids=task_ids,
             task_group_id="group1",
             logical_dates=logical_dates,
@@ -494,6 +496,7 @@ class TestTaskInstanceOperations:
             assert params.get_list("logical_dates") == logical_dates_str
             assert params.get_list("task_ids") == []
             assert params.get_list("run_ids") == []
+            assert params.get("map_index") == "0"
             return httpx.Response(
                 200, json={"task_states": {"run_id": {"group1.task1": "success", "group1.task2": "failed"}}}
             )
@@ -501,6 +504,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.get_task_states(
             dag_id="test_dag",
+            map_index=0,
             task_group_id="group1",
             logical_dates=logical_dates,
         )

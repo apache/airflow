@@ -212,6 +212,7 @@ class TaskInstanceOperations:
     def get_count(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -231,12 +232,16 @@ class TaskInstanceOperations:
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
 
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
+
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
     def get_task_states(
         self,
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -253,6 +258,9 @@ class TaskInstanceOperations:
 
         # Remove None values from params
         params = {k: v for k, v in params.items() if v is not None}
+
+        if map_index is not None and map_index >= 0:
+            params.update({"map_index": map_index})  # type: ignore[dict-item]
 
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
