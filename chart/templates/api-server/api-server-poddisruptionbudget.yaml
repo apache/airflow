@@ -18,7 +18,7 @@
 */}}
 
 ################################
-## Airflow api-server PodDisruptionBudget
+## Airflow API Server PodDisruptionBudget
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
 {{- if .Values.apiServer.podDisruptionBudget.enabled }}
@@ -30,7 +30,7 @@ metadata:
     tier: airflow
     component: api-server
     release: {{ .Release.Name }}
-    chart: {{ .Chart.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- if or (.Values.labels) (.Values.apiServer.labels) }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}

@@ -60,7 +60,7 @@ Requirements
 ===========================================  ======================================
 PIP package                                  Version required
 ===========================================  ======================================
-``apache-airflow``                           ``>=2.9.0``
+``apache-airflow``                           ``>=2.10.0``
 ``apache-airflow-providers-common-compat``   ``>=1.4.0``
 ``apache-airflow-providers-common-sql``      ``>=1.20.0``
 ``asgiref``                                  ``>=3.5.2``
@@ -75,7 +75,10 @@ PIP package                                  Version required
 ``google-api-python-client``                 ``>=2.0.2``
 ``google-auth``                              ``>=2.29.0``
 ``google-auth-httplib2``                     ``>=0.0.1``
-``google-cloud-aiplatform[evaluation,ray]``  ``>=1.73.0``
+``google-cloud-aiplatform[evaluation,ray]``  ``>=1.73.0; python_version < "3.12"``
+``google-cloud-aiplatform[evaluation]``      ``>=1.73.0; python_version >= "3.12"``
+``ray[default]``                             ``==2.42.0; python_version >= "3.12"``
+``google-cloud-bigquery-storage``            ``==2.31.0; python_version >= "3.12"``
 ``google-cloud-alloydb``                     ``>=0.4.0``
 ``google-cloud-automl``                      ``>=2.12.0``
 ``google-cloud-bigquery``                    ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``

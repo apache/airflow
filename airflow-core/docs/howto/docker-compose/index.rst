@@ -89,7 +89,7 @@ This file contains several service definitions:
 - ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and dags, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-dag-processor`` - The DAG processor parses DAG files.
-- ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
+- ``airflow-api-server`` - The api server is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
 - ``airflow-init`` - The initialization service.
@@ -210,7 +210,7 @@ In a second terminal you can check the condition of the containers and make sure
     CONTAINER ID   IMAGE            |version-spacepad| COMMAND                  CREATED          STATUS                    PORTS                              NAMES
     247ebe6cf87a   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-worker_1
     ed9b09fc84b1   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-scheduler_1
-    7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-webserver_1
+    7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-api_server_1
     74f3bbe506eb   postgres:13      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest     |version-spacepad| "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
 
