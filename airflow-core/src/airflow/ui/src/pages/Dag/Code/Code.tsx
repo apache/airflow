@@ -126,7 +126,7 @@ export const Code = () => {
           <ClipboardRoot value={code?.content ?? ""}>
             <ClipboardButton />
           </ClipboardRoot>
-          <Tooltip closeDelay={100} content="Press w for wrap" openDelay={100}>
+          <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
             <Button
               aria-label={wrap ? "Unwrap" : "Wrap"}
               bg="bg.panel"

@@ -48,7 +48,7 @@ const FailedLogs = ({
     <Flex flexDirection="column" gap={3}>
       <Flex alignItems="center" justifyContent="space-between">
         <Heading size="md">Recent Failed Task Logs</Heading>
-        <Tooltip closeDelay={100} content="Press w for wrap" openDelay={100}>
+        <Tooltip closeDelay={100} content="Press w to toggle wrap" openDelay={100}>
           <Button
             aria-label={wrap ? "Unwrap" : "Wrap"}
             bg="bg.panel"
