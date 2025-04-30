@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
+from airflow.providers.google.workspace.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 
 GCP_CONN_ID = "test"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
@@ -29,10 +29,10 @@ PATH = "path/to/reports"
 
 
 class TestGCSToGoogleSheets:
-    @mock.patch("airflow.providers.google.suite.transfers.gcs_to_sheets.GCSHook")
-    @mock.patch("airflow.providers.google.suite.transfers.gcs_to_sheets.GSheetsHook")
-    @mock.patch("airflow.providers.google.suite.transfers.gcs_to_sheets.NamedTemporaryFile")
-    @mock.patch("airflow.providers.google.suite.transfers.gcs_to_sheets.csv.reader")
+    @mock.patch("airflow.providers.google.workspace.transfers.gcs_to_sheets.GCSHook")
+    @mock.patch("airflow.providers.google.workspace.transfers.gcs_to_sheets.GSheetsHook")
+    @mock.patch("airflow.providers.google.workspace.transfers.gcs_to_sheets.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.workspace.transfers.gcs_to_sheets.csv.reader")
     def test_execute(self, mock_reader, mock_tempfile, mock_sheet_hook, mock_gcs_hook):
         filename = "file://97g23r"
         file_handle = mock.MagicMock()

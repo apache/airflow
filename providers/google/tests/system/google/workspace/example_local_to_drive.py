@@ -33,8 +33,8 @@ from pathlib import Path
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
+from airflow.providers.google.workspace.hooks.drive import GoogleDriveHook
+from airflow.providers.google.workspace.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
