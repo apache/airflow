@@ -60,10 +60,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
         type: string
-      chicken-egg-providers:
-        description: "List of providers that should be prepared from sources"
-        required: false
-        type: string
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -323,7 +319,9 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-    if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - name: "Cleanup repo"
         shell: bash

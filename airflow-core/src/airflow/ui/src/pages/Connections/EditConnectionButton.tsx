@@ -38,7 +38,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
     conn_type: connection.conn_type,
     connection_id: connection.connection_id,
     description: connection.description ?? "",
-    extra: connection.extra ?? "{}",
+    extra: connection.extra === "" || connection.extra === null ? "{}" : connection.extra,
     host: connection.host ?? "",
     login: connection.login ?? "",
     password: connection.password ?? "",

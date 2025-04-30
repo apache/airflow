@@ -444,6 +444,7 @@ class TestDagRunOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
     dag_run_response = DAGRunResponse(
+        dag_display_name=dag_run_id,
         dag_run_id=dag_run_id,
         dag_id=dag_id,
         logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
@@ -661,10 +662,12 @@ class TestVariablesOperations:
     key = "key"
     value = "val"
     description = "description"
-    variable = VariableBody(
-        key=key,
-        value=value,
-        description=description,
+    variable = VariableBody.model_validate(
+        {
+            "key": key,
+            "value": value,
+            "description": description,
+        }
     )
     variable_response = VariableResponse(
         key=key,

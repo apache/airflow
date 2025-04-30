@@ -57,7 +57,7 @@ requires-python = "~=3.9"
 # Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.9.0",
+    "apache-airflow>=2.10.0",
     # Google has very clear rules on what dependencies should be used. All the limits below
     # follow strict guidelines of Google Libraries as quoted here:
     # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth

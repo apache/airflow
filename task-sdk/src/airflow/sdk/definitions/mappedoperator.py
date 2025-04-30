@@ -68,11 +68,11 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.models.xcom_arg import XComArg
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -192,7 +192,7 @@ class OperatorPartial:
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         if isinstance(kwargs, Sequence):
             for item in kwargs:
@@ -338,7 +338,7 @@ class MappedOperator(AbstractOperator):
         return f"<Mapped({self._task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         if self.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
@@ -675,7 +675,7 @@ class MappedOperator(AbstractOperator):
     @property
     def output(self) -> XComArg:
         """Return reference to XCom pushed by current operator."""
-        from airflow.models.xcom_arg import XComArg
+        from airflow.sdk.definitions.xcom_arg import XComArg
 
         return XComArg(operator=self)
 

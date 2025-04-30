@@ -1748,6 +1748,16 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDashboardServiceHistoricalMetricsKey, ...(queryKey ?? [{ endDate, startDate }])];
+export type DashboardServiceDagStatsDefaultResponse = Awaited<ReturnType<typeof DashboardService.dagStats>>;
+export type DashboardServiceDagStatsQueryResult<
+  TData = DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceDagStatsKey = "DashboardServiceDagStats";
+export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [
+  useDashboardServiceDagStatsKey,
+  ...(queryKey ?? []),
+];
 export type StructureServiceStructureDataDefaultResponse = Awaited<
   ReturnType<typeof StructureService.structureData>
 >;

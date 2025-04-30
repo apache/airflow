@@ -325,6 +325,9 @@ class RuntimeTaskInstance(TaskInstance):
         if run_id is None:
             run_id = self.run_id
 
+        single_task_requested = isinstance(task_ids, (str, type(None)))
+        single_map_index_requested = isinstance(map_indexes, (int, type(None), ArgNotSet))
+
         if task_ids is None:
             # default to the current task if not provided
             task_ids = [self.task_id]
@@ -363,8 +366,9 @@ class RuntimeTaskInstance(TaskInstance):
             else:
                 xcoms.append(value)
 
-        if len(xcoms) == 1:
+        if single_task_requested and single_map_index_requested:
             return xcoms[0]
+
         return xcoms
 
     def xcom_push(self, key: str, value: Any):
@@ -409,6 +413,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_ti_count(
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -423,6 +428,7 @@ class RuntimeTaskInstance(TaskInstance):
                 log=log,
                 msg=GetTICount(
                     dag_id=dag_id,
+                    map_index=map_index,
                     task_ids=task_ids,
                     task_group_id=task_group_id,
                     logical_dates=logical_dates,
@@ -440,6 +446,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_task_states(
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -453,6 +460,7 @@ class RuntimeTaskInstance(TaskInstance):
                 log=log,
                 msg=GetTaskStates(
                     dag_id=dag_id,
+                    map_index=map_index,
                     task_ids=task_ids,
                     task_group_id=task_group_id,
                     logical_dates=logical_dates,

@@ -27,6 +27,7 @@ import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
+import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { JsonEditor } from "../JsonEditor";
@@ -61,7 +62,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
     defaultValues: {
       conf,
       dagRunId: "",
-      // Default logical date to now
+      // Default logical date to now, show it in the selected timezone
       logicalDate: dayjs().format("YYYY-MM-DDTHH:mm:ss.SSS"),
       note: "",
     },
@@ -144,7 +145,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
                       </Field.Label>
                     </Stack>
                     <Stack css={{ flexBasis: "70%" }}>
-                      <Input {...field} onBlur={resetDateError} size="sm" type="datetime-local" />
+                      <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
                     </Stack>
                   </Field.Root>
                 )}

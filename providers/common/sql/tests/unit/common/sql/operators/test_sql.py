@@ -113,6 +113,11 @@ class TestBaseSQLOperator:
 
 
 class TestSQLExecuteQueryOperator:
+    def setup_method(self):
+        self.task_id = "test_task"
+        self.conn_id = "sql_default"
+        self._operator = SQLExecuteQueryOperator(task_id=self.task_id, conn_id=self.conn_id, sql="sql")
+
     def _construct_operator(self, sql, **kwargs):
         dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
@@ -189,6 +194,23 @@ class TestSQLExecuteQueryOperator:
 
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_sql_operator_extra_dejson_fields_to_hook_params(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="google_cloud_bigquery_default",
+                conn_type="gcpbigquery",
+                extra={"use_legacy_sql": False, "priority": "INTERACTIVE"},
+            )
+            self._operator.hook_params = {"use_legacy_sql": True, "location": "us-east1"}
+            assert self._operator._hook.conn_type == "gcpbigquery"
+            assert self._operator._hook.use_legacy_sql is True
+            assert self._operator._hook.location == "us-east1"
+            assert self._operator._hook.priority == "INTERACTIVE"
 
 
 class TestColumnCheckOperator:
