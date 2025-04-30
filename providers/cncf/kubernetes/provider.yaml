@@ -372,4 +372,4 @@ config:
         default: "0"
 
 executors:
-  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor
+  - airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor
