@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from functools import cache
 from io import StringIO
@@ -47,6 +48,10 @@ crd_lookup = {
 }
 
 
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+
+
+@cache
 def get_schema_k8s(api_version, kind, kubernetes_version):
     api_version = api_version.lower()
     kind = kind.lower()
@@ -57,7 +62,12 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
         url = f"{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json"
     else:
         url = f"{BASE_URL_SPEC}/{kind}-{api_version}.json"
-    request = requests.get(url)
+
+    headers = {}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    request = requests.get(url, headers=headers)
     request.raise_for_status()
     schema = json.loads(
         request.text.replace(
@@ -67,11 +77,16 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     return schema
 
 
+@cache
 def get_schema_crd(api_version, kind):
     url = crd_lookup.get(f"{api_version}::{kind}")
     if not url:
         return None
-    response = requests.get(url)
+    headers = {}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    response = requests.get(url, headers=headers)
     yaml_schema = response.content.decode("utf-8")
     schema = yaml.safe_load(StringIO(yaml_schema))
     return schema
