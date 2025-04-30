@@ -296,6 +296,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dashboard/dag_stats:
+    get:
+      tags:
+      - Dashboard
+      summary: Dag Stats
+      description: Return basic DAG stats with counts of DAGs in various states.
+      operationId: dag_stats
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardDagStatsResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/structure/structure_data:
     get:
       tags:
@@ -1282,6 +1298,28 @@ components:
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
+    DashboardDagStatsResponse:
+      properties:
+        active_dag_count:
+          type: integer
+          title: Active Dag Count
+        failed_dag_count:
+          type: integer
+          title: Failed Dag Count
+        running_dag_count:
+          type: integer
+          title: Running Dag Count
+        queued_dag_count:
+          type: integer
+          title: Queued Dag Count
+      type: object
+      required:
+      - active_dag_count
+      - failed_dag_count
+      - running_dag_count
+      - queued_dag_count
+      title: DashboardDagStatsResponse
+      description: Dashboard DAG Stats serializer for responses.
     EdgeResponse:
       properties:
         source_id:

@@ -1593,6 +1593,16 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * Dashboard DAG Stats serializer for responses.
+ */
+export type DashboardDagStatsResponse = {
+  active_dag_count: number;
+  failed_dag_count: number;
+  running_dag_count: number;
+  queued_dag_count: number;
+};
+
+/**
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
@@ -2672,6 +2682,8 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
   dagId: string;
@@ -5532,6 +5544,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/dag_stats": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DashboardDagStatsResponse;
       };
     };
   };

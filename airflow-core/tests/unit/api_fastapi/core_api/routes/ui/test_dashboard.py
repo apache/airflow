@@ -99,6 +99,108 @@ def make_dag_runs(dag_maker, session, time_machine):
     time_machine.move_to("2023-07-02T00:00:00+00:00", tick=False)
 
 
+@pytest.fixture
+def make_failed_dag_runs(dag_maker, session):
+    with dag_maker(
+        dag_id="test_failed_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.FAILED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
+
+    dag_maker.sync_dagbag_to_db()
+
+
+@pytest.fixture
+def make_queued_dag_runs(dag_maker, session):
+    with dag_maker(
+        dag_id="test_queued_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
+
+    dag_maker.sync_dagbag_to_db()
+
+
+@pytest.fixture
+def make_multiple_dags(dag_maker, session):
+    with dag_maker(
+        dag_id="test_running_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.RUNNING,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
+
+    with dag_maker(
+        dag_id="test_failed_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.FAILED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
+
+    with dag_maker(
+        dag_id="test_queued_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
+
+    dag_maker.sync_dagbag_to_db()
+
+
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.parametrize(
         "params, expected",
@@ -187,4 +289,69 @@ class TestHistoricalMetricsDataEndpoint:
         response = unauthorized_test_client.get(
             "/dashboard/historical_metrics_data", params={"start_date": "2023-02-02T00:00"}
         )
+        assert response.status_code == 403
+
+
+class TestDagStatsEndpoint:
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_multiple_dags")
+    def test_should_response_200_multiple_dags(self, test_client):
+        response = test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 200
+        assert response.json() == {
+            "active_dag_count": 3,
+            "failed_dag_count": 1,
+            "running_dag_count": 1,
+            "queued_dag_count": 1,
+        }
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+    def test_should_response_200_single_dag(self, test_client):
+        response = test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 200
+        assert response.json() == {
+            "active_dag_count": 1,
+            "failed_dag_count": 0,
+            "running_dag_count": 1,
+            "queued_dag_count": 0,
+        }
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_failed_dag_runs")
+    def test_should_response_200_failed_dag(self, test_client):
+        response = test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 200
+        assert response.json() == {
+            "active_dag_count": 1,
+            "failed_dag_count": 1,
+            "running_dag_count": 0,
+            "queued_dag_count": 0,
+        }
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_queued_dag_runs")
+    def test_should_response_200_queued_dag(self, test_client):
+        response = test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 200
+        assert response.json() == {
+            "active_dag_count": 1,
+            "failed_dag_count": 0,
+            "running_dag_count": 0,
+            "queued_dag_count": 1,
+        }
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns")
+    def test_should_response_200_no_dag_runs(self, test_client):
+        response = test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 200
+        assert response.json() == {
+            "active_dag_count": 0,
+            "failed_dag_count": 0,
+            "running_dag_count": 0,
+            "queued_dag_count": 0,
+        }
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dashboard/dag_stats")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dashboard/dag_stats")
         assert response.status_code == 403
