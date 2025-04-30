@@ -41,12 +41,19 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/standard/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-standard/|version|/providers/standard/tests/system/standard>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/standard/index>
-
 
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
