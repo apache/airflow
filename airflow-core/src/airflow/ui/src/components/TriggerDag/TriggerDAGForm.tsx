@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
+import { Button, Box, Spacer, HStack, Input, Field, Stack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
 import { useDagParams } from "src/queries/useDagParams";
@@ -27,11 +27,9 @@ import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
+import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
-import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
-import { JsonEditor } from "../JsonEditor";
-import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
 
@@ -53,7 +51,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const { conf, setConf } = useParamStore();
+  const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
 
   const { mutate: togglePause } = useTogglePause({ dagId });
@@ -75,6 +73,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
     }
   }, [conf, reset]);
 
+  const resetDateError = () => {
+    setErrors((prev) => ({ ...prev, date: undefined }));
+  };
+
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
       togglePause({
@@ -87,119 +89,59 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
     triggerDagRun(data);
   };
 
-  const validateAndPrettifyJson = (value: string) => {
-    try {
-      const parsedJson = JSON.parse(value) as JSON;
-
-      setErrors((prev) => ({ ...prev, conf: undefined }));
-
-      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
-
-      if (formattedJson !== conf) {
-        setConf(formattedJson); // Update only if the value is different
-      }
-
-      return formattedJson;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
-
-      setErrors((prev) => ({
-        ...prev,
-        conf: `Invalid JSON format: ${errorMessage}`,
-      }));
-
-      return value;
-    }
-  };
-
-  const resetDateError = () => {
-    setErrors((prev) => ({ ...prev, date: undefined }));
-  };
-
   return (
-    <>
-      <Accordion.Root
-        collapsible
-        defaultValue={[flexibleFormDefaultSection]}
-        mb={4}
-        mt={8}
-        size="lg"
-        variant="enclosed"
+    <Box mt={8}>
+      <ConfigForm
+        control={control}
+        errors={errors}
+        initialParamsDict={initialParamsDict}
+        setErrors={setErrors}
       >
-        <FlexibleForm
-          flexibleFormDefaultSection={flexibleFormDefaultSection}
-          initialParamsDict={initialParamsDict}
+        <Controller
+          control={control}
+          name="logicalDate"
+          render={({ field }) => (
+            <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  Logical Date
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+              </Stack>
+            </Field.Root>
+          )}
         />
-        <Accordion.Item key="advancedOptions" value="advancedOptions">
-          <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <Box p={4}>
-              <Controller
-                control={control}
-                name="logicalDate"
-                render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
-                    <Stack>
-                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                        Logical Date
-                      </Field.Label>
-                    </Stack>
-                    <Stack css={{ flexBasis: "70%" }}>
-                      <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
-                    </Stack>
-                  </Field.Root>
-                )}
-              />
 
-              <Controller
-                control={control}
-                name="dagRunId"
-                render={({ field }) => (
-                  <Field.Root mt={6} orientation="horizontal">
-                    <Stack>
-                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                        Run ID
-                      </Field.Label>
-                    </Stack>
-                    <Stack css={{ flexBasis: "70%" }}>
-                      <Input {...field} size="sm" />
-                      <Field.HelperText>Optional - will be generated if not provided</Field.HelperText>
-                    </Stack>
-                  </Field.Root>
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="conf"
-                render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.conf)} mt={6}>
-                    <Field.Label fontSize="md">Configuration JSON</Field.Label>
-                    <JsonEditor
-                      {...field}
-                      onBlur={() => {
-                        field.onChange(validateAndPrettifyJson(field.value));
-                      }}
-                    />
-                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
-                  </Field.Root>
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="note"
-                render={({ field }) => (
-                  <Field.Root mt={6}>
-                    <Field.Label fontSize="md">Dag Run Notes</Field.Label>
-                    <EditableMarkdown field={field} placeholder="Click to add note" />
-                  </Field.Root>
-                )}
-              />
-            </Box>
-          </Accordion.ItemContent>
-        </Accordion.Item>
-      </Accordion.Root>
+        <Controller
+          control={control}
+          name="dagRunId"
+          render={({ field }) => (
+            <Field.Root mt={6} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  Run ID
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <Input {...field} size="sm" />
+                <Field.HelperText>Optional - will be generated if not provided</Field.HelperText>
+              </Stack>
+            </Field.Root>
+          )}
+        />
+        <Controller
+          control={control}
+          name="note"
+          render={({ field }) => (
+            <Field.Root mt={6}>
+              <Field.Label fontSize="md">Dag Run Notes</Field.Label>
+              <EditableMarkdown field={field} placeholder="Click to add note" />
+            </Field.Root>
+          )}
+        />
+      </ConfigForm>
       {isPaused ? (
         <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
           Unpause {dagId} on trigger
@@ -218,7 +160,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
           </Button>
         </HStack>
       </Box>
-    </>
+    </Box>
   );
 };
 
