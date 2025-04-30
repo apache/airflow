@@ -2266,6 +2266,10 @@ export const $DAGRunResponse = {
       ],
       title: "Bundle Version",
     },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
   },
   type: "object",
   required: [
@@ -2286,6 +2290,7 @@ export const $DAGRunResponse = {
     "note",
     "dag_versions",
     "bundle_version",
+    "dag_display_name",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",

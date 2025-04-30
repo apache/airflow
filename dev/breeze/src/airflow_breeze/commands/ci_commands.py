@@ -156,7 +156,7 @@ def fix_ownership(use_sudo: bool):
         fix_ownership_without_docker()
         sys.exit(0)
     get_console().print("[info]Fixing ownership using docker.")
-    fix_ownership_using_docker()
+    fix_ownership_using_docker(quiet=False)
     # Always succeed
     sys.exit(0)
 

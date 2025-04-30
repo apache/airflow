@@ -89,7 +89,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       <Text>
         {row.original.completed_at === null
           ? ""
-          : `${getDuration(row.original.created_at, row.original.completed_at)}s`}
+          : getDuration(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,

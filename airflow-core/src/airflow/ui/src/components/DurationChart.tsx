@@ -34,8 +34,7 @@ import { Bar } from "react-chartjs-2";
 
 import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
-import { pluralize } from "src/utils";
-import { getDuration } from "src/utils/datetime_utils";
+import { pluralize, getDuration } from "src/utils";
 
 ChartJS.register(
   CategoryScale,
