@@ -41,6 +41,7 @@ from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
     init_plugins,
 )
+from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
 
 app: Flask | None = None
@@ -103,6 +104,7 @@ def create_app(enable_plugins: bool):
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_xframe_protection(flask_app)
         init_airflow_session_interface(flask_app)
+        init_wsgi_middleware(flask_app)
     return flask_app
 
 
