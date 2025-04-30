@@ -273,7 +273,7 @@ def _get_upstream_map_indexes(
         upstream_task.task_id: (
             # regular tasks
             None
-            if not upstream_task.task_group
+            if upstream_task.task_group is None
             # tasks in the same mapped task group
             else ti_map_index
             if task.task_group == upstream_task.task_group

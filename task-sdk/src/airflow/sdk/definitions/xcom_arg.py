@@ -337,13 +337,18 @@ class PlainXComArg(XComArg):
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
-            return LazyXComSequence[Any](xcom_arg=self, ti=ti)
-        upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
+            return LazyXComSequence(xcom_arg=self, ti=ti)
+        tg = self.operator.get_closest_mapped_task_group()
+        if tg is None:
+            map_indexes = None
+        else:
+            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", {})
+            map_indexes = upstream_map_indexes.get(task_id, None)
         result = ti.xcom_pull(
             task_ids=task_id,
             key=self.key,
             default=NOTSET,
-            map_indexes=upstream_map_indexes.get(task_id, None),
+            map_indexes=map_indexes,
         )
         if not isinstance(result, ArgNotSet):
             return result
