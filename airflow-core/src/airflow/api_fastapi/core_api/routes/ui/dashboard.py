@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from fastapi import Depends, status
 from sqlalchemy import func, select
-from sqlalchemy.sql.expression import false
+from sqlalchemy.sql.expression import case, false
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -106,7 +106,6 @@ def historical_metrics(
 
 @dashboard_router.get(
     "/dag_stats",
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
     dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def dag_stats(
@@ -135,24 +134,18 @@ def dag_stats(
         .cte()
     )
 
-    counts = session.execute(
-        select(
-            func.count(latest_runs.c.dag_id).filter(latest_runs.c.is_paused == false()).label("active"),
-            func.count(latest_runs.c.dag_id)
-            .filter(latest_runs.c.state == DagRunState.FAILED)
-            .label("failed"),
-            func.count(latest_runs.c.dag_id)
-            .filter(latest_runs.c.state == DagRunState.RUNNING)
-            .label("running"),
-            func.count(latest_runs.c.dag_id)
-            .filter(latest_runs.c.state == DagRunState.QUEUED)
-            .label("queued"),
-        ).select_from(latest_runs)
-    ).first()
+    combined_query = select(
+        func.coalesce(func.sum(case((latest_runs.c.is_paused == false(), 1))), 0).label("active"),
+        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
+        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.RUNNING, 1))), 0).label("running"),
+        func.coalesce(func.sum(case((latest_runs.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
+    ).select_from(latest_runs)
+
+    counts = session.execute(combined_query).first()
 
     return DashboardDagStatsResponse(
-        active_dag_count=counts.active if counts else 0,
-        failed_dag_count=counts.failed if counts else 0,
-        running_dag_count=counts.running if counts else 0,
-        queued_dag_count=counts.queued if counts else 0,
+        active_dag_count=counts.active,
+        failed_dag_count=counts.failed,
+        running_dag_count=counts.running,
+        queued_dag_count=counts.queued,
     )

@@ -5554,10 +5554,6 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DashboardDagStatsResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
       };
     };
   };

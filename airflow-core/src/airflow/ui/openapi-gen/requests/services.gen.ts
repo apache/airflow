@@ -3565,9 +3565,6 @@ export class DashboardService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/dashboard/dag_stats",
-      errors: {
-        400: "Bad Request",
-      },
     });
   }
 }

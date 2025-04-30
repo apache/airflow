@@ -310,12 +310,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DashboardDagStatsResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
   /ui/structure/structure_data:
