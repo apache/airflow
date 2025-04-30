@@ -18,7 +18,6 @@
  */
 import { Box, Heading, Flex, Skeleton, Link, Text } from "@chakra-ui/react";
 import { BiTargetLock } from "react-icons/bi";
-import { FiExternalLink } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
@@ -79,7 +78,6 @@ export const PoolSummary = () => {
           <Link asChild color="fg.info" display="flex" gap={1}>
             <RouterLink to="/pools">
               <Text fontSize="xs">Manage Pools</Text>
-              <FiExternalLink size={12} />
             </RouterLink>
           </Link>
         ) : undefined}
