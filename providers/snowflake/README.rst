@@ -53,9 +53,9 @@ Requirements
 ==========================================  =====================================
 PIP package                                 Version required
 ==========================================  =====================================
-``apache-airflow``                          ``>=2.9.0``
+``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.6.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``apache-airflow-providers-common-sql``     ``>=1.21.0``
 ``pandas``                                  ``>=2.1.2,<2.2``
 ``pyarrow``                                 ``>=14.0.1``
 ``snowflake-connector-python``              ``>=3.7.1``

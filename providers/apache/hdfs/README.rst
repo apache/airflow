@@ -54,7 +54,7 @@ Requirements
 =================================  =====================================
 PIP package                        Version required
 =================================  =====================================
-``apache-airflow``                 ``>=2.9.0``
+``apache-airflow``                 ``>=2.10.0``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.7.3; python_version >= "3.12"``
 ``pandas``                         ``>=2.1.2,<2.2``
