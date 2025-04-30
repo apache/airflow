@@ -719,10 +719,10 @@ def post_clear_task_instances(
 
     if not dry_run:
         clear_task_instances(
-            task_instances,
-            session,
-            dag,
-            DagRunState.QUEUED if reset_dag_runs else False,
+            tis=task_instances,
+            session=session,
+            dag=dag,
+            dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
         )
 
     return TaskInstanceCollectionResponse(

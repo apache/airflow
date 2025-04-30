@@ -1744,7 +1744,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
     def test_should_respond_200_with_mapped_task_at_different_try_numbers(
         self, test_client, try_number, session
     ):
-        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        dag_id = "example_python_operator"
+        tis = self.create_task_instances(session, dag_id=dag_id, task_instances=[{"state": State.FAILED}])
         old_ti = tis[0]
         for idx in (1, 2):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
@@ -1758,7 +1759,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
-        clear_task_instances(tis, session)
+        dag = self.dagbag.get_dag(dag_id)
+        clear_task_instances(tis=tis, dag=dag, session=session)
         # Simulate the try_number increasing to new values in TI
         for ti in tis:
             if ti.map_index > 0:
@@ -2890,7 +2892,9 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         }
 
     def test_mapped_task_should_respond_200(self, test_client, session):
-        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        dag_id = "example_python_operator"
+        dag = self.dagbag.get_dag(dag_id)
+        tis = self.create_task_instances(session, dag_id=dag_id, task_instances=[{"state": State.FAILED}])
         old_ti = tis[0]
         for idx in (1, 2):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
@@ -2904,7 +2908,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
-        clear_task_instances(tis, session)
+        clear_task_instances(tis=tis, dag=dag, session=session)
         # Simulate the try_number increasing to new values in TI
         for ti in tis:
             if ti.map_index > 0:

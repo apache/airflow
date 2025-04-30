@@ -118,7 +118,7 @@ def _clear_task_instances(
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
     tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
-    clear_task_instances(tis_to_clear, session)
+    clear_task_instances(tis=tis_to_clear, session=session, dag=dag)
 
 
 def _repair_task(

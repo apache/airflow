@@ -787,7 +787,9 @@ class TestShortCircuitOperator(BasePythonTest):
             tis = dr.get_task_instances()
             with create_session() as session:
                 clear_task_instances(
-                    [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
+                    tis=[ti for ti in tis if ti.task_id == "op1"],
+                    session=session,
+                    dag=short_circuit.dag,
                 )
             self.op1.run(start_date=self.default_date, end_date=self.default_date)
             self.assert_expected_task_states(dr, expected_states)
@@ -1742,7 +1744,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             tis = dr.get_task_instances()
             children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
             with create_session() as session:
-                clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+                clear_task_instances(tis=children_tis, session=session, dag=branch_op.dag)
 
             # Run the cleared tasks again.
             for task in branches:
