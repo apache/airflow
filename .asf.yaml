@@ -63,16 +63,11 @@ github:
     rebase: false
 
   pull_requests:
-    # allow auto-merge
-    allow_auto_merge: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
 
   protected_branches:
     main:
-      required_status_checks:
-        contexts:
-          - "Finalize tests / Summarize warnings"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
