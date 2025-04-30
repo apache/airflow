@@ -350,11 +350,20 @@ class PlainXComArg(XComArg):
             )
         else:
             # task from a task group
-            result = ti.xcom_pull(
-                task_ids=task_id,
-                key=self.key,
-                default=NOTSET,
-            )
+            upstream_map_indexes = ti._upstream_map_indexes
+            if upstream_map_indexes:
+                result = ti.xcom_pull(
+                    task_ids=task_id,
+                    key=self.key,
+                    default=NOTSET,
+                    map_indexes=upstream_map_indexes[task_id],
+                )
+            else:
+                result = ti.xcom_pull(
+                    task_ids=task_id,
+                    key=self.key,
+                    default=NOTSET,
+                )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
