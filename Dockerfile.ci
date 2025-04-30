@@ -1129,9 +1129,6 @@ function initialize_db() {
 
 function start_api_server_with_examples(){
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    echo "USE_AIRFLOW_VERSION=${USE_AIRFLOW_VERSION}"
-    echo "TEST_GROUP=${TEST_GROUP}"
-    echo "START_API_SERVER_WITH_EXAMPLES=${START_API_SERVER_WITH_EXAMPLES}"
     # Do not start the api server if either START_API_SERVER_WITH_EXAMPLES is false or the TEST_GROUP env var is not
     # equal to "system".
     if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" && ${TEST_GROUP:=""} != "system" ]]; then
