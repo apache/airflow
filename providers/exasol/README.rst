@@ -54,7 +54,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.21.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``pyexasol``                             ``>=0.5.1``
 ``pandas``                               ``>=2.1.2,<2.2``
 =======================================  ==================
