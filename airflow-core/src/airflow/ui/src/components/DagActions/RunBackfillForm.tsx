@@ -25,11 +25,15 @@ import { Button } from "src/components/ui";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
+import { useDagParams } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { pluralize } from "src/utils";
 
+import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
+import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
 
@@ -39,14 +43,17 @@ type RunBackfillFormProps = {
 };
 const today = new Date().toISOString().slice(0, 16);
 
+type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
+
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
-
-  const { control, handleSubmit, reset, watch } = useForm<BackfillPostBody>({
+  const initialParamsDict = useDagParams(dag.dag_id, true);
+  const { conf } = useParamStore();
+  const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
     defaultValues: {
+      conf,
       dag_id: dag.dag_id,
-      dag_run_conf: {},
       from_date: "",
       max_active_runs: 1,
       reprocess_behavior: "none",
@@ -55,7 +62,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     },
     mode: "onBlur",
   });
-  const values = useWatch<BackfillPostBody>({
+  const values = useWatch<BackfillFormProps>({
     control,
   });
 
@@ -85,10 +92,16 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     }
   }, [dateValidationError]);
 
+  useEffect(() => {
+    if (conf) {
+      reset({ conf });
+    }
+  }, [conf, reset]);
+
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
 
-  const onSubmit = (fdata: BackfillPostBody) => {
+  const onSubmit = (fdata: BackfillFormProps) => {
     if (unpause && dag.is_paused) {
       togglePause({
         dagId: dag.dag_id,
@@ -98,11 +111,14 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       });
     }
     createBackfill({
-      requestBody: fdata,
+      requestBody: {
+        ...fdata,
+        dag_run_conf: JSON.parse(fdata.conf) as Record<string, unknown>,
+      },
     });
   };
 
-  const onCancel = (fdata: BackfillPostBody) => {
+  const onCancel = (fdata: BackfillFormProps) => {
     reset(fdata);
     onClose();
   };
@@ -237,6 +253,13 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             <Spacer />
           </>
         ) : undefined}
+
+        <ConfigForm
+          control={control}
+          errors={errors}
+          initialParamsDict={initialParamsDict}
+          setErrors={setErrors}
+        />
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
