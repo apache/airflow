@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
@@ -84,6 +85,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
         pannable
         zoomable
       />
+      <DownloadButton name={asset?.name ?? asset?.uri ?? "asset"} />
     </ReactFlow>
   );
 };
