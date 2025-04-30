@@ -142,7 +142,11 @@ export const DataTable = <TData,>({
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
-      {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
+      {!hasRows && !Boolean(isLoading) && (
+        <Text pl={4} pt={1}>
+          {noRowsMessage ?? `No ${modelName}s found.`}
+        </Text>
+      )}
       {hasPagination ? (
         <Pagination.Root
           count={table.getRowCount()}

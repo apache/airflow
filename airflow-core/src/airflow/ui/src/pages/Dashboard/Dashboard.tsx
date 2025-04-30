@@ -56,7 +56,7 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading mb={2} size="2xl">
-          Welcome,
+          Welcome
         </Heading>
       </VStack>
       <Box>
