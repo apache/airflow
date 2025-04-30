@@ -26,6 +26,7 @@ import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { pluralize } from "src/utils";
 
@@ -48,9 +49,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
   const initialParamsDict = useDagParams(dag.dag_id, true);
+  const { conf } = useParamStore();
   const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
     defaultValues: {
-      conf: "",
+      conf,
       dag_id: dag.dag_id,
       from_date: "",
       max_active_runs: 1,
@@ -89,6 +91,12 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       setErrors((prev) => ({ ...prev, date: dateValidationError }));
     }
   }, [dateValidationError]);
+
+  useEffect(() => {
+    if (conf) {
+      reset({ conf });
+    }
+  }, [conf, reset]);
 
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
