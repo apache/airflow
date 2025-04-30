@@ -40,7 +40,7 @@ export const FieldDateTime = ({ name, onUpdate, ...rest }: FlexibleFormElementPr
     }
 
     setParamsDict(paramsDict);
-    onUpdate === undefined ? undefined : onUpdate(value);
+    onUpdate(value);
   };
 
   if (rest.type === "datetime-local") {

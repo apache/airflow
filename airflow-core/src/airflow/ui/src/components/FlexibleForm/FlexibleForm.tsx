@@ -29,7 +29,7 @@ export type FlexibleFormProps = {
   flexibleFormDefaultSection: string;
   initialParamsDict: { paramsDict: ParamsSpec };
   key?: string;
-  setError: () => void;
+  setError: (error: boolean) => void;
 };
 
 export const FlexibleForm = ({
@@ -59,6 +59,14 @@ export const FlexibleForm = ({
     [setParamsDict, setinitialParamDict],
   );
 
+  const onUpdate = (_value?: string, error?: unknown) => {
+    if (Boolean(error)) {
+      setError(true);
+    } else {
+      setError(false);
+    }
+  };
+
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {
         const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
@@ -81,7 +89,7 @@ export const FlexibleForm = ({
                           (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                       )
                       .map(([name]) => (
-                        <Row key={name} name={name} onUpdate={setError} />
+                        <Row key={name} name={name} onUpdate={onUpdate} />
                       ))}
                   </Stack>
                 </Box>

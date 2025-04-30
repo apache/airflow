@@ -19,7 +19,7 @@
 
 export type FlexibleFormElementProps = {
   readonly name: string;
-  readonly onUpdate?: (value?: string) => void;
+  readonly onUpdate: (value?: string, error?: unknown) => void;
 };
 
 export const flexibleFormDefaultSection = "Run Parameters";

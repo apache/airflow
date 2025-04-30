@@ -30,5 +30,9 @@ export const Row = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
-  return isHidden(param.schema) ? <HiddenInput name={name} /> : <FieldRow name={name} onUpdate={onUpdate} />;
+  return isHidden(param.schema) ? (
+    <HiddenInput name={name} onUpdate={onUpdate} />
+  ) : (
+    <FieldRow name={name} onUpdate={onUpdate} />
+  );
 };

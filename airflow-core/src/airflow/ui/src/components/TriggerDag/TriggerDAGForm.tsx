@@ -120,6 +120,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
   return (
     <>
       <Accordion.Root
+        borderColor={formError ? "red" : undefined}
         collapsible
         defaultValue={[flexibleFormDefaultSection]}
         mb={4}
@@ -130,7 +131,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         <FlexibleForm
           flexibleFormDefaultSection={flexibleFormDefaultSection}
           initialParamsDict={initialParamsDict}
-          setError={() => setFormError(true)}
+          setError={setFormError}
         />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>

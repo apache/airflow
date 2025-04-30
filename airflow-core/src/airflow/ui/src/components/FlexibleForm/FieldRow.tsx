@@ -37,17 +37,25 @@ const isRequired = (param: ParamSpec) =>
 export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
+  const [error, setError] = useState<unknown>(undefined);
   const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
 
-  console.log(param);
+  // console.log(param);
 
-  const onUpdate = (value?: string) => {
-    if (isRequired(param) && (!Boolean(value) || value === "")) {
+  const onUpdate = (value?: string, _error?: unknown) => {
+    if (Boolean(_error)) {
       setIsValid(false);
+      setError(_error);
+      rowOnUpdate(undefined, _error);
+    } else if (isRequired(param) && (!Boolean(value) || value === "")) {
+      setIsValid(false);
+      setError("This field is required");
+      rowOnUpdate(undefined, "This field is required");
     } else {
       setIsValid(true);
+      setError(undefined);
+      rowOnUpdate();
     }
-    rowOnUpdate === undefined ? undefined : rowOnUpdate();
   };
 
   return (
@@ -68,7 +76,7 @@ export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementPro
         ) : (
           <Field.HelperText>{param.description}</Field.HelperText>
         )}
-        {isValid ? undefined : <Field.ErrorText>This field is required</Field.ErrorText>}
+        {isValid ? undefined : <Field.ErrorText>{String(error)}</Field.ErrorText>}
       </Stack>
     </Field.Root>
   );

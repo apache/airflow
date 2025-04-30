@@ -33,7 +33,7 @@ export const FieldMultilineText = ({ name, onUpdate }: FlexibleFormElementProps)
     }
 
     setParamsDict(paramsDict);
-    onUpdate === undefined ? undefined : onUpdate(value);
+    onUpdate(value);
   };
 
   return (

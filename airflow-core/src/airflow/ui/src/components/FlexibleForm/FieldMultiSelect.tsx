@@ -64,7 +64,7 @@ export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) =
       paramsDict[name].value = newValueArray;
     }
     setParamsDict(paramsDict);
-    onUpdate === undefined ? undefined : onUpdate(newValueArray?.length.toString() ?? "");
+    onUpdate(String(newValueArray));
   };
 
   return (
