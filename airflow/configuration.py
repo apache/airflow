@@ -1949,7 +1949,7 @@ def get_airflow_config(airflow_home: str) -> str:
 
 
 def get_all_expansion_variables() -> dict[str, Any]:
-    return {k: v for d in [globals(), locals()] for k, v in d.items()}
+    return {k: v for d in [globals(), locals()] for k, v in d.items() if not k.startswith("_")}
 
 
 def _generate_fernet_key() -> str:
@@ -2000,6 +2000,7 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
+    global FERNET_KEY
     airflow_config = pathlib.Path(AIRFLOW_CONFIG)
     if airflow_config.is_dir():
         msg = (
@@ -2023,13 +2024,16 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 raise FileNotFoundError(msg) from None
             log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
             config_directory.mkdir(parents=True, exist_ok=True)
-        if conf.get("core", "fernet_key", fallback=None) is None:
+        if conf.get("core", "fernet_key", fallback=None) in (None, ""):
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
-            global FERNET_KEY
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
+            if not conf.has_section("core"):
+                conf.add_section("core")
             conf.set("core", "fernet_key", FERNET_KEY)
+            conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
+
         pathlib.Path(airflow_config.__fspath__()).touch()
         make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
