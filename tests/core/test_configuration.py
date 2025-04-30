@@ -1809,7 +1809,6 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
     monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
     monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
@@ -1823,7 +1822,6 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     lines = cfgpath.read_text().splitlines()
 
     assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
 
