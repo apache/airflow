@@ -326,6 +326,8 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
+                if not dag.disable_bundle_versioning:
+                    dr.bundle_version = dr.dag_model.bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
