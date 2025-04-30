@@ -60,7 +60,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
     """
 
     INTERMEDIATE_STATES: tuple[str, ...] = ("Pending", "Delayed", "InProgress", "Cancelling")
-    FAILURE_STATES: tuple[str, ...] = ("TimedOut", "Cancelled", "Failed")
+    FAILURE_STATES: tuple[str, ...] = ("Cancelled", "TimedOut", "Failed")
     SUCCESS_STATES: tuple[str, ...] = ("Success",)
     FAILURE_MESSAGE = "SSM run command sensor failed."
 
