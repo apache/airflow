@@ -71,7 +71,7 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
             test_type=f"Providers[{test_provider},{test_provider_not_skipped}]",
         ),
         extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
-        python_version="3.8",
+        python_version="3.9",
         output=None,
         test_timeout=60,
         skip_docker_compose_down=True,
