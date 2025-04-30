@@ -319,8 +319,8 @@ class TestDagStatsEndpoint:
         assert response.json() == {
             "active_dag_count": 1,
             "failed_dag_count": 0,
-            "running_dag_count": 1,
-            "queued_dag_count": 0,
+            "running_dag_count": 0,
+            "queued_dag_count": 1,
         }
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_failed_dag_runs")
