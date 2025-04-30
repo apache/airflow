@@ -58,6 +58,8 @@ class TestHttpToGCSOperator:
             endpoint=ENDPOINT,
             object_name=DESTINATION_PATH_FILE,
             bucket_name=TEST_BUCKET,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
@@ -66,13 +68,5 @@ class TestHttpToGCSOperator:
         )
         gcs_hook.return_value.get_bucket.assert_called_once_with(TEST_BUCKET)
         http_hook.assert_called_once_with(HTTP_CONN_ID)
-
-        gcs_hook.return_value.upload.assert_called_once_with(
-            bucket_name=TEST_BUCKET,
-            object_name=DESTINATION_PATH_FILE,
-            filename=mock.ANY,
-            mime_type=DEFAULT_MIME_TYPE,
-            gzip=False,
-        )
         gcs_hook.return_value.upload.assert_not_called()
         gcs_hook.return_value.get_bucket.return_value.blob.assert_called_once_with(DESTINATION_PATH_FILE)
