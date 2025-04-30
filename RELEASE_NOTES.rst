@@ -449,8 +449,8 @@ Refactored Internal Utilities
 
 Several core components have been moved to more intuitive or stable locations:
 
-- The ``SecretsMasker`` class has been relocated to ``airflow.utils.secrets_masker``.
-- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.utils.object_storage_path``.
+- The ``SecretsMasker`` class has been relocated to ``airflow.sdk.execution_time.secrets_masker``.
+- The ``ObjectStoragePath`` utility previously located under ``airflow.io`` is now available via ``airflow.sdk``.
 
 These changes simplify imports and reflect broader efforts to stabilize utility interfaces across the Airflow codebase.
 
