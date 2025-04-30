@@ -160,7 +160,7 @@ class TestDagRun:
         self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
+        clear_task_instances(qry, session, dag=dag)
         session.flush()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.logical_date == now).first()
         assert dr0.state == DagRunState.QUEUED

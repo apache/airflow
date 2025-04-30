@@ -1426,7 +1426,6 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-
         dagruns = session.query(DagRun).filter(DagRun.dag_id == dag_id).all()
 
         assert len(dagruns) == 1

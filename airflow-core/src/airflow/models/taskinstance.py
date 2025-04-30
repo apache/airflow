@@ -305,6 +305,7 @@ def clear_task_instances(
             session.merge(ti)
 
     if dag_run_state is not False and tis:
+        from airflow.models.dag import DagModel
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         run_ids_by_dag_id = defaultdict(set)
@@ -326,8 +327,19 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
+                if TYPE_CHECKING:
+                    assert dag  # todo: change signature so this is required
                 if not dag.disable_bundle_versioning:
-                    dr.bundle_version = dr.dag_model.bundle_version
+                    if dr.dag_model:
+                        bundle_version = dr.dag_model.bundle_version
+                    else:
+                        bundle_version = session.scalar(
+                            select(DagModel.bundle_version).where(
+                                DagModel.dag_id == dag.dag_id,
+                            )
+                        )
+                    if bundle_version is not None:
+                        dr.bundle_version = bundle_version
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
