@@ -429,6 +429,42 @@ class XComOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
+    def get_sequence_item(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        offset: int,
+    ) -> XComResponse | ErrorResponse:
+        params = {"offset": offset}
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    offset=offset,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.XCOM_NOT_FOUND,
+                    detail={
+                        "dag_id": dag_id,
+                        "run_id": run_id,
+                        "task_id": task_id,
+                        "key": key,
+                        "offset": offset,
+                    },
+                )
+            raise
+        return XComResponse.model_validate_json(resp.read())
+
 
 class AssetOperations:
     __slots__ = ("client",)
