@@ -9129,6 +9129,7 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    JsonValue: {}
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -10407,8 +10408,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          type: string
-          title: Value
+          $ref: '#/components/schemas/JsonValue'
         description:
           anyOf:
           - type: string

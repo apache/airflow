@@ -898,6 +898,8 @@ export type JobResponse = {
   unixname: string | null;
 };
 
+export type JsonValue = unknown;
+
 /**
  * Request body for Clear Task Instances endpoint.
  */
@@ -1323,7 +1325,7 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  value: string;
+  value: JsonValue;
   description?: string | null;
 };
 
