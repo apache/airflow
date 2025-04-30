@@ -151,13 +151,14 @@ def get_xcom(
         dag_ids=dag_id,
         map_indexes=None if params.offset is not None else params.map_index,
         include_prior_dates=params.include_prior_dates,
+        latest_first=(params.offset is None or params.offset >= 0),
         session=session,
     )
-
     if params.offset is not None:
-        xcom_query = xcom_query.offset(params.offset)
+        xcom_query = xcom_query.offset(abs(params.offset))
     else:
         xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
+
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`

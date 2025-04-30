@@ -357,7 +357,6 @@ class XComOperations:
         key: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
-        offset: int | None = None,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -365,8 +364,6 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
-        if offset is not None:
-            params.update({"offset": offset})
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:
@@ -431,6 +428,42 @@ class XComOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def get_sequence_item(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        offset: int,
+    ) -> XComResponse | ErrorResponse:
+        params = {"offset": offset}
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    offset=offset,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.XCOM_NOT_FOUND,
+                    detail={
+                        "dag_id": dag_id,
+                        "run_id": run_id,
+                        "task_id": task_id,
+                        "key": key,
+                        "offset": offset,
+                    },
+                )
+            raise
+        return XComResponse.model_validate_json(resp.read())
 
 
 class AssetOperations:

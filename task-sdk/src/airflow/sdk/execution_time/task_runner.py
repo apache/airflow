@@ -277,7 +277,6 @@ class RuntimeTaskInstance(TaskInstance):
         include_prior_dates: bool = False,  # TODO: Add support for this
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
-        offset: int | None = None,
         default: Any = None,
         run_id: str | None = None,
     ) -> Any:
@@ -349,39 +348,23 @@ class RuntimeTaskInstance(TaskInstance):
             )
 
         xcoms = []
-
-        if offset is not None:
-            for t_id, offset_idx in product(task_ids, [offset]):
-                value = XCom.get_one(
-                    run_id=run_id,
-                    key=key,
-                    task_id=t_id,
-                    dag_id=dag_id,
-                    offset=offset_idx,
-                    include_prior_dates=include_prior_dates,
-                )
-                if value is None:
-                    xcoms.append(default)
-                else:
-                    xcoms.append(value)
-        else:
-            # TODO: AIP 72 Execution API only allows working with a single map_index at a time
-            # this is inefficient and leads to task_id * map_index requests to the API.
-            # And we can't achieve the original behavior of XCom pull with multiple tasks
-            # directly now.
-            for t_id, m_idx in product(task_ids, map_indexes_iterable):
-                value = XCom.get_one(
-                    run_id=run_id,
-                    key=key,
-                    task_id=t_id,
-                    dag_id=dag_id,
-                    map_index=m_idx,
-                    include_prior_dates=include_prior_dates,
-                )
-                if value is None:
-                    xcoms.append(default)
-                else:
-                    xcoms.append(value)
+        # TODO: AIP 72 Execution API only allows working with a single map_index at a time
+        # this is inefficient and leads to task_id * map_index requests to the API.
+        # And we can't achieve the original behavior of XCom pull with multiple tasks
+        # directly now.
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
+            value = XCom.get_one(
+                run_id=run_id,
+                key=key,
+                task_id=t_id,
+                dag_id=dag_id,
+                map_index=m_idx,
+                include_prior_dates=include_prior_dates,
+            )
+            if value is None:
+                xcoms.append(default)
+            else:
+                xcoms.append(value)
 
         if single_task_requested and single_map_index_requested:
             return xcoms[0]

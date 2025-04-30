@@ -189,7 +189,11 @@ class BaseXCom:
             SUPERVISOR_COMMS.send_request(
                 log=log,
                 msg=GetXCom(
-                    key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index, offset=None
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
                 ),
             )
 
@@ -208,7 +212,6 @@ class BaseXCom:
         task_id: str,
         run_id: str,
         map_index: int | None = None,
-        offset: int | None = None,
         include_prior_dates: bool = False,
     ) -> Any | None:
         """
@@ -242,7 +245,6 @@ class BaseXCom:
         # we need to make sure that we "atomically" send a request and get the response to that
         # back so that two triggers don't end up interleaving requests and create a possible
         # race condition where the wrong trigger reads the response.
-        print(f"{offset = }")
         with SUPERVISOR_COMMS.lock:
             SUPERVISOR_COMMS.send_request(
                 log=log,
@@ -253,7 +255,6 @@ class BaseXCom:
                     run_id=run_id,
                     map_index=map_index,
                     include_prior_dates=include_prior_dates,
-                    offset=offset,
                 ),
             )
             msg = SUPERVISOR_COMMS.get_message()

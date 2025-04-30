@@ -252,6 +252,7 @@ class XComModel(TaskInstanceDependencies):
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
+        latest_first: bool = True,
         session: Session = NEW_SESSION,
     ) -> Query:
         """
@@ -274,7 +275,9 @@ class XComModel(TaskInstanceDependencies):
             returned regardless of the run it belongs to.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        :param limit: Limiting returning XComs
+        :param limit: Limiting returning XComs.
+        :param latest_first: If *True* (default), returning XComs are ordered
+            latest-first. Otherwise earlier XComs are returned first.
         """
         from airflow.models.dagrun import DagRun
 
@@ -318,7 +321,10 @@ class XComModel(TaskInstanceDependencies):
         else:
             query = query.filter(cls.run_id == run_id)
 
-        query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
+        if latest_first:
+            query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
+        else:
+            query = query.order_by(DagRun.logical_date.asc(), cls.timestamp.asc())
         if limit:
             return query.limit(limit)
         return query
