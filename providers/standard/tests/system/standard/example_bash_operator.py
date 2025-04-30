@@ -72,3 +72,9 @@ this_will_skip = BashOperator(
 )
 # [END howto_operator_bash_skip]
 this_will_skip >> run_this_last
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
