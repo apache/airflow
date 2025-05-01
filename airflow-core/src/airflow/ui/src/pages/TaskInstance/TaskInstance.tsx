@@ -18,7 +18,7 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { FiCode } from "react-icons/fi";
-import { MdDetails, MdOutlineEventNote, MdReorder, MdSyncAlt } from "react-icons/md";
+import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
@@ -67,9 +67,23 @@ export const TaskInstance = () => {
     },
   );
 
+  let newTabs = tabs;
+
+  if (taskInstance && taskInstance.map_index > -1) {
+    newTabs = [
+      ...tabs.slice(0, 1),
+      {
+        icon: <MdOutlineTask />,
+        label: `Task Instances [${taskInstance.rendered_map_index}]`,
+        value: "task_instances",
+      },
+      ...tabs.slice(1),
+    ];
+  }
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={newTabs}>
         {taskInstance === undefined ? undefined : (
           <Header
             isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
