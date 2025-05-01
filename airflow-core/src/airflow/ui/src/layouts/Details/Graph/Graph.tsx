@@ -69,10 +69,10 @@ export const Graph = () => {
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
     "white",
     "black",
-    "gray.200",
-    "gray.800",
-    "gray.200",
-    "gray.800",
+    "blue.subtle",
+    "blue.subtle",
+    "blue.solid",
+    "blue.solid",
   ]);
 
   const { openGroupIds } = useOpenGroups();
