@@ -29,7 +29,7 @@ export const AliasNode = ({
   <NodeWrapper>
     <Flex
       bg="bg"
-      borderColor={isSelected ? "border.inverted" : "border"}
+      borderColor={isSelected ? "blue.solid" : "blue.subtle"}
       borderRadius={5}
       borderWidth={isSelected ? 4 : 2}
       cursor="default"
