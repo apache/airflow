@@ -212,7 +212,7 @@ packages = []
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.0.0"
+    "apache-airflow-providers-fab>=2.0.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -221,7 +221,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0"
 ]
 "git" = [
-    "apache-airflow-providers-git>=0.0.1"
+    "apache-airflow-providers-git>=0.0.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "github" = [
     "apache-airflow-providers-github>=2.8.0"
@@ -281,7 +281,7 @@ packages = []
     "apache-airflow-providers-openfaas>=3.7.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.1.3"
+    "apache-airflow-providers-openlineage>=2.1.3" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opensearch" = [
     "apache-airflow-providers-opensearch>=1.5.0"
@@ -422,10 +422,10 @@ packages = []
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.0.0",
+    "apache-airflow-providers-fab>=2.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
-    "apache-airflow-providers-git>=0.0.1",
+    "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
@@ -445,7 +445,7 @@ packages = []
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
-    "apache-airflow-providers-openlineage>=2.1.3",
+    "apache-airflow-providers-openlineage>=2.1.3", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opensearch>=1.5.0",
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
