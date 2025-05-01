@@ -37,7 +37,7 @@ export const DagNode = ({
       <Flex
         bg={isOpen ? "bg.muted" : "bg"}
         borderRadius={5}
-        borderWidth={isSelected ? 6 : 2}
+        borderWidth={isSelected ? 4 : 2}
         cursor="default"
         flexDirection="column"
         height={`${height}px`}
