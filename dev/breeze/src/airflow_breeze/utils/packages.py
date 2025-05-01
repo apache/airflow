@@ -1040,22 +1040,27 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
     lines = pyproject_toml_path.read_text().splitlines()
     updated_lines = []
     for line in lines:
-        if line.startswith("version = "):
+        base_line, comment = line.split(" #", 1) if " #" in line else (line, "")
+        if comment:
+            comment = " #" + comment
+        if base_line.startswith("version = "):
             get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-            line = line.rstrip('"') + f'{version_suffix}"'
+            base_line = base_line.rstrip('"') + f'{version_suffix}"'
         # do not modify references for .post prefixes
         if not version_suffix.startswith(".post"):
-            if line.strip().startswith('"apache-airflow-') and ">=" in line:
+            if base_line.strip().startswith('"apache-airflow-') and ">=" in base_line:
                 floored_version_suffix = floor_version_suffix(version_suffix)
-                get_console().print(f"[info]Updating version suffix to {floored_version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{floored_version_suffix}",'
-            if line.strip().startswith('"apache-airflow-core') and "==" in line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{version_suffix}",'
-            if line.strip().startswith('"apache-airflow-task-sdk') and "==" in line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
-                line = line.rstrip('",') + f'{version_suffix}",'
-        updated_lines.append(line)
+                get_console().print(
+                    f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
+                )
+                base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
+            if base_line.strip().startswith('"apache-airflow-core') and "==" in base_line:
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                base_line = base_line.rstrip('",') + f'{version_suffix}",'
+            if base_line.strip().startswith('"apache-airflow-task-sdk') and "==" in base_line:
+                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                base_line = base_line.rstrip('",') + f'{version_suffix}",'
+        updated_lines.append(f"{base_line}{comment}")
     new_content = "\n".join(updated_lines) + "\n"
     get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
     pyproject_toml_path.write_text(new_content)

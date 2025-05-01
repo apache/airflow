@@ -49,6 +49,7 @@ type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_c
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [unpause, setUnpause] = useState(true);
+  const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
   const { conf } = useParamStore();
   const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
@@ -251,6 +252,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           errors={errors}
           initialParamsDict={initialParamsDict}
           setErrors={setErrors}
+          setFormError={setFormError}
         />
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
@@ -259,7 +261,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Button onClick={() => void handleSubmit(onCancel)()}>Cancel</Button>
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.date) || isPendingDryRun || affectedTasks.total_entries === 0}
+            disabled={
+              Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
+            }
             loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
