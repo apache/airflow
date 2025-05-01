@@ -20,12 +20,16 @@ import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
+import { useAutoRefresh } from "src/utils";
 
 import { DAGImportErrors } from "./DAGImportErrors";
 import { StatsCard } from "./StatsCard";
 
 export const Stats = () => {
-  const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats();
+  const refetchInterval = useAutoRefresh({});
+  const { data: statsData, isLoading: isStatsLoading } = useDashboardServiceDagStats(undefined, {
+    refetchInterval,
+  });
   const failedDagsCount = statsData?.failed_dag_count ?? 0;
   const queuedDagsCount = statsData?.queued_dag_count ?? 0;
   const runningDagsCount = statsData?.running_dag_count ?? 0;
