@@ -574,6 +574,7 @@ class TestOtelIntegration:
 
     test_dir = os.path.dirname(os.path.abspath(__file__))
     dag_folder = os.path.join(test_dir, "dags")
+    control_file = os.path.join(dag_folder, "dag_control.txt")
 
     max_wait_seconds_for_pause = 180
 
@@ -701,6 +702,17 @@ class TestOtelIntegration:
             alias="CeleryExecutor",
         )
         monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
+
+    @pytest.fixture(autouse=True)
+    def cleanup_control_file_if_needed(self):
+        # Don't do anything before yield.
+        # This will run after each test and clean up the control file in case of failure.
+        yield
+        try:
+            if os.path.exists(self.control_file):
+                os.remove(self.control_file)
+        except Exception as ex:
+            log.error("Could not delete leftover control file '%s', error: '%s'.", self.control_file, ex)
 
     @pytest.mark.execution_timeout(90)
     def test_dag_execution_succeeds(self, monkeypatch, celery_worker_env_vars, capfd, session):
@@ -875,20 +887,17 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            # Control file path.
-            control_file = os.path.join(self.dag_folder, "dag_control.txt")
-
             deadline = time.monotonic() + self.max_wait_seconds_for_pause
 
             while True:
                 # To avoid get stuck waiting.
                 if time.monotonic() > deadline:
                     raise TimeoutError(
-                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                        f"Timed out waiting for 'pause' to appear in {self.control_file}, after {self.max_wait_seconds_for_pause} seconds."
                     )
 
                 try:
-                    with open(control_file) as file:
+                    with open(self.control_file) as file:
                         file_contents = file.read()
 
                         if "pause" in file_contents:
@@ -925,7 +934,7 @@ class TestOtelIntegration:
             )
 
             # Rewrite the file to unpause the dag.
-            with open(control_file, "w") as file:
+            with open(self.control_file, "w") as file:
                 file.write("continue")
 
             # Wait for scheduler2 to be up and running.
@@ -995,20 +1004,17 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            # Control file path.
-            control_file = os.path.join(self.dag_folder, "dag_control.txt")
-
             deadline = time.monotonic() + self.max_wait_seconds_for_pause
 
             while True:
                 # To avoid get stuck waiting.
                 if time.monotonic() > deadline:
                     raise TimeoutError(
-                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                        f"Timed out waiting for 'pause' to appear in {self.control_file}, after {self.max_wait_seconds_for_pause} seconds."
                     )
 
                 try:
-                    with open(control_file) as file:
+                    with open(self.control_file) as file:
                         file_contents = file.read()
 
                         if "pause" in file_contents:
@@ -1040,7 +1046,7 @@ class TestOtelIntegration:
             )
 
             # Rewrite the file to unpause the dag.
-            with open(control_file, "w") as file:
+            with open(self.control_file, "w") as file:
                 file.write("continue")
 
             # Wait for scheduler2 to be up and running.
@@ -1098,20 +1104,17 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            # Control file path.
-            control_file = os.path.join(self.dag_folder, "dag_control.txt")
-
             deadline = time.monotonic() + self.max_wait_seconds_for_pause
 
             while True:
                 # To avoid get stuck waiting.
                 if time.monotonic() > deadline:
                     raise TimeoutError(
-                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                        f"Timed out waiting for 'pause' to appear in {self.control_file}, after {self.max_wait_seconds_for_pause} seconds."
                     )
 
                 try:
-                    with open(control_file) as file:
+                    with open(self.control_file) as file:
                         file_contents = file.read()
 
                         if "pause" in file_contents:
@@ -1148,7 +1151,7 @@ class TestOtelIntegration:
             time.sleep(10)
 
             # Rewrite the file to unpause the dag.
-            with open(control_file, "w") as file:
+            with open(self.control_file, "w") as file:
                 file.write("continue")
 
             wait_for_dag_run_and_check_span_status(
@@ -1203,20 +1206,17 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            # Control file path.
-            control_file = os.path.join(self.dag_folder, "dag_control.txt")
-
             deadline = time.monotonic() + self.max_wait_seconds_for_pause
 
             while True:
                 # To avoid get stuck waiting.
                 if time.monotonic() > deadline:
                     raise TimeoutError(
-                        f"Timed out waiting for 'pause' to appear in {control_file}, after {self.max_wait_seconds_for_pause} seconds."
+                        f"Timed out waiting for 'pause' to appear in {self.control_file}, after {self.max_wait_seconds_for_pause} seconds."
                     )
 
                 try:
-                    with open(control_file) as file:
+                    with open(self.control_file) as file:
                         file_contents = file.read()
 
                         if "pause" in file_contents:
@@ -1240,7 +1240,7 @@ class TestOtelIntegration:
             )
 
             # Rewrite the file to unpause the dag.
-            with open(control_file, "w") as file:
+            with open(self.control_file, "w") as file:
                 file.write("continue")
 
             time.sleep(15)
