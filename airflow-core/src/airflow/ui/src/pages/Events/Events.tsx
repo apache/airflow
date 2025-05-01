@@ -42,6 +42,43 @@ const eventsColumn = (
       skeletonWidth: 10,
     },
   },
+  {
+    accessorKey: "event",
+    enableSorting: true,
+    header: "Event",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "owner",
+    enableSorting: true,
+    header: "User",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "extra",
+    cell: ({ row: { original } }) => {
+      if (original.extra !== null) {
+        try {
+          const parsed = JSON.parse(original.extra) as Record<string, unknown>;
+
+          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: true }} />;
+        } catch {
+          return <Code>{original.extra}</Code>;
+        }
+      }
+
+      return undefined;
+    },
+    enableSorting: false,
+    header: "Extra",
+    meta: {
+      skeletonWidth: 200,
+    },
+  },
   ...(Boolean(dagId)
     ? []
     : [
@@ -92,43 +129,6 @@ const eventsColumn = (
     header: "Try Number",
     meta: {
       skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "event",
-    enableSorting: true,
-    header: "Event",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "owner",
-    enableSorting: true,
-    header: "User",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "extra",
-    cell: ({ row: { original } }) => {
-      if (original.extra !== null) {
-        try {
-          const parsed = JSON.parse(original.extra) as Record<string, unknown>;
-
-          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: true }} />;
-        } catch {
-          return <Code>{original.extra}</Code>;
-        }
-      }
-
-      return undefined;
-    },
-    enableSorting: false,
-    header: "Extra",
-    meta: {
-      skeletonWidth: 200,
     },
   },
 ];
