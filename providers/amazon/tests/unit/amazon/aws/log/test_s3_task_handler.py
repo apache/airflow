@@ -35,7 +35,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
 
 
 @pytest.fixture(autouse=True)
@@ -256,7 +256,10 @@ class TestS3TaskHandler:
             assert log[3].event == "Line 2"
             assert log[4].event == "Log line 3"
             assert log[5].event == "Line 4"
-            assert metadata == {"end_of_log": True, "first_time_read": False}
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": True, "log_pos": 4}
+            else:
+                assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             actual = log[0][0][-1]
             assert f"*** Found logs in s3:\n***   * {expected_s3_uri}\n" in actual
@@ -271,7 +274,10 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert len(log) == 2
-            assert metadata == {"end_of_log": True, "first_time_read": False}
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": True, "log_pos": 0}
+            else:
+                assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert len(log) == 1
             assert len(log) == len(metadata)
