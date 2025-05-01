@@ -1720,6 +1720,18 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed",
     },
+    default_args: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default Args",
+    },
     file_token: {
       type: "string",
       title: "File Token",
@@ -1783,6 +1795,7 @@ export const $DAGDetailsResponse = {
     "template_search_path",
     "timezone",
     "last_parsed",
+    "default_args",
     "file_token",
     "concurrency",
     "latest_dag_version",

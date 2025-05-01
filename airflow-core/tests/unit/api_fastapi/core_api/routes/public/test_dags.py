@@ -113,6 +113,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG1_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             tags=["example"],
         ):
@@ -125,6 +130,11 @@ class TestDagEndpoint:
             schedule=None,
             start_date=DAG2_START_DATE,
             doc_md="details",
+            default_args={
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+            },
             params={"foo": 1},
             max_active_tasks=16,
             max_active_runs=16,
@@ -415,6 +425,11 @@ class TestDagDetails(TestDagEndpoint):
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
+            "default_args": {
+                "depends_on_past": False,
+                "retries": 1,
+                "retry_delay": "PT5M",
+            },
             "description": None,
             "doc_md": "details",
             "end_date": None,

@@ -128,6 +128,14 @@ export const Details = () => {
               <Table.Cell>Catchup</Table.Cell>
               <Table.Cell>{dag.catchup.toString()}</Table.Cell>
             </Table.Row>
+            {dag.default_args === null ? undefined : (
+              <Table.Row>
+                <Table.Cell>Default Args</Table.Cell>
+                <Table.Cell>
+                  <RenderedJsonField content={dag.default_args} />
+                </Table.Cell>
+              </Table.Row>
+            )}
             {dag.params === null ? undefined : (
               <Table.Row>
                 <Table.Cell>Params</Table.Cell>
