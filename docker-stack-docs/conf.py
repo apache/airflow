@@ -222,7 +222,7 @@ autoapi_options = AUTOAPI_OPTIONS
 suppress_warnings = SUPPRESS_WARNINGS
 
 # -- Options for ext.exampleinclude --------------------------------------------
-exampleinclude_sourceroot = os.path.abspath("..")
+exampleinclude_sourceroot = os.path.abspath(".")
 
 # -- Options for ext.redirects -------------------------------------------------
 redirects_file = "redirects.txt"

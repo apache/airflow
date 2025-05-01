@@ -27,7 +27,9 @@ import pytest
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
@@ -139,12 +141,16 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db):
+def test_sync_bundles_to_db(clear_db, dag_maker):
     def _get_bundle_names_and_active():
         with create_session() as session:
             return (
                 session.query(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name).all()
             )
+
+    def _get_dag_version_bundle_names():
+        with create_session() as session:
+            return session.query(DagVersion.dag_id, DagVersion.bundle_name).all()
 
     # Initial add
     with patch.dict(
@@ -154,11 +160,23 @@ def test_sync_bundles_to_db(clear_db):
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
 
-    # simulate bundle config change
-    # note: airflow will detect config changes when they are in env vars
+    # Create DAG version with 'my-test-bundle'
+    with dag_maker(dag_id="test_dag", schedule=None):
+        EmptyOperator(task_id="mytask")
+    with create_session() as session:
+        session.add(DagVersion(dag_id="test_dag", version_number=1, bundle_name="my-test-bundle"))
+
+    # simulate bundle config change (now 'dags-folder' is active, 'my-test-bundle' becomes inactive)
     manager = DagBundlesManager()
     manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags-folder", True), ("my-test-bundle", False)]
+    assert _get_bundle_names_and_active() == [
+        ("dag_maker", False),
+        ("dags-folder", True),
+        ("my-test-bundle", False),
+    ]
+
+    # Check that the DAG version bundle_name got auto-updated to active one
+    assert _get_dag_version_bundle_names() == [("test_dag", "dags-folder")]
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -166,7 +184,12 @@ def test_sync_bundles_to_db(clear_db):
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
+    assert _get_bundle_names_and_active() == [
+        ("dag_maker", False),
+        ("dags-folder", False),
+        ("my-test-bundle", True),
+    ]
+    assert _get_dag_version_bundle_names() == [("test_dag", "my-test-bundle")]
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})

@@ -2915,6 +2915,25 @@ export const useDashboardServiceHistoricalMetrics = <
     ...options,
   });
 /**
+ * Dag Stats
+ * Return basic DAG stats with counts of DAGs in various states.
+ * @returns DashboardDagStatsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceDagStats = <
+  TData = Common.DashboardServiceDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceDagStatsKeyFn(queryKey),
+    queryFn: () => DashboardService.dagStats() as TData,
+    ...options,
+  });
+/**
  * Structure Data
  * Get Structure Data.
  * @param data The data for the request.

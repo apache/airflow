@@ -49,7 +49,7 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
   }
 
   return (
-    <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
+    <VStack align="left" gap={1} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
