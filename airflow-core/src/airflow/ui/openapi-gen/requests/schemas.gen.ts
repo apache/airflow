@@ -377,8 +377,6 @@ export const $AssetResponse = {
     "consuming_dags",
     "producing_tasks",
     "aliases",
-    "last_asset_event_id",
-    "last_asset_event_timestamp",
   ],
   title: "AssetResponse",
   description: "Asset serializer for responses.",
