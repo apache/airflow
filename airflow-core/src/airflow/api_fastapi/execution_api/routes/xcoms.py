@@ -230,6 +230,17 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
+    # Validate that the provided key is not empty
+    # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "invalid_key",
+                "message": "XCom key must be a non-empty string.",
+            },
+        )
+
     if mapped_length is not None:
         task_map = TaskMap(
             dag_id=dag_id,
