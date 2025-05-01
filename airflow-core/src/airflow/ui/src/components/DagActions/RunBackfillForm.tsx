@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text, Skeleton } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 
@@ -100,6 +101,8 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
+  const noDataInterval = !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
+  const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (fdata: BackfillFormProps) => {
     if (unpause && dag.is_paused) {
@@ -132,18 +135,17 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     total_entries: 0,
   };
 
-  const inlineMessage =
-    !Boolean(values.from_date) || !Boolean(values.to_date) ? undefined : isPendingDryRun ? (
-      <Skeleton height="20px" width="100px" />
-    ) : affectedTasks.total_entries > 0 ? (
-      <Text color="fg.success" fontSize="sm">
-        {pluralize("run", affectedTasks.total_entries)} will be triggered
-      </Text>
-    ) : (
-      <Text color="fg.error" fontSize="sm" fontWeight="medium">
-        No runs matching selected criteria.
-      </Text>
-    );
+  const inlineMessage = isPendingDryRun ? (
+    <Skeleton height="20px" width="100px" />
+  ) : affectedTasks.total_entries > 0 ? (
+    <Text color="fg.success" fontSize="sm">
+      {pluralize("run", affectedTasks.total_entries)} will be triggered
+    </Text>
+  ) : (
+    <Text color="fg.error" fontSize="sm" fontWeight="medium">
+      No runs matching selected criteria.
+    </Text>
+  );
 
   return (
     <>
@@ -158,14 +160,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               control={control}
               name="from_date"
               render={({ field }) => (
-                <Field.Root invalid={Boolean(errors.date)}>
+                <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>From</Field.Label>
-                  <DateTimeInput
-                    {...field}
-                    max={dataIntervalEnd || today}
-                    onBlur={resetDateError}
-                    size="sm"
-                  />
+                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <Field.ErrorText>Start Date must be before the End Date</Field.ErrorText>
                 </Field.Root>
               )}
             />
@@ -173,21 +171,15 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               control={control}
               name="to_date"
               render={({ field }) => (
-                <Field.Root invalid={Boolean(errors.date)}>
+                <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>To</Field.Label>
-                  <DateTimeInput
-                    {...field}
-                    max={today}
-                    min={dataIntervalStart || undefined}
-                    onBlur={resetDateError}
-                    size="sm"
-                  />
+                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
                 </Field.Root>
               )}
             />
           </HStack>
         </Box>
-        <Box>{inlineMessage}</Box>
+        {noDataInterval || dataIntervalInvalid ? undefined : <Box>{inlineMessage}</Box>}
         <Spacer />
         <Controller
           control={control}
