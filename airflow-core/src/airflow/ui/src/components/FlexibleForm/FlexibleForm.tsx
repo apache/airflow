@@ -17,13 +17,14 @@
  * under the License.
  */
 import { Box, Stack, StackSeparator } from "@chakra-ui/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { Accordion } from "../ui";
 import { Row } from "./Row";
+import { isRequired } from "./isParamRequired";
 
 export type FlexibleFormProps = {
   flexibleFormDefaultSection: string;
@@ -39,6 +40,7 @@ export const FlexibleForm = ({
 }: FlexibleFormProps) => {
   const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
+  const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -59,10 +61,23 @@ export const FlexibleForm = ({
     [setParamsDict, setinitialParamDict],
   );
 
+  useEffect(
+    () => () => {
+      sectionError.clear();
+      setError(false);
+      Object.entries(params).forEach(([, element]) => {
+        if (isRequired(element) && (!Boolean(element.value) || element.value === "")) {
+          sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
+          setSectionError(sectionError);
+          setError(true);
+        }
+      });
+    },
+    [params, initialParamsDict, flexibleFormDefaultSection, setError, sectionError, setSectionError],
+  );
+
   const onUpdate = (_value?: string, error?: unknown) => {
-    if (Boolean(error)) {
-      setError(true);
-    } else {
+    if (!Boolean(error) && sectionError.size === 0) {
       setError(false);
     }
   };
@@ -77,7 +92,12 @@ export const FlexibleForm = ({
           processedSections.set(currentSection, true);
 
           return (
-            <Accordion.Item key={currentSection} value={currentSection}>
+            <Accordion.Item
+              borderColor={sectionError.get(currentSection) ? "red" : undefined}
+              borderStyle="solid"
+              key={currentSection}
+              value={currentSection}
+            >
               <Accordion.ItemTrigger cursor="button">{currentSection}</Accordion.ItemTrigger>
               <Accordion.ItemContent paddingTop={0}>
                 <Box p={5}>

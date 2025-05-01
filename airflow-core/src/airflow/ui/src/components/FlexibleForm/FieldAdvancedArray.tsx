@@ -24,7 +24,6 @@ import { JsonEditor } from "../JsonEditor";
 export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
-  // const [error, setError] = useState<unknown>(undefined);
   // Determine the expected type based on schema
   const expectedType = param.schema.items?.type ?? "object";
 

@@ -21,23 +21,19 @@ import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { ParamSpec } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { FieldSelector } from "./FieldSelector";
-
-const isRequired = (param: ParamSpec) =>
-  // The field is required if the schema type is defined.
-  // But if the type "null" is included, then the field is not required.
-  // We assume that "null" is only defined if the type is an array.
-  Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
+import { isRequired } from "./isParamRequired";
 
 /** Render a normal form row with a field that is auto-selected */
 export const FieldRow = ({ name, onUpdate: rowOnUpdate }: FlexibleFormElementProps) => {
   const { paramsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
-  const [error, setError] = useState<unknown>(undefined);
+  const [error, setError] = useState<unknown>(
+    isRequired(param) && param.value === null ? "This field is required" : undefined,
+  );
   const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
 
   // console.log(param);
