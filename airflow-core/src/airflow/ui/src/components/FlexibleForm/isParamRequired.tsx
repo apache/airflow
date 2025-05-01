@@ -16,13 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ParamSpec } from "src/queries/useDagParams";
 
-export type FlexibleFormElementProps = {
-  readonly name: string;
-  readonly onUpdate: (value?: string, error?: unknown) => void;
-};
-
-export const flexibleFormDefaultSection = "Run Parameters";
-export const flexibleFormExtraFieldSection = "Extra Fields";
-
-export { FlexibleForm } from "./FlexibleForm";
+export const isRequired = (param: ParamSpec) =>
+  // The field is required if the schema type is defined.
+  // But if the type "null" is included, then the field is not required.
+  // We assume that "null" is only defined if the type is an array.
+  Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
