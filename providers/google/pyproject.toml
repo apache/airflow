@@ -146,7 +146,7 @@ dependencies = [
     "tenacity>=8.1.0",
     "immutabledict>=4.2.0",
     # types-protobuf 5.29.1.20250402 is a partial stub package, leading to mypy complaining
-    "types-protobuf!=5.29.1.20250402",
+    "types-protobuf!=5.29.1.20250402,>=5.27.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
