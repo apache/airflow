@@ -44,7 +44,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
 
 
 def get_time_str(time_in_milliseconds):
@@ -262,13 +262,13 @@ class TestCloudwatchTaskHandler:
                 {"timestamp": current_time, "message": "Third"},
             ],
         )
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_0:  # 3.0+
             monkeypatch.setattr(
                 self.cloudwatch_task_handler,
                 "_read_from_logs_server",
                 lambda ti, worker_log_rel_path, log_metadata: ([], []),
             )
-        else:
+        else:  # 2.x and 3.0
             monkeypatch.setattr(
                 self.cloudwatch_task_handler,
                 "_read_from_logs_server",
@@ -302,7 +302,10 @@ class TestCloudwatchTaskHandler:
                     "timestamp": pendulum.datetime(2025, 3, 27, 21, 58, 1),
                 },
             ]
-            assert not metadata["first_time_read"]
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": False, "log_pos": 3}
+            else:
+                assert metadata == {"end_of_log": False, "first_time_read": False}
         else:
             events = "\n".join(
                 [
