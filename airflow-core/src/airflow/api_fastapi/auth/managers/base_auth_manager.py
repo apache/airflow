@@ -97,7 +97,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
 
-    async def get_user_from_token(self, token: str) -> BaseUser:
+    async def get_user_from_token(self, token: str) -> T:
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
             payload: dict[str, Any] = await self._get_token_validator().avalidated_claims(token)

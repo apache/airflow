@@ -31,11 +31,5 @@ class SimpleAuthManagerUser(BaseUser):
         self.username = username
         self.role = role
 
-    def get_id(self) -> str:
-        return self.username
-
     def get_name(self) -> str:
         return self.username
-
-    def get_role(self) -> str | None:
-        return self.role

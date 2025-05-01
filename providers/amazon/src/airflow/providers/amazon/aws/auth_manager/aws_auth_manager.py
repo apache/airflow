@@ -92,15 +92,13 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             user_id=token.pop("sub"),
             groups=token.get("groups", []),
             username=token.get("username"),
-            email=token.get("email"),
         )
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
         return {
-            "sub": user.get_id(),
-            "groups": user.get_groups(),
+            "sub": user.user_id,
+            "groups": user.groups,
             "username": user.username,
-            "email": user.email,
         }
 
     def is_authorized_configuration(

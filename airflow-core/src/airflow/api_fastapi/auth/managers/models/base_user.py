@@ -24,7 +24,4 @@ class BaseUser:
     """User model interface."""
 
     @abstractmethod
-    def get_id(self) -> str: ...
-
-    @abstractmethod
     def get_name(self) -> str: ...

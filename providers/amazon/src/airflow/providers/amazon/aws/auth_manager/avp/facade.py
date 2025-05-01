@@ -101,7 +101,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         self.log.debug(
             "Making authorization request for user=%s, method=%s, entity_type=%s, entity_id=%s",
-            user.get_id(),
+            user.user_id,
             method,
             entity_type,
             entity_id,
@@ -110,7 +110,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         request_params = prune_dict(
             {
                 "policyStoreId": self.avp_policy_store_id,
-                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.user_id},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
                     "actionId": get_action_id(entity_type, method),
@@ -149,7 +149,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """
         entity_list = self._get_user_group_entities(user)
 
-        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
+        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.user_id, requests)
 
         avp_requests = [self._build_is_authorized_request_payload(request, user) for request in requests]
         avp_requests_chunks = [
@@ -241,15 +241,14 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
     @staticmethod
     def _get_user_group_entities(user: AwsAuthManagerUser) -> list[dict]:
         user_entity = {
-            "identifier": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+            "identifier": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.user_id},
             "parents": [
-                {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}
-                for group in user.get_groups()
+                {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group} for group in user.groups
             ],
         }
         group_entities = [
             {"identifier": {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}}
-            for group in user.get_groups()
+            for group in user.groups
         ]
         return [user_entity, *group_entities]
 
@@ -271,7 +270,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """
         return prune_dict(
             {
-                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.user_id},
                 "action": {
                     "actionType": get_entity_type(AvpEntities.ACTION),
                     "actionId": get_action_id(request["entity_type"], request["method"]),

@@ -332,7 +332,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         :param allow_get_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access. If not provided, ``allow_role`` is used
         """
-        user_role = user.get_role()
+        user_role = user.role
         if not user_role:
             return False
 
