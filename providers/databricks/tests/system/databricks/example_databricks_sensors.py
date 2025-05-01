@@ -31,7 +31,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 # [DAG name to be shown on Airflow UI]
 DAG_ID = "example_databricks_sensor"
 
-WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "")  # Defaults to an empty string to satisfy typing
 
 with DAG(
     dag_id=DAG_ID,
@@ -77,7 +77,7 @@ with DAG(
         task_id="sql_statement_sensor_task",
         databricks_conn_id=connection_id,
         warehouse_id=WAREHOUSE_ID,
-        statement_id="statement_id",
+        sql="select * from default.my_airflow_table",
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_sensor_databricks_sql_statement]

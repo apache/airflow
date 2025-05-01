@@ -73,11 +73,15 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        if statement and statement_id:
+            raise AirflowException("Cannot set both statement and statement_id.")
+
         self.statement = statement
+        self.statement_id = statement_id
         self.warehouse_id = warehouse_id
         self.catalog = catalog
         self.schema = schema
-        self.statement_id = statement_id  # Optional
         self.parameters = parameters
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
