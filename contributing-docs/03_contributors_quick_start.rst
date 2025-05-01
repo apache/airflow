@@ -441,7 +441,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      sudo apt install golang-docker-credential-helper
+      sudo apt install golang-docker-credential-helpers
 
    Once the package is installed, execute the breeze command again to resume image building.
 
