@@ -22,6 +22,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -78,7 +79,7 @@ def list_backfills(
     session: SessionDep,
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        statement=select(Backfill).where(Backfill.dag_id == dag_id),
+        statement=select(Backfill).where(Backfill.dag_id == dag_id).options(joinedload(Backfill.dag_model)),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -102,7 +103,9 @@ def get_backfill(
     backfill_id: NonNegativeInt,
     session: SessionDep,
 ) -> BackfillResponse:
-    backfill = session.get(Backfill, backfill_id)
+    backfill = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if backfill:
         return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
@@ -123,7 +126,9 @@ def get_backfill(
     ],
 )
 def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
@@ -149,7 +154,9 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
     ],
 )
 def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at:
@@ -174,7 +181,9 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
     ],
 )
 def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> BackfillResponse:
-    b: Backfill = session.get(Backfill, backfill_id)
+    b = session.scalars(
+        select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
+    ).one_or_none()
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
     if b.completed_at is not None:

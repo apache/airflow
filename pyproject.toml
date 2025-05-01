@@ -20,12 +20,12 @@ requires = [
     "GitPython==3.1.44",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
-    "packaging==24.2",
+    "packaging==25.0",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.4.11.15",
+    "trove-classifiers==2025.4.28.22",
 ]
 build-backend = "hatchling.build"
 
@@ -203,7 +203,7 @@ packages = []
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "edge3" = [
-    "apache-airflow-providers-edge3"
+    "apache-airflow-providers-edge3>=1.0.0"
 ]
 "elasticsearch" = [
     "apache-airflow-providers-elasticsearch>=5.5.2"
@@ -350,7 +350,7 @@ packages = []
     "apache-airflow-providers-ssh>=3.14.0"
 ]
 "standard" = [
-    "apache-airflow-providers-standard"
+    "apache-airflow-providers-standard>=0.0.1"
 ]
 "tableau" = [
     "apache-airflow-providers-tableau>=5.0.0"
@@ -419,7 +419,7 @@ packages = []
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-edge3",
+    "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=5.5.2",
     "apache-airflow-providers-exasol>=4.6.1",
     "apache-airflow-providers-fab>=2.0.0",
@@ -468,7 +468,7 @@ packages = []
     "apache-airflow-providers-snowflake>=5.8.0",
     "apache-airflow-providers-sqlite>=3.9.1",
     "apache-airflow-providers-ssh>=3.14.0",
-    "apache-airflow-providers-standard",
+    "apache-airflow-providers-standard>=0.0.1",
     "apache-airflow-providers-tableau>=5.0.0",
     "apache-airflow-providers-telegram>=4.7.0",
     "apache-airflow-providers-teradata>=2.6.1",
