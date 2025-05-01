@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-04-30T23:28:16.177193
+# This constraints file was automatically generated on 2025-05-01T16:06:02.433938
 # via `uv sync --resolution highest for the "v3-0-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -200,6 +200,8 @@ fastavro==1.10.0
 fasteners==0.19
 fastjsonschema==2.21.1
 filelock==3.18.0
+flit==3.12.0
+flit_core==3.12.0
 flower==2.0.1
 frozenlist==1.6.0
 fsspec==2025.3.2
@@ -278,6 +280,8 @@ gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.16.0
 h2==4.2.0
+hatch==1.14.1
+hatchling==1.27.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.1.0
@@ -290,6 +294,7 @@ huggingface-hub==0.30.2
 humanize==4.12.3
 hvac==2.3.0
 hyperframe==6.1.0
+hyperlink==21.0.0
 ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
@@ -305,6 +310,7 @@ incremental==24.7.2
 inflection==0.5.1
 influxdb-client==1.48.0
 iniconfig==2.1.0
+inputimeout==1.0.4
 ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.36.0
@@ -442,6 +448,7 @@ plyvel==1.5.1
 polars==1.29.0
 portalocker==2.10.1
 pprintpp==0.4.0
+pre-commit-uv==4.1.4
 pre_commit==4.2.0
 presto-python-client==0.8.4
 prison==0.2.1
@@ -610,12 +617,14 @@ time-machine==2.16.0
 tinycss2==1.4.0
 tokenizers==0.21.1
 tomli==2.2.1
+tomli_w==1.2.0
 tomlkit==0.13.2
 tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.333.0
+trove-classifiers==2025.5.1.12
 twine==6.1.0
 typer==0.15.3
 types-Deprecated==1.2.15.20250304
@@ -647,6 +656,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.4.0
+userpath==1.9.2
 uuid6==2024.7.10
 uv==0.6.17
 uvicorn==0.34.2
