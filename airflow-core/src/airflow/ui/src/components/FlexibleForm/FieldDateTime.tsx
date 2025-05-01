@@ -23,7 +23,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { DateTimeInput } from "../DateTimeInput";
 
-export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & InputProps) => {
+export const FieldDateTime = ({ name, onUpdate, ...rest }: FlexibleFormElementProps & InputProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -40,6 +40,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
     }
 
     setParamsDict(paramsDict);
+    onUpdate(value);
   };
 
   if (rest.type === "datetime-local") {
@@ -59,6 +60,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
       id={`element_${name}`}
       name={`element_${name}`}
       onChange={(event) => handleChange(event.target.value)}
+      required={rest.required}
       size="sm"
       type={rest.type}
       value={((param.value ?? "") as string).slice(0, 16)}

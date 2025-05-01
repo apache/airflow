@@ -49,6 +49,7 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
+  const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf } = useParamStore();
@@ -96,6 +97,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         errors={errors}
         initialParamsDict={initialParamsDict}
         setErrors={setErrors}
+        setFormError={setFormError}
       >
         <Controller
           control={control}
@@ -153,7 +155,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || Boolean(errors.date) || isPending}
+            disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger

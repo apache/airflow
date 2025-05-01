@@ -22,7 +22,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
+export const FieldStringArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -34,6 +34,7 @@ export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
     }
 
     setParamsDict(paramsDict);
+    onUpdate(newValue);
   };
 
   const handleBlur = () => {

@@ -31,7 +31,7 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
 
@@ -64,6 +64,7 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
       paramsDict[name].value = newValueArray;
     }
     setParamsDict(paramsDict);
+    onUpdate(String(newValueArray));
   };
 
   return (

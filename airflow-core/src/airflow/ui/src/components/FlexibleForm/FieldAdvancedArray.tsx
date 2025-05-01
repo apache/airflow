@@ -16,23 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { useState } from "react";
-
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
+export const FieldAdvancedArray = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
-  const [error, setError] = useState<unknown>(undefined);
   // Determine the expected type based on schema
   const expectedType = param.schema.items?.type ?? "object";
 
   const handleChange = (value: string) => {
-    setError(undefined);
     if (value === "") {
       if (paramsDict[name]) {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
@@ -64,24 +59,18 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         }
 
         setParamsDict(paramsDict);
+        onUpdate(String(parsedValue));
       } catch (_error) {
-        setError(expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
+        onUpdate(undefined, expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
       }
     }
   };
 
   return (
-    <>
-      <JsonEditor
-        id={`element_${name}`}
-        onChange={handleChange}
-        value={JSON.stringify(param.value ?? [], undefined, 2)}
-      />
-      {Boolean(error) ? (
-        <Text color="fg.error" fontSize="xs">
-          {String(error)}
-        </Text>
-      ) : undefined}
-    </>
+    <JsonEditor
+      id={`element_${name}`}
+      onChange={handleChange}
+      value={JSON.stringify(param.value ?? [], undefined, 2)}
+    />
   );
 };
