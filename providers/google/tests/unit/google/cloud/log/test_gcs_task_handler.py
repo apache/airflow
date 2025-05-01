@@ -30,7 +30,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0, AIRFLOW_V_3_0_PLUS
 
 
 @pytest.mark.db_test
@@ -119,7 +119,10 @@ class TestGCSTaskHandler:
             assert logs[0].sources == [expected_gs_uri]
             assert logs[1].event == "::endgroup::"
             assert logs[2].event == "CONTENT"
-            assert metadata == {"end_of_log": True, "first_time_read": False}
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": True, "log_pos": 1}
+            else:
+                assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert f"*** Found remote logs:\n***   * {expected_gs_uri}\n" in logs
             assert logs.endswith("CONTENT")
@@ -151,7 +154,10 @@ class TestGCSTaskHandler:
                 f"{self.gcs_task_handler.local_base}/1.log",
             ]
             assert log[1].event == "::endgroup::"
-            assert metadata == {"end_of_log": True, "first_time_read": False}
+            if AIRFLOW_V_3_0:
+                assert metadata == {"end_of_log": True, "log_pos": 0}
+            else:
+                assert metadata == {"end_of_log": True, "first_time_read": False}
         else:
             assert (
                 "*** Found remote logs:\n"
