@@ -77,7 +77,7 @@ with DAG(
         task_id="sql_statement_sensor_task",
         databricks_conn_id=connection_id,
         warehouse_id=WAREHOUSE_ID,
-        sql="select * from default.my_airflow_table",
+        statement="select * from default.my_airflow_table",
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_sensor_databricks_sql_statement]
