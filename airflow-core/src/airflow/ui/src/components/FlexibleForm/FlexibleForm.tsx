@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Stack, StackSeparator } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -42,6 +42,16 @@ export const FlexibleForm = ({
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
+  const recheckSection = useCallback(() => {
+    sectionError.clear();
+    Object.entries(params).forEach(([, element]) => {
+      if (isRequired(element) && (element.value === undefined || element.value === "")) {
+        sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
+        setSectionError(sectionError);
+      }
+    });
+  }, [flexibleFormDefaultSection, params, sectionError]);
+
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
     if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
@@ -63,22 +73,17 @@ export const FlexibleForm = ({
 
   useEffect(
     () => () => {
-      sectionError.clear();
-      setError(false);
-      Object.entries(params).forEach(([, element]) => {
-        if (isRequired(element) && (!Boolean(element.value) || element.value === "")) {
-          sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
-          setSectionError(sectionError);
-          setError(true);
-        }
-      });
+      recheckSection();
     },
-    [params, initialParamsDict, flexibleFormDefaultSection, setError, sectionError, setSectionError],
+    [params, recheckSection],
   );
 
   const onUpdate = (_value?: string, error?: unknown) => {
+    recheckSection();
     if (!Boolean(error) && sectionError.size === 0) {
       setError(false);
+    } else {
+      setError(true);
     }
   };
 
