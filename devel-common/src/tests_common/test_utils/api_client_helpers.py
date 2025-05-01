@@ -66,11 +66,15 @@ def make_authenticated_rest_api_request(
     password: str = "admin",
 ):
     api_server_url = conf.get("api", "base_url", fallback="http://localhost:8080").rstrip("/")
-    token = generate_access_token(username, password, api_server_url)
+    skip_auth = conf.getboolean("core", "simple_auth_manager_all_admins", fallback=False)
+    headers = {}
+    if not skip_auth:
+        token = generate_access_token(username, password, api_server_url)
+        headers["Authorization"] = f"Bearer {token}"
     response = requests.request(
         method=method,
         url=api_server_url + path,
-        headers={"Authorization": f"Bearer {token}"},
+        headers=headers,
         json=body,
     )
     response.raise_for_status()
