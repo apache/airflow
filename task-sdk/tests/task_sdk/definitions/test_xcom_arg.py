@@ -25,13 +25,13 @@ import structlog
 from pytest_unordered import unordered
 
 from airflow.exceptions import AirflowSkipException
-from airflow.sdk.api.datamodels._generated import TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
 log = structlog.get_logger(__name__)
 
-RunTI = Callable[[DAG, str, int], TerminalTIState]
+RunTI = Callable[[DAG, str, int], TaskInstanceState]
 
 
 def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
@@ -55,7 +55,7 @@ def test_xcom_map(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
 
     for map_index in range(3):
-        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     assert results == {"aa", "bb", "cc"}
 
@@ -85,7 +85,7 @@ def test_xcom_map_transform_to_none(run_ti: RunTI, mock_supervisor_comms):
 
     # Run "pull". This should automatically convert "c" to None.
     for map_index in range(3):
-        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     assert results == {"a", "b", None}
 
@@ -115,13 +115,13 @@ def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms,
 
     # The first two "pull" tis should succeed.
     for map_index in range(2):
-        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     # Clear captured logs from the above
     captured_logs[:] = []
 
     # But the third one fails because the map() result cannot be used as kwargs.
-    assert run_ti(dag, "pull", 2) == TerminalTIState.FAILED
+    assert run_ti(dag, "pull", 2) == TaskInstanceState.FAILED
 
     assert captured_logs == unordered(
         [
@@ -165,7 +165,7 @@ def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs)
     # Mock xcom result from push task
     mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["a", "b", "c"])
     # The third one (for "c") will fail.
-    assert run_ti(dag, "pull", 2) == TerminalTIState.FAILED
+    assert run_ti(dag, "pull", 2) == TaskInstanceState.FAILED
 
     assert captured_logs == unordered(
         [
@@ -209,7 +209,7 @@ def test_xcom_map_nest(mock_supervisor_comms, run_ti):
 
     # Now "pull" should apply the mapping functions in order.
     for map_index in range(3):
-        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
     assert results == {"aa", "bb", "cc"}
 
 
@@ -256,7 +256,7 @@ def test_xcom_map_zip_nest(mock_supervisor_comms, run_ti):
 
     # Run "pull".
     for map_index in range(4):
-        assert run_ti(dag, "pull", map_index) == TerminalTIState.SUCCESS
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     assert results == {"aa", "bbbb", "cccccc", "dddddddd"}
 
@@ -287,7 +287,7 @@ def test_xcom_map_raise_to_skip(run_ti, mock_supervisor_comms):
     # Run "forward". This should automatically skip "c".
     states = [run_ti(dag, "forward", map_index) for map_index in range(3)]
 
-    assert states == [TerminalTIState.SUCCESS, TerminalTIState.SUCCESS, TerminalTIState.SKIPPED]
+    assert states == [TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
 
     assert result == ["a", "b"]
 
@@ -353,9 +353,9 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     mock_supervisor_comms.get_message.side_effect = xcom_get
 
     # Run "pull_one" and "pull_all".
-    assert run_ti(dag, "pull_all", None) == TerminalTIState.SUCCESS
+    assert run_ti(dag, "pull_all", None) == TaskInstanceState.SUCCESS
     assert all_results == ["a", "b", "c", 1, 2]
 
     states = [run_ti(dag, "pull_one", map_index) for map_index in range(5)]
-    assert states == [TerminalTIState.SUCCESS] * 5
+    assert states == [TaskInstanceState.SUCCESS] * 5
     assert agg_results == {"a", "b", "c", 1, 2}
