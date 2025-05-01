@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -135,8 +135,26 @@ def get_assets(
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
+    # First, we're pulling the Asset ID, AssetEvent ID, and AssetEvent timestamp for the latest (last)
+    # AssetEvent. We'll eventually OUTER JOIN this to the AssetModel
+    asset_event_query = (
+        select(
+            AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
+            func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
+            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
+        )
+        .group_by(AssetEvent.asset_id)
+        .subquery()
+    )
+
+    assets_select_statement = select(
+        AssetModel,
+        asset_event_query.c.last_asset_event_id,  # This should be the AssetEvent.id
+        asset_event_query.c.last_asset_event_timestamp,
+    ).outerjoin(asset_event_query, AssetModel.id == asset_event_query.c.asset_id)
+
     assets_select, total_entries = paginated_select(
-        statement=select(AssetModel),
+        statement=assets_select_statement,
         filters=[only_active, name_pattern, uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
@@ -144,11 +162,28 @@ def get_assets(
         session=session,
     )
 
-    assets = session.scalars(
+    assets_rows = session.execute(
         assets_select.options(
-            subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
+            subqueryload(AssetModel.consuming_dags),
+            subqueryload(AssetModel.producing_tasks),
         )
     )
+
+    # Create an empty list to be returned
+    assets = []
+
+    for row in assets_rows:
+        asset, last_asset_event_id, last_asset_event_timestamp = row
+        asset_response = AssetResponse.model_validate(
+            {
+                **asset.__dict__,
+                "aliases": asset.aliases,
+                "last_asset_event_id": last_asset_event_id,
+                "last_asset_event_timestamp": last_asset_event_timestamp,
+            }
+        )
+        assets.append(asset_response)
+
     return AssetCollectionResponse(
         assets=assets,
         total_entries=total_entries,
@@ -385,16 +420,40 @@ def get_asset(
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
+    asset_event_query = session.execute(
+        select(
+            AssetEvent.id,  # Retrieve the ID of the AssetEvent, not the Asset
+            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
+        )
+        .where(AssetEvent.asset_id == asset_id)
+        .group_by(AssetEvent.id)
+    ).first()  # Should only return one row, so it's safe to pull the first row
+
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
         .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
     )
 
+    last_asset_event_id, last_asset_event_timestamp = None, None
+
+    # Pull the event ID and timestamp from the asset_event_query
+    if asset_event_query:
+        if len(asset_event_query) == 2:
+            last_asset_event_id = asset_event_query[0]
+            last_asset_event_timestamp = asset_event_query[1]
+
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
-    return AssetResponse.model_validate(asset)
+    return AssetResponse.model_validate(
+        {
+            **asset.__dict__,
+            "aliases": asset.aliases,
+            "last_asset_event_id": last_asset_event_id,
+            "last_asset_event_timestamp": last_asset_event_timestamp,
+        }
+    )
 
 
 @assets_router.get(

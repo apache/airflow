@@ -55,6 +55,8 @@ class AssetResponse(BaseModel):
     consuming_dags: list[DagScheduleAssetReference]
     producing_tasks: list[TaskOutletAssetReference]
     aliases: list[AssetAliasResponse]
+    last_asset_event_id: int | None
+    last_asset_event_timestamp: datetime | None
 
     @field_validator("extra", mode="after")
     @classmethod
