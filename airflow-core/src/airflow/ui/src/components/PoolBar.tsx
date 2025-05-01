@@ -54,6 +54,7 @@ export const PoolBar = ({
             gap={1}
             h="100%"
             justifyContent="center"
+            px={1}
             py={0.5}
             textAlign="center"
           >
