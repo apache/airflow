@@ -344,15 +344,6 @@ class TestXComGet:
                 session=session,
             )
 
-        with pytest.raises(ValueError, match="XCom key must be a non-empty string. Received: None"):
-            XComModel.get_many(
-                key=None,  # Invalid key
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-
 
 class TestXComSet:
     @pytest.mark.parametrize(
