@@ -19,18 +19,29 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
-from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
+
+try:
+    from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "This feature requires the 'common.messaging' provider to be installed in version >= 1.0.1."
+    )
 
 if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
+
+# [START queue_regexp]
+QUEUE_REGEXP = r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+"
+# [END queue_regexp]
 
 
 class SqsMessageQueueProvider(BaseMessageQueueProvider):
     """Configuration for SQS integration with common-messaging."""
 
     def queue_matches(self, queue: str) -> bool:
-        return bool(re.match(r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+", queue))
+        return bool(re.match(QUEUE_REGEXP, queue))
 
     def trigger_class(self) -> type[BaseEventTrigger]:
         return SqsSensorTrigger

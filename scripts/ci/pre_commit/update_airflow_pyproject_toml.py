@@ -59,7 +59,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "fab": parse_version("2.0.2"),
     "openlineage": parse_version("2.1.3"),
     "git": parse_version("0.0.2"),
-    "common.messaging": parse_version("1.0.0"),
+    "common.messaging": parse_version("1.0.1"),
 }
 
 

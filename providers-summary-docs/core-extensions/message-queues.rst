@@ -15,48 +15,19 @@
     specific language governing permissions and limitations
     under the License.
 
-Core Concepts
-=============================
+Message Queues
+--------------
 
-Here you can find detailed documentation about each one of the core concepts of Apache Airflow® and how to use them, as well as a high-level :doc:`architectural overview <overview>`.
+This is a summary of all Apache Airflow Community provided implementations of Queues
+exposed via community-managed providers.
 
-**Architecture**
+Airflow can be extended by providers with Queues. Each provider can define their own Queues,
+that can be configured to handle executing tasks
 
-.. toctree::
-    :maxdepth: 2
+The queues are explained in
+:doc:`apache-airflow:core-concepts/message-queues` and you can also see those
+provided by the community-managed providers:
 
-    overview
-
-
-**Workloads**
-
-.. toctree::
-    :maxdepth: 2
-
-    dags
-    dag-run
-    tasks
-    operators
-    sensors
-    taskflow
-    executor/index
-    auth-manager/index
-    objectstorage
-    backfill
-    message-queues
-
-**Communication**
-
-.. toctree::
-    :maxdepth: 2
-
-    xcoms
-    variables
-    params
-
-**Debugging**
-
-.. toctree::
-    :maxdepth: 1
-
-    debug
+.. airflow-queues::
+   :tags: None
+   :header-separator: "

@@ -44,7 +44,6 @@
 
     Python API <_api/airflow/providers/common/messaging/index>
     Base Provider <_api/airflow/providers/common/messaging/providers/base_provider/index>
-    SQS provider <_api/airflow/providers/common/messaging/providers/sqs/index>
 
 .. toctree::
     :hidden:

@@ -16,6 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.messaging.providers.sqs import SqsMessageQueueProvider
+import importlib
 
-MESSAGE_QUEUE_PROVIDERS = [SqsMessageQueueProvider()]
+from airflow.providers_manager import ProvidersManager
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+providers_manager = ProvidersManager()
+providers_manager.initialize_providers_queues()
+
+
+def create_class_by_name(name: str):
+    module_name, class_name = name.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+MESSAGE_QUEUE_PROVIDERS = [create_class_by_name(name)() for name in providers_manager.queue_class_names]
+
+__deprecated_classes = {
+    "sqs": {
+        "SqsMessageQueueProvider": "airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)

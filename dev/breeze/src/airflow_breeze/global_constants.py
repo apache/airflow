@@ -696,7 +696,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "3.0.0",
-        "remove-providers": "cloudant",
+        # TODO: bring back common-messaging when we bump airflow to 3.0.1
+        "remove-providers": "cloudant common.messaging",
         "run-tests": "true",
     },
 ]
