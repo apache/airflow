@@ -21,7 +21,7 @@ import logging
 import sys
 from typing import Annotated, Any
 
-from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import BaseModel, JsonValue, StringConstraints
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
@@ -142,8 +142,6 @@ def get_xcom(
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-    # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
-    # so we override that query value
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
