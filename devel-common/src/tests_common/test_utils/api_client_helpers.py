@@ -20,8 +20,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from airflow.configuration import conf
-
 
 def generate_access_token(username: str, password: str, host: str) -> str:
     """
@@ -65,6 +63,8 @@ def make_authenticated_rest_api_request(
     username: str = "admin",
     password: str = "admin",
 ):
+    from airflow.configuration import conf
+
     api_server_url = conf.get("api", "base_url", fallback="http://localhost:8080").rstrip("/")
     skip_auth = conf.getboolean("core", "simple_auth_manager_all_admins", fallback=False)
     headers = {}
