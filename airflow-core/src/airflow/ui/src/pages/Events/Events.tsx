@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Code, Heading } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useParams } from "react-router-dom";
 
@@ -25,6 +25,7 @@ import type { EventLogResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 
 const eventsColumn = (
@@ -109,6 +110,27 @@ const eventsColumn = (
       skeletonWidth: 10,
     },
   },
+  {
+    accessorKey: "extra",
+    cell: ({ row: { original } }) => {
+      if (original.extra !== null) {
+        try {
+          const parsed = JSON.parse(original.extra) as Record<string, unknown>;
+
+          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: true }} />;
+        } catch {
+          return <Code>{original.extra}</Code>;
+        }
+      }
+
+      return undefined;
+    },
+    enableSorting: false,
+    header: "Extra",
+    meta: {
+      skeletonWidth: 200,
+    },
+  },
 ];
 
 export const Events = () => {
@@ -119,12 +141,7 @@ export const Events = () => {
 
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
 
-  const {
-    data,
-    error: EventsError,
-    isFetching,
-    isLoading,
-  } = useEventLogServiceGetEventLogs(
+  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
     {
       dagId,
       limit: pagination.pageSize,
@@ -139,7 +156,8 @@ export const Events = () => {
 
   return (
     <Box>
-      <ErrorAlert error={EventsError} />
+      <Heading>Audit Log Events</Heading>
+      <ErrorAlert error={error} />
       <DataTable
         columns={eventsColumn(dagId, runId, taskId)}
         data={data ? data.event_logs : []}
