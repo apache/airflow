@@ -2072,6 +2072,37 @@ class TestSchedulerJob:
         states = [x.state for x in dr.get_task_instances(session=session)]
         assert states == ["failed", "failed"]
 
+    def test_handle_stuck_queued_tasks_does_not_requeue_running_tis(self, dag_maker, session, mock_executors):
+        """Verify that task instances in the running state are not requeued"""
+        with dag_maker("test_running_tis_not_requeued"):
+            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op2", executor="default_exec")
+
+        def _run_tasks(tis):
+            for ti in tis:
+                ti.state = "running"
+            session.commit()
+
+        run_id = str(uuid4())
+        dr = dag_maker.create_dagrun(run_id=run_id)
+
+        tis = dr.get_task_instances(session=session)
+        _run_tasks(tis=tis)
+        scheduler_job = Job()
+        scheduler = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+        # Task instances should remain in the running state
+        tis = dr.get_task_instances(session=session)
+        assert [x.state for x in tis] == ["running", "running"]
+
+        # There should be no log events such as "stuck in queued reschedule"
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
+        assert log_events == []
+
     def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
         """Test that if executor no implement revoke_task then we don't blow up."""
         with dag_maker("test_fail_stuck_queued_tasks"):
