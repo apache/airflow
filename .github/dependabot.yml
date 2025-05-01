@@ -33,8 +33,17 @@ updates:
 
   - package-ecosystem: npm
     directories:
-      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
       - /airflow-core/src/airflow/ui
+    schedule:
+      interval: daily
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
       interval: daily
     groups:
