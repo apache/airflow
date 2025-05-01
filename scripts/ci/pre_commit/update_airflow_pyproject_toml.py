@@ -56,9 +56,9 @@ CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 # minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "amazon": parse_version("2.1.3"),
-    "fab": parse_version("2.0.0"),
+    "fab": parse_version("2.0.2"),
     "openlineage": parse_version("2.1.3"),
-    "git": parse_version("0.0.1"),
+    "git": parse_version("0.0.2"),
     "common.messaging": parse_version("1.0.0"),
 }
 
@@ -88,7 +88,7 @@ console.print("[bright_blue]Updating min-provider versions in apache-airflow\n")
 all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
 
 
-def find_min_provider_version(provider_id: str) -> Version | None:
+def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
     metadata = all_providers_metadata.get(provider_id)
     # We should periodically update the starting date to avoid pip install resolution issues
     # TODO: when min Python version is 3.11 change back the code to fromisoformat
@@ -101,7 +101,7 @@ def find_min_provider_version(provider_id: str) -> Version | None:
     min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
     if not metadata:
         if not min_version_override:
-            return None
+            return None, ""
         last_version_newer_than_cutoff = min_version_override
     else:
         versions: list[Version] = sorted([parse_version(version) for version in metadata], reverse=True)
@@ -117,14 +117,17 @@ def find_min_provider_version(provider_id: str) -> Version | None:
         f"[bright_blue]Provider id {provider_id} min version found:[/] "
         f"{last_version_newer_than_cutoff} (date {date_released}"
     )
+    override_comment = ""
     if last_version_newer_than_cutoff:
         if min_version_override and min_version_override > last_version_newer_than_cutoff:
             console.print(
                 f"[yellow]Overriding provider id {provider_id} min version:[/] {min_version_override} "
-                f"overridden from hard-coded versions."
+                f"set from hard-coded versions.\n\n"
+                f"[yellow]Modify MIN_VERSION_OVERRIDE in {__file__} to set different version![/]\n"
             )
             last_version_newer_than_cutoff = min_version_override
-    return last_version_newer_than_cutoff
+            override_comment = f" # Set from MIN_VERSION_OVERRIDE in {Path(__file__).name}"
+    return last_version_newer_than_cutoff, override_comment
 
 
 PROVIDER_MIN_VERSIONS: dict[str, str | None] = {}
@@ -141,11 +144,11 @@ if __name__ == "__main__":
     all_provider_lines = []
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)
-        min_provider_version = find_min_provider_version(provider_id)
+        min_provider_version, comment = find_min_provider_version(provider_id)
         if min_provider_version:
-            all_provider_lines.append(f'    "{distribution_name}>={min_provider_version}",\n')
+            all_provider_lines.append(f'    "{distribution_name}>={min_provider_version}",{comment}\n')
             all_optional_dependencies.append(
-                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}"\n]\n'
+                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}"{comment}\n]\n'
             )
         else:
             all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
