@@ -32,7 +32,6 @@ class TestCliConfigGetValue:
     def test_should_display_value(self, api_client_maker):
         api_client = api_client_maker(
             path="/api/v2/config/section/core/option/test_key",
-            # sample response: sections=[ConfigSection(name='core', options=[ConfigOption(key='dags_folder', value='/files/dags')])]
             response_json={
                 "sections": [{"name": "core", "options": [{"key": "test_key", "value": "test_value"}]}]
             },
@@ -47,32 +46,40 @@ class TestCliConfigGetValue:
 
         assert temp_stdout.getvalue().strip() == "test_value"
 
-    def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
-        self, api_client_maker, caplog
-    ):
+    def test_should_handle_missing_section(self, api_client_maker):
         api_client = api_client_maker(
-            path="/api/v2/config/section/some_section/option/value",
-            response_json=None,
+            path="/api/v2/config/section/missing_section/option/test_key",
+            response_json={"detail": "Option [missing_section/dags_folder] not found."},
             expected_http_status_code=404,
             kind=ClientKind.CLI,
         )
 
         args = self.parser.parse_args(
-            ["config", "get-value", "--section", "some_section", "--option", "value"]
+            ["config", "get-value", "--section", "missing_section", "--option", "test_key"]
         )
 
-        config_command.get_value(args, api_client=api_client)
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            config_command.get_value(args, api_client=api_client)
 
-    def test_should_raise_exception_when_option_is_missing(self, api_client_maker, caplog):
+        output = temp_stdout.getvalue()
+        assert "Server error" in output
+        assert "Option [missing_section/dags_folder] not found." in output
+
+    def test_should_handle_missing_option(self, api_client_maker):
         api_client = api_client_maker(
-            path="/api/v2/config/section/missing-section/option/dags_folder",
-            response_json=None,
+            path="/api/v2/config/section/core/option/missing_option",
+            response_json={"detail": "Option [core/missing_option] not found."},
             expected_http_status_code=404,
             kind=ClientKind.CLI,
         )
 
         args = self.parser.parse_args(
-            ["config", "get-value", "--section", "missing-section", "--option", "dags_folder"]
+            ["config", "get-value", "--section", "core", "--option", "missing_option"]
         )
 
-        config_command.get_value(args, api_client=api_client)
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            config_command.get_value(args, api_client=api_client)
+
+        output = temp_stdout.getvalue()
+        assert "Server error" in output
+        assert "Option [core/missing_option] not found." in output
