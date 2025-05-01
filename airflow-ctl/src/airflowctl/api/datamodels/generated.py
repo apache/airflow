@@ -562,6 +562,10 @@ class JobResponse(BaseModel):
     unixname: Annotated[str | None, Field(title="Unixname")] = None
 
 
+class JsonValue(RootModel[Any]):
+    root: Any
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.
@@ -837,7 +841,7 @@ class VariableBody(BaseModel):
         extra="forbid",
     )
     key: Annotated[str, Field(max_length=250, title="Key")]
-    value: Annotated[str, Field(title="Value")]
+    value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -1008,6 +1012,7 @@ class BackfillResponse(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
     updated_at: Annotated[datetime, Field(title="Updated At")]
+    dag_display_name: Annotated[str, Field(title="Dag Display Name")]
 
 
 class BulkCreateActionConnectionBody(BaseModel):

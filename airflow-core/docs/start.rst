@@ -26,7 +26,9 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    Successful installation requires a Python 3 environment. Starting with Airflow 2.7.0, Airflow supports Python 3.9, 3.10, 3.11, and 3.12.
 
-   Officially supported installation methods include ``pip`` and ``uv``. Both tools provide a streamlined workflow for installing Airflow and managing dependencies.
+   Officially supported installation methods is with``pip`.
+
+   Run ``pip install apache-airflow[EXTRAS]==AIRFLOW_VERSION --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-AIRFLOW_VERSION/constraints-PYTHON_VERSION.txt"``, for example ``pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"`` to install Airflow in a reproducible way.
 
 
 
