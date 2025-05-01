@@ -175,6 +175,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>To</Field.Label>
                   <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <Field.ErrorText>&nbsp;</Field.ErrorText>
                 </Field.Root>
               )}
             />
