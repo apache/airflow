@@ -48,7 +48,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRunState,
     TaskInstance,
-    TerminalTIState,
+    TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -312,7 +312,7 @@ class TestWatchedSubprocess:
         @spy_agency.spy_for(ActivitySubprocess._on_child_started)
         def _on_child_started(self, *args, **kwargs):
             # Set it up so we are in overtime straight away
-            self._terminal_state = TerminalTIState.SUCCESS
+            self._terminal_state = TaskInstanceState.SUCCESS
             ActivitySubprocess._on_child_started.call_original(self, *args, **kwargs)
 
         heartbeat_spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
@@ -650,11 +650,11 @@ class TestWatchedSubprocess:
                 False,
                 id="no_terminal_state",
             ),
-            pytest.param(TerminalTIState.SUCCESS, 15.0, 10, False, id="below_threshold"),
-            pytest.param(TerminalTIState.SUCCESS, 9.0, 10, True, id="above_threshold"),
-            pytest.param(TerminalTIState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
-            pytest.param(TerminalTIState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
-            pytest.param(TerminalTIState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
+            pytest.param(TaskInstanceState.SUCCESS, 15.0, 10, False, id="below_threshold"),
+            pytest.param(TaskInstanceState.SUCCESS, 9.0, 10, True, id="above_threshold"),
+            pytest.param(TaskInstanceState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
+            pytest.param(TaskInstanceState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
+            pytest.param(TaskInstanceState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
         ],
     )
     def test_overtime_handling(
@@ -1181,10 +1181,10 @@ class TestHandleRequest:
                 OKResponse(ok=True),
                 id="delete_xcom",
             ),
-            # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
+            # we aren't adding all states under TaskInstanceState here, because this test's scope is only to check
             # if it can handle TaskState message
             pytest.param(
-                TaskState(state=TerminalTIState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
                 b"",
                 "",
                 (),
