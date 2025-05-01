@@ -45,11 +45,15 @@ export const FlexibleForm = ({
   const recheckSection = useCallback(() => {
     sectionError.clear();
     Object.entries(params).forEach(([, element]) => {
-      if (isRequired(element) && (element.value === undefined || element.value === "")) {
+      if (
+        isRequired(element) &&
+        (element.value === null || element.value === undefined || element.value === "")
+      ) {
         sectionError.set(element.schema.section ?? flexibleFormDefaultSection, true);
         setSectionError(sectionError);
       }
     });
+    console.log("errors1", sectionError);
   }, [flexibleFormDefaultSection, params, sectionError]);
 
   useEffect(() => {
@@ -87,6 +91,8 @@ export const FlexibleForm = ({
     }
   };
 
+  console.log(sectionError);
+
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {
         const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
@@ -97,13 +103,13 @@ export const FlexibleForm = ({
           processedSections.set(currentSection, true);
 
           return (
-            <Accordion.Item
-              borderColor={sectionError.get(currentSection) ? "red" : undefined}
-              borderStyle="solid"
-              key={currentSection}
-              value={currentSection}
-            >
-              <Accordion.ItemTrigger cursor="button">{currentSection}</Accordion.ItemTrigger>
+            <Accordion.Item key={currentSection} value={currentSection}>
+              <Accordion.ItemTrigger
+                color={sectionError.get(currentSection) ? "red" : undefined}
+                cursor="button"
+              >
+                {currentSection}
+              </Accordion.ItemTrigger>
               <Accordion.ItemContent paddingTop={0}>
                 <Box p={5}>
                   <Stack separator={<StackSeparator />}>
