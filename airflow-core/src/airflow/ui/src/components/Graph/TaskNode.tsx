@@ -70,7 +70,7 @@ export const TaskNode = ({
               taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
             }
             borderRadius={5}
-            borderWidth={isSelected ? 6 : 2}
+            borderWidth={isSelected ? 4 : 2}
             height={`${height + (isSelected ? 4 : 0)}px`}
             justifyContent="space-between"
             px={isSelected ? 1 : 2}
