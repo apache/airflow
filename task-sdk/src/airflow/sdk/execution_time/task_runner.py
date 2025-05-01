@@ -413,6 +413,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_ti_count(
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -427,6 +428,7 @@ class RuntimeTaskInstance(TaskInstance):
                 log=log,
                 msg=GetTICount(
                     dag_id=dag_id,
+                    map_index=map_index,
                     task_ids=task_ids,
                     task_group_id=task_group_id,
                     logical_dates=logical_dates,
@@ -444,6 +446,7 @@ class RuntimeTaskInstance(TaskInstance):
     @staticmethod
     def get_task_states(
         dag_id: str,
+        map_index: int | None = None,
         task_ids: list[str] | None = None,
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
@@ -457,6 +460,7 @@ class RuntimeTaskInstance(TaskInstance):
                 log=log,
                 msg=GetTaskStates(
                     dag_id=dag_id,
+                    map_index=map_index,
                     task_ids=task_ids,
                     task_group_id=task_group_id,
                     logical_dates=logical_dates,

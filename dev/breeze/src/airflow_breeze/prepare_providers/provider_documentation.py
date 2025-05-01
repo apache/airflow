@@ -948,7 +948,7 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif type_of_change == TypeOfChange.MISC:
+        elif type_of_change == TypeOfChange.MISC or type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)

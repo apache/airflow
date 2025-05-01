@@ -28,8 +28,8 @@ from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
 pytestmark = pytest.mark.db_test
 
-EXAMPLE_DAG_FILE = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "example_dags" / "example_bash_operator.py"
-TEST_DAG_ID = "example_bash_operator"
+EXAMPLE_DAG_FILE = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "example_dags" / "example_simplest_dag.py"
+TEST_DAG_ID = "example_simplest_dag"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
 TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
