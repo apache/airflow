@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -135,6 +135,13 @@ def get_assets(
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
+    # Build a query that will be used to retrieve the ID and timestamp of the latest AssetEvent
+    last_asset_events = (
+        select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
+        .group_by(AssetEvent.asset_id)
+        .subquery()
+    )
+
     # First, we're pulling the Asset ID, AssetEvent ID, and AssetEvent timestamp for the latest (last)
     # AssetEvent. We'll eventually OUTER JOIN this to the AssetModel
     asset_event_query = (
@@ -142,6 +149,13 @@ def get_assets(
             AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
             func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
             func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
+        )
+        .join(
+            last_asset_events,
+            and_(
+                AssetEvent.asset_id == last_asset_events.c.asset_id,
+                AssetEvent.timestamp == last_asset_events.c.last_timestamp,
+            ),
         )
         .group_by(AssetEvent.asset_id)
         .subquery()
@@ -420,15 +434,19 @@ def get_asset(
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
-    asset_event_query = session.execute(
-        select(
-            AssetEvent.id,  # Retrieve the ID of the AssetEvent, not the Asset
-            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
-        )
-        .where(AssetEvent.asset_id == asset_id)
-        .group_by(AssetEvent.id)
-    ).first()  # Should only return one row, so it's safe to pull the first row
+    # Build a subquery to be used to retrieve the latest AssetEvent by matching timestamp
+    last_asset_event = (
+        select(func.max(AssetEvent.timestamp)).where(AssetEvent.asset_id == asset_id).scalar_subquery()
+    )
 
+    # Now, find the latest AssetEvent details using the subquery from above
+    asset_event_rows = session.execute(
+        select(AssetEvent.asset_id, AssetEvent.id, AssetEvent.timestamp).where(
+            AssetEvent.asset_id == asset_id, AssetEvent.timestamp == last_asset_event
+        )
+    )
+
+    # Retrieve the Asset; there should only be one for that asset_id
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
@@ -438,10 +456,9 @@ def get_asset(
     last_asset_event_id, last_asset_event_timestamp = None, None
 
     # Pull the event ID and timestamp from the asset_event_query
-    if asset_event_query:
-        if len(asset_event_query) == 2:
-            last_asset_event_id = asset_event_query[0]
-            last_asset_event_timestamp = asset_event_query[1]
+    for row in asset_event_rows:
+        _, last_asset_event_id, last_asset_event_timestamp = row
+        break  # There should only be one record, but be proactive
 
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
