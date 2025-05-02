@@ -285,25 +285,24 @@ class S3DocsPublish:
     def add_redirect(self, path: str):
         """
         Add redirects for the docs to the S3 bucket
-        ex: The redirect will be placed in the /docs/{package}/index.html
+        ex: The redirect will be placed in the docs/{package}/index.html
         """
         bucket, key = self.get_bucket_key(path)
 
         redirect_path = f"/{key}index.html"
+        s3_key = key.replace("stable/", "") + "index.html"
 
-        get_console().print(f"[info]Adding redirect {redirect_path} for {path}\n")
+        get_console().print(f"[info]Adding redirect {redirect_path} in {s3_key}\n")
 
-        html_body = f"""
-        <!DOCTYPE html>
-        <html>
-           <head><meta http-equiv="refresh" content="1; url={redirect_path}" /></head>
-           <body></body>
-        </html>
-        """
+        html_body = f"""<!DOCTYPE html>
+<html>
+   <head><meta http-equiv="refresh" content="1; url={redirect_path}" /></head>
+   <body></body>
+</html>"""
 
         s3_client.put_object(
             Bucket=bucket,
-            Key=redirect_path,
+            Key=s3_key,
             Body=html_body,
             ContentType="text/html",
         )
