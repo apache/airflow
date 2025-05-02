@@ -279,7 +279,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Generate constraints flags",
             "options": [
                 "--airflow-constraints-mode",
-                "--chicken-egg-providers",
                 "--github-repository",
                 "--python",
                 "--use-uv",
@@ -301,7 +300,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Release PROD IMAGE flags",
             "options": [
                 "--airflow-version",
-                "--chicken-egg-providers",
                 "--commit-sha",
                 "--dockerhub-repo",
                 "--limit-python",
