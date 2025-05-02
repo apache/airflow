@@ -17,16 +17,21 @@
 
 from __future__ import annotations
 
-from cadwyn import HeadVersion, Version, VersionBundle
+from typing import Optional
 
-from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMapIndexField
-from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
-from airflow.api_fastapi.execution_api.versions.v2025_06_10 import RemoveGetXcomFilterParamsOffset
+from cadwyn import VersionChange, schema
+from pydantic import Field
 
-bundle = VersionBundle(
-    HeadVersion(),
-    Version("2025-06-10", RemoveGetXcomFilterParamsOffset),
-    Version("2025-05-20", DowngradeUpstreamMapIndexes),
-    Version("2025-04-28", AddRenderedMapIndexField),
-    Version("2025-04-11"),
-)
+from airflow.api_fastapi.execution_api.routes.xcoms import GetXComSliceFilterParams
+
+
+class RemoveGetXcomFilterParamsOffset(VersionChange):
+    """Remove 'offset' from GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams)
+        .field("offset")
+        .existed_as(type=Optional[int], info=Field(default=None)),
+    )
