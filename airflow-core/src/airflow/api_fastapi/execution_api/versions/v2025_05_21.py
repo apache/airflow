@@ -17,34 +17,21 @@
 
 from __future__ import annotations
 
-import sys
-from typing import Any
+from typing import Optional
 
-from pydantic import JsonValue, RootModel
+from cadwyn import VersionChange, schema
+from pydantic import Field
 
-from airflow.api_fastapi.core_api.base import BaseModel
-
-if sys.version_info < (3, 12):
-    # zmievsa/cadwyn#262
-    # Setting this to "Any" doesn't have any impact on the API as it has to be parsed as valid JSON regardless
-    JsonValue = Any  # type: ignore [misc]
+from airflow.api_fastapi.execution_api.routes.xcoms import GetXComSliceFilterParams
 
 
-class XComResponse(BaseModel):
-    """XCom schema for responses with fields that are needed for Runtime."""
+class RemoveGetXcomFilterParamsOffset(VersionChange):
+    """Remove 'offset' from GetXcomFilterParams."""
 
-    key: str
-    value: JsonValue
-    """The returned XCom value in a JSON-compatible format."""
+    description = __doc__
 
-
-class XComSequenceIndexResponse(RootModel):
-    """XCom schema with minimal structure for index-based access."""
-
-    root: JsonValue
-
-
-class XComSequenceSliceResponse(RootModel):
-    """XCom schema with minimal structure for slice-based access."""
-
-    root: list[JsonValue]
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams)
+        .field("offset")
+        .existed_as(type=Optional[int], info=Field(default=None)),
+    )
