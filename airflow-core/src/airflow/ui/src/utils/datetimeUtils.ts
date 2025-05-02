@@ -24,7 +24,7 @@ dayjs.extend(dayjsDuration);
 export const getDuration = (startDate?: string | null, endDate?: string | null) => {
   const seconds = dayjs.duration(dayjs(endDate ?? undefined).diff(startDate ?? undefined)).asSeconds();
 
-  if (!seconds) {
+  if (isNaN(seconds) || seconds <= 0) {
     return "00:00:00";
   }
 
