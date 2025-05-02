@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-05-02T02:34:48.275008
+# This constraints file was automatically generated on 2025-05-02T14:03:29.559228
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -262,7 +262,7 @@ cffi==1.17.1
 cfgv==3.4.0
 cfn-lint==1.34.2
 chardet==5.2.0
-charset-normalizer==3.4.1
+charset-normalizer==3.4.2
 checksumdir==1.2.0
 ciso8601==2.3.2
 click-didyoumean==0.3.1
