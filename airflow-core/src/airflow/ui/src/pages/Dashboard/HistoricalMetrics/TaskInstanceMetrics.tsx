@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack } from "@chakra-ui/react";
+import { Box, Separator, Heading, HStack, Stack } from "@chakra-ui/react";
 import type { TaskInstanceState, TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 import { MdOutlineTask } from "react-icons/md";
 import { Link as RouterLink } from "react-router-dom";
@@ -54,8 +54,8 @@ export const TaskInstanceMetrics = ({
   taskInstanceStates,
   total,
 }: TaskInstanceMetricsProps) => (
-  <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
-    <HStack mb={4}>
+  <Box borderRadius={5} borderWidth={1} mt={2} p={4}>
+    <HStack>
       <RouterLink
         to={`/task_instances?start_date=${startDate}${endDate === undefined ? "" : `&end_date=${endDate}`}`}
       >
@@ -66,20 +66,23 @@ export const TaskInstanceMetrics = ({
       </RouterLink>
       <Heading size="md">Task Instances</Heading>
     </HStack>
-    {TASK_STATES.sort((stateA, stateB) =>
-      taskInstanceStates[stateA] > taskInstanceStates[stateB] ? -1 : 1,
-    ).map((state) =>
-      taskInstanceStates[state] > 0 ? (
-        <MetricSection
-          endDate={endDate}
-          key={state}
-          kind="task_instances"
-          runs={taskInstanceStates[state]}
-          startDate={startDate}
-          state={state as TaskInstanceState}
-          total={total}
-        />
-      ) : undefined,
-    )}
+    <Separator my={2} />
+    <Stack gap={4}>
+      {TASK_STATES.sort((stateA, stateB) =>
+        taskInstanceStates[stateA] > taskInstanceStates[stateB] ? -1 : 1,
+      ).map((state) =>
+        taskInstanceStates[state] > 0 ? (
+          <MetricSection
+            endDate={endDate}
+            key={state}
+            kind="task_instances"
+            runs={taskInstanceStates[state]}
+            startDate={startDate}
+            state={state as TaskInstanceState}
+            total={total}
+          />
+        ) : undefined,
+      )}
+    </Stack>
   </Box>
 );

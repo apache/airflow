@@ -158,7 +158,7 @@ importers:
         version: 15.5.13
       '@vitejs/plugin-react-swc':
         specifier: ^3.8.1
-        version: 3.8.1(@swc/helpers@0.5.15)(vite@5.4.18(@types/node@22.13.11))
+        version: 3.8.1(@swc/helpers@0.5.15)(vite@5.4.19(@types/node@22.13.11))
       '@vitest/coverage-v8':
         specifier: ^2.1.9
         version: 2.1.9(vitest@2.1.9(@types/node@22.13.11)(happy-dom@17.4.4)(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4)))
@@ -211,11 +211,11 @@ importers:
         specifier: ^8.27.0
         version: 8.27.0(eslint@9.23.0(jiti@1.21.7))(typescript@5.5.4)
       vite:
-        specifier: ^5.4.18
-        version: 5.4.18(@types/node@22.13.11)
+        specifier: ^5.4.19
+        version: 5.4.19(@types/node@22.13.11)
       vite-plugin-css-injected-by-js:
         specifier: ^3.5.2
-        version: 3.5.2(vite@5.4.18(@types/node@22.13.11))
+        version: 3.5.2(vite@5.4.19(@types/node@22.13.11))
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.13.11)(happy-dom@17.4.4)(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4))
@@ -256,6 +256,10 @@ packages:
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/code-frame@7.27.1':
+    resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/generator@7.17.7':
     resolution: {integrity: sha512-oLcVCTeIFadUoArDTwpluncplrYBmTCCZZgXCbgNGvOBBiSDDK3eWO4b/+eOTli5tKv1lg+a5/NAXg+nTcei1w==}
     engines: {node: '>=6.9.0'}
@@ -290,6 +294,10 @@ packages:
 
   '@babel/helper-validator-identifier@7.25.9':
     resolution: {integrity: sha512-Ed61U6XJc3CVRfkERJWDz4dJwKe7iLmmJsbOGu9wSloNSFttHV0I8g6UAgb7qnK5ly5bGLPd4oXZlxCdANBOWQ==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/helper-validator-identifier@7.27.1':
+    resolution: {integrity: sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==}
     engines: {node: '>=6.9.0'}
 
   '@babel/parser@7.26.10':
@@ -4017,8 +4025,8 @@ packages:
     peerDependencies:
       vite: '>2.0.0-0'
 
-  vite@5.4.18:
-    resolution: {integrity: sha512-1oDcnEp3lVyHCuQ2YFelM4Alm2o91xNoMncRm1U7S+JdYfYOvbiGZ3/CxGttrOu2M/KcGz7cRC2DoNUA6urmMA==}
+  vite@5.4.19:
+    resolution: {integrity: sha512-qO3aKv3HoQC8QKiNSTuUM1l9o/XX3+c+VTgLHbJWHZGeTPVAg2XwazI9UWzoxjIJCGCV2zU60uqMzjeLZuULqA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
     peerDependencies:
@@ -4298,6 +4306,12 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
+  '@babel/code-frame@7.27.1':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.27.1
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
   '@babel/generator@7.17.7':
     dependencies:
       '@babel/types': 7.17.0
@@ -4339,6 +4353,8 @@ snapshots:
   '@babel/helper-string-parser@7.25.9': {}
 
   '@babel/helper-validator-identifier@7.25.9': {}
+
+  '@babel/helper-validator-identifier@7.27.1': {}
 
   '@babel/parser@7.26.10':
     dependencies:
@@ -4983,7 +4999,7 @@ snapshots:
 
   '@testing-library/dom@10.4.0':
     dependencies:
-      '@babel/code-frame': 7.26.2
+      '@babel/code-frame': 7.27.1
       '@babel/runtime': 7.26.10
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -5681,10 +5697,10 @@ snapshots:
       d3-time-format: 4.1.0
       internmap: 2.0.3
 
-  '@vitejs/plugin-react-swc@3.8.1(@swc/helpers@0.5.15)(vite@5.4.18(@types/node@22.13.11))':
+  '@vitejs/plugin-react-swc@3.8.1(@swc/helpers@0.5.15)(vite@5.4.19(@types/node@22.13.11))':
     dependencies:
       '@swc/core': 1.11.12(@swc/helpers@0.5.15)
-      vite: 5.4.18(@types/node@22.13.11)
+      vite: 5.4.19(@types/node@22.13.11)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -5713,14 +5729,14 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4))(vite@5.4.18(@types/node@22.13.11))':
+  '@vitest/mocker@2.1.9(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4))(vite@5.4.19(@types/node@22.13.11))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.17
     optionalDependencies:
       msw: 2.7.3(@types/node@22.13.11)(typescript@5.5.4)
-      vite: 5.4.18(@types/node@22.13.11)
+      vite: 5.4.19(@types/node@22.13.11)
 
   '@vitest/pretty-format@2.1.9':
     dependencies:
@@ -9158,7 +9174,7 @@ snapshots:
       debug: 4.4.0
       es-module-lexer: 1.6.0
       pathe: 1.1.2
-      vite: 5.4.18(@types/node@22.13.11)
+      vite: 5.4.19(@types/node@22.13.11)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -9170,11 +9186,11 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-css-injected-by-js@3.5.2(vite@5.4.18(@types/node@22.13.11)):
+  vite-plugin-css-injected-by-js@3.5.2(vite@5.4.19(@types/node@22.13.11)):
     dependencies:
-      vite: 5.4.18(@types/node@22.13.11)
+      vite: 5.4.19(@types/node@22.13.11)
 
-  vite@5.4.18(@types/node@22.13.11):
+  vite@5.4.19(@types/node@22.13.11):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.3
@@ -9186,7 +9202,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.13.11)(happy-dom@17.4.4)(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4)):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4))(vite@5.4.18(@types/node@22.13.11))
+      '@vitest/mocker': 2.1.9(msw@2.7.3(@types/node@22.13.11)(typescript@5.5.4))(vite@5.4.19(@types/node@22.13.11))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -9202,7 +9218,7 @@ snapshots:
       tinyexec: 0.3.2
       tinypool: 1.0.2
       tinyrainbow: 1.2.0
-      vite: 5.4.18(@types/node@22.13.11)
+      vite: 5.4.19(@types/node@22.13.11)
       vite-node: 2.1.9(@types/node@22.13.11)
       why-is-node-running: 2.3.0
     optionalDependencies:

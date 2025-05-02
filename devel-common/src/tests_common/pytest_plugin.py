@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import Context
-    from airflow.sdk.api.datamodels._generated import IntermediateTIState, TerminalTIState
+    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
     from airflow.sdk.bases.operator import BaseOperator as TaskSDKBaseOperator
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -135,13 +135,14 @@ if skip_db_tests:
     # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
-    os.environ["_IN_UNIT_TESTS"] = "true"
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
 
 if run_db_tests_only:
     # Set it here to pass the flag to python-xdist spawned processes
     os.environ["_AIRFLOW_RUN_DB_TESTS_ONLY"] = "true"
+
+os.environ["_IN_UNIT_TESTS"] = "true"
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
@@ -2020,7 +2021,7 @@ class RunTaskCallable(Protocol):
     """Protocol for better type hints for the fixture `run_task`."""
 
     @property
-    def state(self) -> IntermediateTIState | TerminalTIState: ...
+    def state(self) -> TIState: ...
 
     @property
     def msg(self) -> ToSupervisor | None: ...
@@ -2052,7 +2053,7 @@ class RunTaskCallable(Protocol):
         ti_id: UUID | None = None,
         max_tries: int | None = None,
         context_update: dict[str, Any] | None = None,
-    ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]: ...
+    ) -> tuple[TIState, ToSupervisor | None, BaseException | None]: ...
 
 
 @pytest.fixture
@@ -2197,7 +2198,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
             task = MyTaskOperator(task_id="test_task")
             run_task(task)
-            assert run_task.state == TerminalTIState.SUCCESS
+            assert run_task.state == TaskInstanceState.SUCCESS
             assert run_task.error is None
     """
     import structlog
@@ -2309,7 +2310,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             self._context = None
 
         @property
-        def state(self) -> IntermediateTIState | TerminalTIState:
+        def state(self) -> TIState:
             """Get the task state."""
             return self._state
 
@@ -2348,7 +2349,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             ti_id: UUID | None = None,
             max_tries: int | None = None,
             context_update: dict[str, Any] | None = None,
-        ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
+        ) -> tuple[TIState, ToSupervisor | None, BaseException | None]:
             now = timezone.utcnow()
             if logical_date is None:
                 logical_date = now
