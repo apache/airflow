@@ -16,9 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
+import contextlib
+import importlib
+import json
 import logging
 import os
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from subprocess import Popen
 from unittest.mock import MagicMock, call, patch
@@ -27,9 +32,19 @@ import pytest
 import time_machine
 from requests import HTTPError, Response
 
+from airflow.cli import cli_parser
+from airflow.executors import executor_loader
+from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
-from airflow.providers.edge3.cli.edge_command import _EdgeWorkerCli, _write_pid_to_pidfile
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge3.cli.edge_command import (
+    _EdgeWorkerCli,
+    _write_pid_to_pidfile,
+)
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    EdgeWorkerState,
+    EdgeWorkerVersionException,
+)
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -118,6 +133,17 @@ class _MockPopen(Popen):
 
 
 class TestEdgeWorkerCli:
+    parser: argparse.ArgumentParser
+
+    @classmethod
+    def setup_class(cls):
+        with conf_vars(
+            {("core", "executor"): "airflow.providers.edge3.executors.edge_executor.EdgeExecutor"}
+        ):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
     @pytest.fixture
     def mock_joblist(self, tmp_path: Path) -> list[Job]:
         logfile = tmp_path / "file.log"
@@ -145,6 +171,15 @@ class TestEdgeWorkerCli:
         test_worker = _EdgeWorkerCli(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
         _EdgeWorkerCli.jobs = mock_joblist
         return test_worker
+
+    @pytest.fixture
+    def mock_edgeworker(self) -> EdgeWorkerModel:
+        test_edgeworker = EdgeWorkerModel(
+            worker_name="test_edge_worker",
+            state="idle",
+            queues=["default"],
+        )
+        return test_edgeworker
 
     @patch("airflow.providers.edge3.cli.edge_command.Process")
     @patch("airflow.providers.edge3.cli.edge_command.logs_logfile_path")
@@ -395,3 +430,23 @@ class TestEdgeWorkerCli:
         assert "edge_provider_version" in sysinfo
         assert "concurrency" in sysinfo
         assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.db_test
+    def test_list_edge_workers(self, mock_edgeworker: EdgeWorkerModel):
+        args = self.parser.parse_args(["edge", "list-workers", "--output", "json"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with patch(
+                "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                return_value=[mock_edgeworker],
+            ):
+                edge_command.list_edge_workers(args)
+                out = temp_stdout.getvalue()
+                edge_workers = json.loads(out)
+        for key in [
+            "worker_name",
+            "state",
+            "queues",
+            "maintenance_comment",
+        ]:
+            assert key in edge_workers[0]
+        assert any("test_edge_worker" in h["worker_name"] for h in edge_workers)
