@@ -43,7 +43,9 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
           target: {
             ...event.target,
             // Return a timezone-aware ISO string
-            value: dayjs(event.target.value).tz(selectedTimezone, true).toISOString(),
+            value: dayjs(event.target.value).isValid()
+              ? dayjs(event.target.value).tz(selectedTimezone, true).toISOString()
+              : "",
           },
         })
       }

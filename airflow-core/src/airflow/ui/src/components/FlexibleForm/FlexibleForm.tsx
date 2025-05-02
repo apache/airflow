@@ -53,7 +53,6 @@ export const FlexibleForm = ({
         setSectionError(sectionError);
       }
     });
-    console.log("errors1", sectionError);
   }, [flexibleFormDefaultSection, params, sectionError]);
 
   useEffect(() => {
@@ -90,8 +89,6 @@ export const FlexibleForm = ({
       setError(true);
     }
   };
-
-  console.log(sectionError);
 
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {

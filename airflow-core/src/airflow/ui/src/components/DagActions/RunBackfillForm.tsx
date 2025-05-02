@@ -156,7 +156,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Text fontSize="md" fontWeight="semibold" mb={3}>
             Date Range
           </Text>
-          <HStack w="full">
+          <HStack alignItems="flex-start" w="full">
             <Controller
               control={control}
               name="from_date"
@@ -175,7 +175,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>To</Field.Label>
                   <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
-                  <Field.ErrorText>&nbsp;</Field.ErrorText>
                 </Field.Root>
               )}
             />
