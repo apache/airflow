@@ -91,7 +91,9 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
         setError={setFormError}
       />
       <Accordion.Item key="advancedOptions" value="advancedOptions">
-        <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
+        <Accordion.ItemTrigger cursor="button" marginY="2">
+          Advanced Options
+        </Accordion.ItemTrigger>
         <Accordion.ItemContent>
           <Box p={4}>
             {children}

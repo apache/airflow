@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Stack, StackSeparator } from "@chakra-ui/react";
+import { Box, Stack, StackSeparator, Text, VStack } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
@@ -74,12 +74,14 @@ export const FlexibleForm = ({
     [setParamsDict, setinitialParamDict],
   );
 
-  useEffect(
-    () => () => {
-      recheckSection();
-    },
-    [params, recheckSection],
-  );
+  useEffect(() => {
+    recheckSection();
+    if (sectionError.size === 0) {
+      setError(false);
+    } else {
+      setError(true);
+    }
+  }, [params, setError, recheckSection, sectionError]);
 
   const onUpdate = (_value?: string, error?: unknown) => {
     recheckSection();
@@ -101,11 +103,15 @@ export const FlexibleForm = ({
 
           return (
             <Accordion.Item key={currentSection} value={currentSection}>
-              <Accordion.ItemTrigger
-                color={sectionError.get(currentSection) ? "red" : undefined}
-                cursor="button"
-              >
-                {currentSection}
+              <Accordion.ItemTrigger alignItems="start" cursor="button">
+                <VStack alignItems="start">
+                  <Text marginY="2">{currentSection}</Text>
+                  {sectionError.get(currentSection) ? (
+                    <Text color="red" fontSize="xs" mb="-3" mt="-6">
+                      Error in this section
+                    </Text>
+                  ) : undefined}
+                </VStack>
               </Accordion.ItemTrigger>
               <Accordion.ItemContent paddingTop={0}>
                 <Box p={5}>
