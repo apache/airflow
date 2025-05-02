@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Stack, StackSeparator, Text, VStack } from "@chakra-ui/react";
+import { Box, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
+import { MdError } from "react-icons/md";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -103,15 +104,13 @@ export const FlexibleForm = ({
 
           return (
             <Accordion.Item key={currentSection} value={currentSection}>
-              <Accordion.ItemTrigger alignItems="start" cursor="button">
-                <VStack alignItems="start">
-                  <Text marginY="2">{currentSection}</Text>
-                  {sectionError.get(currentSection) ? (
-                    <Text color="red" fontSize="xs" mb="-3" mt="-6">
-                      Error in this section
-                    </Text>
-                  ) : undefined}
-                </VStack>
+              <Accordion.ItemTrigger cursor="button">
+                <Text color={sectionError.get(currentSection) ? "red" : undefined}>{currentSection}</Text>
+                {sectionError.get(currentSection) ? (
+                  <Icon color="red" margin="-1">
+                    <MdError />
+                  </Icon>
+                ) : undefined}
               </Accordion.ItemTrigger>
               <Accordion.ItemContent paddingTop={0}>
                 <Box p={5}>
