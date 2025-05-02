@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
 from requests import HTTPError
-from sqlalchemy import select
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
@@ -56,12 +55,9 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.net import getfqdn
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
@@ -625,28 +621,32 @@ def stop(args):
         logger.info("Worker has been shut down.")
 
 
+def _check_valid_db_connection():
+    """Check for a valid db connection before executing db dependent cli commands."""
+    db_conn = conf.get("database", "sql_alchemy_conn")
+    db_default = conf.get_default_value("database", "sql_alchemy_conn")
+    if db_conn == db_default:
+        raise SystemExit(
+            "Error: The database connection is not set. Please set the connection in the configuration file."
+        )
+
+
+def _check_if_registered_edge_host(hostname: str):
+    """Check if edge worker is registered with the db before executing dependent cli commands."""
+    from airflow.providers.edge3.models.edge_worker import _fetch_edge_hosts_from_db
+
+    if not _fetch_edge_hosts_from_db(hostname=hostname):
+        raise SystemExit(f"Error: Edge Worker {hostname} is unknown!")
+
+
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-@provide_session
-def _fetch_edge_hosts_from_db(
-    hostname: str | None = None, states: list | None = None, session: Session = NEW_SESSION
-) -> list:
-    from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
-
-    query = select(EdgeWorkerModel)
-    if states:
-        query = query.where(EdgeWorkerModel.state.in_(states))
-    if hostname:
-        query = query.where(EdgeWorkerModel.worker_name == hostname)
-    query = query.order_by(EdgeWorkerModel.worker_name)
-    return session.scalars(query).all()
-
-
-@cli_utils.action_cli
-@providers_configuration_loaded
-@provide_session
-def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
+def list_edge_workers(args) -> None:
     """Query the db to list all registered edge workers."""
-    all_hosts_iter = _fetch_edge_hosts_from_db(states=args.state, session=session)
+    _check_valid_db_connection()
+    from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
+
+    all_hosts_iter = get_registered_edge_hosts(states=args.state)
     # Format and print worker info on the screen
     fields = [
         "worker_name",
@@ -658,36 +658,36 @@ def list_edge_workers(args, session: Session = NEW_SESSION) -> None:
     AirflowConsole().print_as(data=all_hosts, output=args.output)
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def put_remote_worker_on_maintenance(args) -> None:
     """Put remote edge worker on maintenance."""
-    if not _fetch_edge_hosts_from_db(hostname=args.edge_hostname):
-        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
     from airflow.providers.edge3.models.edge_worker import request_maintenance
 
     request_maintenance(args.edge_hostname, args.comments)
     logger.info("%s has been put on maintenance by %s.", args.edge_hostname, getuser())
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def remove_remote_worker_from_maintenance(args) -> None:
     """Remove remote edge worker from maintenance."""
-    if not _fetch_edge_hosts_from_db(hostname=args.edge_hostname):
-        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
     from airflow.providers.edge3.models.edge_worker import exit_maintenance
 
     exit_maintenance(args.edge_hostname)
     logger.info("%s has been removed from maintenance by %s.", args.edge_hostname, getuser())
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def remote_worker_update_maintenance_comment(args) -> None:
     """Update maintenance comments of the remote edge worker."""
-    if not _fetch_edge_hosts_from_db(hostname=args.edge_hostname):
-        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
     from airflow.providers.edge3.models.edge_worker import change_maintenance_comment
 
     try:
@@ -697,12 +697,12 @@ def remote_worker_update_maintenance_comment(args) -> None:
         raise SystemExit
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def remove_remote_worker(args) -> None:
     """Remove remote edge worker entry from db."""
-    if not _fetch_edge_hosts_from_db(hostname=args.edge_hostname):
-        raise SystemExit(f"Error: Edge Worker {args.edge_hostname} is unknown!")
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
     from airflow.providers.edge3.models.edge_worker import remove_worker
 
     try:

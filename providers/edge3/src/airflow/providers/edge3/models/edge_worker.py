@@ -30,6 +30,7 @@ from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -195,6 +196,26 @@ def reset_metrics(worker_name: str) -> None:
         free_concurrency=-1,
         queues=None,
     )
+
+
+@providers_configuration_loaded
+@provide_session
+def _fetch_edge_hosts_from_db(
+    hostname: str | None = None, states: list | None = None, session: Session = NEW_SESSION
+) -> list:
+    query = select(EdgeWorkerModel)
+    if states:
+        query = query.where(EdgeWorkerModel.state.in_(states))
+    if hostname:
+        query = query.where(EdgeWorkerModel.worker_name == hostname)
+    query = query.order_by(EdgeWorkerModel.worker_name)
+    return session.scalars(query).all()
+
+
+@providers_configuration_loaded
+@provide_session
+def get_registered_edge_hosts(states: list | None = None, session: Session = NEW_SESSION):
+    return _fetch_edge_hosts_from_db(states=states, session=session)
 
 
 @provide_session
