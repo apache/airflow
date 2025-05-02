@@ -22,12 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rich.console import Console
-
-console = Console(width=400, color_system="standard")
-
-LOCAL_DIR = Path(__file__).parent
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3]
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import console
 
 
 def _get_file_hash(file_to_check: Path) -> str:

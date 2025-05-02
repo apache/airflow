@@ -28,11 +28,11 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import re
 import warnings
 from functools import reduce
 from typing import TYPE_CHECKING
 
-import re2
 from dateutil import parser
 from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
 from kubernetes.client.api_client import ApiClient
@@ -70,7 +70,7 @@ def make_safe_label_value(string: str) -> str:
     way from the original value sent to this function, then we need to truncate to
     53 chars, and append it with a unique hash.
     """
-    safe_label = re2.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
+    safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = md5(string.encode()).hexdigest()[:9]
@@ -162,10 +162,9 @@ class PodGenerator:
 
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
-        else:
-            raise TypeError(
-                "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
-            )
+        raise TypeError(
+            "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
+        )
 
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
@@ -203,7 +202,7 @@ class PodGenerator:
             return base_meta
         if not base_meta and client_meta:
             return client_meta
-        elif client_meta and base_meta:
+        if client_meta and base_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
             extend_object_field(base_meta, client_meta, "managed_fields")
@@ -229,7 +228,7 @@ class PodGenerator:
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        if client_spec and base_spec:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )

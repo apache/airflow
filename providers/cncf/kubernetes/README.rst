@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cncf-kubernetes``
 
-Release: ``10.3.0``
+Release: ``10.4.3``
 
 
 `Kubernetes <https://kubernetes.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cncf.kubernetes`` provider. All classes for thi
 are in ``airflow.providers.cncf.kubernetes`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.4.3/>`_.
 
 Installation
 ------------
@@ -54,13 +54,12 @@ Requirements
 PIP package             Version required
 ======================  =====================
 ``aiofiles``            ``>=23.2.0``
-``apache-airflow``      ``>=2.9.0``
+``apache-airflow``      ``>=2.10.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=31.0.0``
 ``kubernetes_asyncio``  ``>=29.0.0,<=31.0.0``
-``google-re2``          ``>=1.0``
 ======================  =====================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.4.3/changelog.html>`_.

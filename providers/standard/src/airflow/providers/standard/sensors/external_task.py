@@ -25,29 +25,39 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import build_airflow_url_with_query
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.bases.sensor import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     try:
+        from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.context import Context
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
+        from airflow.models.baseoperator import BaseOperator
         from airflow.utils.context import Context
+
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -60,15 +70,22 @@ class ExternalDagLink(BaseOperatorLink):
     name = "External DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
 
-        if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
-            external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)
-        else:
-            external_dag_id = operator.external_dag_id
+        external_dag_id = operator.external_dag_id
+
+        if not AIRFLOW_V_3_0_PLUS:
+            from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+            if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+                external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)  # type: ignore[no-redef]
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.helpers import build_airflow_dagrun_url
+
+            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
+        from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
         query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
         return build_airflow_url_with_query(query)
@@ -233,16 +250,22 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.poll_interval = poll_interval
 
     def _get_dttm_filter(self, context):
+        logical_date = context.get("logical_date")
+        if logical_date is None:
+            dag_run = context.get("dag_run")
+            if TYPE_CHECKING:
+                assert dag_run
+
+            logical_date = dag_run.run_after
         if self.execution_delta:
-            dttm = context["logical_date"] - self.execution_delta
+            dttm = logical_date - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
-            dttm = context["logical_date"]
+            dttm = logical_date
         return dttm if isinstance(dttm, list) else [dttm]
 
-    @provide_session
-    def poke(self, context: Context, session: Session = NEW_SESSION) -> bool:
+    def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
@@ -273,15 +296,59 @@ class ExternalTaskSensor(BaseSensorOperator):
                 serialized_dttm_filter,
             )
 
-        # In poke mode this will check dag existence only once
-        if self.check_existence and not self._has_checked_existence:
-            self._check_for_existence(session=session)
+        if AIRFLOW_V_3_0_PLUS:
+            return self._poke_af3(context, dttm_filter)
+        return self._poke_af2(dttm_filter)
 
-        count_failed = -1
+    def _poke_af3(self, context: Context, dttm_filter: list[datetime.datetime]) -> bool:
+        from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
+
+        self._has_checked_existence = True
+        ti = context["ti"]
+
+        def _get_count(states: list[str]) -> int:
+            if self.external_task_ids:
+                return ti.get_ti_count(
+                    dag_id=self.external_dag_id,
+                    task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                    logical_dates=dttm_filter,
+                    states=states,
+                )
+            if self.external_task_group_id:
+                run_id_task_state_map = ti.get_task_states(
+                    dag_id=self.external_dag_id,
+                    task_group_id=self.external_task_group_id,
+                    logical_dates=dttm_filter,
+                )
+                return _get_count_by_matched_states(run_id_task_state_map, states)
+            return ti.get_dr_count(
+                dag_id=self.external_dag_id,
+                logical_dates=dttm_filter,
+                states=states,
+            )
+
         if self.failed_states:
-            count_failed = self.get_count(dttm_filter, session, self.failed_states)
+            count = _get_count(self.failed_states)
+            count_failed = self._calculate_count(count, dttm_filter)
+            self._handle_failed_states(count_failed)
 
-        # Fail if anything in the list has failed.
+        if self.skipped_states:
+            count = _get_count(self.skipped_states)
+            count_skipped = self._calculate_count(count, dttm_filter)
+            self._handle_skipped_states(count_skipped)
+
+        count = _get_count(self.allowed_states)
+        count_allowed = self._calculate_count(count, dttm_filter)
+        return count_allowed == len(dttm_filter)
+
+    def _calculate_count(self, count: int, dttm_filter: list[datetime.datetime]) -> float | int:
+        """Calculate the normalized count based on the type of check."""
+        if self.external_task_ids:
+            return count / len(self.external_task_ids)
+        return count
+
+    def _handle_failed_states(self, count_failed: float | int) -> None:
+        """Handle failed states and raise appropriate exceptions."""
         if count_failed > 0:
             if self.external_task_ids:
                 if self.soft_fail:
@@ -293,7 +360,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} failed."
                 )
-            elif self.external_task_group_id:
+            if self.external_task_group_id:
                 if self.soft_fail:
                     raise AirflowSkipException(
                         f"The external task_group '{self.external_task_group_id}' "
@@ -303,56 +370,69 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f"The external task_group '{self.external_task_group_id}' "
                     f"in DAG '{self.external_dag_id}' failed."
                 )
+            if self.soft_fail:
+                raise AirflowSkipException(
+                    f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
+                )
+            raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
 
-            else:
-                if self.soft_fail:
-                    raise AirflowSkipException(
-                        f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
-                    )
-                raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
-
-        count_skipped = -1
-        if self.skipped_states:
-            count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
-
-        # Skip if anything in the list has skipped. Note if we are checking multiple tasks and one skips
-        # before another errors, we'll skip first.
+    def _handle_skipped_states(self, count_skipped: float | int) -> None:
+        """Handle skipped states and raise appropriate exceptions."""
         if count_skipped > 0:
             if self.external_task_ids:
                 raise AirflowSkipException(
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
                 )
-            elif self.external_task_group_id:
+            if self.external_task_group_id:
                 raise AirflowSkipException(
                     f"The external task_group '{self.external_task_group_id}' "
                     f"in DAG {self.external_dag_id} reached a state in our states-to-skip-on list. Skipping."
                 )
-            else:
-                raise AirflowSkipException(
-                    f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
-                    "Skipping."
-                )
+            raise AirflowSkipException(
+                f"The external DAG {self.external_dag_id} reached a state in our states-to-skip-on list. "
+                "Skipping."
+            )
 
-        # only go green if every single task has reached an allowed state
-        count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
-        return count_allowed == len(dttm_filter)
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+            if self.check_existence and not self._has_checked_existence:
+                self._check_for_existence(session=session)
+
+            if self.failed_states:
+                count_failed = self.get_count(dttm_filter, session, self.failed_states)
+                self._handle_failed_states(count_failed)
+
+            if self.skipped_states:
+                count_skipped = self.get_count(dttm_filter, session, self.skipped_states)
+                self._handle_skipped_states(count_skipped)
+
+            count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
+            return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
         """Run on the worker and defer using the triggers if deferrable is set to True."""
         if not self.deferrable:
             super().execute(context)
         else:
+            dttm_filter = self._get_dttm_filter(context)
+            logical_or_execution_dates = (
+                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_date": dttm_filter}
+            )
             self.defer(
                 timeout=self.execution_timeout,
                 trigger=WorkflowTrigger(
                     external_dag_id=self.external_dag_id,
                     external_task_group_id=self.external_task_group_id,
                     external_task_ids=self.external_task_ids,
-                    logical_dates=self._get_dttm_filter(context),
                     allowed_states=self.allowed_states,
+                    failed_states=self.failed_states,
+                    skipped_states=self.skipped_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,
+                    **logical_or_execution_dates,
                 ),
                 method_name="execute_complete",
             )
@@ -366,11 +446,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             if self.soft_fail:
                 raise AirflowSkipException("External job has failed skipping.")
-            else:
-                raise AirflowException(
-                    "Error occurred while trying to retrieve task status. Please, check the "
-                    "name of executed task and Dag."
-                )
+            raise AirflowException(
+                "Error occurred while trying to retrieve task status. Please, check the "
+                "name of executed task and Dag."
+            )
 
     def _check_for_existence(self, session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
@@ -386,8 +465,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             for external_task_id in self.external_task_ids:
                 if not refreshed_dag_info.has_task(external_task_id):
                     raise AirflowException(
-                        f"The external task {external_task_id} in "
-                        f"DAG {self.external_dag_id} does not exist."
+                        f"The external task {external_task_id} in DAG {self.external_dag_id} does not exist."
                     )
 
         if self.external_task_group_id:
@@ -470,6 +548,9 @@ class ExternalTaskMarker(EmptyOperator):
     """
 
     template_fields = ["external_dag_id", "external_task_id", "logical_date"]
+    if not AIRFLOW_V_3_0_PLUS:
+        template_fields.append("execution_date")
+
     ui_color = "#4db7db"
     operator_extra_links = [ExternalDagLink()]
 
@@ -496,6 +577,9 @@ class ExternalTaskMarker(EmptyOperator):
             raise TypeError(
                 f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
             )
+
+        if not AIRFLOW_V_3_0_PLUS:
+            self.execution_date = self.logical_date
 
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")

@@ -37,6 +37,7 @@ from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job im
     HyperparameterTuningJobAsyncHook,
     HyperparameterTuningJobHook,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,

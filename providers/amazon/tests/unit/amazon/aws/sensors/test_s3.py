@@ -538,10 +538,10 @@ class TestS3KeysUnchangedSensor:
             assert self.sensor.inactivity_seconds == period
             time_machine.coordinates.shift(10)
 
-    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook")
-    def test_poke_succeeds_on_upload_complete(self, mock_hook, time_machine):
+    def test_poke_succeeds_on_upload_complete(self, time_machine):
         time_machine.move_to(DEFAULT_DATE)
-        mock_hook.return_value.list_keys.return_value = {"a"}
+        self.sensor.hook = mock.MagicMock()
+        self.sensor.hook.list_keys.return_value = {"a"}
         assert not self.sensor.poke(dict())
         time_machine.coordinates.shift(10)
         assert not self.sensor.poke(dict())

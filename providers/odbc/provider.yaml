@@ -22,9 +22,11 @@ description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 state: ready
-source-date-epoch: 1734535799
+source-date-epoch: 1744792277
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.9.2
+  - 4.9.1
   - 4.9.0
   - 4.8.1
   - 4.8.0

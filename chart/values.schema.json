@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.5",
+            "default": "3.0.0",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.5",
+            "default": "3.0.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (templated).",
+            "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set this value to null.",
             "type": [
                 "string",
                 "null"
@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2025.01.10-1.24.0"
+                            "default": "airflow-pgbouncer-2025.03.05-1.23.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -914,7 +914,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
+                            "default": "airflow-pgbouncer-exporter-2025.03.05-0.18.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -2505,6 +2505,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before startup probes are initiated.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
                             "type": "integer",
@@ -3575,7 +3580,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ include \"triggerer.capacity\" . }}) FROM trigger"
                         },
                         "usePgbouncer": {
                             "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -4684,8 +4689,8 @@
                 }
             }
         },
-        "_apiServer": {
-            "description": "Airflow API server settings. Experimental / for dev purpose only.",
+        "apiServer": {
+            "description": "Airflow API server settings. Airflow 3+ only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4794,6 +4799,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "API server Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "API server Startup probe timeout seconds.",
                             "type": "integer",
@@ -4853,7 +4863,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow fastapi-api"
+                        "exec airflow api-server"
                     ]
                 },
                 "strategy": {
@@ -4957,12 +4967,12 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports._apiServer }}"
+                                            "port": "{{ .Values.ports.apiServer }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": 9091
+                                            "port": 8080
                                         }
                                     ]
                                 }
@@ -5184,13 +5194,13 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports._apiServer }}"
+                                    "port": "{{ .Values.ports.apiServer }}"
                                 }
                             ],
                             "examples": [
                                 {
                                     "name": "api-server",
-                                    "port": 9091,
+                                    "port": 8080,
                                     "targetPort": "api-server"
                                 },
                                 {
@@ -5367,7 +5377,7 @@
             }
         },
         "webserver": {
-            "description": "Airflow webserver settings.",
+            "description": "Airflow webserver settings. Airflow 2 only.",
             "type": "object",
             "x-docsSection": "Webserver",
             "additionalProperties": false,
@@ -5481,6 +5491,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Webserver Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Webserver Startup probe timeout seconds.",
                             "type": "integer",
@@ -6257,6 +6272,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Flower Startup probe timeout seconds.",
                             "type": "integer",
@@ -8183,10 +8203,10 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "_apiServer": {
+                "apiServer": {
                     "description": "API server port.",
                     "type": "integer",
-                    "default": 9091
+                    "default": 8080
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",
@@ -8356,7 +8376,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources for or cleanup pods",
+                    "description": "Resources for cleanup pods",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
                     "default": {},

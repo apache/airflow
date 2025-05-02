@@ -62,7 +62,7 @@ To run the tests, we need to ensure that the images are built using the
 latest sources and that the build process is efficient. A full rebuild
 of such an image from scratch might take approximately 15 minutes.
 Therefore, we've implemented optimization techniques that efficiently
-use the cache from Github Actions Artifacts.
+use the cache from GitHub Actions Artifacts.
 
 ## GitHub Registry used as cache
 

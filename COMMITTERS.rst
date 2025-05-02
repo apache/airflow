@@ -34,8 +34,8 @@ Often you can hear two different terms about people who have write access to the
   people who have write access to the repository. They can merge PRs, push to the repository, etc.
 * "Committers" is a term used in Apache Software Foundation (ASF) and is a term referring to people who have
   write access to the code repository and has a signed
-  [Contributor License Agreement (CLA)](https://www.apache.org/licenses/#clas) on file.  They have an
-  apache.org mail address. This is an official [role](https://www.apache.org/foundation/how-it-works/#roles)
+  `Contributor License Agreement (CLA) <https://www.apache.org/licenses/#clas>`_ on file.  They have an
+  apache.org mail address. This is an official `role <https://www.apache.org/foundation/how-it-works/#roles>`_
   defined and governed by the Apache Software Foundation.
 
 For all practical purposes, both terms are interchangeable because the Apache Software Foundation rule is
@@ -212,16 +212,16 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 
 1.  Verify you have a GitHub ID `enabled with 2FA <https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/>`__.
 2.  Merge your Apache and GitHub accounts using `GitBox (Apache Account Linking utility) <https://gitbox.apache.org/setup/>`__. This also asks you to link your
-    Github id to your Apache account. You should see 5 green checks in GitBox.
+    GitHub ID to your Apache account. You should see 5 green checks in GitBox.
 3.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 4.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
 5.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
-    by the CI team. Wait for confirmation that this is done and some helpful tips from the CI team
+    by the CI team. Wait for confirmation that this is done and some helpful tips from the CI team (Temporarily disabled)
 6.  After confirming that step 5 is done, open a PR to include your GitHub ID in:
 
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
-    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
-    * If you had been a collaborator role before getting committer, remove your Github ID from ``.asf.yaml``.
+    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/airflow-core/docs/project.rst>`__.
+    * If you had been a collaborator role before getting committer, remove your GitHub ID from ``.asf.yaml``.
 7.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
 
     * List your name(s) in the `committers list <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.

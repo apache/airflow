@@ -26,31 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-zendesk",
         "name": "Zendesk",
         "description": "`Zendesk <https://www.zendesk.com/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734537547,
-        "versions": [
-            "4.9.0",
-            "4.8.0",
-            "4.7.1",
-            "4.7.0",
-            "4.6.0",
-            "4.5.0",
-            "4.4.0",
-            "4.3.2",
-            "4.3.1",
-            "4.3.0",
-            "4.2.0",
-            "4.1.0",
-            "4.0.0",
-            "3.0.3",
-            "3.0.2",
-            "3.0.1",
-            "3.0.0",
-            "2.0.1",
-            "2.0.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Zendesk",
@@ -68,5 +43,4 @@ def get_provider_info():
                 "connection-type": "zendesk",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "zenpy>=2.0.40"],
     }

@@ -41,7 +41,7 @@ from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, FILES_SBOM_PATH
 from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -69,7 +69,7 @@ def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, para
         fork_cdxgen_server(application_root_path)
     else:
         for i in range(parallelism):
-            fork_cdxgen_server(application_root_path, port=9091 + i)
+            fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
     get_console().print("[info]Waiting for cdxgen server to start")
     time.sleep(3)
@@ -115,7 +115,7 @@ def fork_cdxgen_server(application_root_path, port=9090):
 def get_port_mapping(x):
     # if we do not sleep here, then we could skip mapping for some process if it is handle
     time.sleep(1)
-    return multiprocessing.current_process().name, 9091 + x
+    return multiprocessing.current_process().name, 8080 + x
 
 
 def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:
@@ -162,7 +162,7 @@ def list_providers_from_providers_requirements(
 
 TARGET_DIR_NAME = "provider_requirements"
 
-PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_DIR / TARGET_DIR_NAME
+PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_PATH / TARGET_DIR_NAME
 DOCKER_FILE_PREFIX = f"/files/sbom/{TARGET_DIR_NAME}/"
 
 
@@ -176,7 +176,7 @@ def get_requirements_for_provider(
 ) -> tuple[int, str]:
     provider_path_array = provider_id.split(".")
     if not provider_version:
-        provider_file = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
+        provider_file = (AIRFLOW_ROOT_PATH / "airflow" / "providers").joinpath(
             *provider_path_array
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
@@ -213,8 +213,7 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version} python {python_version}",
         )
-    else:
-        provider_folder_path.mkdir(exist_ok=True)
+    provider_folder_path.mkdir(exist_ok=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
@@ -235,7 +234,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
             "-e",
             f"HOST_GROUP_ID={os.getgid()}",
             "-v",
-            f"{AIRFLOW_SOURCES_ROOT}/files:/files",
+            f"{AIRFLOW_ROOT_PATH}/files:/files",
             get_all_airflow_versions_image_name(python_version=python_version),
             "-c",
             ";".join(command.splitlines()[1:-1]),
@@ -246,7 +245,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
     get_console(output=output).print(f"[info]Provider requirements in {provider_with_core_path}")
     base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
-    provider_packages = sorted(
+    provider_distributions = sorted(
         [
             line
             for line in provider_with_core_path.read_text().splitlines()
@@ -254,11 +253,11 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
         ]
     )
     get_console(output=output).print(
-        f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
+        f"[info]Provider {provider_id} has {len(provider_distributions)} transitively "
         f"dependent packages (excluding airflow and its dependencies)"
     )
-    get_console(output=output).print(provider_packages)
-    provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
+    get_console(output=output).print(provider_distributions)
+    provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_distributions))
     get_console(output=output).print(
         f"[success]Generated {provider_id}:{provider_version}:python{python_version} requirements in "
         f"{provider_without_core_file}"

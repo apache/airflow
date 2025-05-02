@@ -113,6 +113,8 @@ class DockerSwarmOperator(DockerOperator):
         The resources are Resources as per the docker api
         [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
         This parameter has precedence on the mem_limit parameter.
+    :param service_prefix: Prefix for the service name. The service name will be generated as
+        ``{service_prefix}-{random_string}``. Default is 'airflow'.
     :param logging_driver: The logging driver to use for container logs. Docker by default uses 'json-file'.
         For more information on Docker logging drivers: https://docs.docker.com/engine/logging/configure/
         NOTE: Only drivers 'json-file' and 'gelf' are currently supported. If left empty, 'json-file' will be used.
@@ -137,6 +139,7 @@ class DockerSwarmOperator(DockerOperator):
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
         container_resources: types.Resources | None = None,
+        service_prefix: str = "airflow",
         logging_driver: Literal["json-path", "gelf"] | None = None,
         logging_driver_opts: dict | None = None,
         **kwargs,
@@ -153,6 +156,7 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
         self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
+        self.service_prefix = service_prefix
         self.logging_driver = logging_driver
         self.logging_driver_opts = logging_driver_opts
 
@@ -191,7 +195,7 @@ class DockerSwarmOperator(DockerOperator):
                 placement=self.placement,
                 log_driver=self.log_driver_config,
             ),
-            name=f"airflow-{get_random_string()}",
+            name=f"{self.service_prefix}-{get_random_string()}",
             labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
             mode=self.mode,
         )
@@ -226,7 +230,7 @@ class DockerSwarmOperator(DockerOperator):
             if self.auto_remove == "force":
                 self.cli.remove_service(self.service["ID"])
             raise AirflowException(f"Service did not complete: {self.service!r}")
-        elif self.auto_remove in ["success", "force"]:
+        if self.auto_remove in ["success", "force"]:
             if not self.service:
                 raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
@@ -292,8 +296,7 @@ class DockerSwarmOperator(DockerOperator):
                 file_contents.append(file_content)
             if len(file_contents) == 1:
                 return file_contents[0]
-            else:
-                return file_contents
+            return file_contents
         except APIError:
             return None
 

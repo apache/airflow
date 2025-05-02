@@ -64,11 +64,13 @@ class GKEClusterConnection:
         ssl_ca_cert: str,
         credentials: google.auth.credentials.Credentials,
         enable_tcp_keepalive: bool = False,
+        use_dns_endpoint: bool = False,
     ):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self._credentials = credentials
         self.enable_tcp_keepalive = enable_tcp_keepalive
+        self.use_dns_endpoint = use_dns_endpoint
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
@@ -86,12 +88,13 @@ class GKEClusterConnection:
             api_key_prefix={"authorization": "Bearer"},
             api_key={"authorization": self._get_token(self._credentials)},
         )
-        configuration.ssl_ca_cert = FileOrData(
-            {
-                "certificate-authority-data": self._ssl_ca_cert,
-            },
-            file_key_name="certificate-authority",
-        ).as_file()
+        if not self.use_dns_endpoint:
+            configuration.ssl_ca_cert = FileOrData(
+                {
+                    "certificate-authority-data": self._ssl_ca_cert,
+                },
+                file_key_name="certificate-authority",
+            ).as_file()
         return configuration
 
     @staticmethod
@@ -349,8 +352,7 @@ class GKEHook(GoogleBaseHook):
             or node_pools_autoscaled
         ):
             return True
-        else:
-            return False
+        return False
 
 
 class GKEAsyncHook(GoogleBaseAsyncHook):
@@ -417,6 +419,7 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
         cluster_url: str,
         ssl_ca_cert: str,
         enable_tcp_keepalive: bool = False,
+        use_dns_endpoint: bool = False,
         *args,
         **kwargs,
     ):
@@ -424,6 +427,7 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
+        self.use_dns_endpoint = use_dns_endpoint
 
     def get_conn(self) -> client.ApiClient:
         return GKEClusterConnection(
@@ -431,6 +435,7 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
             ssl_ca_cert=self._ssl_ca_cert,
             credentials=self.get_credentials(),
             enable_tcp_keepalive=self.enable_tcp_keepalive,
+            use_dns_endpoint=self.use_dns_endpoint,
         ).get_conn()
 
     def apply_from_yaml_file(

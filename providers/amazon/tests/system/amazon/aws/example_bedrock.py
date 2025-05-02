@@ -40,9 +40,8 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 # Externally fetched variables:
@@ -102,15 +101,11 @@ def customize_model_workflow():
     def delete_custom_model():
         BedrockHook().conn.delete_custom_model(modelIdentifier=custom_model_name)
 
-    @task.branch
-    def run_or_skip():
-        return end_workflow.task_id if SKIP_LONG_TASKS else customize_model.task_id
+    @task.short_circuit()
+    def should_run_long_tasks():
+        return not SKIP_LONG_TASKS
 
-    run_or_skip = run_or_skip()
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-
-    chain(run_or_skip, Label("Long-running tasks skipped"), end_workflow)
-    chain(run_or_skip, customize_model, await_custom_model_job, delete_custom_model(), end_workflow)
+    chain(should_run_long_tasks(), customize_model, await_custom_model_job, delete_custom_model())
 
 
 @task_group
@@ -135,20 +130,15 @@ def provision_throughput_workflow():
     def delete_provision_throughput(provisioned_model_id: str):
         BedrockHook().conn.delete_provisioned_model_throughput(provisionedModelId=provisioned_model_id)
 
-    @task.branch
-    def run_or_skip():
-        return end_workflow.task_id if SKIP_PROVISION_THROUGHPUT else provision_throughput.task_id
+    @task.short_circuit()
+    def should_run_provision_throughput():
+        return not SKIP_PROVISION_THROUGHPUT
 
-    run_or_skip = run_or_skip()
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-
-    chain(run_or_skip, Label("Quota-restricted tasks skipped"), end_workflow)
     chain(
-        run_or_skip,
+        should_run_provision_throughput(),
         provision_throughput,
         await_provision_throughput,
         delete_provision_throughput(provision_throughput.output),
-        end_workflow,
     )
 
 

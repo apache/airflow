@@ -29,7 +29,8 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -266,6 +267,29 @@ class TestDbApiHook:
 
         self.cur.executemany.assert_any_call(sql, rows)
 
+    def test_insert_rows_logs_generated_sql_on_exception(self, caplog):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        with caplog.at_level(logging.ERROR):
+            self.cur.executemany.side_effect = Exception("Boom!")
+            self.db_hook.supports_executemany = True
+
+            with pytest.raises(Exception, match="Boom!"):
+                self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 1
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        assert len(caplog.messages) == 2
+        assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
+        assert any(f"Parameters: {rows}" in message for message in caplog.messages)
+
+        self.cur.executemany.assert_any_call(sql, rows)
+
     def test_get_uri_schema_not_none(self):
         self.db_hook.get_connection = mock.MagicMock(
             return_value=Connection(
@@ -484,7 +508,10 @@ class TestDbApiHook:
             )
         )
         assert self.db_hook.placeholder == "?"
-        assert not caplog.messages
+        filtered_messages = [
+            msg for msg in caplog.messages if "Skipping masking for a secret as it's too short" not in msg
+        ]
+        assert not filtered_messages
 
     def test_placeholder_with_invalid_placeholder_in_extra(self, caplog):
         self.db_hook.get_connection = mock.MagicMock(

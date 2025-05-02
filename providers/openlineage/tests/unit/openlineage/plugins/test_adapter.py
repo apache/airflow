@@ -55,9 +55,25 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize(
+    "env_vars, expected_logging",
+    [
+        ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG"}, "DEBUG"),
+        ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "INFO"}, None),
+        ({}, None),  # When no value is provided, default should be INFO and propagation is skipped.
+    ],
+)
+def test_create_client_logging_propagation(env_vars, expected_logging):
+    with patch.dict(os.environ, env_vars, clear=True):
+        assert os.getenv("OPENLINEAGE_CLIENT_LOGGING") is None
+        OpenLineageAdapter().get_or_create_openlineage_client()
+        assert os.getenv("OPENLINEAGE_CLIENT_LOGGING") == expected_logging
 
 
 @patch.dict(
@@ -606,6 +622,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             "dag_id": "dag_id",
             "data_interval_start": event_time.isoformat(),
             "data_interval_end": event_time.isoformat(),
+            "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
             "run_id": run_id,
             "run_type": DagRunType.MANUAL,
             "start_date": event_time.isoformat(),
@@ -646,6 +663,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                             "dag_id": "dag_id",
                             "data_interval_start": event_time.isoformat(),
                             "data_interval_end": event_time.isoformat(),
+                            "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
                             "run_id": run_id,
                             "run_type": DagRunType.MANUAL,
                             "start_date": event_time.isoformat(),
@@ -1001,6 +1019,7 @@ def test_build_task_instance_run_id_different_inputs_gives_different_results():
     assert result1 != result2
 
 
+@skip_if_force_lowest_dependencies_marker
 def test_configuration_precedence_when_creating_ol_client():
     _section_name = "openlineage"
     current_folder = pathlib.Path(__file__).parent.resolve()

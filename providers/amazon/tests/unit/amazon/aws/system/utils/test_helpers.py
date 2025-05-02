@@ -28,6 +28,7 @@ from unittest.mock import patch
 
 import pytest
 from moto import mock_aws
+
 from system.amazon.aws import utils
 from system.amazon.aws.utils import (
     DEFAULT_ENV_ID_LEN,

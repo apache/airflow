@@ -21,10 +21,10 @@ import json
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import get_tag_date
-from airflow_breeze.utils.packages import get_provider_info_dict
-from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.packages import get_provider_distributions_metadata
+from airflow_breeze.utils.path_utils import PROVIDER_DEPENDENCIES_JSON_PATH
 
-DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
 
 def get_related_providers(
@@ -65,7 +65,7 @@ def generate_providers_metadata_for_package(
     airflow_release_dates: dict[str, str],
 ) -> dict[str, dict[str, str]]:
     get_console().print(f"[info]Generating metadata for {provider_id}")
-    provider_yaml_dict = get_provider_info_dict(provider_id)
+    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     provider_metadata: dict[str, dict[str, str]] = {}
     last_airflow_version = START_AIRFLOW_VERSION_FROM
     package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
@@ -92,8 +92,7 @@ def generate_providers_metadata_for_package(
         }
     if not provider_mentioned_in_constraints:
         get_console().print(
-            f"[warning]No constraints mention {provider_id} in any Airflow version. "
-            f"Skipping it altogether."
+            f"[warning]No constraints mention {provider_id} in any Airflow version. Skipping it altogether."
         )
         return {}
     return provider_metadata

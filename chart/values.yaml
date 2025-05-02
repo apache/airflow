@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.5"
+defaultAirflowTag: "3.0.0"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.5"
+airflowVersion: "3.0.0"
 
 # Images
 images:
@@ -115,11 +115,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2025.01.10-1.24.0
+    tag: airflow-pgbouncer-2025.03.05-1.23.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
+    tag: airflow-pgbouncer-exporter-2025.03.05-0.18.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -138,8 +138,53 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  # Enable all ingress resources
+  # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
+
+  # Configs for the Ingress of the API Server
+  apiServer:
+    # Enable API Server ingress resource
+    enabled: false
+
+    # Annotations for the API Server Ingress
+    annotations: {}
+
+    # The path for the API Server Ingress
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the API Server Ingress (Deprecated - renamed to `ingress.apiServer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the API Server Ingress
+    hosts: []
+    #   # The hostname for the web Ingress (templated)
+    # - name: ""
+    #   # configs for API Server Ingress TLS
+    #   tls:
+    #     # Enable TLS termination for the API Server Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the API Server Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+    # configs for API Server Ingress TLS (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)
+    tls:
+      # Enable TLS termination for the API Server Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the API Server Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the API Server Ingress after the default path
+    succeedingPaths: []
 
   # Configs for the Ingress of the web Service
   web:
@@ -297,7 +342,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -897,6 +942,7 @@ scheduler:
   # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
@@ -1253,7 +1299,7 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-_apiServer:
+apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
@@ -1261,7 +1307,8 @@ _apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow fastapi-api"]
+  args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
@@ -1281,7 +1328,7 @@ _apiServer:
     annotations: {}
     ports:
       - name: api-server
-        port: "{{ .Values.ports._apiServer }}"
+        port: "{{ .Values.ports.apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1320,7 +1367,7 @@ _apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports._apiServer }}"
+        - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1345,6 +1392,7 @@ _apiServer:
     scheme: HTTP
 
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1381,6 +1429,7 @@ webserver:
   # Wait for at most 1 minute (6*10s) for the webserver container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1802,7 +1851,7 @@ triggerer:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
+      SELECT ceil(COUNT(*)::decimal / {{ include "triggerer.capacity" . }})
       FROM trigger
 
     # Whether to use PGBouncer to connect to the database or not when it is enabled
@@ -1976,6 +2025,7 @@ flower:
   # Wait for at most 1 minute (6*10s) for the flower container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -2540,7 +2590,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  _apiServer: 9091
+  apiServer: 8080
 
 # Define any ResourceQuotas for namespace
 quotas: {}
@@ -2648,6 +2698,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
+    auth_manager: '{{ ternary "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager" "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager" (semverCompare ">=3.0.0" .Values.airflowVersion) }}'
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
@@ -2656,7 +2707,10 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+  fab:
+    enable_proxy_fix: 'True'
   webserver:
+    # For Airflow 2.X
     enable_proxy_fix: 'True'
     # For Airflow 1.10
     rbac: 'True'
@@ -2704,8 +2758,7 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
-  triggerer:
-    default_capacity: 1000
+
 # yamllint enable rule:line-length
 
 # Whether Airflow can launch workers and/or pods in multiple namespaces

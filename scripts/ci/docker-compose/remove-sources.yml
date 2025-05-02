@@ -21,13 +21,9 @@ services:
       - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/airflow
-      # Removes task_sdk sources from container
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/task_sdk
+      - ../../../empty:/opt/airflow/airflow-core/src
+      # Removes task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src
@@ -48,6 +44,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
+      - ../../../empty:/opt/airflow/providers/apache/tinkerpop/src
       - ../../../empty:/opt/airflow/providers/apprise/src
       - ../../../empty:/opt/airflow/providers/arangodb/src
       - ../../../empty:/opt/airflow/providers/asana/src
@@ -58,6 +55,7 @@ services:
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
+      - ../../../empty:/opt/airflow/providers/common/messaging/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src
@@ -65,12 +63,13 @@ services:
       - ../../../empty:/opt/airflow/providers/dingding/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
-      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/edge3/src
       - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/fab/src
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src
+      - ../../../empty:/opt/airflow/providers/git/src
       - ../../../empty:/opt/airflow/providers/github/src
       - ../../../empty:/opt/airflow/providers/google/src
       - ../../../empty:/opt/airflow/providers/grpc/src

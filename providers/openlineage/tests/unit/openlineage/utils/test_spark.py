@@ -21,7 +21,9 @@ import datetime as dt
 from unittest.mock import MagicMock, patch
 
 import pytest
-from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig, KafkaTransport
+from openlineage.client.transport.composite import CompositeConfig, CompositeTransport
+from openlineage.client.transport.http import HttpConfig, HttpTransport
+from openlineage.client.transport.kafka import KafkaConfig, KafkaTransport
 
 from airflow.providers.openlineage.utils.spark import (
     _get_parent_job_information_as_spark_properties,
@@ -38,10 +40,12 @@ EXAMPLE_CONTEXT = {
         task_id="task_id",
         try_number=1,
         map_index=1,
+        dag_run=MagicMock(logical_date=dt.datetime(2024, 11, 11)),
         logical_date=dt.datetime(2024, 11, 11),
     )
 }
 EXAMPLE_HTTP_TRANSPORT_CONFIG = {
+    "type": "http",
     "url": "https://some-custom.url",
     "endpoint": "/api/custom",
     "timeout": 123,
@@ -54,6 +58,17 @@ EXAMPLE_HTTP_TRANSPORT_CONFIG = {
         "type": "api_key",
         "apiKey": "secret_123",
     },
+}
+EXAMPLE_KAFKA_TRANSPORT_CONFIG = {
+    "type": "kafka",
+    "topic": "my_topic",
+    "config": {
+        "bootstrap.servers": "test-kafka-hm0fo:10011,another.host-uuj0l:10012",
+        "acks": "all",
+        "retries": "3",
+    },
+    "flush": True,
+    "messageKey": "some",
 }
 EXAMPLE_PARENT_JOB_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
@@ -70,6 +85,20 @@ EXAMPLE_TRANSPORT_SPARK_PROPERTIES = {
     "spark.openlineage.transport.headers.key1": "val1",
     "spark.openlineage.transport.headers.key2": "val2",
     "spark.openlineage.transport.timeoutInMillis": "123000",
+}
+
+EXAMPLE_COMPOSITE_TRANSPORT_SPARK_PROPERTIES = {
+    "spark.openlineage.transport.type": "composite",
+    "spark.openlineage.transport.continueOnFailure": "True",
+    "spark.openlineage.transport.transports.http.type": "http",
+    "spark.openlineage.transport.transports.http.url": "https://some-custom.url",
+    "spark.openlineage.transport.transports.http.endpoint": "/api/custom",
+    "spark.openlineage.transport.transports.http.auth.type": "api_key",
+    "spark.openlineage.transport.transports.http.auth.apiKey": "Bearer secret_123",
+    "spark.openlineage.transport.transports.http.compression": "gzip",
+    "spark.openlineage.transport.transports.http.headers.key1": "val1",
+    "spark.openlineage.transport.transports.http.headers.key2": "val2",
+    "spark.openlineage.transport.transports.http.timeoutInMillis": "123000",
 }
 
 
@@ -92,7 +121,7 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
     kafka_config = KafkaConfig(
         topic="my_topic",
         config={
-            "bootstrap.servers": "localhost:9092,another.host:9092",
+            "bootstrap.servers": "test-kafka-hm0fo:10011,another.host-uuj0l:10012",
             "acks": "all",
             "retries": "3",
         },
@@ -104,6 +133,17 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
     )
     result = _get_transport_information_as_spark_properties()
     assert result == {}
+
+
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+def test_get_transport_information_as_spark_properties_composite_transport_type(mock_ol_listener):
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+        CompositeConfig.from_dict(
+            {"transports": {"http": EXAMPLE_HTTP_TRANSPORT_CONFIG, "kafka": EXAMPLE_KAFKA_TRANSPORT_CONFIG}}
+        )
+    )
+    result = _get_transport_information_as_spark_properties()
+    assert result == EXAMPLE_COMPOSITE_TRANSPORT_SPARK_PROPERTIES
 
 
 @pytest.mark.parametrize(
@@ -259,4 +299,51 @@ def test_inject_transport_information_into_spark_properties(mock_ol_listener, pr
     )
     result = inject_transport_information_into_spark_properties(properties, EXAMPLE_CONTEXT)
     expected = {**properties, **EXAMPLE_TRANSPORT_SPARK_PROPERTIES} if should_inject else properties
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "properties, should_inject",
+    [
+        (
+            {"spark.openlineage.transport": "example_namespace"},
+            False,
+        ),
+        (
+            {"spark.openlineage.transport.type": "some_job_name"},
+            False,
+        ),
+        (
+            {"spark.openlineage.transport.url": "some_run_id"},
+            False,
+        ),
+        (
+            {"spark.openlineage.transportWhatever": "some_value", "some.other.property": "value"},
+            False,
+        ),
+        (
+            {"some.other.property": "value"},
+            True,
+        ),
+        (
+            {},
+            True,
+        ),
+    ],
+)
+@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+def test_inject_composite_transport_information_into_spark_properties(
+    mock_ol_listener, properties, should_inject
+):
+    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+        CompositeConfig(
+            transports={
+                "http": EXAMPLE_HTTP_TRANSPORT_CONFIG,
+                "console": {"type": "console"},
+            },
+            continue_on_failure=True,
+        )
+    )
+    result = inject_transport_information_into_spark_properties(properties, EXAMPLE_CONTEXT)
+    expected = {**properties, **EXAMPLE_COMPOSITE_TRANSPORT_SPARK_PROPERTIES} if should_inject else properties
     assert result == expected

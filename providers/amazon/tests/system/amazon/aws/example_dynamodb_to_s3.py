@@ -28,9 +28,8 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 log = logging.getLogger(__name__)
@@ -146,19 +145,13 @@ def incremental_export(table_name: str, start_time: datetime):
     # This operation can take a long time to complete
     backup_db_to_point_in_time_incremental_export.max_attempts = 90
 
-    @task.branch
-    def skip_incremental_export(start_time: datetime, end_time: datetime):
-        not_enough_time = end_time < (start_time + timedelta(minutes=15))
-        return (
-            end_workflow.task_id if not_enough_time else backup_db_to_point_in_time_incremental_export.task_id
-        )
+    @task.short_circuit()
+    def should_run_incremental_export(start_time: datetime, end_time: datetime):
+        return end_time >= (start_time + timedelta(minutes=15))
 
-    skip_incremental = skip_incremental_export(start_time, end_time)
+    should_run_incremental = should_run_incremental_export(start_time=start_time, end_time=end_time)
 
-    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-
-    chain(end_time, skip_incremental, Label("Incremental backup skipped"), end_workflow)
-    chain(end_time, skip_incremental, backup_db_to_point_in_time_incremental_export, end_workflow)
+    chain(end_time, should_run_incremental, backup_db_to_point_in_time_incremental_export)
 
 
 with DAG(

@@ -26,29 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-kylin",
         "name": "Apache Kylin",
         "description": "`Apache Kylin <https://kylin.apache.org/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734528393,
-        "versions": [
-            "3.8.0",
-            "3.7.0",
-            "3.6.2",
-            "3.6.1",
-            "3.6.0",
-            "3.5.0",
-            "3.4.0",
-            "3.3.0",
-            "3.2.1",
-            "3.2.0",
-            "3.1.0",
-            "3.0.0",
-            "2.0.4",
-            "2.0.3",
-            "2.0.2",
-            "2.0.1",
-            "2.0.0",
-            "1.0.1",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Apache Kylin",
@@ -75,5 +52,4 @@ def get_provider_info():
                 "connection-type": "kylin",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "kylinpy>=2.7.0"],
     }

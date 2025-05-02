@@ -80,7 +80,7 @@ breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_to
 ```
 
 To load the image from specific run (for example 12538475388),
-you can use the following command, find the run id from github action runs.
+you can use the following command, find the run id from GitHub action runs.
 
 ```bash
 breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
@@ -108,7 +108,7 @@ You have to be aware that some of the PRs and canary builds use the `--upgrade-t
 to build the image so if you want to build it locally, you should pass the `--upgrade-to-newer-dependencies`
 flag when you are building the image.
 
-Note however, that if constraints changed for regulare builds and if someone released a new package in PyPI
+Note however, that if constraints changed for regular builds and if someone released a new package in PyPI
 since the build was run (which is very likely - we have many packages released a day), the image you
 build locally might be different than the one in CI, that's why loading image using `breeze ci-image load`
 is more reliable way to reproduce the CI build.
@@ -124,7 +124,7 @@ of the options can be passed by `--flags` and some via environment variables, fo
 take a look at both if you want to be sure to reproduce the exact job configuration. See the next chapter
 for summary of the most important environment variables and options used in the CI jobs.
 
-You can read more about it in [Breeze](../README.rst) and [Testing](../../../../contributing-docs/09_testing.rst)
+You can read more about it in [Breeze](../README.rst) and [Testing](/contributing-docs/09_testing.rst)
 
 # Options and environment variables used
 
@@ -163,7 +163,7 @@ Those variables are used to control the initialization of the environment in the
 | Variable                        | Option                             | Local dev | CI        | Comment                                                                     |
 |---------------------------------|------------------------------------|-----------|-----------|-----------------------------------------------------------------------------|
 | MOUNT_SOURCES                   | --mount-sources                    |           | skip      | Whether to mount the local sources into the container.                      |
-| SKIP_ENVIRONMENT_INITIALIZATION | --skip-enviromnment-initialization | false (*) | false (*) | Skip initialization of test environment (*) set to true in pre-commits.     |
+| SKIP_ENVIRONMENT_INITIALIZATION | --skip-environment-initialization  | false (*) | false (*) | Skip initialization of test environment (*) set to true in pre-commits.     |
 | SKIP_IMAGE_UPGRADE_CHECK        | --skip-image-upgrade-check         | false (*) | false (*) | Skip checking if image should be upgraded (*) set to true in pre-commits.   |
 | SKIP_PROVIDERS_TESTS            |                                    | false     | false     | Skip running provider integration tests (in non-main branch).               |
 | SKIP_SSH_SETUP                  |                                    | false     | false (*) | Skip setting up SSH server for tests. (*) set to true in GitHub CodeSpaces. |
@@ -184,4 +184,4 @@ if you want to run the commands in a different environment.
 
 ----
 
-**Thank you** for reading this far. We hope that you have learned a lot about Reproducing Airlfow's CI job locally and CI in general.
+**Thank you** for reading this far. We hope that you have learned a lot about Reproducing Airflow's CI job locally and CI in general.

@@ -21,7 +21,7 @@ from unittest.mock import call, patch
 
 import pytest
 
-from airflow.providers.common.sql.hooks.sql import fetch_one_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.triggers.teradata_compute_cluster import TeradataComputeClusterSyncTrigger
 from airflow.providers.teradata.utils.constants import Constants

@@ -152,6 +152,7 @@ spec:
                 {{- end }}
                 - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
             periodSeconds: {{ .Values.flower.startupProbe.periodSeconds }}
+            initialDelaySeconds: {{ .Values.flower.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.flower.startupProbe.timeoutSeconds }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}

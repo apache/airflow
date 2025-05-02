@@ -27,7 +27,7 @@ from airflow.providers.fab.www import app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from unit.fab.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
@@ -47,7 +47,7 @@ def minimal_app_for_auth_api():
         with conf_vars(
             {
                 (
-                    "api",
+                    "fab",
                     "auth_backends",
                 ): "unit.fab.auth_manager.api_endpoints.remote_user_api_auth_backend,airflow.providers.fab.auth_manager.api.auth.backend.session",
                 (

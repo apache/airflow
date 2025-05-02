@@ -25,18 +25,15 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 from openai import OpenAI
 
 if TYPE_CHECKING:
-    from openai.types import FileDeleted, FileObject
-    from openai.types.batch import Batch
-    from openai.types.beta import (
-        Assistant,
-        AssistantDeleted,
-        Thread,
-        ThreadDeleted,
+    from openai.types import (
+        FileDeleted,
+        FileObject,
         VectorStore,
         VectorStoreDeleted,
     )
+    from openai.types.batch import Batch
+    from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
     from openai.types.beta.threads import Message, Run
-    from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionFunctionMessageParam,
@@ -45,6 +42,7 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
+    from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from airflow.hooks.base import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
@@ -349,12 +347,12 @@ class OpenAIHook(BaseHook):
 
     def create_vector_store(self, **kwargs: Any) -> VectorStore:
         """Create a vector store."""
-        vector_store = self.conn.beta.vector_stores.create(**kwargs)
+        vector_store = self.conn.vector_stores.create(**kwargs)
         return vector_store
 
     def get_vector_stores(self, **kwargs: Any) -> list[VectorStore]:
         """Return a list of vector stores."""
-        vector_stores = self.conn.beta.vector_stores.list(**kwargs)
+        vector_stores = self.conn.vector_stores.list(**kwargs)
         return vector_stores.data
 
     def get_vector_store(self, vector_store_id: str) -> VectorStore:
@@ -363,7 +361,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to retrieve.
         """
-        vector_store = self.conn.beta.vector_stores.retrieve(vector_store_id=vector_store_id)
+        vector_store = self.conn.vector_stores.retrieve(vector_store_id=vector_store_id)
         return vector_store
 
     def modify_vector_store(self, vector_store_id: str, **kwargs: Any) -> VectorStore:
@@ -372,7 +370,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to modify.
         """
-        vector_store = self.conn.beta.vector_stores.update(vector_store_id=vector_store_id, **kwargs)
+        vector_store = self.conn.vector_stores.update(vector_store_id=vector_store_id, **kwargs)
         return vector_store
 
     def delete_vector_store(self, vector_store_id: str) -> VectorStoreDeleted:
@@ -381,7 +379,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id: The ID of the vector store to delete.
         """
-        response = self.conn.beta.vector_stores.delete(vector_store_id=vector_store_id)
+        response = self.conn.vector_stores.delete(vector_store_id=vector_store_id)
         return response
 
     def upload_files_to_vector_store(
@@ -394,7 +392,7 @@ class OpenAIHook(BaseHook):
             to.
         :param files: A list of binary files to upload.
         """
-        file_batch = self.conn.beta.vector_stores.file_batches.upload_and_poll(
+        file_batch = self.conn.vector_stores.file_batches.upload_and_poll(
             vector_store_id=vector_store_id, files=files
         )
         return file_batch
@@ -405,7 +403,7 @@ class OpenAIHook(BaseHook):
 
         :param vector_store_id:
         """
-        vector_store_files = self.conn.beta.vector_stores.files.list(vector_store_id=vector_store_id)
+        vector_store_files = self.conn.vector_stores.files.list(vector_store_id=vector_store_id)
         return vector_store_files.data
 
     def delete_vector_store_file(self, vector_store_id: str, file_id: str) -> VectorStoreFileDeleted:
@@ -415,7 +413,7 @@ class OpenAIHook(BaseHook):
         :param vector_store_id: The ID of the vector store that the file belongs to.
         :param file_id: The ID of the file to delete.
         """
-        response = self.conn.beta.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)
+        response = self.conn.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)
         return response
 
     def create_batch(
@@ -471,9 +469,9 @@ class OpenAIHook(BaseHook):
                 return
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
-            elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
+            if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
                 raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
-            elif batch.status == BatchStatus.EXPIRED:
+            if batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
                     f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
                 )

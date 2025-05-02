@@ -36,7 +36,6 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -56,6 +55,11 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -163,6 +167,7 @@ class TestKubernetesPodOperator:
             task_id="task-id",
             name="{{ dag.dag_id }}",
             hostname="{{ dag.dag_id }}",
+            base_container_name="{{ dag.dag_id }}",
             namespace="{{ dag.dag_id }}",
             container_resources=k8s.V1ResourceRequirements(
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
@@ -208,6 +213,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.name
         assert dag_id == ti.task.hostname
+        assert dag_id == ti.task.base_container_name
         assert dag_id == ti.task.namespace
         assert dag_id == ti.task.config_file
         assert dag_id == ti.task.labels
@@ -1305,8 +1311,18 @@ class TestKubernetesPodOperator:
         )
 
         pod, _ = self.run_pod(k)
-        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
-        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+        if AIRFLOW_V_3_0_PLUS:
+            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+            pod_namespace = XCom.get_many(
+                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+            ).first()
+
+            pod_name = XCom.deserialize_value(pod_name)
+            pod_namespace = XCom.deserialize_value(pod_namespace)
+        else:
+            pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
+            pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace
 
@@ -1537,7 +1553,9 @@ class TestKubernetesPodOperator:
         # check that the base container is not included in the logs
         mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
         # check that KPO waits for the base container to complete before proceeding to extract XCom
-        mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
+        mock_await_container_completion.assert_called_once_with(
+            pod=pod, container_name="base", polling_time=1
+        )
         # check that we wait for the xcom sidecar to start before extracting XCom
         mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
@@ -1545,6 +1563,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1631,6 +1650,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_multiple_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1716,6 +1736,7 @@ class TestKubernetesPodOperator:
     @patch(HOOK_CLASS, new=MagicMock)
     def test_execute_async_callbacks(self):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1798,7 +1819,7 @@ class TestKubernetesPodOperator:
             )
         else:
             mock_await_container_completion.assert_has_calls(
-                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+                [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * 3
             )
         mock_read_pod.assert_called()
         assert client != k.client
@@ -1853,7 +1874,7 @@ class TestKubernetesPodOperator:
                 k.await_pod_completion(pod)
         expected_call_count = len(side_effect)
         mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
+            [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * expected_call_count
         )
 
     @pytest.mark.parametrize(
@@ -2091,10 +2112,12 @@ class TestKubernetesPodOperatorAsync:
         ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
+    @pytest.mark.parametrize("status", ["error", "failed", "timeout"])
+    @patch(KUB_OP_PATH.format("log"))
     @patch(KUB_OP_PATH.format("cleanup"))
     @patch(HOOK_CLASS)
-    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup):
-        """Tests that an AirflowException is raised in case of error event"""
+    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup, mocked_log, status):
+        """Tests that an AirflowException is raised in case of error event and event is logged"""
 
         mocked_hook.return_value.get_pod.return_value = MagicMock()
         k = KubernetesPodOperator(
@@ -2111,16 +2134,20 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
 
+        message = "Some message"
         with pytest.raises(AirflowException):
             k.trigger_reentry(
                 context=None,
                 event={
-                    "status": "error",
-                    "message": "Some error",
+                    "status": status,
+                    "message": message,
                     "name": TEST_NAME,
                     "namespace": TEST_NAMESPACE,
                 },
             )
+
+        log_message = "Trigger emitted an %s event, failing the task: %s"
+        mocked_log.error.assert_called_once_with(log_message, status, message)
 
     @pytest.mark.parametrize(
         "kwargs, actual_exit_code, expected_exc, pod_status, event_status",
@@ -2494,7 +2521,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     ti_mock.xcom_push.assert_not_called()
 
     if do_xcom_push:
-        # assert that the xcom are not extracted if do_xcom_push is Fale
+        # assert that the xcom are not extracted if do_xcom_push is False
         mock_extract_xcom.assert_called_once()
     else:
         # but that it is extracted when do_xcom_push is true because the sidecare

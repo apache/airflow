@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Union
+from urllib.parse import quote_plus, urlencode
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -110,8 +111,7 @@ class MySqlHook(DbApiHook):
         """
         if hasattr(conn.__class__, "autocommit") and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
-        else:
-            return conn.get_autocommit()  # type: ignore[union-attr]
+        return conn.get_autocommit()  # type: ignore[union-attr]
 
     def _get_conn_config_mysql_client(self, conn: Connection) -> dict:
         conn_config = {
@@ -240,10 +240,16 @@ class MySqlHook(DbApiHook):
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
-            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -251,10 +257,16 @@ class MySqlHook(DbApiHook):
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
-            f"SELECT * INTO OUTFILE %s FROM {table}",
+            f"SELECT * INTO OUTFILE %s FROM `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -319,7 +331,7 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (tmp_file, duplicate_key_handling, extra_options),
         )
 
@@ -351,3 +363,41 @@ class MySqlHook(DbApiHook):
     def get_openlineage_default_schema(self):
         """MySQL has no concept of schema."""
         return None
+
+    def get_uri(self) -> str:
+        """Get URI for MySQL connection."""
+        conn = self.connection or self.get_connection(self.get_conn_id())
+        conn_schema = self.schema or conn.schema or ""
+        client_name = conn.extra_dejson.get("client", "mysqlclient")
+
+        # Determine URI prefix based on client
+        if client_name == "mysql-connector-python":
+            uri_prefix = "mysql+mysqlconnector://"
+        else:  # default: mysqlclient
+            uri_prefix = "mysql://"
+
+        auth_part = ""
+        if conn.login:
+            auth_part = quote_plus(conn.login)
+            if conn.password:
+                auth_part = f"{auth_part}:{quote_plus(conn.password)}"
+            auth_part = f"{auth_part}@"
+
+        host_part = conn.host or "localhost"
+        if conn.port:
+            host_part = f"{host_part}:{conn.port}"
+
+        schema_part = f"/{quote_plus(conn_schema)}" if conn_schema else ""
+
+        uri = f"{uri_prefix}{auth_part}{host_part}{schema_part}"
+
+        # Add extra connection parameters
+        extra = conn.extra_dejson.copy()
+        if "client" in extra:
+            extra.pop("client")
+
+        query_params = {k: str(v) for k, v in extra.items() if v}
+        if query_params:
+            uri = f"{uri}?{urlencode(query_params)}"
+
+        return uri

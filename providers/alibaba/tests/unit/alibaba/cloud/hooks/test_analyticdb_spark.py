@@ -34,6 +34,7 @@ from alibabacloud_adb20211201.models import (
 )
 
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook
+
 from unit.alibaba.cloud.utils.analyticdb_spark_mock import mock_adb_spark_hook_default_project_id
 
 ADB_SPARK_STRING = "airflow.providers.alibaba.cloud.hooks.analyticdb_spark.{}"

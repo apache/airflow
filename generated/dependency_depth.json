@@ -23,7 +23,6 @@
     "blinker": 1,
     "colorlog": 1,
     "configupdater": 1,
-    "connexion[flask]": 1,
     "clickclick": 2,
     "click": 3,
     "pyyaml": 3,

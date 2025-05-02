@@ -36,12 +36,12 @@ if TYPE_CHECKING:
 
 class TestTaskDoneTrigger:
     @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
+    @mock.patch.object(EcsHook, "get_async_conn")
     # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
-    @mock.patch.object(AwsLogsHook, "async_conn")
+    @mock.patch.object(AwsLogsHook, "get_async_conn")
     async def test_run_until_error(self, _, client_mock):
         a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
+        client_mock.return_value.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
         wait_mock.side_effect = [
             WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]}),
@@ -57,12 +57,12 @@ class TestTaskDoneTrigger:
         assert wait_mock.call_count == 3
 
     @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
+    @mock.patch.object(EcsHook, "get_async_conn")
     # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
-    @mock.patch.object(AwsLogsHook, "async_conn")
+    @mock.patch.object(AwsLogsHook, "get_async_conn")
     async def test_run_until_timeout(self, _, client_mock):
         a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
+        client_mock.return_value.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
         wait_mock.side_effect = WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]})
         a_mock.get_waiter().wait = wait_mock
@@ -76,12 +76,12 @@ class TestTaskDoneTrigger:
         assert "max attempts" in str(err.value)
 
     @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
+    @mock.patch.object(EcsHook, "get_async_conn")
     # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
-    @mock.patch.object(AwsLogsHook, "async_conn")
+    @mock.patch.object(AwsLogsHook, "get_async_conn")
     async def test_run_success(self, _, client_mock):
         a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
+        client_mock.return_value.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
         a_mock.get_waiter().wait = wait_mock
 

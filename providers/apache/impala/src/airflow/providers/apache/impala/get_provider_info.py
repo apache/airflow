@@ -26,25 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-impala",
         "name": "Apache Impala",
         "description": "`Apache Impala <https://impala.apache.org/>`__.\n",
-        "state": "ready",
-        "source-date-epoch": 1734528154,
-        "versions": [
-            "1.6.0",
-            "1.5.2",
-            "1.5.1",
-            "1.5.0",
-            "1.4.2",
-            "1.4.1",
-            "1.4.0",
-            "1.3.0",
-            "1.2.1",
-            "1.2.0",
-            "1.1.3",
-            "1.1.2",
-            "1.1.1",
-            "1.1.0",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Apache Impala",
@@ -64,11 +45,4 @@ def get_provider_info():
                 "connection-type": "impala",
             }
         ],
-        "dependencies": [
-            "impyla>=0.18.0,<1.0",
-            "apache-airflow-providers-common-sql>=1.20.0",
-            "apache-airflow>=2.9.0",
-        ],
-        "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},
-        "devel-dependencies": ["kerberos>=1.3.0"],
     }

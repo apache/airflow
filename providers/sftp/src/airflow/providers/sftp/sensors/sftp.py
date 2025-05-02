@@ -95,18 +95,24 @@ class SFTPSensor(BaseSensorOperator):
             else:
                 return False
         else:
-            actual_files_to_check = [self.path]
-
-        for actual_file_to_check in actual_files_to_check:
             try:
-                mod_time = self.hook.get_mod_time(actual_file_to_check)
-                self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
+                self.hook.isfile(self.path)
+                actual_files_to_check = [self.path]
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise AirflowException from e
-                continue
+                actual_files_to_check = []
 
-            if self.newer_than:
+        if self.newer_than:
+            for actual_file_to_check in actual_files_to_check:
+                try:
+                    mod_time = self.hook.get_mod_time(actual_file_to_check)
+                    self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
+                except OSError as e:
+                    if e.errno != SFTP_NO_SUCH_FILE:
+                        raise AirflowException from e
+                    continue
+
                 if isinstance(self.newer_than, str):
                     self.newer_than = parse(self.newer_than)
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
@@ -126,10 +132,9 @@ class SFTPSensor(BaseSensorOperator):
                         str(_mod_time),
                         str(_newer_than),
                     )
-            else:
-                files_found.append(actual_file_to_check)
+        else:
+            files_found = actual_files_to_check
 
-        self.hook.close_conn()
         if not len(files_found):
             return False
 

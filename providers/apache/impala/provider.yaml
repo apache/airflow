@@ -22,9 +22,10 @@ description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1734528154
+source-date-epoch: 1743477776
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.6.1
   - 1.6.0
   - 1.5.2
   - 1.5.1

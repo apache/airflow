@@ -127,7 +127,9 @@ jobs:
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
         if: inputs.canary-run == 'true'
       - name: "Push changes"
-        if: inputs.canary-run == 'true'
+        if: >
+          inputs.canary-run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         working-directory: "constraints"
         run:
           git push
@@ -138,8 +140,9 @@ jobs:
     uses: ./.github/workflows/push-image-cache.yml
     permissions:
       contents: read
+      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
@@ -154,7 +157,9 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-    if: inputs.canary-run == 'true'
+    if: >
+      inputs.canary-run == 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   #  push-buildx-cache-to-github-registry-arm:
   #    name: Push Regular ARM Image Cache
@@ -163,7 +168,6 @@ jobs:
   #    permissions:
   #      contents: read
   #      packages: write
-  #    secrets: inherit
   #    with:
   #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
   #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
@@ -177,7 +181,9 @@ jobs:
   #      use-uv: "true"
   #      include-success-outputs: ${{ inputs.include-success-outputs }}
   #      docker-cache: ${{ inputs.docker-cache }}
-  #    if: inputs.canary-run == 'true'
+  #    if: >
+  #      inputs.canary-run == 'true' &&
+  #      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
   summarize-warnings:
     timeout-minutes: 15

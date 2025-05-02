@@ -112,8 +112,7 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 .. code-block::
 
     * 12322 -> forwarded to Airflow ssh server -> airflow:22
-    * 28080 -> forwarded to Airflow webserver -> airflow:8080
-    * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
+    * 28080 -> forwarded to Airflow API server -> airflow:8080
     * 25555 -> forwarded to Flower dashboard -> airflow:5555
     * 25433 -> forwarded to Postgres database -> postgres:5432
     * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -124,22 +123,23 @@ You can connect to these ports/databases using:
 
 .. code-block::
 
-    * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-    * Webserver: http://127.0.0.1:28080
-    * FastAPI API:    http://127.0.0.1:29091
-    * Flower:    http://127.0.0.1:25555
-    * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-    * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-    * Redis:     redis://127.0.0.1:26379/0
+    * ssh connection for remote debugging: ssh -p 12322 airflow@localhost pw: airflow
+    * API server:    http://localhost:28080
+    * Flower:    http://localhost:25555
+    * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
+    * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
+    * Redis:     redis://localhost:26379/0
 
-If you do not use ``start-airflow`` command, you can start the webserver manually with
-the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
-You may need to create a user prior to running the webserver in order to log in.
+If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
+You may need to create a user prior to running the API server in order to log in.
 This can be done with the following command:
 
 .. code-block:: bash
 
     airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
+
+.. note::
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
 
 For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
 Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
@@ -155,8 +155,7 @@ database client:
 You can change the used host port numbers by setting appropriate environment variables:
 
 * ``SSH_PORT``
-* ``WEBSERVER_HOST_PORT``
-* ``FASTAPI_API_HOST_PORT``
+* ``WEB_HOST_PORT`` - API server when --use-airflow-version is used
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
 * ``MSSQL_HOST_PORT``
@@ -203,7 +202,7 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
      breeze build-docs
 
-Results of the build can be found in the ``docs/_build`` folder.
+Results of the build can be found in the ``generated/_build`` folder.
 
 The documentation build consists of three steps:
 
@@ -233,7 +232,7 @@ package names and can be used to select more than one package with single filter
      breeze build-docs --package-filter apache-airflow-providers-*
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
-During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
+During the docs building auto-api generated files are stored in the ``generated`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
 These are all available flags of ``build-docs`` command:
@@ -356,7 +355,7 @@ For testing Airflow you often want to start multiple components (in multiple ter
 built-in ``start-airflow`` command that start breeze container, launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals.
 
-When you are starting airflow from local sources, www asset compilation is automatically executed before.
+When you are starting Airflow from local sources, www asset compilation is automatically executed before.
 
 .. code-block:: bash
 
@@ -395,8 +394,8 @@ These are all available flags of ``start-airflow`` command:
 Launching multiple terminals in the same environment
 ----------------------------------------------------
 
-Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
-run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+Often if you want to run full Airflow in the Breeze environment you need to launch multiple terminals and
+run ``airflow api-server``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
 
 This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
 is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
@@ -418,27 +417,20 @@ These are all available flags of ``exec`` command:
   :alt: Breeze exec
 
 
-Compiling www assets
---------------------
-
-Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
-command takes care about it. This is needed when you want to run webserver inside of the breeze.
-
-.. image:: ./images/output_compile-www-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-www-assets.svg
-  :width: 100%
-  :alt: Breeze compile-www-assets
-
 Compiling ui assets
 --------------------
 
-Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
-command takes care about it. This is needed when you want to run webserver inside of the breeze.
+Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
+command takes care about it. This is needed when you want to run API server inside of the breeze.
 
 .. image:: ./images/output_compile-ui-assets.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
   :width: 100%
   :alt: Breeze compile-ui-assets
+
+Note
+
+This command requires the ``pre-commit`` tool, which should be installed by following `this guide <../../../contributing-docs/03_contributors_quick_start.rst#configuring-pre-commit>`__.
 
 Breeze cleanup
 --------------
@@ -466,13 +458,13 @@ These are all available flags of ``cleanup`` command:
   :width: 100%
   :alt: Breeze cleanup
 
-Database volumes in Breeze
---------------------------
+Database and config volumes in Breeze
+-------------------------------------
 
-Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
-You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
-Then, next time when you start Breeze, it will have the data pre-populated.
+Breeze keeps data for all it's integration, database, configuration in named docker volumes.
+Those volumes are persisted until ``breeze down`` command. You can also preserve the volumes by adding
+flag ``--preserve-volumes`` when you run the command. Then, next time when you start Breeze,
+it will have the data pre-populated.
 
 These are all available flags of ``down`` command:
 
@@ -505,7 +497,7 @@ Running Breeze with a StatsD Metrics Stack
 ..........................................
 
 You can launch an instance of Breeze pre-configured to emit StatsD metrics using
-``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+``breeze start-airflow --integration statsd``.  This will launch an Airflow API server
 within the Breeze environment as well as containers running StatsD, Prometheus, and
 Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
 Grafana, and includes a default dashboard in Grafana.
@@ -558,9 +550,9 @@ Running Breeze with OpenLineage
 ...............................
 
 You can launch an instance of Breeze pre-configured to emit OpenLineage metrics using
-``breeze start-airflow --integration openlineage``.  This will launch an Airflow webserver
+``breeze start-airflow --integration openlineage``.  This will launch an Airflow API server
 within the Breeze environment as well as containers running a [Marquez](https://marquezproject.ai/)
-webserver and API server.
+API server.
 
 When you run Airflow Breeze with this integration, in addition to the standard ports
 (See "Port Forwarding" below), the following are also automatically forwarded:
@@ -631,7 +623,7 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the
-`Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
+`Local Virtualenv </contributing-docs/07_local_virtualenv.rst>`_.
 
 Auto-generating migration files
 -------------------------------

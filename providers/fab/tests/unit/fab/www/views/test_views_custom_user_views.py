@@ -26,16 +26,15 @@ from flask_appbuilder import SQLA
 
 from airflow import settings
 from airflow.providers.fab.www import app as application
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
+
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,
+    delete_user,
 )
-
-from tests_common.test_utils.www import (
-    check_content_in_response,
-    client_with_login,
-)
+from unit.fab.utils import check_content_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -74,7 +73,15 @@ class TestSecurity:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(enable_plugins=False)
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            self.app = application.create_app(enable_plugins=False)
         self.appbuilder = self.app.appbuilder
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
@@ -82,6 +89,10 @@ class TestSecurity:
         self.db = SQLA(self.app)
 
         self.client = self.app.test_client()  # type:ignore
+
+    def teardown_method(self):
+        delete_user(self.app, "no_access")
+        delete_user(self.app, "has_access")
 
     def delete_roles(self):
         for role_name in ["role_edit_one_dag"]:
@@ -187,7 +198,15 @@ class TestResetUserSessions:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(enable_plugins=False)
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            self.app = application.create_app(enable_plugins=False)
         self.appbuilder = self.app.appbuilder
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
@@ -210,6 +229,10 @@ class TestResetUserSessions:
         )
         self.db.session.commit()
         self.db.session.flush()
+
+    def teardown_method(self):
+        delete_user(self.app, "user_to_delete_1")
+        delete_user(self.app, "user_to_delete_2")
 
     def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: int):
         self.db.session.add(

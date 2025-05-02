@@ -131,7 +131,7 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        time_utc = timezone.convert_to_utc(cast("datetime", job_description["LastModifiedTime"]))
         status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
@@ -750,7 +750,7 @@ class SageMakerHook(AwsBaseHook):
 
             if status in self.failed_states:
                 raise AirflowException(f"SageMaker resource failed because {response['FailureReason']}")
-            elif status not in non_terminal_states:
+            if status not in non_terminal_states:
                 break
 
             if max_ingestion_time and sec > max_ingestion_time:
@@ -1010,8 +1010,7 @@ class SageMakerHook(AwsBaseHook):
             if "NextToken" not in response or (max_results is not None and len(results) == max_results):
                 # Return when there are no results left (no NextToken) or when we've reached max_results.
                 return results
-            else:
-                next_token = response["NextToken"]
+            next_token = response["NextToken"]
 
     @staticmethod
     def _name_matches_pattern(
@@ -1172,9 +1171,8 @@ class SageMakerHook(AwsBaseHook):
                     ):
                         self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
                         break
-                    else:
-                        self.log.error(ce)
-                        raise
+                    self.log.error(ce)
+                    raise
             else:
                 break
 
@@ -1214,9 +1212,8 @@ class SageMakerHook(AwsBaseHook):
                 # log msg only so it doesn't look like an error
                 self.log.info("%s", e.response["Error"]["Message"])
                 return False
-            else:
-                self.log.error("Error when trying to create Model Package Group: %s", e)
-                raise
+            self.log.error("Error when trying to create Model Package Group: %s", e)
+            raise
 
     def _describe_auto_ml_job(self, job_name: str):
         res = self.conn.describe_auto_ml_job(AutoMLJobName=job_name)
@@ -1318,7 +1315,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param job_name: the name of the training job
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
             return response
 

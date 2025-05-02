@@ -67,6 +67,7 @@ services:
 
   airflow:
     environment:
+      - INTEGRATION_OTEL=true
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__METRICS__OTEL_HOST=breeze-otel-collector
       - AIRFLOW__METRICS__OTEL_PORT=4318

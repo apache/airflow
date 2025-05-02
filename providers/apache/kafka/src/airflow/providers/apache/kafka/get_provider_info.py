@@ -25,24 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-apache-kafka",
         "name": "Apache Kafka",
-        "state": "ready",
-        "source-date-epoch": 1734528285,
         "description": "`Apache Kafka  <https://kafka.apache.org/>`__\n",
-        "versions": [
-            "1.7.0",
-            "1.6.1",
-            "1.6.0",
-            "1.5.0",
-            "1.4.1",
-            "1.4.0",
-            "1.3.1",
-            "1.3.0",
-            "1.2.0",
-            "1.1.2",
-            "1.1.1",
-            "1.1.0",
-            "1.0.0",
-        ],
         "integrations": [
             {
                 "integration-name": "Apache Kafka",
@@ -89,5 +72,4 @@ def get_provider_info():
                 "connection-type": "kafka",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "asgiref>=2.3.0", "confluent-kafka>=2.3.0"],
     }

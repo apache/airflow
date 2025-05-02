@@ -23,7 +23,6 @@ import os
 import re
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 from airflow.configuration import conf
@@ -34,11 +33,13 @@ if TYPE_CHECKING:
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
-from airflow.sensors.base import BaseSensorOperator, poke_mode_only
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.sensors.base import poke_mode_only
 
 
-class S3KeySensor(BaseSensorOperator):
+class S3KeySensor(AwsBaseSensor[S3Hook]):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
 
@@ -65,17 +66,6 @@ class S3KeySensor(BaseSensorOperator):
 
             def check_fn(files: List, **kwargs) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in files)
-    :param aws_conn_id: a reference to the s3 connection
-    :param verify: Whether to verify SSL certificates for S3 connection.
-        By default, SSL certificates are verified.
-        You can provide the following values:
-
-        - ``False``: do not validate SSL certificates. SSL will still be used
-                 (unless use_ssl is False), but SSL certificates will not be
-                 verified.
-        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
-                 You can specify this argument if you want to use a different
-                 CA cert bundle than the one used by botocore.
     :param deferrable: Run operator in the deferrable mode
     :param use_regex: whether to use regex to check bucket
     :param metadata_keys: List of head_object attributes to gather and send to ``check_fn``.
@@ -83,9 +73,18 @@ class S3KeySensor(BaseSensorOperator):
         all available attributes.
         Default value: "Size".
         If the requested attribute is not found, the key is still included and the value is None.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = ("bucket_key", "bucket_name")
+    template_fields: Sequence[str] = aws_template_fields("bucket_key", "bucket_name")
+    aws_hook_class = S3Hook
 
     def __init__(
         self,
@@ -94,7 +93,6 @@ class S3KeySensor(BaseSensorOperator):
         bucket_name: str | None = None,
         wildcard_match: bool = False,
         check_fn: Callable[..., bool] | None = None,
-        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         use_regex: bool = False,
@@ -106,14 +104,13 @@ class S3KeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.check_fn = check_fn
-        self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.deferrable = deferrable
         self.use_regex = use_regex
         self.metadata_keys = metadata_keys if metadata_keys else ["Size"]
 
     def _check_key(self, key, context: Context):
-        bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
+        bucket_name, key = self.hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
         self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
         """
@@ -179,8 +176,7 @@ class S3KeySensor(BaseSensorOperator):
     def poke(self, context: Context):
         if isinstance(self.bucket_key, str):
             return self._check_key(self.bucket_key, context=context)
-        else:
-            return all(self._check_key(key, context=context) for key in self.bucket_key)
+        return all(self._check_key(key, context=context) for key in self.bucket_key)
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -195,11 +191,13 @@ class S3KeySensor(BaseSensorOperator):
         self.defer(
             timeout=timedelta(seconds=self.timeout),
             trigger=S3KeyTrigger(
-                bucket_name=cast(str, self.bucket_name),
+                bucket_name=cast("str", self.bucket_name),
                 bucket_key=self.bucket_key,
                 wildcard_match=self.wildcard_match,
                 aws_conn_id=self.aws_conn_id,
+                region_name=self.region_name,
                 verify=self.verify,
+                botocore_config=self.botocore_config,
                 poke_interval=self.poke_interval,
                 should_check_fn=bool(self.check_fn),
                 use_regex=self.use_regex,
@@ -220,13 +218,9 @@ class S3KeySensor(BaseSensorOperator):
         elif event["status"] == "error":
             raise AirflowException(event["message"])
 
-    @cached_property
-    def hook(self) -> S3Hook:
-        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-
 
 @poke_mode_only
-class S3KeysUnchangedSensor(BaseSensorOperator):
+class S3KeysUnchangedSensor(AwsBaseSensor[S3Hook]):
     """
     Return True if inactivity_period has passed with no increase in the number of objects matching prefix.
 
@@ -239,17 +233,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     :param bucket_name: Name of the S3 bucket
     :param prefix: The prefix being waited on. Relative path from bucket root level.
-    :param aws_conn_id: a reference to the s3 connection
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
-        You can provide the following values:
-
-        - ``False``: do not validate SSL certificates. SSL will still be used
-                 (unless use_ssl is False), but SSL certificates will not be
-                 verified.
-        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
-                 You can specify this argument if you want to use a different
-                 CA cert bundle than the one used by botocore.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param inactivity_period: The total seconds of inactivity to designate
         keys unchanged. Note, this mechanism is not real time and
         this operator may not return until a poke_interval after this period
@@ -261,16 +245,24 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
     :param deferrable: Run sensor in the deferrable mode
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = ("bucket_name", "prefix")
+    template_fields: Sequence[str] = aws_template_fields("bucket_name", "prefix")
+    aws_hook_class = S3Hook
 
     def __init__(
         self,
         *,
         bucket_name: str,
         prefix: str,
-        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         inactivity_period: float = 60 * 60,
         min_objects: int = 1,
@@ -291,14 +283,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.last_activity_time: datetime | None = None
-
-    @cached_property
-    def hook(self):
-        """Returns S3Hook."""
-        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
     def is_keys_unchanged(self, current_objects: set[str]) -> bool:
         """
@@ -382,7 +368,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                         inactivity_seconds=self.inactivity_seconds,
                         allow_delete=self.allow_delete,
                         aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
                         verify=self.verify,
+                        botocore_config=self.botocore_config,
                         last_activity_time=self.last_activity_time,
                     ),
                     method_name="execute_complete",

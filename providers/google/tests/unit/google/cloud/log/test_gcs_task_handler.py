@@ -30,6 +30,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 @pytest.mark.db_test
@@ -67,14 +68,18 @@ class TestGCSTaskHandler:
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id")
     @pytest.mark.parametrize(
-        "conn_id", [pytest.param("", id="no-conn"), pytest.param("my_gcs_conn", id="with-conn")]
+        "conn_id",
+        [pytest.param("", id="no-conn"), pytest.param("my_gcs_conn", id="with-conn")],
     )
     def test_client_conn_id_behavior(self, mock_get_cred, mock_client, mock_hook, conn_id):
         """When remote log conn id configured, hook will be used"""
-        mock_hook.return_value.get_credentials_and_project_id.return_value = ("test_cred", "test_proj")
+        mock_hook.return_value.get_credentials_and_project_id.return_value = (
+            "test_cred",
+            "test_proj",
+        )
         mock_get_cred.return_value = ("test_cred", "test_proj")
         with conf_vars({("logging", "remote_log_conn_id"): conn_id}):
-            return_value = self.gcs_task_handler.client
+            return_value = self.gcs_task_handler.io.client
         if conn_id:
             mock_hook.assert_called_once_with(gcp_conn_id="my_gcs_conn")
             mock_get_cred.assert_not_called()
@@ -104,12 +109,20 @@ class TestGCSTaskHandler:
         session.add(ti)
         session.commit()
         logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
-        mock_blob.from_string.assert_called_once_with(
-            "gs://bucket/remote/log/location/1.log", mock_client.return_value
-        )
-        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in logs
-        assert logs.endswith("CONTENT")
-        assert metadata == {"end_of_log": True, "log_pos": 7}
+        expected_gs_uri = f"gs://bucket/{mock_obj.name}"
+
+        mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == [expected_gs_uri]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "CONTENT"
+            assert metadata == {"end_of_log": True, "log_pos": 1}
+        else:
+            assert f"*** Found remote logs:\n***   * {expected_gs_uri}\n" in logs
+            assert logs.endswith("CONTENT")
+            assert metadata == {"end_of_log": True, "log_pos": 7}
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -127,18 +140,26 @@ class TestGCSTaskHandler:
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
+        expected_gs_uri = f"gs://bucket/{mock_obj.name}"
 
-        assert (
-            "*** Found remote logs:\n"
-            "***   * gs://bucket/remote/log/location/1.log\n"
-            "*** Unable to read remote log Failed to connect\n"
-            "*** Found local files:\n"
-            f"***   * {self.gcs_task_handler.local_base}/1.log\n"
-        ) in log
-        assert metadata == {"end_of_log": True, "log_pos": 0}
-        mock_blob.from_string.assert_called_once_with(
-            "gs://bucket/remote/log/location/1.log", mock_client.return_value
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            assert log[0].event == "::group::Log message source details"
+            assert log[0].sources == [
+                expected_gs_uri,
+                f"{self.gcs_task_handler.local_base}/1.log",
+            ]
+            assert log[1].event == "::endgroup::"
+            assert metadata == {"end_of_log": True, "log_pos": 0}
+        else:
+            assert (
+                "*** Found remote logs:\n"
+                "***   * gs://bucket/remote/log/location/1.log\n"
+                "*** Unable to read remote log Failed to connect\n"
+                "*** Found local files:\n"
+                f"***   * {self.gcs_task_handler.local_base}/1.log\n"
+            ) in log
+            assert metadata == {"end_of_log": True, "log_pos": 0}
+        mock_blob.from_string.assert_called_once_with(expected_gs_uri, mock_client.return_value)
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -202,7 +223,7 @@ class TestGCSTaskHandler:
 
         assert caplog.record_tuples == [
             (
-                "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
+                "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
                 logging.ERROR,
                 "Could not write logs to gs://bucket/remote/log/location/1.log: Failed to connect",
             ),
@@ -240,13 +261,13 @@ class TestGCSTaskHandler:
         )
         self.gcs_task_handler.close()
 
-        mock_blob.assert_has_calls(
+        mock_blob.from_string.assert_has_calls(
             [
-                mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().download_as_bytes(),
-                mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),
-                mock.call.from_string().upload_from_string(
-                    "MESSAGE\nError checking for previous log; if exists, may be overwritten: Fail to download\n",
+                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
+                mock.call().download_as_bytes(),
+                mock.call("gs://bucket/remote/log/location/1.log", mock_client.return_value),
+                mock.call().upload_from_string(
+                    "MESSAGE\n",
                     content_type="text/plain",
                 ),
             ],

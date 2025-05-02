@@ -29,15 +29,6 @@ pytestmark = pytest.mark.db_test
 
 
 class TestWinRMHook:
-    @patch("airflow.providers.microsoft.winrm.hooks.winrm.Protocol")
-    def test_get_conn_exists(self, mock_protocol):
-        winrm_hook = WinRMHook()
-        winrm_hook.client = mock_protocol.return_value.open_shell.return_value
-
-        conn = winrm_hook.get_conn()
-
-        assert conn == winrm_hook.client
-
     def test_get_conn_missing_remote_host(self):
         with pytest.raises(AirflowException):
             WinRMHook().get_conn()
@@ -47,7 +38,7 @@ class TestWinRMHook:
         mock_protocol.side_effect = Exception("Error")
 
         with pytest.raises(AirflowException):
-            WinRMHook(remote_host="host").get_conn()
+            WinRMHook(remote_host="host", password="pwd").get_conn()
 
     @patch("airflow.providers.microsoft.winrm.hooks.winrm.Protocol", autospec=True)
     @patch(
@@ -151,7 +142,7 @@ class TestWinRMHook:
         winrm_hook = WinRMHook(ssh_conn_id="conn_id")
 
         mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
-        mock_protocol.return_value._raw_get_command_output = MagicMock(
+        mock_protocol.return_value.get_command_output_raw = MagicMock(
             return_value=(b"stdout", b"stderr", 0, True)
         )
 
@@ -192,7 +183,7 @@ class TestWinRMHook:
         winrm_hook = WinRMHook(ssh_conn_id="conn_id")
 
         mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
-        mock_protocol.return_value._raw_get_command_output = MagicMock(
+        mock_protocol.return_value.get_command_output_raw = MagicMock(
             return_value=(b"stdout", b"stderr", 0, True)
         )
 

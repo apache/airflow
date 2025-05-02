@@ -196,6 +196,7 @@ class TestPodGenerator:
                 "python",
                 "-m",
                 "airflow.sdk.execution_time.execute_workload",
+                "--json-path",
                 "/tmp/execute/input.json",
             ],
             pod_override_object=None,
@@ -226,7 +227,12 @@ class TestPodGenerator:
         assert volume == {"emptyDir": {}, "name": "execute-volume"}
 
         main_container = sanitized_result["spec"]["containers"][0]
-        assert main_container["command"] == ["python", "-m", "airflow.sdk.execution_time.execute_workload"]
+        assert main_container["command"] == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-path",
+        ]
         assert main_container["args"] == ["/tmp/execute/input.json"]
 
     def test_from_obj_pod_override_object(self):

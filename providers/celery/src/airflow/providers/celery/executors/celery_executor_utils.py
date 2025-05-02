@@ -120,8 +120,9 @@ def on_celery_import_modules(*args, **kwargs):
     """
     import jinja2.ext  # noqa: F401
 
-    import airflow.jobs.local_task_job_runner
-    import airflow.macros
+    if not AIRFLOW_V_3_0_PLUS:
+        import airflow.jobs.local_task_job_runner
+        import airflow.macros
 
     try:
         import airflow.providers.standard.operators.bash
@@ -157,13 +158,19 @@ def execute_workload(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
+    base_url = conf.get("api", "base_url", fallback="/")
+    # If it's a relative URL, use localhost:8080 as the default
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url"),
+        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 
@@ -258,11 +265,14 @@ def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
     """Send task to executor."""
-    from airflow.executors import workloads
-
     key, args, queue, task_to_run = task_tuple
-    if isinstance(args, workloads.BaseWorkload):
+
+    if AIRFLOW_V_3_0_PLUS:
+        if TYPE_CHECKING:
+            assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
+    else:
+        args = [args]  # type: ignore[list-item]
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)

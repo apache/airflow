@@ -23,9 +23,12 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 state: ready
-source-date-epoch: 1734527971
+source-date-epoch: 1744788807
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.8.1
+  - 4.8.0
+  - 4.7.1
   - 4.7.0
   - 4.6.0
   - 4.5.1

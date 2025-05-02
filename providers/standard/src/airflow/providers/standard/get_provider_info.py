@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-standard",
         "name": "Standard",
         "description": "Airflow Standard Provider\n",
-        "state": "ready",
-        "source-date-epoch": 1739964539,
-        "versions": ["0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
                 "integration-name": "Standard",
@@ -38,6 +35,13 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-standard/operators/bash.rst",
                     "/docs/apache-airflow-providers-standard/operators/python.rst",
                     "/docs/apache-airflow-providers-standard/operators/datetime.rst",
+                    "/docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst",
+                    "/docs/apache-airflow-providers-standard/operators/latest_only.rst",
+                    "/docs/apache-airflow-providers-standard/sensors/bash.rst",
+                    "/docs/apache-airflow-providers-standard/sensors/python.rst",
+                    "/docs/apache-airflow-providers-standard/sensors/datetime.rst",
+                    "/docs/apache-airflow-providers-standard/sensors/file.rst",
+                    "/docs/apache-airflow-providers-standard/sensors/external_task_sensor.rst",
                 ],
             }
         ],
@@ -50,9 +54,10 @@ def get_provider_info():
                     "airflow.providers.standard.operators.bash",
                     "airflow.providers.standard.operators.python",
                     "airflow.providers.standard.operators.empty",
-                    "airflow.providers.standard.operators.generic_transfer",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",
+                    "airflow.providers.standard.operators.smooth",
+                    "airflow.providers.standard.operators.branch",
                 ],
             }
         ],
@@ -91,6 +96,10 @@ def get_provider_info():
                 ],
             }
         ],
+        "extra-links": [
+            "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
+            "airflow.providers.standard.sensors.external_task.ExternalDagLink",
+        ],
         "config": {
             "standard": {
                 "description": "Options for the standard provider operators.",
@@ -105,5 +114,33 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-common-sql>=1.20.0"],
+        "task-decorators": [
+            {"class-name": "airflow.providers.standard.decorators.python.python_task", "name": "python"},
+            {"class-name": "airflow.providers.standard.decorators.bash.bash_task", "name": "bash"},
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_external_python.branch_external_python_task",
+                "name": "branch_external_python",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_python.branch_task",
+                "name": "branch",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.branch_virtualenv.branch_virtualenv_task",
+                "name": "branch_virtualenv",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.external_python.external_python_task",
+                "name": "external_python",
+            },
+            {
+                "class-name": "airflow.providers.standard.decorators.python_virtualenv.virtualenv_task",
+                "name": "virtualenv",
+            },
+            {"class-name": "airflow.providers.standard.decorators.sensor.sensor_task", "name": "sensor"},
+            {
+                "class-name": "airflow.providers.standard.decorators.short_circuit.short_circuit_task",
+                "name": "short_circuit",
+            },
+        ],
     }

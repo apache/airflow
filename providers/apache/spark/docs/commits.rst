@@ -30,22 +30,6 @@ Package apache-airflow-providers-apache-spark
 
 
 This is detailed commit list of changes for versions provider package: ``apache.spark``.
-For high-level changelog, see :doc:`package information including changelog <index>`.
+For high-level changelog, see :doc:`changelog <changelog>`.
 
-
-
-NEXT VERSION AFTER + 5.0.0
-..........................
-
-Latest change: 2025-02-16
-
-==================================================================================================  ===========  ===============================================================================================
-Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ===============================================================================================
-`4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
-`e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
-`ee6bd7ee16 <https://github.com/apache/airflow/commit/ee6bd7ee162ff295b86d86fdd1b356c51b9bba78>`__  2025-02-03   ``Fix doc issues found with recent moves (#46372)``
-`880b067668 <https://github.com/apache/airflow/commit/880b0676680b7b2f4a78a5ab243b147ff06492c8>`__  2025-02-03   ``Add run_after column to DagRun model (#45732)``
-`a45db61576 <https://github.com/apache/airflow/commit/a45db61576b809d3a0d6e2d32585f19871887c0b>`__  2025-01-27   ``Move Apache Spark to new provider structure (#46108)``
-`62e6724bf5 <https://github.com/apache/airflow/commit/62e6724bf580504082a2766bc7cc0e7ce56e2dd3>`__  2024-12-25   ``Include driver classpath in --jars cmd docstring in spark-submit hook and operator (#45210)``
-==================================================================================================  ===========  ===============================================================================================
+.. airflow-providers-commits::

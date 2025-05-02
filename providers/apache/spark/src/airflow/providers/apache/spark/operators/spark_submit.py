@@ -20,8 +20,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_spark_properties,
+    inject_transport_information_into_spark_properties,
+)
 from airflow.settings import WEB_COLORS
 
 if TYPE_CHECKING:
@@ -106,7 +111,7 @@ class SparkSubmitOperator(BaseOperator):
         self,
         *,
         application: str = "",
-        conf: dict[str, Any] | None = None,
+        conf: dict[Any, Any] | None = None,
         conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
@@ -135,6 +140,12 @@ class SparkSubmitOperator(BaseOperator):
         yarn_queue: str | None = None,
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
+        openlineage_inject_transport_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_transport_info", fallback=False
+        ),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -169,9 +180,18 @@ class SparkSubmitOperator(BaseOperator):
         self._hook: SparkSubmitHook | None = None
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
+        self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+        self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
+        self.conf = self.conf or {}
+        if self._openlineage_inject_parent_job_info:
+            self.log.debug("Injecting OpenLineage parent job information into Spark properties.")
+            self.conf = inject_parent_job_information_into_spark_properties(self.conf, context)
+        if self._openlineage_inject_transport_info:
+            self.log.debug("Injecting OpenLineage transport information into Spark properties.")
+            self.conf = inject_transport_information_into_spark_properties(self.conf, context)
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit(self.application)

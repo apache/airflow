@@ -25,8 +25,8 @@ from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem, ProblemException
 from flask import request
 
-from airflow.api_connexion.exceptions import common_error_handler
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.www.api_connexion.exceptions import common_error_handler
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -146,15 +146,13 @@ def init_api_error_handlers(app: Flask) -> None:
             # i.e. "no route for it" defined, need to be handled
             # here on the application level
             return common_error_handler(ex)
-        else:
-            return views.not_found(ex)
+        return views.not_found(ex)
 
     @app.errorhandler(405)
     def _handle_method_not_allowed(ex):
         if any([request.path.startswith(p) for p in base_paths]):
             return common_error_handler(ex)
-        else:
-            return views.method_not_allowed(ex)
+        return views.method_not_allowed(ex)
 
     app.register_error_handler(ProblemException, common_error_handler)
 

@@ -94,10 +94,9 @@ def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str |
                 if commit_line and commit_line.endswith(f"(#{issue.number})"):
                     return commit_line.split(" ")[0]
             return None
-        else:
-            pr: PullRequest = issue.as_pull_request()
-            if pr.is_merged():
-                return pr.merge_commit_sha
+        pr: PullRequest = issue.as_pull_request()
+        if pr.is_merged():
+            return pr.merge_commit_sha
     return None
 
 
@@ -133,7 +132,6 @@ def is_core_commit(files: list[str]) -> bool:
         # Providers
         "airflow/providers/",
         "airflow/provider.yaml.schema.json",
-        "provider_packages/",
         "docs/apache-airflow-providers-",
         # chart
         "chart/",
@@ -147,7 +145,7 @@ def is_core_commit(files: list[str]) -> bool:
         "README.md",
         "images/",
         "codecov.yml",
-        "kubernetes_tests/",
+        "kubernetes-tests/",
         ".github/",
         ".pre-commit-config.yaml",
         "yamllint-config.yml",
@@ -169,7 +167,9 @@ def is_core_commit(files: list[str]) -> bool:
         "docs/exts/",
         "docs/docker-stack",
         "docs/README.rst",
-        "docker_tests/",
+        "docker-tests/",
+        "kubernetes-tests/",
+        "helm-tests/",
         ".asf.yaml",
         ".mailmap",
         "breeze-legacy",
@@ -185,7 +185,7 @@ def is_core_commit(files: list[str]) -> bool:
             if file.startswith(ignore):
                 break
             # Handle renaming. Form: {old_name => new_name}somename.py
-            elif file.startswith("{"):
+            if file.startswith("{"):
                 new_files = file[1:].split(" => ")
                 if any(n.strip().startswith(ignore) for n in new_files):
                     break
@@ -408,7 +408,7 @@ def api_clients_policy(previous_version, target_version):
         repo,
         previous_version,
         target_version,
-        files=[f"{repo.working_dir}/airflow/api_connexion/openapi/v1.yaml"],
+        files=[f"{repo.working_dir}/clients/python/openapi_v1.yaml"],
     )
 
     clients_need_release = False

@@ -27,55 +27,6 @@ apache-airflow v3.0.0.dev0
 ├── blinker v1.8.2
 ├── colorlog v6.8.2
 ├── configupdater v3.2
-├── connexion[flask] v2.14.2
-│   ├── clickclick v20.10.2
-│   │   ├── click v8.1.7
-│   │   └── pyyaml v6.0.2
-│   ├── flask v2.2.5
-│   │   ├── click v8.1.7
-│   │   ├── importlib-metadata v8.4.0
-│   │   │   └── zipp v3.20.1
-│   │   ├── itsdangerous v2.2.0
-│   │   ├── jinja2 v3.1.4
-│   │   │   └── markupsafe v2.1.5
-│   │   └── werkzeug v2.2.3
-│   │       └── markupsafe v2.1.5
-│   ├── inflection v0.5.1
-│   ├── itsdangerous v2.2.0
-│   ├── jsonschema v4.23.0
-│   │   ├── attrs v24.2.0
-│   │   ├── importlib-resources v6.4.4
-│   │   │   └── zipp v3.20.1
-│   │   ├── jsonschema-specifications v2023.12.1
-│   │   │   ├── importlib-resources v6.4.4
-│   │   │   │   └── zipp v3.20.1
-│   │   │   └── referencing v0.35.1
-│   │   │       ├── attrs v24.2.0
-│   │   │       └── rpds-py v0.20.0
-│   │   ├── pkgutil-resolve-name v1.3.10
-│   │   ├── referencing v0.35.1
-│   │   │   ├── attrs v24.2.0
-│   │   │   └── rpds-py v0.20.0
-│   │   └── rpds-py v0.20.0
-│   ├── packaging v24.1
-│   ├── pyyaml v6.0.2
-│   ├── requests v2.32.3
-│   │   ├── certifi v2024.8.30
-│   │   ├── charset-normalizer v3.3.2
-│   │   ├── idna v3.8
-│   │   └── urllib3 v2.2.2
-│   ├── werkzeug v2.2.3
-│   │   └── markupsafe v2.1.5
-│   ├── flask v2.2.5 (extra: flask)
-│   │   ├── click v8.1.7
-│   │   ├── importlib-metadata v8.4.0
-│   │   │   └── zipp v3.20.1
-│   │   ├── itsdangerous v2.2.0
-│   │   ├── jinja2 v3.1.4
-│   │   │   └── markupsafe v2.1.5
-│   │   └── werkzeug v2.2.3
-│   │       └── markupsafe v2.1.5
-│   └── itsdangerous v2.2.0 (extra: flask)
 ├── cron-descriptor v1.4.5
 ├── croniter v3.0.3
 │   ├── python-dateutil v2.9.0.post0

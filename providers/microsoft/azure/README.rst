@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``12.2.0``
+Release: ``12.3.1``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.1/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ======================================  ===================
 PIP package                             Version required
 ======================================  ===================
-``apache-airflow``                      ``>=2.9.0``
+``apache-airflow``                      ``>=2.10.0``
 ``adlfs``                               ``>=2023.10.0``
 ``azure-batch``                         ``>=8.0.0``
 ``azure-cosmos``                        ``>=4.6.0``
@@ -75,18 +75,20 @@ PIP package                             Version required
 ``azure-mgmt-datafactory``              ``>=2.0.0``
 ``azure-mgmt-containerregistry``        ``>=8.0.0``
 ``azure-mgmt-containerinstance``        ``>=10.1.0``
-``msgraph-core``                        ``>=1.0.0,!=1.1.8``
-``microsoft-kiota-http``                ``>=1.3.0,!=1.3.4``
-``microsoft-kiota-serialization-json``  ``==1.0.0``
-``microsoft-kiota-serialization-text``  ``==1.0.0``
-``microsoft-kiota-abstractions``        ``<1.4.0``
+``flask-appbuilder``                    ``>=4.0.0``
+``msgraph-core``                        ``>=1.3.3``
+``microsoft-kiota-http``                ``>=1.8.0,<2.0.0``
+``microsoft-kiota-serialization-json``  ``>=1.8.0``
+``microsoft-kiota-serialization-text``  ``>=1.8.0``
+``microsoft-kiota-abstractions``        ``>=1.8.0,<2.0.0``
+``msal-extensions``                     ``>=1.1.0``
 ======================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -105,4 +107,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.3.1/changelog.html>`_.

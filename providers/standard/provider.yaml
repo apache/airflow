@@ -21,9 +21,15 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1739964539
+source-date-epoch: 1745487903
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
+  - 1.0.0
+  - 0.4.0
+  - 0.3.0
+  - 0.2.0
+  - 0.1.1
   - 0.1.0
   - 0.0.3
   - 0.0.2
@@ -37,6 +43,13 @@ integrations:
       - /docs/apache-airflow-providers-standard/operators/bash.rst
       - /docs/apache-airflow-providers-standard/operators/python.rst
       - /docs/apache-airflow-providers-standard/operators/datetime.rst
+      - /docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst
+      - /docs/apache-airflow-providers-standard/operators/latest_only.rst
+      - /docs/apache-airflow-providers-standard/sensors/bash.rst
+      - /docs/apache-airflow-providers-standard/sensors/python.rst
+      - /docs/apache-airflow-providers-standard/sensors/datetime.rst
+      - /docs/apache-airflow-providers-standard/sensors/file.rst
+      - /docs/apache-airflow-providers-standard/sensors/external_task_sensor.rst
 
 operators:
   - integration-name: Standard
@@ -46,10 +59,10 @@ operators:
       - airflow.providers.standard.operators.bash
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.empty
-      - airflow.providers.standard.operators.generic_transfer
       - airflow.providers.standard.operators.trigger_dagrun
       - airflow.providers.standard.operators.latest_only
-
+      - airflow.providers.standard.operators.smooth
+      - airflow.providers.standard.operators.branch
 sensors:
   - integration-name: Standard
     python-modules:
@@ -75,6 +88,10 @@ triggers:
       - airflow.providers.standard.triggers.file
       - airflow.providers.standard.triggers.temporal
 
+extra-links:
+  - airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink
+  - airflow.providers.standard.sensors.external_task.ExternalDagLink
+
 config:
   standard:
     description: Options for the standard provider operators.
@@ -91,3 +108,23 @@ config:
         type: string
         example: uv
         default: auto
+
+task-decorators:
+  - class-name: airflow.providers.standard.decorators.python.python_task
+    name: python
+  - class-name: airflow.providers.standard.decorators.bash.bash_task
+    name: bash
+  - class-name: airflow.providers.standard.decorators.branch_external_python.branch_external_python_task
+    name: branch_external_python
+  - class-name: airflow.providers.standard.decorators.branch_python.branch_task
+    name: branch
+  - class-name: airflow.providers.standard.decorators.branch_virtualenv.branch_virtualenv_task
+    name: branch_virtualenv
+  - class-name: airflow.providers.standard.decorators.external_python.external_python_task
+    name: external_python
+  - class-name: airflow.providers.standard.decorators.python_virtualenv.virtualenv_task
+    name: virtualenv
+  - class-name: airflow.providers.standard.decorators.sensor.sensor_task
+    name: sensor
+  - class-name: airflow.providers.standard.decorators.short_circuit.short_circuit_task
+    name: short_circuit

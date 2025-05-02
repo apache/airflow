@@ -755,11 +755,18 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                     final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
                 )
                 break
-            except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
+            except self.redshift_hook.conn.exceptions.InvalidClusterStateFault:
                 self._attempts -= 1
 
                 if self._attempts:
-                    self.log.error("Unable to delete cluster. %d attempts remaining.", self._attempts)
+                    current_state = self.redshift_hook.conn.describe_clusters(
+                        ClusterIdentifier=self.cluster_identifier
+                    )["Clusters"][0]["ClusterStatus"]
+                    self.log.error(
+                        "Cluster in %s state, unable to delete. %d attempts remaining.",
+                        current_state,
+                        self._attempts,
+                    )
                     time.sleep(self._attempt_interval)
                 else:
                     raise
@@ -785,7 +792,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 )
 
         elif self.wait_for_completion:
-            waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")
+            waiter = self.redshift_hook.conn.get_waiter("cluster_deleted")
             waiter.wait(
                 ClusterIdentifier=self.cluster_identifier,
                 WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": self.max_attempts},

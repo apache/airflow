@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
+import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
@@ -28,6 +32,8 @@ from airflow.providers.amazon.aws.sensors.rds import (
 )
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.utils import timezone
+
+from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
@@ -99,6 +105,11 @@ def _start_export_task(hook: RdsHook):
         raise ValueError("AWS not properly mocked")
 
 
+def _start_export_task_with_error(hook: RdsHook, mock_describe_export_tasks):
+    _create_db_instance_snapshot(hook)
+    mock_describe_export_tasks.return_value = "failed"
+
+
 class TestBaseRdsSensor:
     dag = None
     base_sensor = None
@@ -136,6 +147,16 @@ class TestRdsSnapshotExistenceSensor:
     def teardown_class(cls):
         del cls.dag
         del cls.hook
+
+    def test_template_fields(self):
+        sensor = RdsSnapshotExistenceSensor(
+            task_id="test_template_fields",
+            db_type="instance",
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            aws_conn_id=AWS_CONN,
+            region_name="us-east-1",
+        )
+        validate_template_fields(sensor)
 
     @mock_aws
     def test_db_instance_snapshot_poke_true(self):
@@ -200,6 +221,15 @@ class TestRdsExportTaskExistenceSensor:
         del cls.dag
         del cls.hook
 
+    def test_template_fields(self):
+        sensor = RdsExportTaskExistenceSensor(
+            task_id="test_template_fields",
+            export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+            region_name="us-east-1",
+        )
+        validate_template_fields(sensor)
+
     @mock_aws
     def test_export_task_poke_true(self):
         _create_db_instance_snapshot(self.hook)
@@ -223,6 +253,22 @@ class TestRdsExportTaskExistenceSensor:
         )
         assert not op.poke(None)
 
+    @mock_aws
+    @patch("airflow.providers.amazon.aws.hooks.rds.RdsHook.get_export_task_state")
+    def test_error_statuses(self, mock_describe_export_tasks):
+        # Simulate an error condition
+        _start_export_task_with_error(self.hook, mock_describe_export_tasks)
+        op = RdsExportTaskExistenceSensor(
+            task_id="export_task_error",
+            export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowException):
+            op.poke(None)
+
+        assert "failed" in op.error_statuses
+
 
 class TestRdsDbSensor:
     @classmethod
@@ -238,6 +284,15 @@ class TestRdsDbSensor:
     def teardown_class(cls):
         del cls.dag
         del cls.hook
+
+    def test_template_fields(self):
+        sensor = RdsDbSensor(
+            task_id="test_template_fields",
+            db_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+            region_name="us-east-1",
+        )
+        validate_template_fields(sensor)
 
     @mock_aws
     def test_poke_true_instance(self):

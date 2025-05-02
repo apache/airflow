@@ -24,10 +24,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_precommit_utils import console, initialize_breeze_precommit
+from common_precommit_utils import AIRFLOW_ROOT_PATH, console, initialize_breeze_precommit
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
-BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
+BREEZE_INSTALL_DIR = AIRFLOW_ROOT_PATH / "dev" / "breeze"
 BREEZE_DOC_DIR = BREEZE_INSTALL_DIR / "doc"
 BREEZE_IMAGES_DIR = BREEZE_DOC_DIR / "images"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
@@ -73,8 +72,7 @@ return_code = 0
 verify_all_commands_described_in_docs()
 if is_regeneration_needed():
     console.print(
-        "\n[bright_blue]Some of the commands changed since last time "
-        "images were generated. Regenerating.\n"
+        "\n[bright_blue]Some of the commands changed since last time images were generated. Regenerating.\n"
     )
     return_code = 1
     res = subprocess.run(

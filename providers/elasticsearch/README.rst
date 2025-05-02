@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-elasticsearch``
 
-Release: ``6.2.0``
+Release: ``6.2.2``
 
 
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
@@ -36,7 +36,7 @@ This is a provider package for ``elasticsearch`` provider. All classes for this 
 are in ``airflow.providers.elasticsearch`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.2.2/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow``                       ``>=2.10.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``elasticsearch``                        ``>=8.10,<9``
 =======================================  ==================
 
@@ -62,7 +62,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.2.2/changelog.html>`_.

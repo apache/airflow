@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-psrp``
 
-Release: ``3.0.0``
+Release: ``3.0.1``
 
 
 This package provides remote execution capabilities via the
@@ -38,7 +38,7 @@ This is a provider package for ``microsoft.psrp`` provider. All classes for this
 are in ``airflow.providers.microsoft.psrp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.0.1/>`_.
 
 Installation
 ------------
@@ -55,9 +55,9 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
+``apache-airflow``  ``>=2.10.0``
 ``pypsrp``          ``>=0.8.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.0.1/changelog.html>`_.

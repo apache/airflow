@@ -275,6 +275,6 @@ class TestEmrJobFlowSensor:
             with pytest.raises(TaskDeferred) as exc:
                 sensor.execute(context=None)
 
-        assert isinstance(
-            exc.value.trigger, EmrTerminateJobFlowTrigger
-        ), f"{exc.value.trigger} is not a EmrTerminateJobFlowTrigger"
+        assert isinstance(exc.value.trigger, EmrTerminateJobFlowTrigger), (
+            f"{exc.value.trigger} is not a EmrTerminateJobFlowTrigger"
+        )

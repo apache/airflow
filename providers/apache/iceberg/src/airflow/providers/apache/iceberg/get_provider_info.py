@@ -26,9 +26,6 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-apache-iceberg",
         "name": "Apache Iceberg",
         "description": "`Iceberg <https://iceberg.apache.org/>`__\n",
-        "state": "ready",
-        "source-date-epoch": 1734528119,
-        "versions": ["1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "Iceberg",
@@ -49,6 +46,4 @@ def get_provider_info():
                 "connection-type": "iceberg",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0"],
-        "devel-dependencies": ["pyiceberg>=0.5.0"],
     }

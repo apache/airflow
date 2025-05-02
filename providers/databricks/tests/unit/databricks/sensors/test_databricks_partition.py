@@ -25,7 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
 from airflow.utils import timezone
 
@@ -90,11 +90,6 @@ class TestDatabricksPartitionSensor:
     def test_poke(self, mock_poke, sensor_poke_result, expected_poke_result):
         mock_poke.return_value = sensor_poke_result
         assert self.partition_sensor.poke({}) == expected_poke_result
-
-    @pytest.mark.db_test
-    def test_unsupported_conn_type(self):
-        with pytest.raises(AirflowException):
-            self.partition_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @patch.object(DatabricksPartitionSensor, "poke")
     def test_partition_sensor(self, patched_poke):

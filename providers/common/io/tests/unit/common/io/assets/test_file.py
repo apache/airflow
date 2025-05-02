@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import PosixPath
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
@@ -47,21 +48,41 @@ def test_sanitize_uri_invalid(uri):
         sanitize_uri(urlsplit(uri))
 
 
-def test_file_asset():
-    assert create_asset(path="/asdf/fdsa") == Asset(uri="file:///asdf/fdsa")
+@pytest.mark.parametrize(
+    ("path", "uri"),
+    (
+        ("/asdf/fdsa", "file:///asdf/fdsa"),
+        ("file:///asdf/fdsa", "file:///asdf/fdsa"),
+        ("file://asdf/fdsa", "file://asdf/fdsa"),
+        ("file://127.0.0.1:8080/dir/file.csv", "file://127.0.0.1:8080/dir/file.csv"),
+        (PosixPath("file:///tmpdir/some-path.csv"), "file:///tmpdir/some-path.csv"),
+        ("file:/tmpdir/some-path.csv", "file:///tmpdir/some-path.csv"),
+        ("file:tmpdir/some-path.csv", "file:///tmpdir/some-path.csv"),
+    ),
+)
+def test_file_asset(path, uri):
+    assert create_asset(path=path) == Asset(uri=uri)
 
 
 @pytest.mark.parametrize(
-    ("uri", "ol_dataset"),
+    ("path", "ol_dataset"),
     (
-        ("file:///valid/path", OpenLineageDataset(namespace="file", name="/valid/path")),
+        ("/valid/path", OpenLineageDataset(namespace="file", name="/valid/path")),
         (
             "file://127.0.0.1:8080/dir/file.csv",
             OpenLineageDataset(namespace="file://127.0.0.1:8080", name="/dir/file.csv"),
         ),
         ("file:///C://dir/file", OpenLineageDataset(namespace="file", name="/C://dir/file")),
+        ("file://asdf.pdf", OpenLineageDataset(namespace="file", name="/asdf.pdf")),
+        ("file:///asdf.pdf", OpenLineageDataset(namespace="file", name="/asdf.pdf")),
+        (
+            PosixPath("file:///tmp/pytest/test.log"),
+            OpenLineageDataset(namespace="file", name="/tmp/pytest/test.log"),
+        ),
+        ("file:/tmp/pytest/test.log", OpenLineageDataset(namespace="file", name="/tmp/pytest/test.log")),
+        ("file:tmp/pytest/test.log", OpenLineageDataset(namespace="file", name="/tmp/pytest/test.log")),
     ),
 )
-def test_convert_asset_to_openlineage(uri, ol_dataset):
-    result = convert_asset_to_openlineage(Asset(uri=uri), None)
+def test_convert_asset_to_openlineage(path, ol_dataset):
+    result = convert_asset_to_openlineage(create_asset(path=path), None)
     assert result == ol_dataset

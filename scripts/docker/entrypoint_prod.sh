@@ -152,13 +152,17 @@ function create_www_user() {
         exit 1
     fi
 
-    airflow users create \
-       --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
-       --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
-       --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
-       --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
-       --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
-       --password "${local_password}" || true
+    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        airflow users create \
+           --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
+           --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
+           --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
+           --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
+           --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
+           --password "${local_password}" || true
+    else
+        echo "Skipping user creation as auth manager different from Fab is used"
+    fi
 }
 
 function create_system_user_if_missing() {

@@ -62,18 +62,21 @@ class TestEmrContainerSensor:
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert "EMR Containers sensor failed" in str(ctx.value)
+        assert "FAILED" in str(ctx.value)
 
     @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("CANCELLED",))
     def test_poke_cancelled(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert "EMR Containers sensor failed" in str(ctx.value)
+        assert "CANCELLED" in str(ctx.value)
 
     @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("CANCEL_PENDING",))
     def test_poke_cancel_pending(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert "EMR Containers sensor failed" in str(ctx.value)
+        assert "CANCEL_PENDING" in str(ctx.value)
 
     @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
     def test_sensor_defer(self, mock_poke):
@@ -81,9 +84,9 @@ class TestEmrContainerSensor:
         mock_poke.return_value = False
         with pytest.raises(TaskDeferred) as e:
             self.sensor.execute(context=None)
-        assert isinstance(
-            e.value.trigger, EmrContainerTrigger
-        ), f"{e.value.trigger} is not a EmrContainerTrigger"
+        assert isinstance(e.value.trigger, EmrContainerTrigger), (
+            f"{e.value.trigger} is not a EmrContainerTrigger"
+        )
 
     @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
     def test_sensor_defer_with_timeout(self, mock_poke):

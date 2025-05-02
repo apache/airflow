@@ -16,39 +16,49 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from flask import Flask, g
-from flask_appbuilder.menu import Menu
 
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.common.types import MenuItem
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
+from airflow.providers.standard.operators.empty import EmptyOperator
 
-try:
-    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
-except ImportError:
-    pass
+from tests_common.test_utils.config import conf_vars
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+
+with suppress(ImportError):
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AccessView,
+        DagAccessEntity,
+        DagDetails,
+    )
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import User
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+from airflow.providers.common.compat.security.permissions import (
+    RESOURCE_ASSET,
+    RESOURCE_ASSET_ALIAS,
+    RESOURCE_BACKFILL,
+)
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
     ACTION_CAN_DELETE,
     ACTION_CAN_EDIT,
     ACTION_CAN_READ,
+    RESOURCE_AUDIT_LOG,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
@@ -64,13 +74,15 @@ from airflow.providers.fab.www.security.permissions import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_asset": RESOURCE_ASSET,
+    "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
+    "is_authorized_backfill": RESOURCE_BACKFILL,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
@@ -89,11 +101,21 @@ def auth_manager():
 
 @pytest.fixture
 def flask_app():
-    return Flask(__name__)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        yield Flask(__name__)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
+    flask_app.config["AUTH_RATE_LIMITED"] = False
+    flask_app.config["SERVER_NAME"] = "localhost"
     appbuilder = init_appbuilder(flask_app, enable_plugins=False)
     auth_manager = FabAuthManager()
     auth_manager.appbuilder = appbuilder
@@ -102,29 +124,6 @@ def auth_manager_with_appbuilder(flask_app):
 
 @pytest.mark.db_test
 class TestFabAuthManager:
-    @pytest.mark.parametrize(
-        "id,first_name,last_name,username,email,expected",
-        [
-            (1, "First", "Last", None, None, "First Last"),
-            (1, "First", None, "user", None, "First"),
-            (1, None, "Last", "user", "email", "Last"),
-            (1, None, None, None, "email", ""),
-        ],
-    )
-    @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_display_name(
-        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
-    ):
-        user = User()
-        user.id = id
-        user.first_name = first_name
-        user.last_name = last_name
-        user.username = username
-        user.email = email
-        mock_get_user.return_value = user
-
-        assert auth_manager.get_user_display_name() == expected
-
     @mock.patch("flask_login.utils._get_user")
     def test_get_user(self, mock_current_user, minimal_app_for_auth_api, auth_manager):
         user = Mock()
@@ -147,13 +146,13 @@ class TestFabAuthManager:
 
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
-        result = auth_manager_with_appbuilder.deserialize_user({"id": user.id})
+        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
         assert user == result
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
         result = auth_manager_with_appbuilder.serialize_user(user)
-        assert result == {"id": user.id}
+        assert result == {"sub": str(user.id)}
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
@@ -474,78 +473,119 @@ class TestFabAuthManager:
         result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
         assert result == expected_result
 
-    @patch.object(FabAuthManager, "security_manager")
-    def test_filter_permitted_menu_items(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [True, False, True, True, False]
+    @pytest.mark.parametrize(
+        "menu_items, user_permissions, expected_result",
+        [
+            (
+                [MenuItem.ASSETS, MenuItem.DAGS],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET), (ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                [MenuItem.ASSETS, MenuItem.DAGS],
+            ),
+            (
+                [MenuItem.ASSETS, MenuItem.DAGS],
+                [(ACTION_CAN_READ, RESOURCE_ASSET), (ACTION_CAN_READ, RESOURCE_DAG)],
+                [],
+            ),
+            (
+                [MenuItem.AUDIT_LOG, MenuItem.VARIABLES],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_AUDIT_LOG), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
+                [MenuItem.AUDIT_LOG],
+            ),
+            (
+                [],
+                [],
+                [],
+            ),
+        ],
+    )
+    def test_filter_authorized_menu_items(
+        self,
+        menu_items: list[MenuItem],
+        user_permissions,
+        expected_result,
+        auth_manager,
+    ):
+        user = Mock()
+        user.perms = user_permissions
+        result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
+        assert result == expected_result
 
-        menu = Menu()
-        menu.add_link(
-            # These may not all be valid types, but it does let us check each attr is copied
-            name="item1",
-            href="h1",
-            icon="i1",
-            label="l1",
-            baseview="b1",
-            cond="c1",
+    @pytest.mark.parametrize(
+        "method, user_permissions, expected_results",
+        [
+            # Scenario 1
+            # With global read permissions on Dags
+            (
+                "GET",
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                {"test_dag1", "test_dag2"},
+            ),
+            # Scenario 2
+            # With global edit permissions on Dags
+            (
+                "PUT",
+                [(ACTION_CAN_EDIT, RESOURCE_DAG)],
+                {"test_dag1", "test_dag2"},
+            ),
+            # Scenario 3
+            # With DAG-specific permissions
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG:test_dag1")],
+                {"test_dag1"},
+            ),
+            # Scenario 4
+            # With no permissions
+            (
+                "GET",
+                [],
+                set(),
+            ),
+            # Scenario 5
+            # With read permissions but edit is requested
+            (
+                "PUT",
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                set(),
+            ),
+            # Scenario 7
+            # With read permissions but edit is requested
+            (
+                "PUT",
+                [(ACTION_CAN_READ, "DAG:test_dag1")],
+                set(),
+            ),
+            # Scenario 8
+            # With DAG-specific permissions
+            (
+                "PUT",
+                [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
+                {"test_dag1", "test_dag2"},
+            ),
+        ],
+    )
+    def test_get_authorized_dag_ids(
+        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, dag_maker, flask_app
+    ):
+        with dag_maker("test_dag1"):
+            EmptyOperator(task_id="task1")
+        with dag_maker("test_dag2"):
+            EmptyOperator(task_id="task1")
+
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+
+        user = create_user(
+            flask_app,
+            username="username",
+            role_name="test",
+            permissions=user_permissions,
         )
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
 
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
+        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+        assert results == expected_results
 
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-        # check we've copied every attr
-        assert result[0].href == "h1"
-        assert result[0].icon == "i1"
-        assert result[0].label == "l1"
-        assert result[0].baseview == "b1"
-        assert result[0].cond == "c1"
-
-    @patch.object(FabAuthManager, "security_manager")
-    def test_filter_permitted_menu_items_twice(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [
-            # 1st call
-            True,  # menu 1
-            False,  # menu 2
-            True,  # menu 3
-            True,  # Item 3.1
-            False,  # Item 3.2
-            # 2nd call
-            False,  # menu 1
-            True,  # menu 2
-            True,  # menu 3
-            False,  # Item 3.1
-            True,  # Item 3.2
-        ]
-
-        menu = Menu()
-        menu.add_link("item1")
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item2"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.2"
+        delete_user(flask_app, "username")
 
     @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
@@ -576,32 +616,19 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:9091/auth/login"
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
-    @pytest.mark.db_test
-    def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
-            auth_manager_with_appbuilder.get_url_logout()
+    def test_get_url_logout(self, auth_manager):
+        result = auth_manager.get_url_logout()
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
 
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
-        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager_with_appbuilder.get_url_logout()
-        mock_url_for.assert_called_once_with("test_endpoint.logout")
+    @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
+    def test_get_extra_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
+        auth_manager_with_appbuilder.register_views()
+        result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
+        assert len(result) == 5
+        assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
 
-    @pytest.mark.db_test
-    def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        assert auth_manager_with_appbuilder.get_url_user_profile() is None
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
-    def test_get_url_user_profile(self, mock_url_for, auth_manager_with_appbuilder):
-        expected_url = "test_url"
-        mock_url_for.return_value = expected_url
-        auth_manager_with_appbuilder.security_manager.user_view = Mock()
-        auth_manager_with_appbuilder.security_manager.user_view.endpoint = "test_endpoint"
-        actual_url = auth_manager_with_appbuilder.get_url_user_profile()
-        mock_url_for.assert_called_once_with("test_endpoint.userinfo")
-        assert actual_url == expected_url
+    def test_get_db_manager(self, auth_manager):
+        result = auth_manager.get_db_manager()
+        assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"

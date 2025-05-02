@@ -24,15 +24,15 @@ import os
 import re
 import sys
 from functools import lru_cache
-from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    SCRIPTS_DOCKER_DIR,
+    AIRFLOW_ROOT_PATH,
+    SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
@@ -80,29 +80,28 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
     ("LICENSE", "/opt/airflow/LICENSE"),
-    ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
-    ("airflow", "/opt/airflow/airflow"),
+    ("airflow-core", "/opt/airflow/airflow-core"),
+    ("airflow-ctl", "/opt/airflow/airflow-ctl"),
     ("constraints", "/opt/airflow/constraints"),
     ("clients", "/opt/airflow/clients"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("docker-stack-docs", "/opt/airflow/docker-stack-docs"),
+    ("providers-summary-docs", "/opt/airflow/providers-summary-docs"),
     ("generated", "/opt/airflow/generated"),
-    ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
-    ("task_sdk", "/opt/airflow/task_sdk"),
+    ("task-sdk", "/opt/airflow/task-sdk"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
-    ("tests_common", "/opt/airflow/tests_common"),
-    ("tests", "/opt/airflow/tests"),
-    ("helm_tests", "/opt/airflow/helm_tests"),
-    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
-    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("devel-common", "/opt/airflow/devel-common"),
+    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
+    ("docker-tests", "/opt/airflow/docker-tests"),
     ("chart", "/opt/airflow/chart"),
-    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 
@@ -179,8 +178,7 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         get_console().print(
-            "[error]Docker is not running.[/]\n"
-            "[warning]Please make sure Docker is installed and running.[/]"
+            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         sys.exit(1)
 
@@ -437,7 +435,7 @@ def construct_docker_push_command(
 
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
+    build_command_result: RunCommandResult = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
         platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -446,7 +444,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             output=output,
             check=False,
             text=True,
@@ -491,7 +489,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
     """
-    for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
+    for entrypoint in SCRIPTS_DOCKER_PATH.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
             get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
         if not os.access(entrypoint.as_posix(), os.X_OK):
@@ -515,13 +513,13 @@ def perform_environment_checks(quiet: bool = False):
 
 
 def get_docker_syntax_version() -> str:
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
-    return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
+    return (AIRFLOW_ROOT_PATH / "Dockerfile").read_text().splitlines()[0]
 
 
 def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
     platforms: set[str] = set()
     for image_params in image_params_list:
@@ -547,7 +545,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     FROM scratch
     LABEL description="test warmup image"
     """,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             text=True,
             check=False,
         )
@@ -563,7 +561,7 @@ OWNERSHIP_CLEANUP_DOCKER_TAG = (
 )
 
 
-def fix_ownership_using_docker(quiet: bool = False):
+def fix_ownership_using_docker(quiet: bool = True):
     if get_host_os() != "linux":
         # no need to even attempt fixing ownership on MacOS/Windows
         return
@@ -571,7 +569,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         "docker",
         "run",
         "-v",
-        f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/",
+        f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
         "-e",
         f"HOST_OS={get_host_os()}",
         "-e",
@@ -587,7 +585,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
-    run_command(cmd, text=True, check=False, capture_output=quiet)
+    run_command(cmd, text=True, check=False, quiet=quiet)
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -604,6 +602,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
             ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
+            quiet=True,
         )
     else:
         for network in networks:
@@ -611,6 +610,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 ["docker", "network", "rm", network],
                 check=False,
                 stderr=DEVNULL,
+                quiet=True,
             )
 
 
@@ -733,7 +733,6 @@ def execute_command_in_shell(
 
     * backend - to force sqlite backend
     * clean_sql_db=True - to clean the sqlite DB
-    * executor - to force SequentialExecutor
     * forward_ports=False - to avoid forwarding ports from the container to the host - again that will
       allow to avoid clashes with other commands and opened breeze shell
     * project_name - to avoid name clashes with default "breeze" project name used
@@ -839,12 +838,11 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
     )
     if command_result.returncode == 0:
         return command_result
-    else:
-        get_console().print(f"[red]Error {command_result.returncode} returned[/]")
-        if get_verbose():
-            get_console().print(command_result.stderr)
-        notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
-        return command_result
+    get_console().print(f"[red]Error {command_result.returncode} returned[/]")
+    if get_verbose():
+        get_console().print(command_result.stderr)
+    notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
+    return command_result
 
 
 def notify_on_unhealthy_backend_container(project_name: str, backend: str, output: Output | None = None):
@@ -897,6 +895,7 @@ def is_docker_rootless() -> bool:
             capture_output=True,
             check=False,
             text=True,
+            quiet=True,
         )
         if response.returncode == 0 and "rootless" in response.stdout.strip():
             get_console().print("[info]Docker is running in rootless mode.[/]\n")

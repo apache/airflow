@@ -19,15 +19,32 @@ from __future__ import annotations
 
 import datetime
 import pathlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
+
+import pendulum
+import pytest
+from uuid6 import uuid7
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils import timezone
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
+    DagInfo,
+    DagRunInfo,
+    TaskGroupInfo,
+    TaskInfo,
+    TaskInfoComplete,
+    TaskInstanceInfo,
     _get_task_groups_details,
     _get_tasks_details,
     get_airflow_dag_run_facet,
@@ -39,11 +56,15 @@ from airflow.providers.openlineage.utils.utils import (
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.timetables.events import EventsTimetable
+from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.state import DagRunState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
@@ -126,12 +147,25 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock = MagicMock(DagRun)
     dagrun_mock.dag = dag
     dagrun_mock.conf = {}
+    dagrun_mock.clear_number = 0
     dagrun_mock.dag_id = dag.dag_id
     dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc)
     dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
+    dagrun_mock.logical_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.timezone.utc)
+    dagrun_mock.dag_versions = [
+        MagicMock(
+            bundle_name="bundle_name",
+            bundle_version="bundle_version",
+            id="version_id",
+            version_number="version_number",
+        )
+    ]
 
     result = get_airflow_dag_run_facet(dagrun_mock)
 
@@ -143,6 +177,7 @@ def test_get_airflow_dag_run_facet():
         "timetable": {},
         "start_date": "2024-06-01T00:00:00+00:00",
         "tags": "['test']",
+        "owner_links": {},
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
@@ -156,12 +191,65 @@ def test_get_airflow_dag_run_facet():
                 "dag_id": "dag",
                 "data_interval_start": "2024-06-01T01:02:03+00:00",
                 "data_interval_end": "2024-06-01T02:03:04+00:00",
+                "external_trigger": True,
                 "run_id": "manual_2024-06-01T00:00:00+00:00",
-                "run_type": "manual",
+                "run_type": DagRunType.MANUAL,
                 "start_date": "2024-06-01T01:02:04+00:00",
+                "end_date": "2024-06-01T01:02:14.034172+00:00",
+                "duration": 10.034172,
+                "logical_date": "2024-06-01T01:02:04+00:00",
+                "run_after": "2024-06-01T01:02:04+00:00",
+                "dag_bundle_name": "bundle_name",
+                "dag_bundle_version": "bundle_version",
+                "dag_version_id": "version_id",
+                "dag_version_number": "version_number",
             },
         )
     }
+
+
+@pytest.mark.parametrize(
+    ("dag_run_attrs", "expected_duration"),
+    (
+        ({"start_date": None, "end_date": None}, None),
+        ({"start_date": datetime.datetime(2025, 1, 1), "end_date": None}, None),
+        ({"start_date": None, "end_date": datetime.datetime(2025, 1, 1)}, None),
+        ({"start_date": "2024-06-01T01:02:04+00:00", "end_date": "2024-06-01T01:02:14.034172+00:00"}, None),
+        (
+            {
+                "start_date": datetime.datetime(2025, 1, 1, 6, 1, 1, tzinfo=datetime.timezone.utc),
+                "end_date": datetime.datetime(2025, 1, 1, 6, 1, 12, 3456, tzinfo=datetime.timezone.utc),
+            },
+            11.003456,
+        ),
+    ),
+)
+def test_dag_run_duration(dag_run_attrs, expected_duration):
+    dag_run = MagicMock(**dag_run_attrs)
+    result = DagRunInfo.duration(dag_run)
+    assert result == expected_duration
+
+
+def test_dag_run_version_no_versions():
+    dag_run = MagicMock()
+    del dag_run.dag_versions
+    result = DagRunInfo.dag_version_info(dag_run, "somekey")
+    assert result is None
+
+
+@pytest.mark.parametrize("key", ["bundle_name", "bundle_version", "version_id", "version_number"])
+def test_dag_run_version(key):
+    dagrun_mock = MagicMock(DagRun)
+    dagrun_mock.dag_versions = [
+        MagicMock(
+            bundle_name="bundle_name",
+            bundle_version="bundle_version",
+            id="version_id",
+            version_number="version_number",
+        )
+    ]
+    result = DagRunInfo.dag_version_info(dagrun_mock, key)
+    assert result == key
 
 
 def test_get_fully_qualified_class_name_serialized_operator():
@@ -263,12 +351,18 @@ def test_get_tasks_details():
         task_1 >> task_6 >> task_3 >> task_4 >> task_5
         task_3 >> task_10 >> task_12
 
+    py_decorator_path = (
+        "airflow.providers.standard.decorators.python._PythonDecoratedOperator"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.decorators.python._PythonDecoratedOperator"
+    )
+
     expected = {
         "generate_list": {
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -281,7 +375,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -294,7 +388,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": py_decorator_path,
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -678,7 +772,7 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
+    return_value={"providers.unit.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
 )
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
@@ -693,7 +787,7 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
+    return_value={"providers.unit.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
@@ -704,3 +798,889 @@ def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2.9+ tests")
+class TestDagInfoAirflow2:
+    def test_dag_info(self):
+        with DAG(
+            dag_id="dag_id",
+            schedule="@once",
+            start_date=datetime.datetime(2024, 6, 1),
+            tags=["test"],
+            description="test desc",
+            owner_links={"some_owner": "https://airflow.apache.org"},
+        ) as dag:
+            task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", owner="first")  # noqa: F841
+            task_1 = BashOperator(task_id="task_1", bash_command="exit 1;", owner="second")  # noqa: F841
+
+        result = dict(DagInfo(dag))
+        assert sorted(result["owner"].split(", ")) == ["first", "second"]
+        result.pop("owner")
+        assert result == {
+            "dag_id": "dag_id",
+            "description": "test desc",
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "schedule_interval": "@once",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "['test']",
+            "timetable": {},
+            "owner_links": {"some_owner": "https://airflow.apache.org"},
+        }
+
+    def test_dag_info_schedule_cron(self):
+        dag = DAG(
+            dag_id="dag_id",
+            schedule="*/4 3 * * *",
+            start_date=datetime.datetime(2024, 6, 1),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "*/4 3 * * *",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
+            "owner_links": {},
+        }
+
+    def test_dag_info_schedule_events_timetable(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=EventsTimetable(
+                event_dates=[
+                    pendulum.datetime(2025, 3, 3, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 17, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 22, 20, 50, tz="America/Chicago"),
+                ],
+                description="My Team's Baseball Games",
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "My Team's Baseball Games",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "event_dates": [
+                    "2025-03-03 08:27:00-06:00",
+                    "2025-03-17 08:27:00-05:00",
+                    "2025-03-22 20:50:00-05:00",
+                ],
+                "restrict_to_events": False,
+            },
+        }
+
+    def test_dag_info_schedule_list_single_dataset(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Asset(uri="uri1", extra={"a": 1})],
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "Dataset",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [{"__type": "dataset", "uri": "uri1", "extra": {"a": 1}}],
+                }
+            },
+        }
+
+    def test_dag_info_schedule_list_two_datasets(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Asset(uri="uri1", extra={"a": 1}), Asset(uri="uri2")],
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "Dataset",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}},
+                        {"__type": "dataset", "uri": "uri2", "extra": None},
+                    ],
+                }
+            },
+        }
+
+    def test_dag_info_schedule_datasets_logical_condition(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "Dataset",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {
+                            "__type": "dataset_any",
+                            "objects": [
+                                {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}},
+                                {"__type": "dataset", "uri": "uri2", "extra": None},
+                            ],
+                        },
+                        {
+                            "__type": "dataset_any",
+                            "objects": [
+                                {"__type": "dataset", "uri": "uri3", "extra": None},
+                                {"__type": "dataset", "uri": "uri4", "extra": None},
+                            ],
+                        },
+                    ],
+                }
+            },
+        }
+
+    def test_dag_info_schedule_dataset_or_time_schedule(self):
+        # Airflow 2 import, this test is only run on Airflow 2
+        from airflow.timetables.datasets import DatasetOrTimeSchedule
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=DatasetOrTimeSchedule(
+                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+                datasets=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "schedule_interval": "Dataset or */4 3 * * *",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {
+                            "__type": "dataset_any",
+                            "objects": [
+                                {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}},
+                                {"__type": "dataset", "uri": "uri2", "extra": None},
+                            ],
+                        },
+                        {
+                            "__type": "dataset_any",
+                            "objects": [
+                                {"__type": "dataset", "uri": "uri3", "extra": None},
+                                {"__type": "dataset", "uri": "uri4", "extra": None},
+                            ],
+                        },
+                    ],
+                },
+                "timetable": {
+                    "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                    "__var": {"expression": "*/4 3 * * *", "timezone": "UTC", "interval": 0.0},
+                },
+            },
+        }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow < 3.0 tests")
+class TestDagInfoAirflow210:
+    def test_dag_info_schedule_single_dataset_directly(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=Asset(uri="uri1", extra={"a": 1}),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {"dataset_condition": {"__type": "dataset", "uri": "uri1", "extra": {"a": 1}}},
+            "schedule_interval": "Dataset",
+        }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
+class TestDagInfoAirflow3:
+    def test_dag_info(self):
+        with DAG(
+            dag_id="dag_id",
+            schedule="@once",
+            start_date=datetime.datetime(2024, 6, 1),
+            tags={"test"},
+            description="test desc",
+            owner_links={"some_owner": "https://airflow.apache.org"},
+        ) as dag:
+            task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", owner="first")  # noqa: F841
+            task_1 = BashOperator(task_id="task_1", bash_command="exit 1;", owner="second")  # noqa: F841
+
+        result = dict(DagInfo(dag))
+        assert sorted(result["owner"].split(", ")) == ["first", "second"]
+        result.pop("owner")
+        assert result == {
+            "dag_id": "dag_id",
+            "description": "test desc",
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "['test']",
+            "timetable": {},
+            "timetable_summary": "@once",
+            "owner_links": {"some_owner": "https://airflow.apache.org"},
+        }
+
+    def test_dag_info_schedule_cron(self):
+        dag = DAG(
+            dag_id="dag_id",
+            schedule="*/4 3 * * *",
+            start_date=datetime.datetime(2024, 6, 1),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {"expression": "*/4 3 * * *", "timezone": "UTC"},
+            "timetable_summary": "*/4 3 * * *",
+        }
+
+    def test_dag_info_schedule_events_timetable(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=EventsTimetable(
+                event_dates=[
+                    pendulum.datetime(2025, 3, 3, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 17, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 22, 20, 50, tz="America/Chicago"),
+                ],
+                description="My Team's Baseball Games",
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "event_dates": [
+                    "2025-03-03T08:27:00-06:00",
+                    "2025-03-17T08:27:00-05:00",
+                    "2025-03-22T20:50:00-05:00",
+                ],
+                "restrict_to_events": False,
+            },
+            "timetable_summary": "My Team's Baseball Games",
+        }
+
+    def test_dag_info_schedule_single_asset_directly(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=Asset(uri="uri1", extra={"a": 1}),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset",
+                    "uri": "uri1",
+                    "name": "uri1",
+                    "group": "asset",
+                    "extra": {"a": 1},
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_list_single_assets(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Asset(uri="uri1", extra={"a": 1})],
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset",
+                            "uri": "uri1",
+                            "name": "uri1",
+                            "group": "asset",
+                            "extra": {"a": 1},
+                        }
+                    ],
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_list_two_assets(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Asset(uri="uri1", extra={"a": 1}), Asset(uri="uri2")],
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset",
+                            "uri": "uri1",
+                            "name": "uri1",
+                            "group": "asset",
+                            "extra": {"a": 1},
+                        },
+                        {"__type": "asset", "uri": "uri2", "name": "uri2", "group": "asset", "extra": {}},
+                    ],
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_assets_logical_condition(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri1",
+                                    "name": "uri1",
+                                    "group": "asset",
+                                    "extra": {"a": 1},
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri2",
+                                    "name": "uri2",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                            ],
+                        },
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri3",
+                                    "name": "uri3",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri4",
+                                    "name": "uri4",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                            ],
+                        },
+                    ],
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_asset_or_time_schedule(self):
+        from airflow.timetables.assets import AssetOrTimeSchedule
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=AssetOrTimeSchedule(
+                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+                assets=((Asset("uri1", extra={"a": 1}) | Asset("uri2")) & (Asset("uri3") | Asset("uri4"))),
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "owner_links": {},
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri1",
+                                    "name": "uri1",
+                                    "group": "asset",
+                                    "extra": {"a": 1},
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri2",
+                                    "name": "uri2",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                            ],
+                        },
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri3",
+                                    "name": "uri3",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri4",
+                                    "name": "uri4",
+                                    "group": "asset",
+                                    "extra": {},
+                                },
+                            ],
+                        },
+                    ],
+                },
+                "timetable": {
+                    "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                    "__var": {
+                        "expression": "*/4 3 * * *",
+                        "timezone": "UTC",
+                        "interval": 0.0,
+                        "run_immediately": False,
+                    },
+                },
+            },
+            "timetable_summary": "Asset or */4 3 * * *",
+        }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
+@patch.object(DagRun, "dag_versions", new_callable=PropertyMock)
+def test_dagrun_info_af3(mocked_dag_versions):
+    from airflow.models.dag_version import DagVersion
+    from airflow.utils.types import DagRunTriggeredByType
+
+    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    dv1 = DagVersion()
+    dv2 = DagVersion()
+    dv2.id = "version_id"
+    dv2.version_number = "version_number"
+    dv2.bundle_name = "bundle_name"
+    dv2.bundle_version = "bundle_version"
+
+    mocked_dag_versions.return_value = [dv1, dv2]
+    dagrun = DagRun(
+        dag_id="dag_id",
+        run_id="dag_run__run_id",
+        queued_at=date,
+        logical_date=date,
+        run_after=date,
+        start_date=date,
+        conf={"a": 1},
+        state=DagRunState.RUNNING,
+        run_type=DagRunType.MANUAL,
+        creating_job_id=123,
+        data_interval=(date, date),
+        triggered_by=DagRunTriggeredByType.UI,
+        backfill_id=999,
+        bundle_version="bundle_version",
+    )
+    assert dagrun.dag_versions == [dv1, dv2]
+    dagrun.end_date = date + datetime.timedelta(seconds=74, microseconds=546)
+
+    result = DagRunInfo(dagrun)
+    assert dict(result) == {
+        "conf": {"a": 1},
+        "dag_id": "dag_id",
+        "data_interval_end": "2024-06-01T00:00:00+00:00",
+        "data_interval_start": "2024-06-01T00:00:00+00:00",
+        "duration": 74.000546,
+        "end_date": "2024-06-01T00:01:14.000546+00:00",
+        "run_id": "dag_run__run_id",
+        "run_type": DagRunType.MANUAL,
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "logical_date": "2024-06-01T00:00:00+00:00",
+        "run_after": "2024-06-01T00:00:00+00:00",
+        "dag_bundle_name": "bundle_name",
+        "dag_bundle_version": "bundle_version",
+        "dag_version_id": "version_id",
+        "dag_version_number": "version_number",
+    }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
+@pytest.mark.db_test
+def test_dagrun_info_af2():
+    date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    dag = DAG(
+        "dag_id",
+        schedule=None,
+        start_date=date,
+    )
+
+    dagrun = dag.create_dagrun(
+        run_id="dag_run__run_id",
+        data_interval=(date, date),
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+        execution_date=date,
+        conf={"a": 1},
+    )
+    dagrun.start_date = date
+    dagrun.end_date = date + datetime.timedelta(seconds=74, microseconds=546)
+
+    result = DagRunInfo(dagrun)
+    assert dict(result) == {
+        "conf": {"a": 1},
+        "dag_id": "dag_id",
+        "data_interval_end": "2024-06-01T00:00:00+00:00",
+        "data_interval_start": "2024-06-01T00:00:00+00:00",
+        "duration": 74.000546,
+        "end_date": "2024-06-01T00:01:14.000546+00:00",
+        "run_id": "dag_run__run_id",
+        "run_type": DagRunType.MANUAL,
+        "external_trigger": False,
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "logical_date": "2024-06-01T00:00:00+00:00",
+        "dag_bundle_name": None,
+        "dag_bundle_version": None,
+        "dag_version_id": None,
+        "dag_version_number": None,
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
+def test_taskinstance_info_af3():
+    from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    task = BaseOperator(task_id="hello")
+    task._is_mapped = True
+    dag_id = "basic_task"
+
+    dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+    task.dag = dag
+
+    ti_id = uuid7()
+    ti = TaskInstance(
+        id=ti_id,
+        task_id=task.task_id,
+        dag_id=dag_id,
+        run_id="test_run",
+        try_number=1,
+        map_index=2,
+    )
+    start_date = timezone.datetime(2025, 1, 1)
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **ti.model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=None,
+        start_date=start_date,
+    )
+    runtime_ti.end_date = start_date + datetime.timedelta(seconds=12, milliseconds=345)
+    bundle_instance = MagicMock(version="bundle_version")
+    bundle_instance.name = "bundle_name"
+    runtime_ti.bundle_instance = bundle_instance
+
+    assert dict(TaskInstanceInfo(runtime_ti)) == {
+        "map_index": 2,
+        "try_number": 1,
+        "dag_bundle_version": "bundle_version",
+        "dag_bundle_name": "bundle_name",
+    }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
+@patch.object(TaskInstance, "log_url", "some_log_url")  # Depends on the host, hard to test exact value
+def test_taskinstance_info_af2():
+    some_date = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
+    task_obj = PythonOperator(task_id="task_id", python_callable=lambda x: x)
+    ti = TaskInstance(
+        task=task_obj, run_id="task_instance_run_id", state=TaskInstanceState.RUNNING, map_index=2
+    )
+    ti.duration = 12.345
+    ti.queued_dttm = some_date
+
+    assert dict(TaskInstanceInfo(ti)) == {
+        "duration": 12.345,
+        "map_index": 2,
+        "pool": "default_pool",
+        "try_number": 0,
+        "queued_dttm": "2024-06-01T00:00:00+00:00",
+        "log_url": "some_log_url",
+        "dag_bundle_name": None,
+        "dag_bundle_version": None,
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
+def test_task_info_af3():
+    class CustomOperator(PythonOperator):
+        def __init__(self, *args, **kwargs):
+            self.deferrable = True
+            self.trigger_dag_id = "trigger_dag_id"
+            self.external_dag_id = "external_dag_id"
+            self.external_task_id = "external_task_id"
+            super().__init__(*args, **kwargs)
+
+    with DAG(
+        dag_id="dag",
+        schedule="@once",
+        start_date=datetime.datetime(2024, 6, 1),
+    ) as dag:
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", dag=dag)
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;", dag=dag)
+
+        with TaskGroup("section_1", prefix_group_id=True) as tg:
+            task_10 = CustomOperator(
+                task_id="task_3",
+                python_callable=lambda: 1,
+                inlets=[Asset(uri="uri1", extra={"a": 1})],
+                outlets=[Asset(uri="uri2", extra={"b": 2}), Asset(uri="uri3", extra={"c": 3})],
+            )
+
+        task_0 >> task_10
+        tg >> task_1
+
+    result = TaskInfo(task_10)
+    tg_info = TaskGroupInfo(tg)
+    assert dict(tg_info) == {
+        "downstream_group_ids": "[]",
+        "downstream_task_ids": "['task_1']",
+        "group_id": "section_1",
+        "prefix_group_id": True,
+        "tooltip": "",
+        "upstream_group_ids": "[]",
+        "upstream_task_ids": "[]",
+    }
+    assert dict(result) == {
+        "deferrable": True,
+        "depends_on_past": False,
+        "downstream_task_ids": "['task_1']",
+        "execution_timeout": None,
+        "executor_config": {},
+        "external_dag_id": "external_dag_id",
+        "external_task_id": "external_task_id",
+        "ignore_first_depends_on_past": False,
+        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "mapped": False,
+        "max_active_tis_per_dag": None,
+        "max_active_tis_per_dagrun": None,
+        "max_retry_delay": None,
+        "multiple_outputs": False,
+        "operator_class": "CustomOperator",
+        "operator_class_path": get_fully_qualified_class_name(task_10),
+        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "owner": "airflow",
+        "priority_weight": 1,
+        "queue": "default",
+        "retries": 0,
+        "retry_exponential_backoff": False,
+        "run_as_user": None,
+        "task_group": tg_info,
+        "task_id": "section_1.task_3",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_rule": "all_success",
+        "upstream_task_ids": "['task_0']",
+        "wait_for_downstream": False,
+        "wait_for_past_depends_before_skipping": False,
+    }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
+def test_task_info_af2():
+    class CustomOperator(PythonOperator):
+        def __init__(self, *args, **kwargs):
+            self.deferrable = True
+            self.trigger_dag_id = "trigger_dag_id"
+            self.external_dag_id = "external_dag_id"
+            self.external_task_id = "external_task_id"
+            super().__init__(*args, **kwargs)
+
+    with DAG(
+        dag_id="dag",
+        schedule="@once",
+        start_date=datetime.datetime(2024, 6, 1),
+    ) as dag:
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;", dag=dag)
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;", dag=dag)
+
+        with TaskGroup("section_1", prefix_group_id=True) as tg:
+            task_10 = CustomOperator(
+                task_id="task_3",
+                python_callable=lambda: 1,
+                inlets=[Asset(uri="uri1", extra={"a": 1})],
+                outlets=[Asset(uri="uri2", extra={"b": 2}), Asset(uri="uri3", extra={"c": 3})],
+            )
+
+        task_0 >> task_10
+        tg >> task_1
+
+    result = TaskInfo(task_10)
+    tg_info = TaskGroupInfo(tg)
+    assert dict(tg_info) == {
+        "downstream_group_ids": "[]",
+        "downstream_task_ids": "['task_1']",
+        "group_id": "section_1",
+        "prefix_group_id": True,
+        "tooltip": "",
+        "upstream_group_ids": "[]",
+        "upstream_task_ids": "[]",
+    }
+    assert dict(result) == {
+        "deferrable": True,
+        "depends_on_past": False,
+        "downstream_task_ids": "['task_1']",
+        "execution_timeout": None,
+        "executor_config": {},
+        "external_dag_id": "external_dag_id",
+        "external_task_id": "external_task_id",
+        "ignore_first_depends_on_past": True,
+        "is_setup": False,
+        "is_teardown": False,
+        "sla": None,
+        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "mapped": False,
+        "max_active_tis_per_dag": None,
+        "max_active_tis_per_dagrun": None,
+        "max_retry_delay": None,
+        "multiple_outputs": False,
+        "operator_class": "CustomOperator",
+        "operator_class_path": get_fully_qualified_class_name(task_10),
+        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "owner": "airflow",
+        "priority_weight": 1,
+        "queue": "default",
+        "retries": 0,
+        "retry_exponential_backoff": False,
+        "run_as_user": None,
+        "task_group": tg_info,
+        "task_id": "section_1.task_3",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_rule": "all_success",
+        "upstream_task_ids": "['task_0']",
+        "wait_for_downstream": False,
+        "wait_for_past_depends_before_skipping": False,
+    }
+
+
+def test_task_info_complete():
+    task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
+    result = TaskInfoComplete(task_0)
+    assert "'bash_command': 'exit 0;'" in str(result)

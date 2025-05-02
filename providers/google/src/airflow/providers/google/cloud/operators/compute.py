@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any
 
 from google.api_core import exceptions
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
-from json_merge_patch import merge
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google._vendor.json_merge_patch import merge
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.links.compute import (
     ComputeInstanceDetailsLink,
@@ -1402,16 +1402,15 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                 request_id=self.request_id,
                 project_id=self.project_id,
             )
-        else:
-            # Idempotence achieved
-            ComputeInstanceGroupManagerDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                location_id=self.zone,
-                resource_id=self.resource_id,
-                project_id=self.project_id or hook.project_id,
-            )
-            return True
+        # Idempotence achieved
+        ComputeInstanceGroupManagerDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.zone,
+            resource_id=self.resource_id,
+            project_id=self.project_id or hook.project_id,
+        )
+        return True
 
 
 class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator):

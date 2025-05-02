@@ -119,8 +119,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
@@ -151,8 +150,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
@@ -222,8 +220,7 @@ class TestDruidSubmitHook:
             text='{"status":{"status": "RUNNING"}}',
         )
         shutdown_post = requests_mock.post(
-            "http://druid-overlord:8081/druid/indexer/v1/task/"
-            "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
 
@@ -315,6 +312,18 @@ class TestDruidHook:
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         assert hook.get_conn_url(IngestionType.MSQ) == "https://test_host:1/sql_ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_status_url(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "http"
+        get_conn_value.schema = "https"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_status_url(IngestionType.MSQ) == "https://test_host:1/druid/indexer/v1/task"
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_auth(self, mock_get_connection):
@@ -443,13 +452,13 @@ class TestDruidDbApiHook:
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
-    def test_get_pandas_df(self):
+    def test_get_df_pandas(self):
         statement = "SQL"
         column = "col"
         result_sets = [("row1",), ("row2",)]
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
-        df = self.db_hook().get_pandas_df(statement)
+        df = self.db_hook().get_df(statement, df_type="pandas")
 
         assert column == df.columns[0]
         for i, item in enumerate(result_sets):
@@ -457,3 +466,17 @@ class TestDruidDbApiHook:
         assert self.conn.close.call_count == 1
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_df_polars(self):
+        statement = "SQL"
+        column = "col"
+        result_sets = [("row1",), ("row2",)]
+        mock_execute = MagicMock()
+        mock_execute.description = [(column, None, None, None, None, None, None)]
+        mock_execute.fetchall.return_value = result_sets
+        self.cur.execute.return_value = mock_execute
+
+        df = self.db_hook().get_df(statement, df_type="polars")
+        assert column == df.columns[0]
+        assert result_sets[0][0] == df.row(0)[0]
+        assert result_sets[1][0] == df.row(1)[0]

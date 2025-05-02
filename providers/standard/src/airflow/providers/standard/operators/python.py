@@ -42,16 +42,22 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.skipmixin import SkipMixin
 from airflow.models.variable import Variable
-from airflow.operators.branch import BranchMixIn
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
-from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
+from airflow.utils.process_utils import execute_in_subprocess
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.standard.operators.branch import BaseBranchOperator
+    from airflow.providers.standard.utils.skipmixin import SkipMixin
+else:
+    from airflow.models.skipmixin import SkipMixin
+    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
+
 
 log = logging.getLogger(__name__)
 
@@ -60,10 +66,12 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
 
+    from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
+    from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
+
     try:
         from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
+    except ImportError:  # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
@@ -184,14 +192,20 @@ class PythonOperator(BaseOperator):
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.utils.context import context_get_outlet_events
+        # This needs to be lazy because subclasses may implement execute_callable
+        # by running a separate process that can't use the eager result.
+        def __prepare_execution() -> tuple[ExecutionCallableRunner, OutletEventAccessorsProtocol] | None:
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.sdk.execution_time.callback_runner import create_executable_runner
+                from airflow.sdk.execution_time.context import context_get_outlet_events
 
-            self._asset_events = context_get_outlet_events(context)
-        elif AIRFLOW_V_2_10_PLUS:
-            from airflow.utils.context import context_get_outlet_events
+                return create_executable_runner, context_get_outlet_events(context)
+            from airflow.utils.context import context_get_outlet_events  # type: ignore
+            from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
 
-            self._dataset_events = context_get_outlet_events(context)
+            return ExecutionCallableRunner, context_get_outlet_events(context)
+
+        self.__prepare_execution = __prepare_execution
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -204,25 +218,22 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
+    __prepare_execution: Callable[[], tuple[ExecutionCallableRunner, OutletEventAccessorsProtocol] | None]
+
     def execute_callable(self) -> Any:
         """
         Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
-        try:
-            from airflow.utils.operator_helpers import ExecutionCallableRunner
-
-            asset_events = self._asset_events if AIRFLOW_V_3_0_PLUS else self._dataset_events
-
-            runner = ExecutionCallableRunner(self.python_callable, asset_events, logger=self.log)
-        except ImportError:
-            # Handle Pre Airflow 3.10 case where ExecutionCallableRunner was not available
+        if (execution_preparation := self.__prepare_execution()) is None:
             return self.python_callable(*self.op_args, **self.op_kwargs)
+        create_execution_runner, asset_events = execution_preparation
+        runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
-class BranchPythonOperator(PythonOperator, BranchMixIn):
+class BranchPythonOperator(BaseBranchOperator, PythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -236,8 +247,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonOperator.execute(self, context)
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -265,6 +276,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
         skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
+
+    inherits_from_skipmixin = True
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -295,25 +308,24 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         to_skip = get_tasks_to_skip()
 
-        # this let's us avoid an intermediate list unless debug logging
+        # this lets us avoid an intermediate list unless debug logging
         if self.log.getEffectiveLevel() <= logging.DEBUG:
             self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
         if AIRFLOW_V_3_0_PLUS:
             self.skip(
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
+                ti=context["ti"],
                 tasks=to_skip,
-                map_index=context["ti"].map_index,
             )
         else:
-            self.skip(
-                dag_run=dag_run,
-                tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
-                map_index=context["ti"].map_index,
-            )
+            if to_skip:
+                self.skip(
+                    dag_run=context["dag_run"],
+                    tasks=to_skip,
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    map_index=context["ti"].map_index,
+                )
 
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None
@@ -444,8 +456,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
-                f"Unsupported serializer {serializer!r}. "
-                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+                f"Unsupported serializer {serializer!r}. Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
 
@@ -545,26 +556,19 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(termination_log_path),
                     os.fspath(airflow_context_path),
                 ]
-                if AIRFLOW_V_2_10_PLUS:
-                    execute_in_subprocess(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
-                else:
-                    execute_in_subprocess_with_kwargs(
-                        cmd=cmd,
-                        env=env_vars,
-                    )
+                execute_in_subprocess(
+                    cmd=cmd,
+                    env=env_vars,
+                )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
-                elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                if termination_log_path.exists() and termination_log_path.stat().st_size > 0:
                     error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
                     with open(termination_log_path) as file:
                         error_msg += file.read()
                     raise AirflowException(error_msg) from None
-                else:
-                    raise
+                raise
 
             if 0 in self.skip_on_exit_code:
                 raise AirflowSkipException("Process exited with code 0. Skipping.")
@@ -575,8 +579,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         keyword_params = KeywordParameters.determine(self.python_callable, self.op_args, context)
         if AIRFLOW_V_3_0_PLUS:
             return keyword_params.unpacking()
-        else:
-            return keyword_params.serializing()  # type: ignore[attr-defined]
+        return keyword_params.serializing()  # type: ignore[attr-defined]
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
@@ -791,7 +794,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                     if hash_marker.exists():
                         previous_hash_data = hash_marker.read_text(encoding="utf8")
                         if previous_hash_data == hash_data:
-                            self.log.info("Re-using cached Python virtual environment in %s", venv_path)
+                            self.log.info("Reusing cached Python virtual environment in %s", venv_path)
                             return venv_path
 
                         _, hash_data_before_upgrade = self._calculate_cache_hash(exclude_cloudpickle=True)
@@ -850,7 +853,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
-class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
+class BranchPythonVirtualenvOperator(BaseBranchOperator, PythonVirtualenvOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task in a virtual environment.
 
@@ -868,8 +871,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return PythonVirtualenvOperator.execute(self, context)
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
@@ -1065,7 +1068,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
+class BranchExternalPythonOperator(BaseBranchOperator, ExternalPythonOperator):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -1078,8 +1081,8 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
         :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
-    def execute(self, context: Context) -> Any:
-        return self.do_branch(context, super().execute(context))
+    def choose_branch(self, context: Context) -> str | Iterable[str]:
+        return ExternalPythonOperator.execute(self, context)
 
 
 def get_current_context() -> Mapping[str, Any]:
@@ -1113,8 +1116,7 @@ def get_current_context() -> Mapping[str, Any]:
         from airflow.sdk import get_current_context
 
         return get_current_context()
-    else:
-        return _get_current_context()
+    return _get_current_context()
 
 
 def _get_current_context() -> Mapping[str, Any]:
@@ -1124,7 +1126,6 @@ def _get_current_context() -> Mapping[str, Any]:
 
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
-            "Current context was requested but no context was found! "
-            "Are you running within an Airflow task?"
+            "Current context was requested but no context was found! Are you running within an Airflow task?"
         )
     return _CURRENT_CONTEXT[-1]

@@ -29,7 +29,8 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, resolve_dialects
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.common_sql import mock_db_hook

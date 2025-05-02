@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-import traceback
 from urllib.parse import unquote, urljoin, urlsplit
 
 from flask import (
     g,
+    make_response,
     redirect,
     render_template,
     request,
@@ -31,9 +30,8 @@ from flask import (
 from flask_appbuilder import IndexView, expose
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.configuration import conf
-from airflow.utils.net import get_hostname
-from airflow.version import version
 
 # Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
 # June 6, 2023, we are adding extra sanitization of the urls passed to get_safe_url method to make it works
@@ -69,33 +67,19 @@ class FabIndexView(IndexView):
     @expose("/")
     def index(self):
         if g.user is not None and g.user.is_authenticated:
-            token = get_auth_manager().get_jwt_token(g.user)
-            return redirect(f"{conf.get('fastapi', 'base_url')}/?token={token}", code=302)
-        else:
-            return super().index()
+            token = get_auth_manager().generate_jwt(g.user)
+            response = make_response(redirect(f"{conf.get('api', 'base_url', fallback='/')}", code=302))
+
+            secure = bool(conf.get("api", "ssl_cert", fallback=""))
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
+            return response
+        return redirect(conf.get("api", "base_url", fallback="/"), code=302)
 
 
 def show_traceback(error):
     """Show Traceback for a given error."""
-    is_logged_in = get_auth_manager().is_logged_in()
-    return (
-        render_template(
-            "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
-            airflow_version=version if is_logged_in else "redacted",
-            hostname=(
-                get_hostname()
-                if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-                else "redacted"
-            ),
-            info=(
-                traceback.format_exc()
-                if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
-                else "Error! Please contact server admin."
-            ),
-        ),
-        500,
-    )
+    return render_template("airflow/traceback.html"), 500
 
 
 def not_found(error):
@@ -130,3 +114,15 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def method_not_allowed(error):
+    """Show Method Not Allowed on screen for any error in the Webserver."""
+    return (
+        render_template(
+            "airflow/error.html",
+            status_code=405,
+            error_message="Received an invalid request.",
+        ),
+        405,
+    )

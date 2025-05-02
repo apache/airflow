@@ -19,55 +19,25 @@ from __future__ import annotations
 
 import importlib
 import os
-from argparse import Namespace
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
-import sqlalchemy
 
-import airflow
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
+from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
 
-class TestWorkerPrecheck:
-    @mock.patch("airflow.settings.validate_session")
-    def test_error(self, mock_validate_session):
-        """
-        Test to verify the exit mechanism of airflow-worker cli
-        by mocking validate_session method
-        """
-        mock_validate_session.return_value = False
-        with pytest.raises(SystemExit) as ctx, conf_vars({("core", "executor"): "CeleryExecutor"}):
-            celery_command.worker(Namespace(queues=1, concurrency=1))
-        assert str(ctx.value) == "Worker exiting, database connection precheck failed."
-
-    @conf_vars({("celery", "worker_precheck"): "False"})
-    def test_worker_precheck_exception(self):
-        """
-        Test to check the behaviour of validate_session method
-        when worker_precheck is absent in airflow configuration
-        """
-        assert airflow.settings.validate_session()
-
-    @mock.patch("sqlalchemy.orm.session.Session.execute")
-    @conf_vars({("celery", "worker_precheck"): "True"})
-    def test_validate_session_dbapi_exception(self, mock_session):
-        """
-        Test to validate connection failure scenario on SELECT 1 query
-        """
-        mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
-        assert airflow.settings.validate_session() is False
-
-
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestCeleryStopCommand:
     @classmethod
     def setup_class(cls):
@@ -149,6 +119,7 @@ class TestCeleryStopCommand:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestWorkerStart:
     @classmethod
     def setup_class(cls):
@@ -209,6 +180,7 @@ class TestWorkerStart:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestWorkerFailure:
     @classmethod
     def setup_class(cls):
@@ -228,6 +200,7 @@ class TestWorkerFailure:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestFlowerCommand:
     @classmethod
     def setup_class(cls):
@@ -305,7 +278,7 @@ class TestFlowerCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.local_commands.daemon_utils.open", mock_open):
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
         mock_celery_app.start.assert_called_once_with(
@@ -340,13 +313,6 @@ class TestFlowerCommand:
                 stderr="/tmp/flower-stderr.log",
                 log="/tmp/flower.log",
             )
-            if AIRFLOW_V_2_10_PLUS
-            else mock.call(
-                process="flower",
-                stdout="/tmp/flower-stdout.log",
-                stderr="/tmp/flower-stderr.log",
-                log="/tmp/flower.log",
-            )
         ]
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
         assert mock_open.mock_calls == [
@@ -371,11 +337,23 @@ class TestFlowerCommand:
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon_v3_above(
         self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
     ):
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
+
+
+@patch("airflow.providers.celery.cli.celery_command.Process")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
+def test_stale_bundle_cleanup(mock_process):
+    mock_process.__bool__.return_value = True
+    with _run_stale_bundle_cleanup():
+        ...
+    calls = mock_process.call_args_list
+    assert len(calls) == 1
+    actual = [x.kwargs["target"] for x in calls]
+    assert actual[0].__name__ == "bundle_cleanup_main"
