@@ -77,7 +77,7 @@ dev = [
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "apache-airflow-providers-common-sql[polars]",
+    "apache-airflow-providers-common-sql[pandas,polars]",
 ]
 
 # To build docs:

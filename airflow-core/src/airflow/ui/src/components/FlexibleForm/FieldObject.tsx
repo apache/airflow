@@ -16,21 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { useState } from "react";
-
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
 
-export const FieldObject = ({ name }: FlexibleFormElementProps) => {
+export const FieldObject = ({ name, onUpdate }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
-  const [error, setError] = useState<unknown>(undefined);
 
   const handleChange = (value: string) => {
-    setError(undefined);
     try {
       // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
       // eslint-disable-next-line unicorn/no-null
@@ -41,19 +36,17 @@ export const FieldObject = ({ name }: FlexibleFormElementProps) => {
       }
 
       setParamsDict(paramsDict);
+      onUpdate(value);
     } catch (_error) {
-      setError(_error);
+      onUpdate("", _error);
     }
   };
 
   return (
-    <>
-      <JsonEditor
-        id={`element_${name}`}
-        onChange={handleChange}
-        value={JSON.stringify(param.value ?? [], undefined, 2)}
-      />
-      {Boolean(error) ? <Text color="fg,.error">{String(error)}</Text> : undefined}
-    </>
+    <JsonEditor
+      id={`element_${name}`}
+      onChange={handleChange}
+      value={JSON.stringify(param.value ?? [], undefined, 2)}
+    />
   );
 };
