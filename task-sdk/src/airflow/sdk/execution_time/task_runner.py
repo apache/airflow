@@ -970,11 +970,19 @@ def _handle_trigger_dag_run(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
                 dag_id=drte.trigger_dag_id,
             )
-            msg = TaskState(state=TaskInstanceState.SKIPPED, end_date=datetime.now(tz=timezone.utc), rendered_map_index=ti.rendered_map_index,)
+            msg = TaskState(
+                state=TaskInstanceState.SKIPPED,
+                end_date=datetime.now(tz=timezone.utc),
+                rendered_map_index=ti.rendered_map_index,
+            )
             state = TaskInstanceState.SKIPPED
         else:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc), rendered_map_index=ti.rendered_map_index,)
+            msg = TaskState(
+                state=TaskInstanceState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+                rendered_map_index=ti.rendered_map_index,
+            )
             state = TaskInstanceState.FAILED
 
         return msg, state
@@ -1020,7 +1028,11 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc), rendered_map_index=ti.rendered_map_index,)
+                msg = TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=datetime.now(tz=timezone.utc),
+                    rendered_map_index=ti.rendered_map_index,
+                )
                 state = TaskInstanceState.FAILED
                 return msg, state
             if comms_msg.state in drte.allowed_states:
@@ -1127,10 +1139,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:
     """Render named map index if the DAG author defined map_index_template at the task level."""
-    if template := context.get("map_index_template") is None:
-        return None
-    if not isinstance(template, str):
-        log.error("Expected `template` to be a string, but got %s", type(template).__name__)
+    if (template := context.get("map_index_template")) is None:
         return None
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
