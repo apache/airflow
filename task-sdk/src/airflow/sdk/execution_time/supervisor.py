@@ -59,7 +59,6 @@ from airflow.sdk.api.datamodels._generated import (
     TaskStatesResponse,
     TerminalTIState,
     VariableResponse,
-    XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -86,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
+    GetXComSequenceSlice,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -1037,13 +1037,13 @@ class ActivitySubprocess(WatchedSubprocess):
             len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
             resp = XComCountResponse(len=len)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
+            resp = self.client.xcoms.get_sequence_item(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
             )
-            if isinstance(xcom, XComResponse):
-                resp = XComResult.from_xcom_response(xcom)
-            else:
-                resp = xcom
+        elif isinstance(msg, GetXComSequenceSlice):
+            resp = self.client.xcoms.get_sequence_slice(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.start, msg.stop, msg.step
+            )
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)

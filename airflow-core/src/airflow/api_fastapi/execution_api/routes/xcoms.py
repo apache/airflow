@@ -27,7 +27,11 @@ from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    XComResponse,
+    XComSequenceIndexResponse,
+    XComSequenceSliceResponse,
+)
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
@@ -126,7 +130,6 @@ class GetXcomFilterParams(BaseModel):
 
     map_index: int = -1
     include_prior_dates: bool = False
-    offset: int | None = None
 
 
 @router.get(
@@ -142,46 +145,123 @@ def get_xcom(
     params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
+    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
+    # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or
+    # `XCom.get_one` (which automatically deserializes using the backend), we avoid potential
+    # performance hits from retrieving large data files into the API server.
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
+        map_indexes=(map_index := params.map_index),
         include_prior_dates=params.include_prior_dates,
         session=session,
     )
-    if params.offset is not None:
-        xcom_query = xcom_query.filter(XComModel.value.is_not(None)).order_by(None)
-        if params.offset >= 0:
-            xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(params.offset)
-        else:
-            xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - params.offset)
-    else:
-        xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
-
-    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
-    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
-    # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
-    # (which automatically deserializes using the backend), we avoid potential
-    # performance hits from retrieving large data files into the API server.
-    result = xcom_query.limit(1).first()
-    if result is None:
-        if params.offset is None:
-            message = (
-                f"XCom with {key=} map_index={params.map_index} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
-            )
-        else:
-            message = (
-                f"XCom with {key=} offset={params.offset} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
-            )
+    if (result := xcom_query.limit(1).first()) is None:
+        message = (
+            f"XCom with {key=} {map_index=} not found for "
+            f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
 
     return XComResponse(key=key, value=result.value)
+
+
+@router.get(
+    "/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
+    description="Get a single XCom value from a mapped task by sequence index",
+)
+def get_mapped_xcom_by_index(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: str,
+    offset: int,
+    session: SessionDep,
+) -> XComSequenceIndexResponse:
+    xcom_query = XComModel.get_many(
+        run_id=run_id,
+        key=key,
+        task_ids=task_id,
+        dag_ids=dag_id,
+        session=session,
+    )
+    xcom_query = xcom_query.order_by(None)
+    if offset >= 0:
+        xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(offset)
+    else:
+        xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
+
+    if (result := xcom_query.limit(1).first()) is None:
+        message = (
+            f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": message},
+        )
+    return XComSequenceIndexResponse(result.value)
+
+
+class GetXComSliceFilterParams(BaseModel):
+    """Class to house slice params."""
+
+    start: int
+    stop: int | None
+    step: int
+
+
+@router.get(
+    "/{dag_id}/{run_id}/{task_id}/{key}/slice",
+    description="Get a single XCom value from a mapped task by sequence slice",
+)
+def get_mapped_xcom_by_slice(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: str,
+    params: Annotated[GetXComSliceFilterParams, Query()],
+    session: SessionDep,
+) -> XComSequenceSliceResponse:
+    query = XComModel.get_many(
+        run_id=run_id,
+        key=key,
+        task_ids=task_id,
+        dag_ids=dag_id,
+        session=session,
+    )
+    query = query.order_by(None)
+
+    # This implements the slicing syntax. We want to optimize negative slicing (e.g. seq[-10:]) by not
+    # doing an additional COUNT query (via HEAD http request) if possible. We can do this unless the
+    # start and stop have different signs (i.e. one is positive and another negative).
+    if (start := params.start) >= 0:
+        query = query.order_by(XComModel.map_index.asc())
+        if (stop := params.stop) is None:
+            query = query.offset(start)
+        elif stop >= 0:
+            query = query.slice(start, stop)
+        else:
+            query = query.slice(start, get_query_count(query, session=session) + stop)
+        rows = query.all()
+    else:
+        query = query.order_by(XComModel.map_index.desc())
+        if (stop := params.stop) is None:
+            query = query.limit(-start)
+        elif stop < 0:
+            query = query.slice(-stop, -start)
+        else:
+            query = query.slice(get_query_count(query, session=session) - stop, -start)
+        rows = query.all()
+    if (step := params.step) != 1:
+        rows = rows[::step]
+
+    return XComSequenceSliceResponse(rows)
 
 
 if sys.version_info < (3, 12):
