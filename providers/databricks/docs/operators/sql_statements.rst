@@ -59,7 +59,7 @@ An example usage of the ``DatabricksSQLStatementsOperator`` is as follows:
 
 .. _howto/sensor:DatabricksSQLStatementsSensor:
 
-DatabricksSQLStatementsOperator
+DatabricksSQLStatementsSensor
 ===============================
 
 Use the :class:`~airflow.providers.databricks.sensor.databricks.DatabricksSQLStatementsSensor` to either submit a
@@ -68,7 +68,7 @@ Databricks SQL Statement to Databricks using the
 a Statement ID to the Sensor and await for the query to terminate execution.
 
 
-Using the Operator
+Using the Sensor
 ------------------
 
 The ``DatabricksSQLStatementsSensor`` does one of two things. The Sensor can submit SQL statements to Databricks using
@@ -95,7 +95,7 @@ but not limited to:
 Examples
 --------
 
-An example usage of the ``DatabricksSQLStatementsOperator`` is as follows:
+An example usage of the ``DatabricksSQLStatementsSensor`` is as follows:
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sensors.py
     :language: python

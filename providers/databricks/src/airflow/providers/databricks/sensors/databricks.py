@@ -72,10 +72,16 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        super().__init__(**kwargs)
-
+        # Handle the scenario where either both statement and statement_id are set/not set
         if statement and statement_id:
-            raise AirflowException("Cannot set both statement and statement_id.")
+            raise AirflowException("Cannot provide both statement and statement_id.")
+        if not statement and not statement_id:
+            raise AirflowException("One of either statement or statement_id must be provided.")
+
+        if not warehouse_id:
+            raise AirflowException("warehouse_id must be provided.")
+
+        super().__init__(**kwargs)
 
         self.statement = statement
         self.statement_id = statement_id
