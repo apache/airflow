@@ -158,11 +158,11 @@ This will start the worker again and it will start accepting tasks again.
 Worker Maintenance Management CLI
 ---------------------------------
 
-Besides the CLI command to trigger maintenance on the local worker instance, there is also a command to
-manage the maintenance of all workers in the cluster. This command can be used to trigger maintenance
+Besides the CLI command to trigger maintenance on the local worker instance, there are also additional commands to
+manage the maintenance of all workers in the cluster. These commands can be used to trigger maintenance
 on all workers in the cluster or to check the status of all workers in the cluster.
 
-This set commands need database access, such can only be called on the central Airflow
+These set of commands need database access, and can only be called on the central Airflow
 instance. The commands are:
 
 - ``airflow edge list-workers``: List all workers in the cluster
