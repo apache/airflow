@@ -98,7 +98,7 @@ class Deadline(Base, LoggingMixin):
         session.add(deadline)
 
 
-class DeadlineTrigger(Enum):
+class DeadlineReference(Enum):
     """
     Store the calculation methods for the various Deadline Alert triggers.
 
@@ -113,15 +113,15 @@ class DeadlineTrigger(Enum):
     DAG(
         dag_id='dag_with_deadline',
         deadline=DeadlineAlert(
-            trigger=DeadlineTrigger.DAGRUN_LOGICAL_DATE,
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
             interval=timedelta(hours=1),
             callback=hello_callback,
         )
     )
 
-    To parse the deadline trigger later we will use something like:
+    To parse the deadline reference later we will use something like:
 
-    dag.deadline.trigger.evaluate_with(dag_id=dag.dag_id)
+    dag.deadline.reference.evaluate_with(dag_id=dag.dag_id)
     """
 
     DAGRUN_LOGICAL_DATE = "dagrun_logical_date"
@@ -132,13 +132,13 @@ class DeadlineAlert(LoggingMixin):
 
     def __init__(
         self,
-        trigger: DeadlineTrigger,
+        reference: DeadlineReference,
         interval: timedelta,
         callback: Callable | str,
         callback_kwargs: dict | None = None,
     ):
         super().__init__()
-        self.trigger = trigger
+        self.reference = reference
         self.interval = interval
         self.callback_kwargs = callback_kwargs
         self.callback = self.get_callback_path(callback)
@@ -164,7 +164,7 @@ class DeadlineAlert(LoggingMixin):
 
         return BaseSerialization.serialize(
             {
-                "trigger": self.trigger,
+                "reference": self.reference,
                 "interval": self.interval,
                 "callback": self.callback,
                 "callback_kwargs": self.callback_kwargs,
