@@ -522,7 +522,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.6.17",
+    "uv>=0.7.2",
 ]
 
 
