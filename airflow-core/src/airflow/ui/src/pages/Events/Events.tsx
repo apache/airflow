@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Heading } from "@chakra-ui/react";
+import { Box, ButtonGroup, Code, Flex, Heading, IconButton, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { MdCompress, MdExpand } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useEventLogServiceGetEventLogs } from "openapi/queries";
@@ -28,11 +29,14 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 
-const eventsColumn = (
-  dagId?: string,
-  runId?: string,
-  taskId?: string,
-): Array<ColumnDef<EventLogResponse>> => [
+type EventsColumn = {
+  dagId?: string;
+  open?: boolean;
+  runId?: string;
+  taskId?: string;
+};
+
+const eventsColumn = ({ dagId, open, runId, taskId }: EventsColumn): Array<ColumnDef<EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
@@ -65,7 +69,7 @@ const eventsColumn = (
         try {
           const parsed = JSON.parse(original.extra) as Record<string, unknown>;
 
-          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: true }} />;
+          return <RenderedJsonField content={parsed} jsonProps={{ collapsed: !open }} />;
         } catch {
           return <Code>{original.extra}</Code>;
         }
@@ -138,6 +142,7 @@ export const Events = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
+  const { onClose, onOpen, open } = useDisclosure();
 
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-when";
 
@@ -156,10 +161,32 @@ export const Events = () => {
 
   return (
     <Box>
-      <Heading>Audit Log Events</Heading>
+      <Flex alignItems="center" justifyContent="space-between">
+        <Heading>Audit Log Events</Heading>
+        <ButtonGroup attached size="sm" variant="surface">
+          <IconButton
+            aria-label="Expand all extra json"
+            onClick={onOpen}
+            size="sm"
+            title="Expand all extra json"
+            variant="surface"
+          >
+            <MdExpand />
+          </IconButton>
+          <IconButton
+            aria-label="Collapse all extra json"
+            onClick={onClose}
+            size="sm"
+            title="Collapse all extra json"
+            variant="surface"
+          >
+            <MdCompress />
+          </IconButton>
+        </ButtonGroup>
+      </Flex>
       <ErrorAlert error={error} />
       <DataTable
-        columns={eventsColumn(dagId, runId, taskId)}
+        columns={eventsColumn({ dagId, open, runId, taskId })}
         data={data ? data.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
