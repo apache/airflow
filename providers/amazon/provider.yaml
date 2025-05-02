@@ -25,6 +25,8 @@ state: ready
 source-date-epoch: 1744280881
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.7.0
+  - 9.6.1
   - 9.6.0
   - 9.5.0
   - 9.4.0
@@ -1182,3 +1184,9 @@ config:
 
 executors:
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
+
+auth-managers:
+  - airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager
+
+queues:
+  - airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider

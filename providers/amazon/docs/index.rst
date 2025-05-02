@@ -42,7 +42,8 @@
     Logging for Tasks <logging/index>
     Configuration <configurations-ref>
     Executors <executors/index>
-    Auth manager <auth-manager/index>
+    Message Queues <message-queues/index>
+    AWS Auth manager <auth-manager/index>
     CLI <cli-ref>
 
 .. toctree::
