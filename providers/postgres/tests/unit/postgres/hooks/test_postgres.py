@@ -25,6 +25,7 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 import sqlalchemy
+from psycopg2.extras import Json
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -497,6 +498,24 @@ class TestPostgresHook:
         results = [line.rstrip() for line in path.read_text().splitlines()]
 
         assert sorted(input_data) == sorted(results)
+
+    @pytest.mark.parametrize(
+        "raw_cell, expected_serialized",
+        [
+            ("cell content", "cell content"),
+            (342, 342),
+            (
+                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
+                {"key1": "value2", "n_key": {"sub_key": "sub_value"}},
+            ),
+            ([1, 2, {"key1": "value2"}, "some data"], [1, 2, {"key1": "value2"}, "some data"]),
+        ],
+    )
+    def test_serialize_cell(self, raw_cell, expected_serialized):
+        if isinstance(raw_cell, Json):
+            assert expected_serialized == raw_cell.adapted
+        else:
+            assert expected_serialized == raw_cell
 
     def test_insert_rows(self):
         table = "table"

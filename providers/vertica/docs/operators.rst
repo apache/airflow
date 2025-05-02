@@ -56,7 +56,7 @@ the connection metadata is structured as follows:
 
 An example usage of the ``SQLExecuteQueryOperator`` to connect to Vertica is as follows:
 
-.. exampleinclude:: /../../providers/vertica/tests/system/vertica/example_vertica.py
+.. exampleinclude:: /../../vertica/tests/system/vertica/example_vertica.py
     :language: python
     :start-after: [START howto_operator_vertica]
     :end-before: [END howto_operator_vertica]

@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = "test_gcp_conn_id"

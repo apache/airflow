@@ -73,8 +73,7 @@ def filter_messages(
         return filter_messages_jsonpath(
             messages, message_filtering_match_values, message_filtering_config, jsonpath_ng.ext.parse
         )
-    else:
-        raise NotImplementedError("Override this method to define custom filters")
+    raise NotImplementedError("Override this method to define custom filters")
 
 
 def filter_messages_literal(messages, message_filtering_match_values) -> list[Any]:

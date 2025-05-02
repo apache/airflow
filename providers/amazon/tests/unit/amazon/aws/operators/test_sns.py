@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ID = "sns_publish_job"

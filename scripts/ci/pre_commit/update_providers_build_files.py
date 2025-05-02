@@ -67,16 +67,20 @@ if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")
     sys.exit(1)
 
+cmd = [
+    "breeze",
+    "release-management",
+    "prepare-provider-documentation",
+    "--reapply-templates-only",
+    "--skip-git-fetch",
+    "--only-min-version-update",
+    "--skip-changelog",
+    "--skip-readme",
+]
+
+cmd.extend(providers)
 res = subprocess.run(
-    [
-        "breeze",
-        "release-management",
-        "prepare-provider-documentation",
-        "--reapply-templates-only",
-        "--skip-git-fetch",
-        "--only-min-version-update",
-        *list(providers),
-    ],
+    cmd,
     check=False,
 )
 if res.returncode != 0:

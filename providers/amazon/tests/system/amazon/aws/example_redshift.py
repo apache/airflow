@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_redshift"

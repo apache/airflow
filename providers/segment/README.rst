@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-segment``
 
-Release: ``3.7.1``
+Release: ``3.7.2``
 
 
 `Segment <https://segment.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``segment`` provider. All classes for this provid
 are in ``airflow.providers.segment`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.7.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.7.2/>`_.
 
 Installation
 ------------
@@ -53,9 +53,9 @@ Requirements
 ====================  ==================
 PIP package           Version required
 ====================  ==================
-``apache-airflow``    ``>=2.9.0``
+``apache-airflow``    ``>=2.10.0``
 ``analytics-python``  ``>=1.2.9``
 ====================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.7.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-segment/3.7.2/changelog.html>`_.

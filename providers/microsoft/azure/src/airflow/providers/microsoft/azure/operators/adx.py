@@ -81,5 +81,4 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         # TODO: Remove this after minimum Airflow version is 3.0
         if conf.getboolean("core", "enable_xcom_pickling", fallback=False):
             return response.primary_results[0]
-        else:
-            return str(response.primary_results[0])
+        return str(response.primary_results[0])

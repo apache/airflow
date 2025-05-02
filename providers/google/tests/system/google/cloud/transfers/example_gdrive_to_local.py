@@ -40,6 +40,7 @@ from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenc
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.settings import Session, json
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -72,10 +73,7 @@ with DAG(
             conn_type="google_cloud_platform",
         )
         conn_extra_json = json.dumps(
-            {
-                "scope": "https://www.googleapis.com/auth/drive,"
-                "https://www.googleapis.com/auth/cloud-platform"
-            }
+            {"scope": "https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/cloud-platform"}
         )
         conn.set_extra(conn_extra_json)
 

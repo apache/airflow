@@ -424,8 +424,7 @@ class FakeElasticsearch(Elasticsearch):
 
         if found:
             return result_dict
-        else:
-            raise NotFoundError(404, json.dumps(result_dict))
+        raise NotFoundError(404, json.dumps(result_dict))
 
     @query_params("allow_no_indices", "expand_wildcards", "ignore_unavailable", "preference", "routing")
     def suggest(self, body, index=None):

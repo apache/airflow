@@ -27,7 +27,6 @@ from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if typing.TYPE_CHECKING:
     from datetime import datetime
@@ -50,6 +49,7 @@ class WorkflowTrigger(BaseTrigger):
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
     :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
+    :param logical_dates: A list of logical dates for the external dag.
     """
 
     def __init__(
@@ -57,6 +57,7 @@ class WorkflowTrigger(BaseTrigger):
         external_dag_id: str,
         run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
+        logical_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
         failed_states: typing.Iterable[str] | None = None,
@@ -76,6 +77,7 @@ class WorkflowTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.execution_dates = execution_dates
+        self.logical_dates = logical_dates
         super().__init__(**kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -92,6 +94,7 @@ class WorkflowTrigger(BaseTrigger):
         }
         if AIRFLOW_V_3_0_PLUS:
             data["run_ids"] = self.run_ids
+            data["logical_dates"] = self.logical_dates
         else:
             data["execution_dates"] = self.execution_dates
 
@@ -99,9 +102,16 @@ class WorkflowTrigger(BaseTrigger):
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
+        if AIRFLOW_V_3_0_PLUS:
+            get_count_func = self._get_count_af_3
+            run_id_or_dates = (self.run_ids or self.logical_dates) or []
+        else:
+            get_count_func = self._get_count
+            run_id_or_dates = self.execution_dates or []
+
         while True:
             if self.failed_states:
-                failed_count = await self._get_count(self.failed_states)
+                failed_count = await get_count_func(self.failed_states)
                 if failed_count > 0:
                     yield TriggerEvent({"status": "failed"})
                     return
@@ -109,17 +119,52 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "success"})
                     return
             if self.skipped_states:
-                skipped_count = await self._get_count(self.skipped_states)
+                skipped_count = await get_count_func(self.skipped_states)
                 if skipped_count > 0:
                     yield TriggerEvent({"status": "skipped"})
                     return
-            allowed_count = await self._get_count(self.allowed_states)
-            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if allowed_count == len(_dates):  # type: ignore[arg-type]
+            allowed_count = await get_count_func(self.allowed_states)
+
+            if allowed_count == len(run_id_or_dates):  # type: ignore[arg-type]
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
             await asyncio.sleep(self.poke_interval)
+
+    async def _get_count_af_3(self, states):
+        from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        params = {
+            "dag_id": self.external_dag_id,
+            "logical_dates": self.logical_dates,
+            "run_ids": self.run_ids,
+        }
+        if self.external_task_ids:
+            count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+                task_ids=self.external_task_ids,  # type: ignore[arg-type]
+                states=states,
+                **params,
+            )
+        elif self.external_task_group_id:
+            run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                task_group_id=self.external_task_group_id,
+                **params,
+            )
+            count = await sync_to_async(_get_count_by_matched_states)(
+                run_id_task_state_map=run_id_task_state_map,
+                states=states,
+            )
+        else:
+            count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+                dag_id=self.external_dag_id,
+                logical_dates=self.logical_dates,
+                run_ids=self.run_ids,
+                states=states,
+            )
+        if self.external_task_ids:
+            return count / len(self.external_task_ids)
+        return count
 
     @sync_to_async
     def _get_count(self, states: typing.Iterable[str] | None) -> int:
@@ -170,42 +215,74 @@ class DagStateTrigger(BaseTrigger):
             "dag_id": self.dag_id,
             "states": self.states,
             "poll_interval": self.poll_interval,
+            "run_ids": self.run_ids,
+            "execution_dates": self.execution_dates,
         }
-
-        if AIRFLOW_V_3_0_PLUS:
-            data["run_ids"] = self.run_ids
-        else:
-            data["execution_dates"] = self.execution_dates
 
         return "airflow.providers.standard.triggers.external_task.DagStateTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
+        runs_ids_or_dates = 0
+        if self.run_ids:
+            runs_ids_or_dates = len(self.run_ids)
+        elif self.execution_dates:
+            runs_ids_or_dates = len(self.execution_dates)
+
+        if AIRFLOW_V_3_0_PLUS:
+            event = await self.validate_count_dags_af_3(runs_ids_or_dates_len=runs_ids_or_dates)
+            yield TriggerEvent(event)
+            return
+        else:
+            while True:
+                num_dags = await self.count_dags()  # type: ignore[call-arg]
+                if num_dags == runs_ids_or_dates:
+                    yield TriggerEvent(self.serialize())
+                    return
+                await asyncio.sleep(self.poll_interval)
+
+    async def validate_count_dags_af_3(self, runs_ids_or_dates_len: int = 0) -> tuple[str, dict[str, Any]]:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        cls_path, data = self.serialize()
+
         while True:
-            # mypy confuses typing here
-            num_dags = await self.count_dags()  # type: ignore[call-arg]
-            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if num_dags == len(_dates):  # type: ignore[arg-type]
-                yield TriggerEvent(self.serialize())
-                return
+            num_dags = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+                dag_id=self.dag_id,
+                run_ids=self.run_ids,
+                states=self.states,  # type: ignore[arg-type]
+                logical_dates=self.execution_dates,
+            )
+            if num_dags == runs_ids_or_dates_len:
+                if isinstance(self.run_ids, list):
+                    for run_id in self.run_ids:
+                        state = await sync_to_async(RuntimeTaskInstance.get_dagrun_state)(
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                        )
+                        data[run_id] = state
+                        return cls_path, data
             await asyncio.sleep(self.poll_interval)
 
-    @sync_to_async
-    @provide_session
-    def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
-        """Count how many dag runs in the database match our criteria."""
-        _dag_run_date_condition = (
-            DagRun.run_id.in_(self.run_ids)
-            if AIRFLOW_V_3_0_PLUS
-            else DagRun.execution_date.in_(self.execution_dates)
-        )
-        count = (
-            session.query(func.count("*"))  # .count() is inefficient
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state.in_(self.states),
-                _dag_run_date_condition,
+    if not AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.session import NEW_SESSION, provide_session  # type: ignore[misc]
+
+        @sync_to_async
+        @provide_session
+        def count_dags(self, *, session: Session = NEW_SESSION) -> int:
+            """Count how many dag runs in the database match our criteria."""
+            _dag_run_date_condition = (
+                DagRun.run_id.in_(self.run_ids)
+                if AIRFLOW_V_3_0_PLUS
+                else DagRun.execution_date.in_(self.execution_dates)
             )
-            .scalar()
-        )
-        return typing.cast(int, count)
+            count = (
+                session.query(func.count("*"))  # .count() is inefficient
+                .filter(
+                    DagRun.dag_id == self.dag_id,
+                    DagRun.state.in_(self.states),
+                    _dag_run_date_condition,
+                )
+                .scalar()
+            )
+            return typing.cast("int", count)

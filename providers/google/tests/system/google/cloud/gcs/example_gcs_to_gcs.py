@@ -30,6 +30,7 @@ from pathlib import Path
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -41,6 +42,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -56,8 +58,14 @@ HOME = "/home/airflow/gcs"
 PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
+def _unwrap_xcom(result):
+    if AIRFLOW_V_3_0_PLUS:
+        return result
+    return result[0]
+
+
 def _assert_copied_files_exist(ti):
-    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")[0]
+    objects = _unwrap_xcom(ti.xcom_pull(task_ids=["list_objects"], key="return_value"))
 
     assert PREFIX + OBJECT_1 in objects
     assert f"{PREFIX}subdir/{OBJECT_1}" in objects

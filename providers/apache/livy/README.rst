@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-livy``
 
-Release: ``4.2.0``
+Release: ``4.3.2``
 
 
 `Apache Livy <https://livy.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.livy`` provider. All classes for this pr
 are in ``airflow.providers.apache.livy`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.3.2/>`_.
 
 Installation
 ------------
@@ -50,33 +50,35 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.9.0``
-``apache-airflow-providers-http``  ``>=5.1.0``
-``aiohttp``                        ``>=3.9.2``
-``asgiref``                        ``>=2.3.0``
-=================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.10.0``
+``apache-airflow-providers-http``           ``>=5.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``aiohttp``                                 ``>=3.9.2``
+``asgiref``                                 ``>=2.3.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-livy[http]
+    pip install apache-airflow-providers-apache-livy[common.compat]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.3.2/changelog.html>`_.

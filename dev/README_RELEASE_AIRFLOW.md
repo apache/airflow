@@ -40,7 +40,6 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Remove chicken-egg providers](#remove-chicken-egg-providers)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
@@ -261,7 +260,7 @@ pipx install -e ./dev/breeze
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` (without the RC tag).
+- Set your version in `airflow/__init__.py` (without the RC tag).
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
@@ -387,8 +386,10 @@ Airflow ${VERSION} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 *apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
-*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release fore airflow meta distribution.
+*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow meta distribution.
+*apache-airflow_core-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release for airflow core distribution.
+*apache_airflow_core-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow core distribution.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -477,16 +478,16 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
+The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
@@ -494,7 +495,7 @@ This is generally faster and requires less resources/network bandwidth. Note tha
 do it before preparing the tarball as preparing packages cleans up dist folder from
 apache-airflow artifacts as it uses hatch's `-c` build flag.
 
-The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
+The `prepare-airflow-distributions` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
 
 The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
@@ -520,7 +521,7 @@ The output should be empty (files are identical).
 In case the files are different, you should see:
 
 ```
-Binary files apache_airflow-2.9.0.dev0.tar.gz and .../apache_airflow-2.9.0.dev0.tar.gz differ
+Binary files apache_airflow-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
 
@@ -776,44 +777,11 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
 
-## Remove chicken-egg providers
-
-For the first MINOR (X.Y.0) release you need to do few more steps if there are new "chicken-egg" providers
-that have min-airflow version set to X.Y.0
-
-* NOTE! WE MIGHT WANT TO AUTOMATE THAT STEP IN THE FUTURE
-
-1. Checkout the constraints-2-* branch and update the ``constraints-3*.txt`` file with the new provider
-   version. Find the place where the provider should be added, add it with the latest provider version.
-
-```
-apache-airflow-providers-PROVIDER==VERSION
-```
-
-Commit, push and tag this change with ``constraints-X.Y.Z`` tag:
-
-```bash
-git add
-git commit -m "Add chicken-egg provider apache-airflow-providers-PROVIDER"
-git tag -s constraints-X.Y.Z --force
-git push -f apache constraints-X.Y.Z
-```
-
-
-2. remove providers from ``CHICKEN_EGG_PROVIDERS`` list  in ``src/airflow_breeze/global_constants.py``
-   that have >= ``X.Y.0`` in the corresponding provider.yaml file.
-
-
-3. In case the provider should also be installed in the image (it is part of ``prod_image_installed_providers.txt``)
-   it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
-
 ```Dockerfile
 ARG AIRFLOW_EXTRAS=".....,<provider>,...."
 ```
 
-This change needs to be merged to ``main`` and cherry-picked to ``v2-*-test`` branch before building the image.
-
-4. Make sure to update Airflow version in ``v2-*-test`` branch after cherry-picking to X.Y.1.dev0 in
+4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
 
 
@@ -827,7 +795,7 @@ When you trigger it you need to pass:
 * Airflow Version
 * Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use ``v2-*-test`` branch to run the workflow.
+Make sure you use ``v3-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -1009,7 +977,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
@@ -1039,7 +1006,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/supported_versions.py` and let pre-commit do the job.
-- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py` and `docs/docker-stack/` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
@@ -1081,7 +1048,7 @@ Clients can be found here:
 ### API Clients versioning policy
 
 Clients and Core versioning are completely decoupled. Clients also follow SemVer and are updated when core introduce changes relevant to the clients.
-Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
+Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/clients/python/openapi_v1.yaml) has
 changed, clients need to be released.
 
 To determine if you should release API clients, you can run from the airflow repository:

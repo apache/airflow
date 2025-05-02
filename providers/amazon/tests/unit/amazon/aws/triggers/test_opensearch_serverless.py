@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
 )
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.helpers import prune_dict
+
 from unit.amazon.aws.triggers.test_base import TestAwsBaseWaiterTrigger
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.opensearch_serverless."
@@ -75,7 +76,7 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(OpenSearchServerlessHook, "get_waiter")
-    @mock.patch.object(OpenSearchServerlessHook, "async_conn")
+    @mock.patch.object(OpenSearchServerlessHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()

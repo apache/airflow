@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -122,7 +123,7 @@ with DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = cast(str, XComArg(gcp_bigquery_create_transfer, key="transfer_config_id"))
+    transfer_config_id = cast("str", XComArg(gcp_bigquery_create_transfer, key="transfer_config_id"))
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -138,7 +139,7 @@ with DAG(
     gcp_run_sensor = BigQueryDataTransferServiceTransferRunSensor(
         task_id="gcp_run_sensor",
         transfer_config_id=transfer_config_id,
-        run_id=cast(str, XComArg(gcp_bigquery_start_transfer, key="run_id")),
+        run_id=cast("str", XComArg(gcp_bigquery_start_transfer, key="run_id")),
         expected_statuses={"SUCCEEDED"},
     )
     # [END howto_bigquery_dts_sensor]

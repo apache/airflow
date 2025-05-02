@@ -22,6 +22,7 @@ import boto3
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
+
 from unit.amazon.aws.waiters.test_custom_waiters import assert_all_match
 
 

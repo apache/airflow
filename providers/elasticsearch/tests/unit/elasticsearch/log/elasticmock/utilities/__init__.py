@@ -139,7 +139,7 @@ def query_params(*es_query_params, **kwargs):
 
             if http_auth is not None and api_key is not None:
                 raise ValueError("Only one of 'http_auth' and 'api_key' may be passed at a time")
-            elif http_auth is not None:
+            if http_auth is not None:
                 headers["authorization"] = f"Basic {_base64_auth_header(http_auth)}"
             elif api_key is not None:
                 headers["authorization"] = f"ApiKey {_base64_auth_header(api_key)}"

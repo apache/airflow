@@ -82,7 +82,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 12.2.0
+Release: 12.3.1
 
 Provider package
 ----------------
@@ -100,7 +100,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 ======================================  ===================
 PIP package                             Version required
@@ -127,18 +127,20 @@ PIP package                             Version required
 ``azure-mgmt-datafactory``              ``>=2.0.0``
 ``azure-mgmt-containerregistry``        ``>=8.0.0``
 ``azure-mgmt-containerinstance``        ``>=10.1.0``
-``msgraph-core``                        ``>=1.0.0,!=1.1.8``
-``microsoft-kiota-http``                ``>=1.3.0,!=1.3.4``
-``microsoft-kiota-serialization-json``  ``==1.0.0``
-``microsoft-kiota-serialization-text``  ``==1.0.0``
-``microsoft-kiota-abstractions``        ``<1.4.0``
+``flask-appbuilder``                    ``>=4.0.0``
+``msgraph-core``                        ``>=1.3.3``
+``microsoft-kiota-http``                ``>=1.8.0,<2.0.0``
+``microsoft-kiota-serialization-json``  ``>=1.8.0``
+``microsoft-kiota-serialization-text``  ``>=1.8.0``
+``microsoft-kiota-abstractions``        ``>=1.8.0,<2.0.0``
+``msal-extensions``                     ``>=1.1.0``
 ======================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -162,5 +164,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 12.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 12.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.3.1-py3-none-any.whl.sha512>`__)

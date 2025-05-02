@@ -26,6 +26,69 @@
 
 Changelog
 
+9.0.6
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve example docs around SQLExecuteQueryOperator in Druid/Hive/Impala/Kylin/Pinot (#48856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Apr 2nd wave of providers (#49051)``
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+9.0.5
+.....
+
+Misc
+~~~~
+
+* ``Fix MyPy failing on mssql Cursor (#48686)``
+* ``Tell mypy that pymssql.BINARY, etc have a .value (#48671)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+
+9.0.4
+.....
+
+Misc
+~~~~
+
+* ``Setting Airflow context Environment variables for operators (#47644)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+9.0.3
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 9.0.2
 .....
 
@@ -283,7 +346,7 @@ Misc
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

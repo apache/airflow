@@ -226,6 +226,5 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         self.log.debug("Partition sensor result: %s", partition_result)
         if partition_result:
             return True
-        else:
-            message = f"Specified partition(s): {self.partitions} were not found."
-            raise AirflowException(message)
+        message = f"Specified partition(s): {self.partitions} were not found."
+        raise AirflowException(message)

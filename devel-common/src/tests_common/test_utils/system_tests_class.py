@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
 

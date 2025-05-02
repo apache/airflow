@@ -27,6 +27,88 @@
 Changelog
 ---------
 
+main
+.....
+
+Bug fixes
+~~~~~~~~~
+
+.. note::
+   ``private_key_content`` in Snowflake connection should now be base64 encoded. To encode your private key, you can use the following Python snippet:
+
+   .. code-block:: python
+
+         import base64
+
+         with open("path/to/your/private_key.pem", "rb") as key_file:
+             encoded_key = base64.b64encode(key_file.read()).decode("utf-8")
+             print(encoded_key)
+
+
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``remove superfluous else block (#49199)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Send separate OpenLineage event for each Snowflake query_id (#47736)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``Prepare docs for Mar 2nd wave of providers (#48383)``
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix mark task as completed before Snowflake job completes in SnowflakeSqlApiOperator when deferrable is False (#46672)``
+* ``[OpenLineage] fixed inputs in OL implementation of CopyFromExternalStageToSnowflakeOperator (#47168)``
+* ``fix deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 6.1.0
 .....
 
@@ -328,7 +410,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 5.1.1
 .....

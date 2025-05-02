@@ -71,7 +71,7 @@ option_install_airflow_with_constraints = click.option(
 )
 option_install_selected_providers = click.option(
     "--install-selected-providers",
-    help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
+    help="Comma-separated list of providers selected to be installed (implies --use-distributions-from-dist).",
     envvar="INSTALL_SELECTED_PROVIDERS",
     default="",
 )
@@ -107,10 +107,10 @@ option_providers_skip_constraints = click.option(
     help="Do not use constraints when installing providers.",
     envvar="PROVIDERS_SKIP_CONSTRAINTS",
 )
-option_use_packages_from_dist = click.option(
-    "--use-packages-from-dist",
+option_use_distributions_from_dist = click.option(
+    "--use-distributions-from-dist",
     is_flag=True,
-    help="Install all found packages (--package-format determines type) from 'dist' folder "
+    help="Install all found distributions (--distribution-format determines type) from 'dist' folder "
     "when entering breeze.",
-    envvar="USE_PACKAGES_FROM_DIST",
+    envvar="USE_DISTRIBUTIONS_FROM_DIST",
 )

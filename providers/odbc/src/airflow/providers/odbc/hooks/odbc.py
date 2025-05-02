@@ -223,7 +223,6 @@ class OdbcHook(DbApiHook):
         if isinstance(result, Sequence):
             field_names = [col[0] for col in result[0].cursor_description]
             row_object = namedtuple("Row", field_names, rename=True)  # type: ignore
-            return cast(list[tuple], [row_object(*row) for row in result])
-        else:
-            field_names = [col[0] for col in result.cursor_description]
-            return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore
+            return cast("list[tuple]", [row_object(*row) for row in result])
+        field_names = [col[0] for col in result.cursor_description]
+        return cast("tuple", namedtuple("Row", field_names, rename=True)(*result))  # type: ignore

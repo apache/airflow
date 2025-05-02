@@ -22,6 +22,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
+from unittest.mock import PropertyMock
 from urllib.parse import urlsplit
 
 import pytest
@@ -53,6 +54,7 @@ from moto.eks.models import (
 )
 
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
+
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
     DEFAULT_NAMESPACE,
@@ -478,7 +480,7 @@ class TestEksHooks:
             clusterName=generated_test_data.cluster_name,
         )
 
-        with mock.patch("moto.eks.models.Cluster.isActive", return_value=False):
+        with mock.patch("moto.eks.models.Cluster.is_active", new_callable=PropertyMock(return_value=False)):
             with pytest.raises(ClientError) as raised_exception:
                 eks_hook.create_nodegroup(
                     clusterName=generated_test_data.cluster_name,
@@ -880,7 +882,7 @@ class TestEksHooks:
             clusterName=generated_test_data.cluster_name,
         )
 
-        with mock.patch("moto.eks.models.Cluster.isActive", return_value=False):
+        with mock.patch("moto.eks.models.Cluster.is_active", new_callable=PropertyMock(return_value=False)):
             with pytest.raises(ClientError) as raised_exception:
                 eks_hook.create_fargate_profile(
                     clusterName=generated_test_data.cluster_name,

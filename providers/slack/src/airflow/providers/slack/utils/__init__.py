@@ -56,7 +56,7 @@ class ConnectionExtraConfig:
                     stacklevel=2,
                 )
             return self.extra[field]
-        elif backcompat_key in self.extra and self.extra[backcompat_key] not in (None, ""):
+        if backcompat_key in self.extra and self.extra[backcompat_key] not in (None, ""):
             # Addition validation with non-empty required for connection which created in the UI
             # in Airflow 2.2. In these connections always present key-value pair for all prefixed extras
             # even if user do not fill this fields.
@@ -64,13 +64,12 @@ class ConnectionExtraConfig:
             # E.g.: `{'extra__slackwebhook__proxy': '', 'extra__slackwebhook__timeout': None}`
             # From Airflow 2.3, using the prefix is no longer required.
             return self.extra[backcompat_key]
-        else:
-            if default is NOTSET:
-                raise KeyError(
-                    f"Couldn't find {backcompat_key!r} or {field!r} "
-                    f"in Connection ({self.conn_id!r}) Extra and no default value specified."
-                )
-            return default
+        if default is NOTSET:
+            raise KeyError(
+                f"Couldn't find {backcompat_key!r} or {field!r} "
+                f"in Connection ({self.conn_id!r}) Extra and no default value specified."
+            )
+        return default
 
     def getint(self, field, default: Any = NOTSET) -> Any:
         """
@@ -107,17 +106,16 @@ def parse_filename(
             raise ValueError(f"No file extension specified in filename {filename!r}.")
         if parts[-1] in supported_file_formats:
             return parts[-1], None
-        elif len(parts) == 2:
+        if len(parts) == 2:
             raise ValueError(
                 f"Unsupported file format {parts[-1]!r}, expected one of {supported_file_formats}."
             )
-        else:
-            if parts[-2] not in supported_file_formats:
-                raise ValueError(
-                    f"Unsupported file format '{parts[-2]}.{parts[-1]}', "
-                    f"expected one of {supported_file_formats} with compression extension."
-                )
-            return parts[-2], parts[-1]
+        if parts[-2] not in supported_file_formats:
+            raise ValueError(
+                f"Unsupported file format '{parts[-2]}.{parts[-1]}', "
+                f"expected one of {supported_file_formats} with compression extension."
+            )
+        return parts[-2], parts[-1]
     except ValueError as ex:
         if fallback:
             return fallback, None

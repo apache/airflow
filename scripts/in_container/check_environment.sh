@@ -99,7 +99,12 @@ function startairflow_if_requested() {
             # set the removed AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS
             AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
         fi
-        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
+
+        if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain || true
+        else
+            echo "Skipping user creation as auth manager different from Fab is used"
+        fi
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
@@ -167,6 +172,10 @@ fi
 
 if [[ ${INTEGRATION_YDB} == "true" ]]; then
     check_service "YDB Cluster" "run_nc ydb 2136" 50
+fi
+
+if [[ ${INTEGRATION_GREMLIN} == "true" ]]; then
+    check_service "gremlin" "run_nc gremlin 8182" 50
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

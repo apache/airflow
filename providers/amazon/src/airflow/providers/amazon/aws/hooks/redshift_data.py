@@ -181,13 +181,12 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             if num_rows is not None:
                 self.log.info("Processed %s rows", num_rows)
             return True
-        elif status in FAILURE_STATES:
+        if status in FAILURE_STATES:
             exception_cls = (
                 RedshiftDataQueryFailedError if status == FAILED_STATE else RedshiftDataQueryAbortedError
             )
             raise exception_cls(
-                f"Statement {resp['Id']} terminated with status {status}. "
-                f"Response details: {pformat(resp)}"
+                f"Statement {resp['Id']} terminated with status {status}. Response details: {pformat(resp)}"
             )
 
         self.log.info("Query status: %s", status)
@@ -275,7 +274,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             desc = await client.describe_statement(Id=statement_id)
             return desc["Status"] in RUNNING_STATES
 
@@ -288,6 +287,6 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             resp = await client.describe_statement(Id=statement_id)
             return self.parse_statement_response(resp)

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-yandex``
 
-Release: ``4.0.1``
+Release: ``4.0.3``
 
 
 This package is for Yandex, including:
@@ -38,7 +38,7 @@ This is a provider package for ``yandex`` provider. All classes for this provide
 are in ``airflow.providers.yandex`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.3/>`_.
 
 Installation
 ------------
@@ -55,10 +55,29 @@ Requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.9.0``
+``apache-airflow``       ``>=2.10.0``
 ``yandexcloud``          ``>=0.308.0``
 ``yandex-query-client``  ``>=0.1.4``
 =======================  ==================
 
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-yandex[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.3/changelog.html>`_.

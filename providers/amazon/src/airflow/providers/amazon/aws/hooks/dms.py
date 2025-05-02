@@ -108,9 +108,8 @@ class DmsHook(AwsBaseHook):
             status = replication_tasks[0]["Status"]
             self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
             return status
-        else:
-            self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
-            return None
+        self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
+        return None
 
     def create_replication_task(
         self,
@@ -292,7 +291,9 @@ class DmsHook(AwsBaseHook):
             return arn
 
         except ClientError as err:
-            err_str = f"Error: {err.get('Error','').get('Code','')}: {err.get('Error','').get('Message','')}"
+            err_str = (
+                f"Error: {err.get('Error', '').get('Code', '')}: {err.get('Error', '').get('Message', '')}"
+            )
             self.log.error("Error while creating replication config: %s", err_str)
             raise err
 

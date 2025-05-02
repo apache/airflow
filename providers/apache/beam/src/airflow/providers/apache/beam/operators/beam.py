@@ -30,27 +30,39 @@ from contextlib import ExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable
 
+from packaging.version import parse as parse_version
+
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
-from airflow.providers.google.cloud.hooks.dataflow import (
-    DataflowHook,
-    DataflowJobStatus,
-    process_line_and_extract_dataflow_job_id_callback,
-)
-from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
-from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
-from airflow.providers.google.cloud.triggers.dataflow import (
-    DataflowJobStatusTrigger,
-)
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+try:
+    from airflow.providers.google.cloud.hooks.dataflow import (
+        DEFAULT_DATAFLOW_LOCATION,
+        DataflowHook,
+        process_line_and_extract_dataflow_job_id_callback,
+    )
+    from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
+    from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+    from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
+    from airflow.providers.google.cloud.triggers.dataflow import (
+        DataflowJobStateCompleteTrigger,
+        DataflowJobStatus,
+        DataflowJobStatusTrigger,
+    )
+
+    GOOGLE_PROVIDER_VERSION = ProvidersManager().providers["apache-airflow-providers-google"].version
+except ImportError:
+    GOOGLE_PROVIDER_VERSION = ""
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):
@@ -66,6 +78,13 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     dataflow_config: DataflowConfiguration
     gcp_conn_id: str
     dataflow_support_impersonation: bool = True
+
+    def __init__(self):
+        if not GOOGLE_PROVIDER_VERSION:
+            raise AirflowOptionalProviderFeatureException(
+                "Failed to import apache-airflow-google-provider. To use the dataflow service please install "
+                "the appropriate version of the google provider."
+            )
 
     def _set_dataflow(
         self,
@@ -318,7 +337,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
-    operator_extra_links = (DataflowJobLink(),)
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
 
     def __init__(
         self,
@@ -398,15 +417,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_python_pipeline(
-                    variables=self.snake_case_pipeline_options,
-                    py_file=self.py_file,
-                    py_options=self.py_options,
-                    py_interpreter=self.py_interpreter,
-                    py_requirements=self.py_requirements,
-                    py_system_site_packages=self.py_system_site_packages,
-                )
+            self.beam_hook.start_python_pipeline(
+                variables=self.snake_case_pipeline_options,
+                py_file=self.py_file,
+                py_options=self.py_options,
+                py_interpreter=self.py_interpreter,
+                py_requirements=self.py_requirements,
+                py_system_site_packages=self.py_system_site_packages,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -423,22 +441,37 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 process_line_callback=self.process_line_callback,
                 is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
             )
+
+        location = self.dataflow_config.location or DEFAULT_DATAFLOW_LOCATION
         DataflowJobLink.persist(
             self,
             context,
             self.dataflow_config.project_id,
-            self.dataflow_config.location,
+            location,
             self.dataflow_job_id,
         )
+
         if self.deferrable:
-            self.defer(
-                trigger=DataflowJobStatusTrigger(
-                    job_id=self.dataflow_job_id,
+            trigger_args = {
+                "job_id": self.dataflow_job_id,
+                "project_id": self.dataflow_config.project_id,
+                "location": location,
+                "gcp_conn_id": self.gcp_conn_id,
+            }
+            trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
+            if parse_version(GOOGLE_PROVIDER_VERSION) < parse_version("16.0.0"):
+                trigger = DataflowJobStatusTrigger(
                     expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
-                    project_id=self.dataflow_config.project_id,
-                    location=self.dataflow_config.location,
-                    gcp_conn_id=self.gcp_conn_id,
-                ),
+                    **trigger_args,
+                )
+            else:
+                trigger = DataflowJobStateCompleteTrigger(
+                    wait_until_finished=self.dataflow_config.wait_until_finished,
+                    **trigger_args,
+                )
+
+            self.defer(
+                trigger=trigger,
                 method_name="execute_complete",
             )
         self.dataflow_hook.wait_for_done(
@@ -498,7 +531,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
     ui_color = "#0273d4"
 
-    operator_extra_links = (DataflowJobLink(),)
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
 
     def __init__(
         self,
@@ -559,12 +592,11 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
             if self.is_dataflow and self.dataflow_hook:
                 return self.execute_on_dataflow(context)
-            else:
-                self.beam_hook.start_java_pipeline(
-                    variables=self.pipeline_options,
-                    jar=self.jar,
-                    job_class=self.job_class,
-                )
+            self.beam_hook.start_java_pipeline(
+                variables=self.pipeline_options,
+                jar=self.jar,
+                job_class=self.job_class,
+            )
 
     def execute_on_dataflow(self, context: Context):
         """Execute the Apache Beam Pipeline on Dataflow runner."""
@@ -602,16 +634,29 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     self.dataflow_job_id,
                 )
                 if self.deferrable:
-                    self.defer(
-                        trigger=DataflowJobStatusTrigger(
-                            job_id=self.dataflow_job_id,
+                    trigger_args = {
+                        "job_id": self.dataflow_job_id,
+                        "project_id": self.dataflow_config.project_id,
+                        "location": self.dataflow_config.location,
+                        "gcp_conn_id": self.gcp_conn_id,
+                    }
+                    trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
+                    if parse_version(GOOGLE_PROVIDER_VERSION) < parse_version("16.0.0"):
+                        trigger = DataflowJobStatusTrigger(
                             expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
-                            project_id=self.dataflow_config.project_id,
-                            location=self.dataflow_config.location,
-                            gcp_conn_id=self.gcp_conn_id,
-                        ),
+                            **trigger_args,
+                        )
+                    else:
+                        trigger = DataflowJobStateCompleteTrigger(
+                            wait_until_finished=self.dataflow_config.wait_until_finished,
+                            **trigger_args,
+                        )
+
+                    self.defer(
+                        trigger=trigger,
                         method_name="execute_complete",
                     )
+
                 multiple_jobs = self.dataflow_config.multiple_jobs or False
                 self.dataflow_hook.wait_for_done(
                     job_name=self.dataflow_job_name,
@@ -677,7 +722,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     ]
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
-    operator_extra_links = (DataflowJobLink(),)
+    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
 
     def __init__(
         self,
@@ -767,12 +812,11 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
-            else:
-                go_artifact.start_pipeline(
-                    beam_hook=self.beam_hook,
-                    variables=snake_case_pipeline_options,
-                    process_line_callback=process_line_callback,
-                )
+            go_artifact.start_pipeline(
+                beam_hook=self.beam_hook,
+                variables=snake_case_pipeline_options,
+                process_line_callback=process_line_callback,
+            )
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:

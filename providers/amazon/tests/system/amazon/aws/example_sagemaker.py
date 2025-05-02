@@ -24,6 +24,7 @@ from tempfile import NamedTemporaryFile
 from textwrap import dedent
 
 import boto3
+from botocore.exceptions import ClientError
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -53,6 +54,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,39 @@ PREPROCESS_SCRIPT_TEMPLATE = dedent("""
 """)
 
 
+def _install_aws_cli_if_needed():
+    """
+    Check if the AWS CLI tool is installed and install it if needed.
+
+    The AmazonLinux image has flip-flopped a couple of times on whether this is included in the base image
+    or not, so to future-proof this we are going to check if it's installed and install if necessary.
+    """
+    check = subprocess.Popen(
+        "aws --version",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    _, stderr = check.communicate()
+
+    if check.returncode == 0:
+        logger.info("AWS CLI tool is installed.")
+        return
+
+    if "aws: not found" in str(stderr):
+        logger.info("AWS CLI tool not found; installing.")
+        subprocess.Popen(
+            """
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                unzip awscliv2.zip
+                sudo ./aws/install
+            """,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).communicate()
+
+
 def _create_ecr_repository(repo_name):
     execution_role_arn = boto3.client("sts").get_caller_identity()["Arn"]
     access_policy = {
@@ -140,7 +175,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         dockerfile.write(
             f"""
             FROM public.ecr.aws/amazonlinux/amazonlinux
-            COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
+            COPY {preprocessing_script.name.split("/")[2]} /preprocessing.py
             RUN yum install python3 pip -y
             RUN pip3 install boto3 pandas requests
             CMD [ "python3", "/preprocessing.py"]
@@ -181,7 +216,7 @@ def generate_data() -> str:
     """generates a very simple csv dataset with headers"""
     content = "class,x,y\n"  # headers
     for i in range(SAMPLE_SIZE):
-        content += f"{i%100},{i},{SAMPLE_SIZE-i}\n"
+        content += f"{i % 100},{i},{SAMPLE_SIZE - i}\n"
     return content
 
 
@@ -382,6 +417,7 @@ def set_up(env_id, role_arn):
     preprocess_script = PREPROCESS_SCRIPT_TEMPLATE.format(
         input_path=processing_local_input_path, output_path=processing_local_output_path
     )
+    _install_aws_cli_if_needed()
     _build_and_upload_docker_image(preprocess_script, ecr_repository_uri)
 
     ti = get_current_context()["ti"]
@@ -406,6 +442,23 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="tuning_job_name", value=tuning_job_name)
     ti.xcom_push(key="transform_config", value=transform_config)
     ti.xcom_push(key="transform_job_name", value=transform_job_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def stop_automl_job(job_name: str):
+    try:
+        logger.info("Stopping AutoML job: %s", job_name)
+        boto3.client("sagemaker").stop_auto_ml_job(AutoMLJobName=job_name)
+    except ClientError as e:
+        # If the job has already completed, boto will raise a ValidationException.
+        # In this case, consider that a successful result.
+        if (
+            e.response["Error"]["Code"] == "ValidationException"
+            and "already reached a terminal state" in e.response["Error"]["Message"]
+        ):
+            logger.info("AutoML job %s already completed.", job_name)
+        else:
+            raise e
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -647,6 +700,7 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
+        stop_automl_job(test_setup["auto_ml_job_name"]),
         delete_experiments(
             [
                 test_setup["experiment_name"],

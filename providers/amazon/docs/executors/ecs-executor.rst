@@ -17,7 +17,7 @@
 
 
 .. |executorName| replace:: ECS
-.. |dockerfileLink| replace:: `here <https://github.com/apache/airflow/blob/main/amazon/aws/providers/src/airflow/providers/amazon/aws/executors/Dockerfile>`__
+.. |dockerfileLink| replace:: `here <https://github.com/apache/airflow/blob/main/providers/amazon/src/airflow/providers/amazon/aws/executors/Dockerfile>`__
 .. |configKwargs| replace:: SUBMIT_JOB_KWARGS
 
 ================

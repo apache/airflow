@@ -31,7 +31,7 @@ from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -278,7 +278,7 @@ class TestFlowerCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.local_commands.daemon_utils.open", mock_open):
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
         mock_celery_app.start.assert_called_once_with(
@@ -313,13 +313,6 @@ class TestFlowerCommand:
                 stderr="/tmp/flower-stderr.log",
                 log="/tmp/flower.log",
             )
-            if AIRFLOW_V_2_10_PLUS
-            else mock.call(
-                process="flower",
-                stdout="/tmp/flower-stdout.log",
-                stderr="/tmp/flower-stderr.log",
-                log="/tmp/flower.log",
-            )
         ]
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
         assert mock_open.mock_calls == [
@@ -344,9 +337,9 @@ class TestFlowerCommand:
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon_v3_above(
         self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file

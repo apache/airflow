@@ -114,8 +114,7 @@ class DruidHook(BaseHook):
 
             status_endpoint = self.conn.extra_dejson.get("status_endpoint", self.status_endpoint)
             return f"{conn_type}://{self.conn.host}:{self.conn.port}/{status_endpoint}"
-        else:
-            return self.get_conn_url(ingestion_type)
+        return self.get_conn_url(ingestion_type)
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
         """
@@ -127,8 +126,7 @@ class DruidHook(BaseHook):
         password = self.conn.password
         if user is not None and password is not None:
             return requests.auth.HTTPBasicAuth(user, password)
-        else:
-            return None
+        return None
 
     def get_verify(self) -> bool | str:
         ca_bundle_path: str | None = self.conn.extra_dejson.get("ca_bundle_path", None)

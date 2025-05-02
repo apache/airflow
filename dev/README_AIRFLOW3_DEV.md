@@ -29,6 +29,7 @@
   - [Developing for Airflow 2.11](#developing-for-airflow-211)
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
+  - [Merging PRs targeted for Airflow 3.0 (bugfixes/CI changes)](#merging-prs-targeted-for-airflow-30-bugfixesci-changes)
   - [Merging PR for Airflow 3 and 2.10.x / 2.11.x](#merging-pr-for-airflow-3-and-210x--211x)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
@@ -117,6 +118,27 @@ Core parts should be extracted to a separate PR.
 Exclusions should be pre-approved specifically with a comment by release manager.
 Do not treat PR approval (Green V) as exclusion approval.
 
+## Merging PRs targeted for Airflow 3.0 (bugfixes/CI changes)
+
+The committer who merges the PR is responsible for backporting the PRs that are 3.0 bugfixes to `v3-0-test` .
+It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
+If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-0-test` directly with the change.
+Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
+
+Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-0-test` prior to accepting the code change.
+
+Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks
+that certain PRs should be backported, they should set 3.0.x milestone for them.
+
+This way release manager can verify (as usual) if all the "expected" PRs have
+been backported and cherry-pick remaining PRS.
+
+
+We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker) that has been developed by
+Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
+command line and via GitHub Actions interface.
+
+
 ## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
 The committer who merges the PR is responsible for backporting the PR to `v2-10-test`.
@@ -131,10 +153,6 @@ Mistakes happen, and such backport PR work might fall through cracks. Therefore,
 This way release manager can verify (as usual) if all the "expected" PRs have been backported and cherry-pick remaining PRS.
 
 
-We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker) that has been developed by
-Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
-command line and via GitHub Actions interface.
-
 ## How to backport PR with GitHub Actions
 
 When you want to backport commit via GitHub actions (you need to be a committer), you
@@ -148,7 +166,7 @@ You can pin the workflow from the list of workflows for easy access to it.
 ![Backport commit](images/backport_commit_action.png)
 
 Use `main` as source of the workflow and copy the commit hash and enter the target branch name
-(e.g. `v2-10-test`).
+(e.g. `v2-10-test`, `v3-0-test`).
 
 The action should create a new PR with the cherry-picked commit and add a comment in the PR when it is
 successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
@@ -192,8 +210,9 @@ export GH_AUTH={token}
 
 Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
 Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
-menu after you get the conflict. But you can also resolve the conflicts manually (git adds `<<<<<<<`, `=======` and
-`>>>>>>>` markers to the files with conflicts).
+menu after you get the conflict. But you can also resolve the conflicts manually; see [How conflicts are
+are presented](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented) and
+[How to resolve conflicts](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) for more details.
 
 ```bash
 cherry_picker --status  # Should show if all conflicts are resolved

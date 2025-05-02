@@ -38,7 +38,7 @@ data from Google Drive to local filesystem.
 
 Below is an example of using this operator to download file from Google Drive to Local Filesystem.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/transfers/example_gdrive_to_local.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/transfers/example_gdrive_to_local.py
     :language: python
     :dedent: 4
     :start-after: [START download_from_gdrive_to_local]

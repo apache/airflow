@@ -183,7 +183,7 @@ class AwsConnectionWrapper(LoggingMixin):
                         # Only replace value if it not equal default value
                         setattr(self, fl.name, value)
             return
-        elif not conn:
+        if not conn:
             return
 
         if TYPE_CHECKING:

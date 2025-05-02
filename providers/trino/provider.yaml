@@ -22,9 +22,12 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1741121959
+source-date-epoch: 1744792396
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.1.2
+  - 6.1.1
+  - 6.1.0
   - 6.0.1
   - 6.0.0
   - 5.9.0
@@ -71,7 +74,7 @@ integrations:
     external-doc-url: https://trino.io/docs/
     logo: /docs/integration-logos/trino-og.png
     how-to-guide:
-      - /docs/apache-airflow-providers-trino/operators/trino.rst
+      - /docs/apache-airflow-providers-trino/operators.rst
     tags: [software]
 
 asset-uris:
@@ -92,7 +95,7 @@ hooks:
 transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Trino
-    how-to-guide: /docs/apache-airflow-providers-trino/operators/transfer/gcs_to_trino.rst
+    how-to-guide: /docs/apache-airflow-providers-trino/gcs_to_trino.rst
     python-module: airflow.providers.trino.transfers.gcs_to_trino
 
 connection-types:

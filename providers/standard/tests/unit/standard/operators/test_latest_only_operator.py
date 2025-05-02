@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import operator
 
 import pytest
 import time_machine
@@ -26,6 +27,7 @@ from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -35,6 +37,8 @@ from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+    from airflow.timetables.trigger import DeltaTriggerTimetable
     from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
@@ -98,54 +102,90 @@ class TestLatestOnlyOperator:
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        dag_maker.create_dagrun(
+        dr0 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
 
-        dag_maker.create_dagrun(
+        dr1 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             logical_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
-            data_interval=(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12) + INTERVAL),
+            data_interval=DataInterval(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12)),
             **triggered_by_kwargs,
         )
 
-        dag_maker.create_dagrun(
+        dr2 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             logical_date=END_DATE,
             state=State.RUNNING,
-            data_interval=(END_DATE, END_DATE + INTERVAL),
+            data_interval=DataInterval(END_DATE + INTERVAL, END_DATE + INTERVAL),
             **triggered_by_kwargs,
         )
 
-        latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
+            # AIP-72
+            # Running the "latest" task for each of the DAG runs to test the skipping of downstream tasks
+            # via the DownstreamTasksSkipped exception call.
+            # The DownstreamTasksSkipped exception is raised when the task completes successfully so
+            # we can simulate the downstream tasks being skipped by setting their state to SKIPPED
+            # and the task that raised the exception to SUCCESS.
+            latest_ti0 = dr0.get_task_instance(task_id="latest")
+
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                latest_ti0.run()
+
+            assert exc_info.value.tasks == [("downstream", -1)]
+            # TODO: Set state is needed until #45549 is completed.
+            latest_ti0.set_state(State.SUCCESS)
+            dr0.get_task_instance(task_id="downstream").set_state(State.SKIPPED)
+
+            # ---
+            latest_ti1 = dr1.get_task_instance(task_id="latest")
+            latest_ti1.task = latest_task
+
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                latest_ti1.run()
+
+            assert exc_info.value.tasks == [("downstream", -1)]
+            # TODO: Set state is needed until #45549 is completed.
+            latest_ti1.set_state(State.SUCCESS)
+            dr1.get_task_instance(task_id="downstream").set_state(State.SKIPPED)
+
+            # The last DAG run should run all tasks and latest task should be successful
+            # and not raise DownstreamTasksSkipped exception
+            latest_ti2 = dr2.get_task_instance(task_id="latest")
+            latest_ti2.task = latest_task
+            latest_ti2.run()
+
+            date_getter = operator.attrgetter("logical_date")
+        else:
+            latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+            date_getter = operator.attrgetter("execution_date")
 
         latest_instances = get_task_instances("latest")
-        if AIRFLOW_V_3_0_PLUS:
-            exec_date_to_latest_state = {ti.logical_date: ti.state for ti in latest_instances}
-        else:
-            exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
+        exec_date_to_latest_state = {date_getter(ti): ti.state for ti in latest_instances}
         assert exec_date_to_latest_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
         }
 
+        # Verify the state of the other downstream tasks
+        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+
         downstream_instances = get_task_instances("downstream")
-        if AIRFLOW_V_3_0_PLUS:
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        else:
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
         assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "skipped",
             timezone.datetime(2016, 1, 1, 12): "skipped",
@@ -153,10 +193,7 @@ class TestLatestOnlyOperator:
         }
 
         downstream_instances = get_task_instances("downstream_2")
-        if AIRFLOW_V_3_0_PLUS:
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        else:
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
         assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): None,
             timezone.datetime(2016, 1, 1, 12): None,
@@ -164,17 +201,14 @@ class TestLatestOnlyOperator:
         }
 
         downstream_instances = get_task_instances("downstream_3")
-        if AIRFLOW_V_3_0_PLUS:
-            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        else:
-            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
         assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
         }
 
-    def test_not_skipping_external(self, dag_maker):
+    def test_not_skipping_manual(self, dag_maker):
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
         ):
@@ -192,7 +226,7 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
 
@@ -202,7 +236,7 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=logical_date,
             state=State.RUNNING,
-            data_interval=(logical_date, logical_date),
+            data_interval=DataInterval(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 
@@ -211,7 +245,7 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=END_DATE,
             state=State.RUNNING,
-            data_interval=(END_DATE, END_DATE),
+            data_interval=DataInterval(END_DATE, END_DATE),
             **triggered_by_kwargs,
         )
 
@@ -251,3 +285,23 @@ class TestLatestOnlyOperator:
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
         }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Only applicable to Airflow 3.0+")
+    def test_zero_length_interval_treated_as_latest(self, run_task):
+        """Test that when the data_interval_start and data_interval_end are the same, the task is treated as latest."""
+        with DAG(
+            "test_dag",
+            schedule=DeltaTriggerTimetable(datetime.timedelta(hours=1)),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        run_task(latest_task, run_type=DagRunType.SCHEDULED)
+
+        assert run_task.dagrun.data_interval_start == run_task.dagrun.data_interval_end
+
+        # The task will raise DownstreamTasksSkipped exception if it is not the latest run
+        assert run_task.state == State.SUCCESS

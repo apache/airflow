@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
     SageMakerRegisterModelVersionOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_MODEL_PARAMS: dict = {

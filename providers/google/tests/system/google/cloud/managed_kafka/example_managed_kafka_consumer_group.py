@@ -181,8 +181,10 @@ with DAG(
         location=LOCATION,
         cluster_id=CLUSTER_ID,
         consumer_group_id=CONSUMER_GROUP_ID,
-        consumer_group={},
-        update_mask={},
+        consumer_group={
+            "topics": {},
+        },
+        update_mask={"paths": ["topics"]},
     )
     # [END how_to_cloud_managed_kafka_update_consumer_group_operator]
 

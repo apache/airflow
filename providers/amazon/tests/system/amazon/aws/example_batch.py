@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import (
     ENV_ID_KEY,
     SystemTestContextBuilder,

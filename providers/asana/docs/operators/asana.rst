@@ -86,7 +86,7 @@ the Asana connection to use to connect to your account (``conn_id``). There are 
 `task attributes you can overwrite <https://developers.asana.com/docs/update-a-task>`_
 through the ``task_parameters``.
 
-.. exampleinclude:: /../../providers/asana/tests/system/asana/example_asana.py
+.. exampleinclude:: /../../asana/tests/system/asana/example_asana.py
     :language: python
     :dedent: 4
     :start-after: [START asana_example_dag]

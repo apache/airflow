@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+3.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix inconsistence between the get_conn and run in 'WinRMHook' (#47229)``
+
+Misc
+~~~~
+
+* ``Add lower-binding for microsoft azure/winrm providers (#47990)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+3.9.1
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 3.9.0
 .....
 
@@ -159,7 +193,7 @@ Misc
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Update information about links into the provider.yaml files (#35837)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

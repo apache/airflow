@@ -28,6 +28,107 @@ Changelog
 ---------
 
 
+10.4.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove 'subdir' arg from CLI commands (#49317)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
+* ``remove superfluous else block (#49199)``
+* ``Remove unused db method in k8s provider (#49186)``
+
+
+
+10.4.2
+......
+
+Misc
+~~~~
+
+* ``Make '@task' import from airflow.sdk (#48896)``
+* ``Update ECS executor to support Task SDK (#48513)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unnecessary entries in get_provider_info and update the schema (#48849)``
+   * ``Remove fab from preinstalled providers (#48457)``
+   * ``Improve documentation building iteration (#48760)``
+
+10.4.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle missing container_statuses in pod_manager.get_container_status (#47936)``
+
+Misc
+~~~~
+
+* ``Remove change_sensor_mode_to_reschedule from base executor (#48649)``
+* ``No need to exclude executor_config specifically for KE (#48826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify tooling by switching completely to uv (#48223)``
+   * ``Fix broken ci on main for k8s cli test (#48595)``
+   * ``Upgrade ruff to latest version (#48553)``
+   * ``update kubernetes decorator comment (#48447)``
+    * ``Remove old comment about excluding 'executor_config' (#48830)``
+
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodOperator: add base_container_name to the templated fields (#47864)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
+* ``Switch to non-interactive mode where stdin is disabled (#47568)``
+* ``Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
+
+Misc
+~~~~
+
+* ``Remove extra method for async hook getting (#47313)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
+   * ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+   * ``Remove links to x/twitter.com (#47801)``
+
+10.3.1
+......
+
+Misc
+~~~~
+
+* ``Get rid of google-re2 as dependency (#47493)``
+* ``AIP-72: Port over executor_config for K8sExecutor when using task sdk (#46926)``
+* ``Update templated fields in KPO doc-string + wording (#46970)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 10.3.0
 ......
 
@@ -641,7 +742,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add bandit to pre-commit to detect common security issues (#34247)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 7.9.0
 .....

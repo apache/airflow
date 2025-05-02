@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.hooks.bigquery_dts import (
     AsyncBiqQueryDataTransferServiceHook,
     BiqQueryDataTransferServiceHook,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
@@ -70,8 +71,7 @@ class TestBigQueryDataTransferHook:
         assert expected == self.hook._disable_auto_scheduling(TRANSFER_CONFIG)
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_dts."
-        "DataTransferServiceClient.create_transfer_config"
+        "airflow.providers.google.cloud.hooks.bigquery_dts.DataTransferServiceClient.create_transfer_config"
     )
     def test_create_transfer_config(self, service_mock):
         self.hook.create_transfer_config(transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID)
@@ -86,8 +86,7 @@ class TestBigQueryDataTransferHook:
         )
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.bigquery_dts."
-        "DataTransferServiceClient.delete_transfer_config"
+        "airflow.providers.google.cloud.hooks.bigquery_dts.DataTransferServiceClient.delete_transfer_config"
     )
     def test_delete_transfer_config(self, service_mock):
         self.hook.delete_transfer_config(transfer_config_id=TRANSFER_CONFIG_ID, project_id=PROJECT_ID)

@@ -28,7 +28,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEB_HOST_PORT,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 ASCIIART = """
 
@@ -89,33 +89,33 @@ CHEATSHEET = f"""
 
         Direct links to those services that you can use from the host:
 
-          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
-          * API server or webserver:    http://127.0.0.1:{WEB_HOST_PORT}
-          * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
-          * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
-          * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
-          * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
+          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@localhost (password: airflow)
+          * API server or webserver:    http://localhost:{WEB_HOST_PORT}
+          * Flower:    http://localhost:{FLOWER_HOST_PORT}
+          * Postgres:  jdbc:postgresql://localhost:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
+          * Mysql:     jdbc:mysql://localhost:{MYSQL_HOST_PORT}/airflow?user=root
+          * Redis:     redis://localhost:{REDIS_HOST_PORT}/0
 
     [info]* How can I add my stuff in Breeze:[/]
 
         * Your dags for webserver and scheduler are read from `/files/dags` directory
           which is mounted from folder in Airflow sources:
-          * `{AIRFLOW_SOURCES_ROOT}/files/dags`
+          * `{AIRFLOW_ROOT_PATH}/files/dags`
 
         * Your plugins are read from `/files/plugins` directory
           which is mounted from folder in Airflow sources:
-          * `{AIRFLOW_SOURCES_ROOT}/files/plugins`
+          * `{AIRFLOW_ROOT_PATH}/files/plugins`
 
         * You can add `airflow-breeze-config` directory. Place it in
-          `{AIRFLOW_SOURCES_ROOT}/files/airflow-breeze-config` and:
-            * Add `variables.env` - to make breeze source the variables automatically for you
+          `{AIRFLOW_ROOT_PATH}/files/airflow-breeze-config` and:
+            * Add `environment_variables.env` - to make breeze source the variables automatically for you
             * Add `.tmux.conf` - to add extra initial configuration to `tmux`
             * Add `init.sh` - this file will be sourced when you enter container, so you can add
               any custom code there.
             * Add `requirements.
 
         * You can also share other files, put them under
-          `{AIRFLOW_SOURCES_ROOT}/files` folder
+          `{AIRFLOW_ROOT_PATH}/files` folder
           and they will be visible in `/files/` folder inside the container.
 
     [info]* Other options[/]

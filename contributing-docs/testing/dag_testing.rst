@@ -43,7 +43,7 @@ You can also run the dag in the same manner with the Airflow CLI command ``airfl
     airflow dags test example_branch_operator 2018-01-01
 
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
-the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
+the directory used by Airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
 The DAGs can be run in the main version of Airflow but they also work

@@ -20,11 +20,13 @@ from __future__ import annotations
 
 import ast
 import sys
+from pathlib import Path
 
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import AIRFLOW_CORE_SOURCES_PATH, console
 
-TI_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "models" / "taskinstance.py"
-TIS_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "models" / "taskinstancehistory.py"
+TI_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "models" / "taskinstance.py"
+TIS_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "models" / "taskinstancehistory.py"
 
 
 def get_class_attributes(module_path, class_name):

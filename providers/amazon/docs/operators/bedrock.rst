@@ -21,8 +21,8 @@ Amazon Bedrock
 
 `Amazon Bedrock <https://aws.amazon.com/bedrock/>`__ is a fully managed service that
 offers a choice of high-performing foundation models (FMs) from leading AI companies
-like AI21 Labs, Anthropic, Cohere, Meta, Mistral AI, Stability AI, and Amazon via a
-single API, along with a broad set of capabilities you need to build generative AI
+like ``AI21 Labs``, ``Anthropic``, ``Cohere``, ``Meta``, ``Mistral AI``, ``Stability AI``,
+and ``Amazon`` via a single API, along with a broad set of capabilities you need to build generative AI
 applications with security, privacy, and responsible AI.
 
 Prerequisite Tasks
@@ -52,7 +52,7 @@ for details on the different formats, see
 
 For example, to invoke a Meta Llama model you would use:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_llama_model]
@@ -60,7 +60,7 @@ For example, to invoke a Meta Llama model you would use:
 
 To invoke an Amazon Titan model you would use:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_titan_model]
@@ -68,11 +68,19 @@ To invoke an Amazon Titan model you would use:
 
 To invoke a Claude V2 model using the Completions API you would use:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_claude_model]
     :end-before: [END howto_operator_invoke_claude_model]
+
+To invoke a Claude V3 Sonnet model using the Messages API you would use:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_invoke_claude_messages]
+    :end-before: [END howto_operator_invoke_claude_messages]
 
 
 .. _howto/operator:BedrockCustomizeModelOperator:
@@ -90,7 +98,7 @@ and the training/validation data size. To monitor the state of the job, you can 
 or the :class:`~airflow.providers.amazon.aws.triggers.BedrockCustomizeModelCompletedTrigger` Trigger.
 
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_customize_model]
@@ -112,7 +120,7 @@ or the :class:`~airflow.providers.amazon.aws.triggers.BedrockProvisionModelThrou
 Trigger.
 
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_provision_throughput]
@@ -129,7 +137,7 @@ To create an Amazon Bedrock Knowledge Base, you can use
 For more information on which models support embedding data into a vector store, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_create_knowledge_base]
@@ -142,7 +150,7 @@ Delete an Amazon Bedrock Knowledge Base
 
 Deleting a Knowledge Base is a simple boto API call and can be done in a TaskFlow task like the example below.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :start-after: [START howto_operator_bedrock_delete_knowledge_base]
     :end-before: [END howto_operator_bedrock_delete_knowledge_base]
@@ -155,7 +163,7 @@ Create an Amazon Bedrock Data Source
 To create an Amazon Bedrock Data Source, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateDataSourceOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_create_data_source]
@@ -168,7 +176,7 @@ Delete an Amazon Bedrock Data Source
 
 Deleting a Data Source is a simple boto API call and can be done in a TaskFlow task like the example below.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :start-after: [START howto_operator_bedrock_delete_data_source]
     :end-before: [END howto_operator_bedrock_delete_data_source]
@@ -181,7 +189,7 @@ Ingest data into an Amazon Bedrock Data Source
 To add data from an Amazon S3 bucket into an Amazon Bedrock Data Source, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockIngestDataOperator`.
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_ingest_data]
@@ -201,7 +209,7 @@ would like to pass the results through an LLM in order to generate a text respon
 For more information on which models support retrieving information from a knowledge base, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_retrieve]
@@ -223,7 +231,7 @@ NOTE:  Support for "external sources" was added in boto 1.34.90
 
 Example using an Amazon Bedrock Knowledge Base:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_knowledge_base_rag]
@@ -231,11 +239,34 @@ Example using an Amazon Bedrock Knowledge Base:
 
 Example using a PDF file in an Amazon S3 Bucket:
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_external_sources_rag]
     :end-before: [END howto_operator_bedrock_external_sources_rag]
+
+.. _howto/operator:BedrockBatchInferenceOperator:
+
+Create an Amazon Bedrock Batch Inference Job
+============================================
+
+To creates a batch inference job to invoke a model on multiple prompts, you can use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockBatchInferenceOperator`.
+
+The input must be formatted in jsonl and uploaded to an Amazon S3 bucket.  Please see
+https://docs.aws.amazon.com/bedrock/latest/userguide/batch-inference.html for details.
+
+NOTE: Jobs are added to a queue and processed in order.  Given the potential wait times,
+and the fact that the optional timeout parameter is measured in hours, deferrable mode is
+recommended over "wait_for_completion" in this case.
+
+Example using an Amazon Bedrock Batch Inference Job:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_batch_inference]
+    :end-before: [END howto_operator_bedrock_batch_inference]
 
 
 Sensors
@@ -249,7 +280,7 @@ Wait for an Amazon Bedrock customize model job
 To wait on the state of an Amazon Bedrock customize model job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor`
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_customize_model]
@@ -264,7 +295,7 @@ To wait on the state of an Amazon Bedrock provision model throughput job until i
 terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor`
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_provision_throughput]
@@ -278,7 +309,7 @@ Wait for an Amazon Bedrock Knowledge Base
 To wait on the state of an Amazon Bedrock Knowledge Base until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockKnowledgeBaseActiveSensor`
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_knowledge_base_active]
@@ -292,11 +323,29 @@ Wait for an Amazon Bedrock ingestion job to finish
 To wait on the state of an Amazon Bedrock data ingestion job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockIngestionJobSensor`
 
-.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_ingest_data]
     :end-before: [END howto_sensor_bedrock_ingest_data]
+
+.. _howto/sensor:BedrockBatchInferenceSensor:
+
+Wait for an Amazon Bedrock batch inference job
+==============================================
+
+To wait on the state of an Amazon Bedrock batch inference job until it reaches the "Scheduled" or "Completed"
+state you can use :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceScheduledSensor`
+
+Bedrock adds batch inference jobs to a queue, and they may take some time to complete.  If you want to wait
+for the job to complete, use TargetState.COMPLETED for the success_state, but if you only want to wait until
+the service confirms that the job is in the queue, use TargetState.SCHEDULED.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
+    :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
 
 Reference
 ---------

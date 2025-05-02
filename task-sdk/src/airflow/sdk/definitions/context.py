@@ -21,11 +21,10 @@ import os
 from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
 
 if TYPE_CHECKING:
-    # TODO: Should we use pendulum.DateTime instead of datetime like AF 2.x?
-    from datetime import datetime
+    from pendulum import DateTime
 
     from airflow.models.operator import Operator
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
@@ -41,8 +40,8 @@ class Context(TypedDict, total=False):
     conn: Any
     dag: DAG
     dag_run: DagRunProtocol
-    data_interval_end: datetime | None
-    data_interval_start: datetime | None
+    data_interval_end: DateTime | None
+    data_interval_start: DateTime | None
     outlet_events: OutletEventAccessorsProtocol
     ds: str
     ds_nodash: str
@@ -50,18 +49,18 @@ class Context(TypedDict, total=False):
     exception: None | str | BaseException
     inlets: list
     inlet_events: InletEventsAccessors
-    logical_date: datetime
+    logical_date: DateTime
     macros: Any
     map_index_template: str | None
     outlets: list
     params: dict[str, Any]
-    prev_data_interval_start_success: datetime | None
-    prev_data_interval_end_success: datetime | None
-    prev_start_date_success: datetime | None
-    prev_end_date_success: datetime | None
+    prev_data_interval_start_success: DateTime | None
+    prev_data_interval_end_success: DateTime | None
+    prev_start_date_success: DateTime | None
+    prev_end_date_success: DateTime | None
     reason: str | None
     run_id: str
-    start_date: datetime
+    start_date: DateTime
     # TODO: Remove Operator from below once we have MappedOperator to the Task SDK
     #   and once we can remove context related code from the Scheduler/models.TaskInstance
     task: BaseOperator | Operator

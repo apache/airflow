@@ -40,6 +40,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_terminated,
 )
 from airflow.utils.timezone import utc
+
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
 
 if TYPE_CHECKING:
@@ -539,48 +540,56 @@ class TestPodManager:
         assert container_is_terminated(pod_info, "base") == expected_is_terminated
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_success(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    def test_extract_xcom_success(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when valid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "true"}"""
         mock_pod = MagicMock()
-        mock_exec_pod_command.return_value = xcom_json
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_json
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when invalid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "tru"""  # codespell:ignore tru
         mock_pod = MagicMock()
-        mock_exec_pod_command.return_value = xcom_json
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
         with pytest.raises(JSONDecodeError):
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_empty(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    def test_extract_xcom_empty(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when __airflow_xcom_result_empty__ is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         xcom_result = "__airflow_xcom_result_empty__"
-        mock_exec_pod_command.return_value = xcom_result
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_result
+        mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_result
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
+    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when None is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
-        mock_exec_pod_command.return_value = None
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = None
+        mock_kubernetes_stream.return_value = mock_client
         with pytest.raises(AirflowException):
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
@@ -877,6 +886,12 @@ def params_for_test_container_is_succeeded():
     p = RemotePodMock()
     p.status = None
     pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status"))
+    p = RemotePodMock()
+    p.status = RemotePodMock()
+    p.status.container_statuses = None
+    p.status.init_container_statuses = []
+
+    pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status.container_statuses"))
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []

@@ -79,7 +79,7 @@ class TestAmazonGlacierSensor:
 
     def test_fail_poke(self, mocked_describe_job):
         response = {"Action": "some action", "StatusCode": "Failed"}
-        message = f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
+        message = f"Sensor failed. Job status: {response['Action']}, code status: {response['StatusCode']}"
         mocked_describe_job.return_value = response
         with pytest.raises(AirflowException, match=message):
             self.op.poke(context={})

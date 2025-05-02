@@ -79,7 +79,7 @@ apache-airflow-providers-apache-hive package
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 9.0.2
+Release: 9.0.6
 
 Provider package
 ----------------
@@ -97,7 +97,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 =======================================  ==================
 PIP package                              Version required
@@ -115,7 +115,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -128,6 +128,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_  ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                      ``mysql``
@@ -142,5 +143,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 9.0.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 9.0.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.0.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 9.0.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-9.0.6-py3-none-any.whl.sha512>`__)

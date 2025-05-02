@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerEndpointSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_sagemaker_endpoint"
@@ -210,7 +211,7 @@ with DAG(
     upload_data = S3CreateObjectOperator(
         task_id="upload_data",
         s3_bucket=test_setup["bucket_name"],
-        s3_key=f'{test_setup["input_data_s3_key"]}/train.csv',
+        s3_key=f"{test_setup['input_data_s3_key']}/train.csv",
         data=TRAIN_DATA,
     )
 

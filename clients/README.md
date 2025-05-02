@@ -30,7 +30,7 @@ Supported languages:
 To generate the client code using dockerized breeze environment, run (at the Airflow source root directory):
 
 ```bash
-breeze release-management prepare-python-client --package-format both
+breeze release-management prepare-python-client --distribution-format both
 ```
 
 The client source code generation uses OpenAPI generator image, generation of packages is done using Hatch.
@@ -38,7 +38,7 @@ By default, packages are generated in a dockerized Hatch environment, but you ca
 setting `--use-local-hatch` flag.
 
 ```bash
-breeze release-management prepare-python-client --package-format both --use-local-hatch
+breeze release-management prepare-python-client --distribution-format both --use-local-hatch
 ```
 
 ## Browsing the generated source code

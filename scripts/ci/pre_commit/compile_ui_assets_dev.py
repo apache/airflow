@@ -19,7 +19,11 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+from common_precommit_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 # NOTE!. This script is executed from node environment created by pre-commit and this environment
 # Cannot have additional Python dependencies installed. We should not import any of the libraries
@@ -32,17 +36,18 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-UI_CACHE_DIR = AIRFLOW_SOURCES_PATH / ".build" / "ui"
+UI_CACHE_DIR = AIRFLOW_ROOT_PATH / ".build" / "ui"
 
 
-UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "ui"
+UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 UI_HASH_FILE = UI_CACHE_DIR / "hash.txt"
 UI_ASSET_OUT_FILE = UI_CACHE_DIR / "asset_compile.out"
 UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_DIR / "asset_compile_dev_mode.out"
 
 
-SIMPLE_AUTH_MANAGER_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "auth" / "managers" / "simple" / "ui"
+SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
+    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+)
 SIMPLE_AUTH_MANAGER_UI_HASH_FILE = UI_CACHE_DIR / "simple-auth-manager-hash.txt"
 SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_FILE = UI_CACHE_DIR / "simple_auth_manager_asset_compile.out"
 SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE = (

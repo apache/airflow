@@ -44,6 +44,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -107,17 +108,16 @@ def ip_configuration() -> dict[str, Any]:
             "enablePrivatePathForGoogleCloudServices": True,
             "privateNetwork": f"projects/{PROJECT_ID}/global/networks/default",
         }
-    else:
-        # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
-        # Consider specifying your network mask
-        # for allowing requests only from the trusted sources, not from anywhere.
-        return {
-            "ipv4Enabled": True,
-            "requireSsl": False,
-            "authorizedNetworks": [
-                {"value": "0.0.0.0/0"},
-            ],
-        }
+    # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
+    # Consider specifying your network mask
+    # for allowing requests only from the trusted sources, not from anywhere.
+    return {
+        "ipv4Enabled": True,
+        "requireSsl": False,
+        "authorizedNetworks": [
+            {"value": "0.0.0.0/0"},
+        ],
+    }
 
 
 def cloud_sql_instance_create_body(database_provider: dict[str, Any]) -> dict[str, Any]:

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-grpc``
 
-Release: ``3.7.2``
+Release: ``3.7.3``
 
 
 `gRPC <https://grpc.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``grpc`` provider. All classes for this provider 
 are in ``airflow.providers.grpc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.7.3/>`_.
 
 Installation
 ------------
@@ -53,11 +53,11 @@ Requirements
 ========================  ==================
 PIP package               Version required
 ========================  ==================
-``apache-airflow``        ``>=2.9.0``
+``apache-airflow``        ``>=2.10.0``
 ``google-auth``           ``>=1.0.0,<3.0.0``
 ``google-auth-httplib2``  ``>=0.0.1``
 ``grpcio``                ``>=1.59.0``
 ========================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-grpc/3.7.3/changelog.html>`_.

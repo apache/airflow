@@ -22,7 +22,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
 
@@ -34,7 +34,7 @@ class SmtpNotifier(BaseNotifier):
 
     .. code-block:: python
 
-        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="myemail@myemail.com"))
+        EmptyOperator(task_id="task", on_failure_callback=SmtpNotifier(from_email=None, to="my@mail.com"))
 
         EmptyOperator(
             task_id="task",

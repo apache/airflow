@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-impala``
 
-Release: ``1.6.0``
+Release: ``1.6.1``
 
 
 `Apache Impala <https://impala.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.impala`` provider. All classes for this 
 are in ``airflow.providers.apache.impala`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.6.1/>`_.
 
 Installation
 ------------
@@ -54,15 +54,15 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``impyla``                               ``>=0.18.0,<1.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``apache-airflow``                       ``>=2.9.0``
+``apache-airflow-providers-common-sql``  ``>=1.26.0``
+``apache-airflow``                       ``>=2.10.0``
 =======================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -78,4 +78,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.6.1/changelog.html>`_.

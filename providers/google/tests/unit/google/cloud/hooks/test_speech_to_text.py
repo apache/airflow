@@ -24,6 +24,7 @@ from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.common.consts import CLIENT_INFO
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID = "project-id"

@@ -19,13 +19,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.models import BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 BASE_AWS_CONSOLE_LINK = "https://console.{aws_domain}"
@@ -42,9 +49,9 @@ class BaseAwsLink(BaseOperatorLink):
     def get_aws_domain(aws_partition) -> str | None:
         if aws_partition == "aws":
             return "aws.amazon.com"
-        elif aws_partition == "aws-cn":
+        if aws_partition == "aws-cn":
             return "amazonaws.cn"
-        elif aws_partition == "aws-us-gov":
+        if aws_partition == "aws-us-gov":
             return "amazonaws-us-gov.com"
 
         return None

@@ -239,8 +239,7 @@ class AzureDataLakeHook(BaseHook):
         """
         if "*" in path:
             return self.get_conn().glob(path)
-        else:
-            return self.get_conn().walk(path)
+        return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """
@@ -328,8 +327,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         prefix = "extra__adls__"
         if field_name.startswith("extra__"):
             raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix when using this method."
             )
         if field_name in extra_dict:
             return extra_dict[field_name] or None

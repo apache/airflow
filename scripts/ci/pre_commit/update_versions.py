@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, read_airflow_version
+from common_precommit_utils import AIRFLOW_ROOT_PATH, read_airflow_version
 
 
 def update_version(pattern: re.Pattern, v: str, file_path: Path):
@@ -41,21 +41,24 @@ def update_version(pattern: re.Pattern, v: str, file_path: Path):
         f.write(new_content)
 
 
-REPLACEMENTS = {
-    r"^(FROM apache\/airflow:).*($)": "docs/docker-stack/docker-examples/extending/*/Dockerfile",
-    r"(apache\/airflow:)[^-]*(\-)": "docs/docker-stack/entrypoint.rst",
-    r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": "docs/docker-stack/README.md",
-    r"(\(Assuming Airflow version `).*(`\))": "docs/docker-stack/README.md",
+REPLACEMENTS: dict[str, list[str]] = {
+    r"^(FROM apache\/airflow:).*($)": ["docker-stack-docs/docker-examples/extending/*/Dockerfile"],
+    r"(apache\/airflow:)[^-]*(\-)": ["docker-stack-docs/entrypoint.rst"],
+    r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": ["docker-stack-docs/README.md"],
+    r"(\(Assuming Airflow version `).*(`\))": ["docker-stack-docs/README.md"],
+    r"(^version = \").*(\"$)": ["pyproject.toml", "airflow-core/pyproject.toml"],
+    r"(^.*\"apache-airflow-core==).*(\",$)": ["pyproject.toml"],
 }
 
 
 if __name__ == "__main__":
     version = read_airflow_version()
     print(f"Current version: {version}")
-    for regexp, p in REPLACEMENTS.items():
-        text_pattern = re.compile(regexp, flags=re.MULTILINE)
-        files = list(AIRFLOW_SOURCES_ROOT_PATH.glob(p))
-        if not files:
-            print(f"ERROR! No files matched on {p}")
-        for file in files:
-            update_version(text_pattern, version, file)
+    for regexp, globs in REPLACEMENTS.items():
+        for glob in globs:
+            text_pattern = re.compile(regexp, flags=re.MULTILINE)
+            files = list(AIRFLOW_ROOT_PATH.glob(glob))
+            if not files:
+                print(f"ERROR! No files matched on {glob}")
+            for file in files:
+                update_version(text_pattern, version, file)

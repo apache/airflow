@@ -23,12 +23,15 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.bedrock."
@@ -56,7 +59,7 @@ class TestBedrockCustomizeModelCompletedTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockHook, "get_waiter")
-    @mock.patch.object(BedrockHook, "async_conn")
+    @mock.patch.object(BedrockHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -85,7 +88,7 @@ class TestBedrockProvisionModelThroughputCompletedTrigger(TestBaseBedrockTrigger
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockHook, "get_waiter")
-    @mock.patch.object(BedrockHook, "async_conn")
+    @mock.patch.object(BedrockHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -116,7 +119,7 @@ class TestBedrockKnowledgeBaseActiveTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockAgentHook, "get_waiter")
-    @mock.patch.object(BedrockAgentHook, "async_conn")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -152,7 +155,7 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockAgentHook, "get_waiter")
-    @mock.patch.object(BedrockAgentHook, "async_conn")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -167,4 +170,64 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
 
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         assert response == TriggerEvent({"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID})
+        mock_get_waiter().wait.assert_called_once()
+
+
+class TestBedrockBatchInferenceCompletedTrigger(TestBaseBedrockTrigger):
+    EXPECTED_WAITER_NAME = "batch_inference_complete"
+
+    JOB_ARN = "job_arn"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockBatchInferenceCompletedTrigger(job_arn=self.JOB_ARN)
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockBatchInferenceCompletedTrigger"
+        assert kwargs.get("job_arn") == self.JOB_ARN
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockHook, "get_waiter")
+    @mock.patch.object(BedrockHook, "get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockBatchInferenceCompletedTrigger(job_arn=self.JOB_ARN)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
+        assert response == TriggerEvent({"status": "success", "job_arn": self.JOB_ARN})
+        mock_get_waiter().wait.assert_called_once()
+
+
+class TestBedrockBatchInferenceScheduledTrigger(TestBaseBedrockTrigger):
+    EXPECTED_WAITER_NAME = "batch_inference_scheduled"
+
+    JOB_ARN = "job_arn"
+
+    def test_serialization(self):
+        """Assert that arguments and classpath are correctly serialized."""
+        trigger = BedrockBatchInferenceScheduledTrigger(job_arn=self.JOB_ARN)
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "BedrockBatchInferenceScheduledTrigger"
+        assert kwargs.get("job_arn") == self.JOB_ARN
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockHook, "get_waiter")
+    @mock.patch.object(BedrockHook, "get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        trigger = BedrockBatchInferenceScheduledTrigger(job_arn=self.JOB_ARN)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
+        assert response == TriggerEvent({"status": "success", "job_arn": self.JOB_ARN})
         mock_get_waiter().wait.assert_called_once()

@@ -38,7 +38,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
-from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
@@ -47,10 +46,8 @@ log = logging.getLogger(__name__)
 
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-        else:
-            from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+        from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
         from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -110,6 +107,8 @@ def flower(args):
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
     """Start serve_logs sub-process."""
+    from airflow.utils.serve_logs import serve_logs
+
     sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)

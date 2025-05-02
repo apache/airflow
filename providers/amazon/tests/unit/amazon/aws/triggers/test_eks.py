@@ -39,11 +39,11 @@ FARGATE_PROFILES = ["p1", "p2"]
 
 class TestEksTrigger:
     def setup_method(self):
-        self.async_conn_patcher = patch("airflow.providers.amazon.aws.hooks.eks.EksHook.async_conn")
+        self.async_conn_patcher = patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_async_conn")
         self.mock_async_conn = self.async_conn_patcher.start()
 
         self.mock_client = AsyncMock()
-        self.mock_async_conn.__aenter__.return_value = self.mock_client
+        self.mock_async_conn.return_value.__aenter__.return_value = self.mock_client
 
         self.async_wait_patcher = patch(
             "airflow.providers.amazon.aws.triggers.eks.async_wait", return_value=True

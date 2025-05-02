@@ -25,15 +25,15 @@ from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_M
 from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
     create_user,
     delete_role,
     delete_user,
 )
-
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
@@ -47,7 +47,15 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
-    app = minimal_app_for_auth_api
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        app = minimal_app_for_auth_api
     create_user(
         app,
         username="test",
@@ -326,7 +334,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         assert response.status_code == 200
         # Explicit add the 2 users on setUp
         assert response.json["total_entries"] == 200 + len(["test", "test_no_permissions"])
-        assert len(response.json["users"]) == 100
+        assert len(response.json["users"]) == 50
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):

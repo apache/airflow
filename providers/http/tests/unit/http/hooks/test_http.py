@@ -373,6 +373,16 @@ class TestHttpHook:
         assert hook.base_url == "https://localhost"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_https_connection_port(self, mock_get_connection):
+        conn = Connection(
+            conn_id="http_default", conn_type="http", host="https://localhost", schema="https", port=8080
+        )
+        mock_get_connection.return_value = conn
+        hook = HttpHook()
+        hook.get_conn({})
+        assert hook.base_url == "https://localhost:8080"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_host_encoded_http_connection(self, mock_get_connection):
         conn = Connection(conn_id="http_default", conn_type="http", host="http://localhost")
         mock_get_connection.return_value = conn
@@ -592,12 +602,12 @@ class TestHttpHook:
             custom_adapter = HTTPAdapter()
             hook = HttpHook(method="GET", adapter=custom_adapter)
             session = hook.get_conn()
-            assert isinstance(
-                session.adapters["http://"], type(custom_adapter)
-            ), "Custom HTTP adapter not correctly mounted"
-            assert isinstance(
-                session.adapters["https://"], type(custom_adapter)
-            ), "Custom HTTPS adapter not correctly mounted"
+            assert isinstance(session.adapters["http://"], type(custom_adapter)), (
+                "Custom HTTP adapter not correctly mounted"
+            )
+            assert isinstance(session.adapters["https://"], type(custom_adapter)), (
+                "Custom HTTPS adapter not correctly mounted"
+            )
 
     def test_process_extra_options_from_connection(self):
         extra_options = {}

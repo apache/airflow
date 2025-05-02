@@ -70,7 +70,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -78,17 +78,20 @@ if TYPE_CHECKING:
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
-AIRFLOW_MAIN_FOLDER = Path(__file__).parents[6]
+AIRFLOW_ROOT_PATH = Path(__file__).parents[6]
 
 TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEMPLATE_SEARCHPATH = (AIRFLOW_MAIN_FOLDER / "tests" / "config_templates").as_posix()
+TEMPLATE_SEARCHPATH = (AIRFLOW_ROOT_PATH / "airflow-core" / "tests" / "unit" / "config_templates").as_posix()
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import DownstreamTasksSkipped
 
 
 class BasePythonTest:
@@ -402,10 +405,15 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as dts:
+                branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            assert dts.value.tasks == [("branch_2", -1)]
+        else:
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(
+                dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
+            )
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         clear_db_runs()
@@ -436,36 +444,22 @@ class TestBranchOperator(BasePythonTest):
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
-        )
-
-    def test_xcom_push(self):
-        clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
-
-            def f():
-                return "branch_1"
-
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
-            branch_op >> [self.branch_1, self.branch_2]
-
-        dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        for ti in dr.get_task_instances():
-            if ti.task_id == self.task_id:
-                assert ti.xcom_pull(task_ids=self.task_id) == "branch_1"
-                break
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as dts:
+                branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            assert dts.value.tasks == [("branch_1", -1)]
         else:
-            pytest.fail(f"{self.task_id!r} not found.")
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(
+                dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
+            )
 
-    def test_clear_skipped_downstream_task(self):
+    def test_clear_skipped_downstream_task(self, dag_maker):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        with self.dag_non_serialized:
+        with dag_maker(serialized=False):
 
             def f():
                 return "branch_1"
@@ -474,31 +468,48 @@ class TestBranchOperator(BasePythonTest):
             branches = [self.branch_1, self.branch_2]
             branch_op >> branches
 
-        dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        for task in branches:
-            task.run(start_date=self.default_date, end_date=self.default_date)
+        dr = dag_maker.create_dagrun()
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        expected_states = {
-            self.task_id: State.SUCCESS,
-            "branch_1": State.SUCCESS,
-            "branch_2": State.SKIPPED,
-        }
+            with create_session() as session:
+                branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    branch_ti.run()
+                assert exc_info.value.tasks == [("branch_2", -1)]
+                branch_ti.set_state(TaskInstanceState.SUCCESS, session=session)
+                dr.task_instance_scheduling_decisions(session=session)
+                branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
+                branch_2_ti.task = self.branch_2
+                assert branch_2_ti.state == TaskInstanceState.SKIPPED
+                branch_2_ti.set_state(None)
+                branch_2_ti.run()
+                assert branch_2_ti.state == TaskInstanceState.SKIPPED
+        else:
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            for task in branches:
+                task.run(start_date=self.default_date, end_date=self.default_date)
 
-        self.assert_expected_task_states(dr, expected_states)
+            expected_states = {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.SUCCESS,
+                "branch_2": State.SKIPPED,
+            }
 
-        # Clear the children tasks.
-        tis = dr.get_task_instances()
-        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
-        with create_session() as session:
-            clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+            self.assert_expected_task_states(dr, expected_states)
 
-        # Run the cleared tasks again.
-        for task in branches:
-            task.run(start_date=self.default_date, end_date=self.default_date)
+            # Clear the children tasks.
+            tis = dr.get_task_instances()
+            children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+            with create_session() as session:
+                clear_task_instances(children_tis, session=session, dag=branch_op.dag)
 
-        # Check if the states are correct after children tasks are cleared.
-        self.assert_expected_task_states(dr, expected_states)
+            # Run the cleared tasks again.
+            for task in branches:
+                task.run(start_date=self.default_date, end_date=self.default_date)
+
+            # Check if the states are correct after children tasks are cleared.
+            self.assert_expected_task_states(dr, expected_states)
 
     def test_raise_exception_on_no_accepted_type_return(self):
         def f():
@@ -551,7 +562,15 @@ class TestBranchOperator(BasePythonTest):
         for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
             task_instance = tis[task_id]
             task_instance.refresh_from_task(self.dag_non_serialized.get_task(task_id))
-            task_instance.run()
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.exceptions import DownstreamTasksSkipped
+
+                try:
+                    task_instance.run()
+                except DownstreamTasksSkipped:
+                    task_instance.set_state(State.SUCCESS)
+            else:
+                task_instance.run()
 
         def get_state(ti):
             ti.refresh_from_db()
@@ -574,30 +593,39 @@ class TestShortCircuitOperator(BasePythonTest):
         "op1": State.SKIPPED,
         "op2": State.SKIPPED,
     }
+    all_downstream_skipped_tasks = {"op1", "op2"}
     all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
+    all_success_skipped_tasks: set[str] = set()
 
     @pytest.mark.parametrize(
         argnames=(
-            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states"
+            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_skipped_tasks, expected_task_states"
         ),
         argvalues=[
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
-            (False, True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
+            (
+                False,
+                True,
+                TriggerRule.ALL_SUCCESS,
+                all_downstream_skipped_tasks,
+                all_downstream_skipped_states,
+            ),
             # Skip downstream tasks via a falsy value, do not respect trigger rules, default trigger rule on
             # all downstream tasks
-            ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
+            ([], True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_tasks, all_downstream_skipped_states),
             # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
             # task
-            (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
+            (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_tasks, all_downstream_skipped_states),
             # Skip downstream tasks via a falsy value, do not respect trigger rules, non-default trigger rule
             # on a downstream task
-            ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
+            ([], True, TriggerRule.ALL_DONE, all_downstream_skipped_tasks, all_downstream_skipped_states),
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
             (
                 False,
                 False,
                 TriggerRule.ALL_SUCCESS,
+                {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
             # Skip downstream tasks via a falsy value, respect trigger rules, default trigger rule on all
@@ -606,6 +634,7 @@ class TestShortCircuitOperator(BasePythonTest):
                 [],
                 False,
                 TriggerRule.ALL_SUCCESS,
+                {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
             # Skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream task
@@ -613,6 +642,7 @@ class TestShortCircuitOperator(BasePythonTest):
                 False,
                 False,
                 TriggerRule.ALL_DONE,
+                {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
             # Skip downstream tasks via a falsy value, respect trigger rules, non-default trigger rule on a
@@ -621,32 +651,33 @@ class TestShortCircuitOperator(BasePythonTest):
                 [],
                 False,
                 TriggerRule.ALL_DONE,
+                {"op1"},
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
             # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
             # downstream tasks
-            (True, True, TriggerRule.ALL_SUCCESS, all_success_states),
+            (True, True, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks via a truthy value, do not respect trigger rules, default trigger
             # rule on all downstream tasks
-            (["a", "b", "c"], True, TriggerRule.ALL_SUCCESS, all_success_states),
+            (["a", "b", "c"], True, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks, do not respect trigger rules, non-default trigger rule on a
             # downstream task
-            (True, True, TriggerRule.ALL_DONE, all_success_states),
+            (True, True, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks via a truthy value, do not respect trigger rules, non-default
             # trigger rule on a downstream task
-            (["a", "b", "c"], True, TriggerRule.ALL_DONE, all_success_states),
+            (["a", "b", "c"], True, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, default trigger rule on all downstream
             # tasks
-            (True, False, TriggerRule.ALL_SUCCESS, all_success_states),
+            (True, False, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks via a truthy value, respect trigger rules, default trigger rule on
             # all downstream tasks
-            (["a", "b", "c"], False, TriggerRule.ALL_SUCCESS, all_success_states),
+            (["a", "b", "c"], False, TriggerRule.ALL_SUCCESS, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream
             # task
-            (True, False, TriggerRule.ALL_DONE, all_success_states),
+            (True, False, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
             # Do not skip downstream tasks via a truthy value, respect trigger rules, non-default trigger rule
             # on a downstream  task
-            (["a", "b", "c"], False, TriggerRule.ALL_DONE, all_success_states),
+            (["a", "b", "c"], False, TriggerRule.ALL_DONE, all_success_skipped_tasks, all_success_states),
         ],
         ids=[
             "skip_ignore_with_default_trigger_rule_on_all_tasks",
@@ -668,7 +699,12 @@ class TestShortCircuitOperator(BasePythonTest):
         ],
     )
     def test_short_circuiting(
-        self, callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states
+        self,
+        callable_return,
+        test_ignore_downstream_trigger_rules,
+        test_trigger_rule,
+        expected_skipped_tasks,
+        expected_task_states,
     ):
         """
         Checking the behavior of the ShortCircuitOperator in several scenarios enabling/disabling the skipping
@@ -684,15 +720,26 @@ class TestShortCircuitOperator(BasePythonTest):
             self.op2.trigger_rule = test_trigger_rule
 
         dr = self.create_dag_run()
-        short_circuit.run(start_date=self.default_date, end_date=self.default_date)
-        self.op1.run(start_date=self.default_date, end_date=self.default_date)
-        self.op2.run(start_date=self.default_date, end_date=self.default_date)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        assert short_circuit.ignore_downstream_trigger_rules == test_ignore_downstream_trigger_rules
-        assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
-        assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
-        assert self.op2.trigger_rule == test_trigger_rule
-        self.assert_expected_task_states(dr, expected_task_states)
+            if expected_skipped_tasks:
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    short_circuit.run(start_date=self.default_date, end_date=self.default_date)
+                assert set(exc_info.value.tasks) == set(expected_skipped_tasks)
+            else:
+                assert short_circuit.run(start_date=self.default_date, end_date=self.default_date) is None
+
+        else:
+            short_circuit.run(start_date=self.default_date, end_date=self.default_date)
+            self.op1.run(start_date=self.default_date, end_date=self.default_date)
+            self.op2.run(start_date=self.default_date, end_date=self.default_date)
+
+            assert short_circuit.ignore_downstream_trigger_rules == test_ignore_downstream_trigger_rules
+            assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
+            assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
+            assert self.op2.trigger_rule == test_trigger_rule
+            self.assert_expected_task_states(dr, expected_task_states)
 
     def test_clear_skipped_downstream_task(self):
         """
@@ -700,33 +747,50 @@ class TestShortCircuitOperator(BasePythonTest):
         should not cause it to be executed.
         """
         with self.dag_non_serialized:
-            short_circuit = ShortCircuitOperator(task_id="short_circuit", python_callable=lambda: False)
+            short_circuit = ShortCircuitOperator(task_id=self.task_id, python_callable=lambda: False)
             short_circuit >> self.op1 >> self.op2
         dr = self.create_dag_run()
 
-        short_circuit.run(start_date=self.default_date, end_date=self.default_date)
-        self.op1.run(start_date=self.default_date, end_date=self.default_date)
-        self.op2.run(start_date=self.default_date, end_date=self.default_date)
-        assert short_circuit.ignore_downstream_trigger_rules
-        assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
-        assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
-        assert self.op2.trigger_rule == TriggerRule.ALL_SUCCESS
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        expected_states = {
-            "short_circuit": State.SUCCESS,
-            "op1": State.SKIPPED,
-            "op2": State.SKIPPED,
-        }
-        self.assert_expected_task_states(dr, expected_states)
+            with create_session() as session:
+                sc_ti = dr.get_task_instance(task_id=self.task_id, session=session)
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    sc_ti.run()
+                assert set(exc_info.value.tasks) == {"op1", "op2"}
+                sc_ti.set_state(TaskInstanceState.SUCCESS, session=session)
+                dr.task_instance_scheduling_decisions(session=session)
+                op1_ti = dr.get_task_instance(task_id="op1", session=session)
+                op1_ti.task = self.op1
+                assert op1_ti.state == TaskInstanceState.SKIPPED
+                op1_ti.set_state(None)
+                op1_ti.run()
+                assert op1_ti.state == TaskInstanceState.SKIPPED
+        else:
+            short_circuit.run(start_date=self.default_date, end_date=self.default_date)
+            self.op1.run(start_date=self.default_date, end_date=self.default_date)
+            self.op2.run(start_date=self.default_date, end_date=self.default_date)
+            assert short_circuit.ignore_downstream_trigger_rules
+            assert short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
+            assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
+            assert self.op2.trigger_rule == TriggerRule.ALL_SUCCESS
 
-        # Clear downstream task "op1" that was previously executed.
-        tis = dr.get_task_instances()
-        with create_session() as session:
-            clear_task_instances(
-                [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
-            )
-        self.op1.run(start_date=self.default_date, end_date=self.default_date)
-        self.assert_expected_task_states(dr, expected_states)
+            expected_states = {
+                "short_circuit": State.SUCCESS,
+                "op1": State.SKIPPED,
+                "op2": State.SKIPPED,
+            }
+            self.assert_expected_task_states(dr, expected_states)
+
+            # Clear downstream task "op1" that was previously executed.
+            tis = dr.get_task_instances()
+            with create_session() as session:
+                clear_task_instances(
+                    [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
+                )
+            self.op1.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(dr, expected_states)
 
     def test_xcom_push(self):
         clear_db_runs()
@@ -754,7 +818,13 @@ class TestShortCircuitOperator(BasePythonTest):
             empty_task = EmptyOperator(task_id="empty_task")
             short_op_push_xcom >> empty_task
         dr = self.create_dag_run()
-        short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
+            with pytest.raises(DownstreamTasksSkipped):
+                short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+        else:
+            short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
             "skipped": ["empty_task"]
@@ -796,8 +866,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -867,11 +936,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "conn",  # Accessor for Connection.
             "map_index_template",
         }
-        if AIRFLOW_V_2_10_PLUS:
-            intentionally_excluded_context_keys |= {
-                "inlet_events",
-                "outlet_events",
-            }
+        intentionally_excluded_context_keys |= {
+            "inlet_events",
+            "outlet_events",
+        }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -1086,7 +1154,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return True
             raise RuntimeError
 
-        self.run_as_task(f, system_site_packages=False, requirements=extra_requirements)
+        self.run_as_task(
+            f, system_site_packages=False, requirements=extra_requirements, serializer=serializer
+        )
 
     def test_system_site_packages(self):
         def f():
@@ -1132,7 +1202,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     @pytest.mark.parametrize(
         "serializer, extra_requirements",
@@ -1147,7 +1222,12 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", *extra_requirements], system_site_packages=False)
+        self.run_as_task(
+            f,
+            requirements=["funcsigs>1.0", *extra_requirements],
+            system_site_packages=False,
+            serializer=serializer,
+        )
 
     def test_requirements_file(self):
         def f():
@@ -1458,8 +1538,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
-            else:
-                raise RuntimeError
+            raise RuntimeError
 
         with pytest.raises(
             AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
@@ -1560,10 +1639,16 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as dts:
+                branch_op.run(start_date=self.default_date, end_date=self.default_date)
+
+            assert dts.value.tasks == [("branch_2", -1)]
+        else:
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(
+                dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
+            )
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         clear_db_runs()
@@ -1594,37 +1679,24 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> self.branch_2
 
         dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        self.assert_expected_task_states(
-            dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
-        )
 
-    def test_xcom_push(self):
-        clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as dts:
+                branch_op.run(start_date=self.default_date, end_date=self.default_date)
 
-            def f():
-                return "branch_1"
-
-            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
-            branch_op >> [self.branch_1, self.branch_2]
-
-        dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        for ti in dr.get_task_instances():
-            if ti.task_id == self.task_id:
-                assert ti.xcom_pull(task_ids=self.task_id) == "branch_1"
-                break
+            assert dts.value.tasks == [("branch_1", -1)]
         else:
-            pytest.fail(f"{self.task_id!r} not found.")
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(
+                dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
+            )
 
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        clear_db_runs()
-        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=True):
+        with self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH, serialized=False):
 
             def f():
                 return "branch_1"
@@ -1634,30 +1706,50 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             branch_op >> branches
 
         dr = self.create_dag_run()
-        branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        for task in branches:
-            task.run(start_date=self.default_date, end_date=self.default_date)
 
-        expected_states = {
-            self.task_id: State.SUCCESS,
-            "branch_1": State.SUCCESS,
-            "branch_2": State.SKIPPED,
-        }
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
 
-        self.assert_expected_task_states(dr, expected_states)
+            with create_session() as session:
+                branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    branch_ti.run()
+                assert exc_info.value.tasks == [("branch_2", -1)]
+                branch_ti.set_state(TaskInstanceState.SUCCESS, session=session)
+                dr.task_instance_scheduling_decisions(session=session)
+                branch_2_ti = dr.get_task_instance(task_id="branch_2", session=session)
+                # FIXME
+                if self.opcls != BranchExternalPythonOperator:
+                    branch_2_ti.task = self.branch_2
+                    assert branch_2_ti.state == TaskInstanceState.SKIPPED
+                    branch_2_ti.set_state(None, session=session)
+                    branch_2_ti.run()
+                    assert branch_2_ti.state == TaskInstanceState.SKIPPED
+        else:
+            branch_op.run(start_date=self.default_date, end_date=self.default_date)
+            for task in branches:
+                task.run(start_date=self.default_date, end_date=self.default_date)
 
-        # Clear the children tasks.
-        tis = dr.get_task_instances()
-        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
-        with create_session() as session:
-            clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+            expected_states = {
+                self.task_id: State.SUCCESS,
+                "branch_1": State.SUCCESS,
+                "branch_2": State.SKIPPED,
+            }
 
-        # Run the cleared tasks again.
-        for task in branches:
-            task.run(start_date=self.default_date, end_date=self.default_date)
+            self.assert_expected_task_states(dr, expected_states)
 
-        # Check if the states are correct after children tasks are cleared.
-        self.assert_expected_task_states(dr, expected_states)
+            # Clear the children tasks.
+            tis = dr.get_task_instances()
+            children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+            with create_session() as session:
+                clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+
+            # Run the cleared tasks again.
+            for task in branches:
+                task.run(start_date=self.default_date, end_date=self.default_date)
+
+            # Check if the states are correct after children tasks are cleared.
+            self.assert_expected_task_states(dr, expected_states)
 
     def test_raise_exception_on_no_accepted_type_return(self):
         def f():

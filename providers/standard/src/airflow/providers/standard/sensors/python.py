@@ -81,5 +81,4 @@ class PythonSensor(BaseSensorOperator):
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
         if isinstance(return_value, PokeReturnValue):
             return return_value
-        else:
-            return PokeReturnValue(bool(return_value))
+        return PokeReturnValue(bool(return_value))

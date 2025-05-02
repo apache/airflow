@@ -20,6 +20,7 @@ import pytest
 
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
+
 from system.openlineage.transport.variable import VariableTransport
 
 
@@ -29,7 +30,7 @@ def set_transport_variable():
     lm.clear()
     listener = OpenLineageListener()
     listener.adapter._client = listener.adapter.get_or_create_openlineage_client()
-    listener.adapter._client.transport = VariableTransport()
+    listener.adapter._client.transport = VariableTransport({})
     lm.add_listener(listener)
     yield
     lm.clear()

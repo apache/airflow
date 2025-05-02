@@ -34,8 +34,8 @@ metadata:
   labels:
     tier: airflow
     component: airflow-cleanup-pods
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}

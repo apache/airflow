@@ -32,7 +32,7 @@ from airflow.utils.helpers import prune_dict
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 REGION_NAME = "us-east-1"
 AVP_POLICY_STORE_ID = "store_id"

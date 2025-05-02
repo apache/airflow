@@ -23,7 +23,6 @@ import pendulum
 import airflow
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
-from airflow.settings import STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 
@@ -37,14 +36,6 @@ def init_jinja_globals(app, enable_plugins: bool):
         server_timezone = pendulum.local_timezone().name  # type: ignore[operator]
     elif server_timezone == "utc":
         server_timezone = "UTC"
-
-    default_ui_timezone = conf.get("webserver", "default_ui_timezone")
-    if default_ui_timezone == "system":
-        default_ui_timezone = pendulum.local_timezone().name  # type: ignore[operator]
-    elif default_ui_timezone == "utc":
-        default_ui_timezone = "UTC"
-    if not default_ui_timezone:
-        default_ui_timezone = server_timezone
 
     expose_hostname = conf.getboolean("webserver", "EXPOSE_HOSTNAME")
     hostname = get_hostname() if expose_hostname else "redact"
@@ -60,14 +51,11 @@ def init_jinja_globals(app, enable_plugins: bool):
     def prepare_jinja_globals():
         extra_globals = {
             "server_timezone": server_timezone,
-            "default_ui_timezone": default_ui_timezone,
             "hostname": hostname,
             "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
             "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
             "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
             "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
-            "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
-            "state_color_mapping": STATE_COLORS,
             "airflow_version": airflow_version,
             "git_version": git_version,
             "show_plugin_message": enable_plugins,

@@ -84,7 +84,7 @@ For core:
 
 .. code-block:: bash
 
-  pytest --system tests/system/example_empty.py
+  pytest --system airflow-core/tests/system/example_empty.py
 
 For providers:
 
@@ -102,11 +102,11 @@ For core:
 
 .. code-block:: bash
 
-  breeze testing system-tests tests/system/example_empty.py
+  breeze testing system-tests airflow-core/tests/system/example_empty.py
 
 
 If you need to add some initialization of environment variables when entering Breeze, you can add a
-``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file.
+``environment_variables.env`` file in the ``files/airflow-breeze-config/environment_variables.env`` file.
 
 It will be automatically sourced when entering the Breeze environment. You can also add some additional
 initialization commands in the  ``files/airflow-breeze-config/init.sh`` file if you want to execute

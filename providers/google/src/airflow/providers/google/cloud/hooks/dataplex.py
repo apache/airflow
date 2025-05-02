@@ -53,6 +53,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -78,7 +79,7 @@ class AirflowDataQualityScanResultTimeoutException(AirflowException):
     """Raised when no result found after specified amount of seconds."""
 
 
-class DataplexHook(GoogleBaseHook):
+class DataplexHook(GoogleBaseHook, OperationHelper):
     """
     Hook for Google Dataplex.
 
@@ -136,7 +137,7 @@ class DataplexHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
-    def wait_for_operation(self, timeout: float | None, operation: Operation):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)

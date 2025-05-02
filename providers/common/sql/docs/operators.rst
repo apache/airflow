@@ -38,7 +38,7 @@ different databases. Parameters of the operators are:
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_execute_query.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_execute_query]
@@ -101,7 +101,7 @@ empty tables to return valid integers.
 
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_column_check]
@@ -141,7 +141,7 @@ checks.
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]
@@ -166,10 +166,24 @@ The parameters are:
 
 The below example demonstrates how to instantiate the SQLThresholdCheckOperator task.
 
-.. exampleinclude:: /../../providers/common/sql/tests/system/common/sql/example_sql_threshold_check.py
+.. exampleinclude:: /../tests/system/common/sql/example_sql_threshold_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_threshold_check]
     :end-before: [END howto_operator_sql_threshold_check]
 
 If the value returned by the query, is within the thresholds, the task passes. Otherwise, it fails.
+
+.. _howto/operator:GenericTransfer:
+
+Generic Transfer
+~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` to transfer data between
+between two connections.
+
+.. exampleinclude:: /../tests/system/common/sql/example_generic_transfer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_generic_transfer]
+    :end-before: [END howto_operator_generic_transfer]

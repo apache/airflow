@@ -36,7 +36,7 @@ data from Microsoft SQL Server database to GCS.
 
 Below is an example of using this operator to upload data to GCS.
 
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_mssql_to_gcs.py
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_mssql_to_gcs.py
     :language: python
     :start-after: [START howto_operator_mssql_to_gcs]
     :end-before: [END howto_operator_mssql_to_gcs]

@@ -176,8 +176,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
     def poke(self, context: Context):
         if isinstance(self.bucket_key, str):
             return self._check_key(self.bucket_key, context=context)
-        else:
-            return all(self._check_key(key, context=context) for key in self.bucket_key)
+        return all(self._check_key(key, context=context) for key in self.bucket_key)
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -192,7 +191,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         self.defer(
             timeout=timedelta(seconds=self.timeout),
             trigger=S3KeyTrigger(
-                bucket_name=cast(str, self.bucket_name),
+                bucket_name=cast("str", self.bucket_name),
                 bucket_key=self.bucket_key,
                 wildcard_match=self.wildcard_match,
                 aws_conn_id=self.aws_conn_id,

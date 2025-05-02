@@ -305,9 +305,9 @@ class TestWasbPrefixAsyncSensor:
         mock_hook.return_value.check_for_prefix.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
-        assert isinstance(
-            exc.value.trigger, WasbPrefixSensorTrigger
-        ), "Trigger is not a WasbPrefixSensorTrigger"
+        assert isinstance(exc.value.trigger, WasbPrefixSensorTrigger), (
+            "Trigger is not a WasbPrefixSensorTrigger"
+        )
 
     @pytest.mark.parametrize(
         "event",

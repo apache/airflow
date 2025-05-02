@@ -22,6 +22,7 @@ from typing import TypedDict
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AUDIT_LOG = "Audit Logs"
+RESOURCE_BACKFILL = "Backfills"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_CONFIG = "Configurations"
 RESOURCE_CONNECTION = "Connections"
@@ -31,9 +32,11 @@ RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_PREFIX = "DAG:"
 RESOURCE_DAG_RUN = "DAG Runs"
 RESOURCE_DAG_RUN_PREFIX = "DAG Run:"
+RESOURCE_DAG_VERSION = "DAG Versions"
 RESOURCE_DAG_WARNING = "DAG Warnings"
 RESOURCE_CLUSTER_ACTIVITY = "Cluster Activity"
 RESOURCE_ASSET = "Assets"
+RESOURCE_ASSET_ALIAS = "Asset Aliases"
 RESOURCE_DOCS = "Documentation"
 RESOURCE_DOCS_MENU = "Docs"
 RESOURCE_IMPORT_ERROR = "ImportError"
@@ -92,32 +95,9 @@ PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RES
 
 
 def resource_name(root_dag_id: str, resource: str) -> str:
-    """
-    Return the resource name for a DAG id.
-
-    Note that since a sub-DAG should follow the permission of its
-    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
-    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
-    """
+    """Return the resource name for a DAG id."""
     if root_dag_id in RESOURCE_DETAILS_MAP.keys():
         return root_dag_id
     if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return root_dag_id
     return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
-
-
-def resource_name_for_dag(root_dag_id: str) -> str:
-    """
-    Return the resource name for a DAG id.
-
-    Note that since a sub-DAG should follow the permission of its
-    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
-    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
-
-    Note: This function is kept for backwards compatibility.
-    """
-    if root_dag_id == RESOURCE_DAG:
-        return root_dag_id
-    if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
-        return root_dag_id
-    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"

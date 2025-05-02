@@ -27,10 +27,11 @@ from flask import Response, request
 from flask_login import login_user
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase
+
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def _lookup_user(user_email_or_username: str):
-    security_manager = cast(FabAuthManager, get_auth_manager()).security_manager
+    security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
     user = security_manager.find_user(email=user_email_or_username) or security_manager.find_user(
         username=user_email_or_username
     )
@@ -79,4 +80,4 @@ def requires_authentication(function: T):
         login_user(user, remember=False)
         return function(*args, **kwargs)
 
-    return cast(T, decorated)
+    return cast("T", decorated)

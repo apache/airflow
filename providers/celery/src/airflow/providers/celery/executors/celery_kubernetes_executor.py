@@ -67,7 +67,6 @@ class CeleryKubernetesExecutor(BaseExecutor):
     is_production: bool = True
 
     serve_logs: bool = False
-    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 

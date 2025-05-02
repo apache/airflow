@@ -337,6 +337,43 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls, any_order=False)
 
+    @mock.patch(f"{MODULE}.MessageHook.get_conn", autospec=True)
+    @mock.patch("azure.servicebus.ServiceBusSender", autospec=True)
+    def test_send_message_with_id_reply_to_and_headers(self, mock_q_sender, mock_sb_client):
+        """
+        Test `send_message` hook function with batch flag and message passed as mocked params,
+        which can be string or list of string, mock the azure service bus `send_messages` function
+        """
+        sent_messages = []
+
+        def mock_send_messages(messages):
+            nonlocal sent_messages
+            sent_messages.extend(messages)
+
+        mock_sb_client.return_value.__enter__.return_value.get_queue_sender.return_value.__enter__.return_value = mock_q_sender
+        mock_q_sender.send_messages.side_effect = mock_send_messages
+
+        MSG_ID = "test_msg_id"
+        REPLY_TO = "test_reply_to"
+        HEADERS = {"test-key": "test-value"}
+        hook = MessageHook(azure_service_bus_conn_id="azure_service_bus_default")
+        hook.send_message(
+            queue_name="test_queue",
+            messages=MESSAGE,
+            batch_message_flag=False,
+            message_id=MSG_ID,
+            reply_to=REPLY_TO,
+            message_headers=HEADERS,
+        )
+
+        mock_q_sender.send_messages.assert_called_once()
+
+        assert len(sent_messages) == 1
+        assert str(sent_messages[0]) == MESSAGE
+        assert sent_messages[0].message_id == MSG_ID
+        assert sent_messages[0].reply_to == REPLY_TO
+        assert sent_messages[0].application_properties == HEADERS
+
     @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_send_message_exception(self, mock_sb_client):
         """

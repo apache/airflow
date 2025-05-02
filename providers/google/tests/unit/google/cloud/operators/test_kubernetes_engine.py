@@ -78,8 +78,10 @@ TEST_POLL_INTERVAL = 20.0
 GKE_CLUSTER_NAME = "test-cluster-name"
 GKE_CLUSTER_ENDPOINT = "test-host"
 GKE_CLUSTER_PRIVATE_ENDPOINT = "test-private-host"
+GKE_CLUSTER_DNS_ENDPOINT = f"gke-dns-endpoint.{TEST_LOCATION}.gke.goog"
 GKE_CLUSTER_URL = f"https://{GKE_CLUSTER_ENDPOINT}"
 GKE_CLUSTER_PRIVATE_URL = f"https://{GKE_CLUSTER_PRIVATE_ENDPOINT}"
+GKE_CLUSTER_DNS_URL = f"https://{GKE_CLUSTER_DNS_ENDPOINT}"
 GKE_SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 
 GKE_CLUSTER_CREATE_BODY_DICT = {
@@ -102,16 +104,57 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        "use_internal_ip, endpoint, private_endpoint, expected_cluster_url",
+        "use_dns_endpoint, use_internal_ip, endpoint, private_endpoint, dns_endpoint, expected_cluster_url",
         [
-            (False, GKE_CLUSTER_ENDPOINT, GKE_CLUSTER_PRIVATE_ENDPOINT, GKE_CLUSTER_URL),
-            (True, GKE_CLUSTER_ENDPOINT, GKE_CLUSTER_PRIVATE_ENDPOINT, GKE_CLUSTER_PRIVATE_URL),
+            (
+                False,
+                False,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_URL,
+            ),
+            (
+                False,
+                True,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_URL,
+            ),
+            (
+                True,
+                False,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_DNS_URL,
+            ),
+            (
+                True,
+                True,
+                GKE_CLUSTER_ENDPOINT,
+                GKE_CLUSTER_PRIVATE_ENDPOINT,
+                GKE_CLUSTER_DNS_ENDPOINT,
+                GKE_CLUSTER_DNS_URL,
+            ),
         ],
     )
-    def test_fetch_cluster_info(self, use_internal_ip, endpoint, private_endpoint, expected_cluster_url):
+    def test_fetch_cluster_info(
+        self,
+        use_dns_endpoint,
+        use_internal_ip,
+        endpoint,
+        private_endpoint,
+        dns_endpoint,
+        expected_cluster_url,
+    ):
         mock_cluster = mock.MagicMock(
             endpoint=endpoint,
             private_cluster_config=mock.MagicMock(private_endpoint=private_endpoint),
+            control_plane_endpoints_config=mock.MagicMock(
+                dns_endpoint_config=mock.MagicMock(endpoint=dns_endpoint)
+            ),
             master_auth=mock.MagicMock(cluster_ca_certificate=GKE_SSL_CA_CERT),
         )
         mock_cluster_hook = mock.MagicMock(get_cluster=mock.MagicMock(return_value=mock_cluster))
@@ -120,6 +163,7 @@ class TestGKEClusterAuthDetails:
             cluster_name=GKE_CLUSTER_NAME,
             project_id=TEST_PROJECT_ID,
             use_internal_ip=use_internal_ip,
+            use_dns_endpoint=use_dns_endpoint,
             cluster_hook=mock_cluster_hook,
         )
 
@@ -140,12 +184,14 @@ class TestGKEOperatorMixin:
         self.operator.impersonation_chain = TEST_IMPERSONATION_CHAIN
         self.operator.project_id = TEST_PROJECT_ID
         self.operator.use_internal_ip = False
+        self.operator.use_dns_endpoint = False
 
     def test_template_fields(self):
         expected_template_fields = {
             "location",
             "cluster_name",
             "use_internal_ip",
+            "use_dns_endpoint",
             "project_id",
             "gcp_conn_id",
             "impersonation_chain",
@@ -180,6 +226,7 @@ class TestGKEOperatorMixin:
             cluster_url=GKE_CLUSTER_URL,
             ssl_ca_cert=GKE_SSL_CA_CERT,
             enable_tcp_keepalive=False,
+            use_dns_endpoint=False,
         )
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
@@ -195,6 +242,7 @@ class TestGKEOperatorMixin:
             cluster_name=self.operator.cluster_name,
             project_id=self.operator.project_id,
             use_internal_ip=self.operator.use_internal_ip,
+            use_dns_endpoint=self.operator.use_dns_endpoint,
             cluster_hook=self.operator.cluster_hook,
         )
         mock_fetch_cluster_info.assert_called_once_with()
@@ -626,7 +674,7 @@ class TestGKEStartPodOperator:
 
     def test_template_fields(self):
         expected_template_fields = (
-            {"on_finish_action", "deferrable"}
+            {"deferrable"}
             | (set(KubernetesPodOperator.template_fields) - {"is_delete_operator_pod", "regional"})
             | set(GKEOperatorMixin.template_fields)
         )
