@@ -22,7 +22,11 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } fr
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useGridServiceGridData,
+  useTaskInstanceServiceGetMappedTaskInstance,
+} from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -67,6 +71,25 @@ export const TaskInstance = () => {
     },
   );
 
+  // Filter grid data to get only a single dag run
+  const { data } = useGridServiceGridData(
+    {
+      dagId,
+      limit: 1,
+      offset: 0,
+      runAfterGte: taskInstance?.run_after,
+      runAfterLte: taskInstance?.run_after,
+    },
+    undefined,
+    {
+      enabled: taskInstance !== undefined,
+    },
+  );
+
+  const mappedTaskInstance = data?.dag_runs
+    .find((dr) => dr.dag_run_id === runId)
+    ?.task_instances.find((ti) => ti.task_id === taskId);
+
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {
@@ -74,7 +97,7 @@ export const TaskInstance = () => {
       ...tabs.slice(0, 1),
       {
         icon: <MdOutlineTask />,
-        label: `Task Instances [${taskInstance.rendered_map_index}]`,
+        label: `Task Instances [${mappedTaskInstance?.task_count ?? ""}]`,
         value: "task_instances",
       },
       ...tabs.slice(1),
